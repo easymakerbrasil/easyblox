@@ -131,6 +131,9 @@ Ctrl + C
 - Base funcional protegida com tag: concluído
 - Documentação inicial: concluído
 - Compatibilidade da compilação com Windows: concluído
+- Identidade visual do EasyBlox: concluída
+- Logo EasyBlox integrada à barra do editor: concluído
+- Personalização das cores e dos textos: próxima etapa
 
 ## 9. Compatibilidade de compilação no Windows
 
@@ -192,6 +195,9 @@ Resultado: compilação do `scratch-gui` e compilação completa do repositório
 - Nome do editor: EasyBlox
 - Nome do aplicativo: EasyConect
 - Slogan institucional: Mais que Robótica. Transformação Educacional.
+- Fonte oficial do logotipo: BubbleGum
+- Personagem principal: Whiz
+- Slogan do EasyBlox: Aprender • Criar • Programar
 
 ## 13. Controle das alterações
 
