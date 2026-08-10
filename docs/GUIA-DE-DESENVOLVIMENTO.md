@@ -129,25 +129,35 @@ Ctrl + C
 - Dependências instaladas: concluído
 - Scratch Editor executado no navegador: concluído
 - Base funcional protegida com tag: concluído
-- Documentação inicial: em andamento
+- Documentação inicial: concluído
+- Compatibilidade da compilação com Windows: concluído
 
-## 9. Problema conhecido de compilação no Windows
+## 9. Compatibilidade de compilação no Windows
 
-O comando completo:
-
-```cmd
-npm run build
-```
-
-encontrou uma incompatibilidade no script do `scratch-gui`:
+O script original do `scratch-gui` utilizava:
 
 ```text
 BUILD_TYPE=dev webpack
 ```
 
-Essa forma de definir variável de ambiente funciona em Linux e macOS, mas não diretamente no Prompt de Comando do Windows.
+Essa sintaxe funciona em Linux e macOS, mas não diretamente no Prompt de Comando do Windows.
 
-O servidor de desenvolvimento funciona normalmente. A compatibilidade da compilação completa será corrigida posteriormente de forma controlada.
+O script foi corrigido para:
+
+```text
+cross-env BUILD_TYPE=dev webpack
+```
+
+A dependência `cross-env@7.0.3` já fazia parte do projeto, portanto nenhuma nova dependência precisou ser instalada.
+
+Testes realizados:
+
+```cmd
+npm run build:dev --workspace @scratch/scratch-gui
+npm run build
+```
+
+Resultado: compilação do `scratch-gui` e compilação completa do repositório concluídas com sucesso. Foram exibidos apenas avisos de tamanho de arquivos, sem erros.
 
 ## 10. Estrutura principal do projeto
 
