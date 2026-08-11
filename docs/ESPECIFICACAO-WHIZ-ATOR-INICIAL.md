@@ -35,7 +35,7 @@ Por isso, uma única pose frontal do Whiz não é suficiente.
 
 ## 4. Fantasias obrigatórias
 
-O Whiz deverá possuir três fantasias iniciais.
+O Whiz deverá possuir duas fantasias iniciais, formando uma animação simplificada de caminhada em dois quadros.
 
 ### 4.1. Whiz parado
 
@@ -46,27 +46,17 @@ O Whiz deverá possuir três fantasias iniciais.
 - braços em posição natural de repouso;
 - expressão amigável.
 
-### 4.2. Whiz — passo direito
+### 4.2. Whiz — passada
 
 - corpo voltado para a direita;
-- perna direita à frente;
-- perna esquerda atrás;
-- braço esquerdo à frente;
-- braço direito atrás;
-- cabeça e tronco na mesma orientação da pose parada.
-
-### 4.3. Whiz — passo esquerdo
-
-- corpo voltado para a direita;
-- perna esquerda à frente;
-- perna direita atrás;
-- braço direito à frente;
-- braço esquerdo atrás;
-- cabeça e tronco na mesma orientação das outras poses.
+- uma perna projetada à frente e a outra para trás;
+- braços acompanhando naturalmente o movimento da passada;
+- cabeça e tronco na mesma orientação da pose parada;
+- mesma identidade, escala e eixo corporal da pose parada.
 
 ## 5. Regras de consistência visual
 
-As três imagens deverão possuir:
+As duas imagens deverão possuir:
 
 - exatamente o mesmo personagem;
 - mesma orientação para a direita;
@@ -131,18 +121,17 @@ packages/scratch-gui/src/lib/default-project/index.ts
 packages/scratch-gui/src/lib/default-project/project-data.ts
 packages/scratch-gui/src/lib/default-project/messages.js
 packages/scratch-gui/src/lib/default-project/<md5-whiz-parado>.png
-packages/scratch-gui/src/lib/default-project/<md5-whiz-passo-direito>.png
-packages/scratch-gui/src/lib/default-project/<md5-whiz-passo-esquerdo>.png
+packages/scratch-gui/src/lib/default-project/<md5-whiz-passada>.png
 ```
 
 ## 10. Critérios obrigatórios de aprovação
 
 Antes de qualquer integração ao `easyblox-dev`, deverá ser confirmado que:
 
-- [ ] as três fantasias apontam para a direita;
+- [ ] as duas fantasias apontam para a direita;
 - [ ] a primeira fantasia mostra o Whiz parado;
-- [ ] a segunda tem perna direita e braço esquerdo à frente;
-- [ ] a terceira tem perna esquerda e braço direito à frente;
+- [ ] a segunda fantasia mostra o Whiz em uma passada natural;
+- [ ] cabeça, tronco, escala e eixo corporal permanecem consistentes entre as duas fantasias;
 - [ ] a alternância não faz o personagem virar;
 - [ ] a alternância não muda bruscamente o tamanho;
 - [ ] o centro do corpo não salta entre as fantasias;
@@ -158,7 +147,7 @@ Antes de qualquer integração ao `easyblox-dev`, deverá ser confirmado que:
 
 Nenhum recurso visual será integrado somente por parecer aceitável isoladamente.
 
-As três fantasias deverão ser avaliadas juntas, preferencialmente por meio de uma prévia animada.
+As duas fantasias deverão ser avaliadas juntas, preferencialmente por meio de uma prévia animada.
 
 Se o ciclo não estiver correto, os arquivos serão descartados sem alterar `easyblox-dev`.
 
@@ -185,12 +174,13 @@ easyblox-branding-v0.1.0
 
 Vou anexar novamente a referência visual oficial do Whiz.
 
-Precisamos criar um rig ou ciclo consistente com três fantasias:
-1. parado;
-2. perna direita e braço esquerdo à frente;
-3. perna esquerda e braço direito à frente.
+Precisamos criar um rig consistente com duas fantasias:
+1. Whiz parado, voltado para a direita;
+2. Whiz em uma passada, também voltado para a direita.
 
-As três imagens devem apontar para a direita, manter exatamente a mesma escala, eixo, centro de rotação e identidade visual.
+As duas imagens devem manter exatamente a mesma orientação, escala, eixo corporal, centro de rotação e identidade visual.
+
+A animação será intencionalmente simplificada para dois quadros nesta primeira implementação.
 
 Não altere nem faça merge em easyblox-dev sem testes e aprovação.
 ```
