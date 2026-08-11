@@ -1,6 +1,7 @@
 @import "../../css/units.css";
 @import "../../css/colors.css";
 @import "../../css/z-index.css";
+@import "../../css/easyblox-colors.css";
 
 body .drag-layer {
     position: fixed;
@@ -29,7 +30,7 @@ body .drag-layer {
     margin-top: -50%;
 
     padding: 0.25rem;
-    border: 2px solid $looks-secondary;
+    border: 2px solid $easyblox-graphite;
     background: $ui-white;
     border-radius: 0.5rem;
 
