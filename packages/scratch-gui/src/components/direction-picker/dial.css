@@ -1,4 +1,5 @@
 @import "../../css/colors.css";
+@import "../../css/easyblox-colors.css";
 
 .container {
     padding: 1rem;
@@ -35,7 +36,7 @@ $dial-size: 40px;
 }
 
 .gauge-path {
-    fill: $looks-transparent;
-    stroke: $looks-secondary;
+    fill: $easyblox-graphite-transparent;
+    stroke: $easyblox-graphite;
     stroke-width: 1px;
 }
