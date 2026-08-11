@@ -11,6 +11,8 @@ import mergeDynamicAssets from '../lib/merge-dynamic-assets.js';
 import spriteLibraryContent from '../lib/libraries/sprites.json';
 import randomizeSpritePosition from '../lib/randomize-sprite-position';
 import spriteTags from '../lib/libraries/sprite-tags';
+import whizParadoPreview from '../lib/default-project/5848ed4b455e55aa97cb56404a22ef4a.png';
+import whizPassadaPreview from '../lib/default-project/027345af81f9af923d045f52b1e63ae0.png';
 
 import LibraryComponent from '../components/library/library.jsx';
 
@@ -32,9 +34,18 @@ class SpriteLibrary extends React.PureComponent {
         this.processedSprites = {};
     }
     handleItemSelect (item) {
+        const sprite = item.name === 'Whiz' ? {
+            ...item,
+            costumes: item.costumes.map(costume => {
+                const cleanCostume = {...costume};
+                delete cleanCostume.rawURL;
+                return cleanCostume;
+            })
+        } : item;
+
         // Randomize position of library sprite
-        randomizeSpritePosition(item);
-        this.props.vm.addSprite(JSON.stringify(item)).then(() => {
+        randomizeSpritePosition(sprite);
+        this.props.vm.addSprite(JSON.stringify(sprite)).then(() => {
             this.props.onActivateBlocksTab();
         });
     }
@@ -49,7 +60,17 @@ class SpriteLibrary extends React.PureComponent {
         return this.processedSprites.data;
     }
     render () {
-        const data = this.mergeDynamicAssets();
+        const data = this.mergeDynamicAssets().map(sprite => {
+            if (sprite.name !== 'Whiz') return sprite;
+
+            return {
+                ...sprite,
+                costumes: sprite.costumes.map(costume => ({
+                    ...costume,
+                    rawURL: costume.name === 'parado' ? whizParadoPreview : whizPassadaPreview
+                }))
+            };
+        });
         return (
             <LibraryComponent
                 data={data}

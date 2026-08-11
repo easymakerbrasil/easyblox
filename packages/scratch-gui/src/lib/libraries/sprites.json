@@ -22518,6 +22518,51 @@
         "blocks": {}
     },
     {
+        "name": "Whiz",
+        "tags": [
+            "robot",
+            "technology",
+            "easymaker",
+            "whiz"
+        ],
+        "isStage": false,
+        "costumes": [
+            {
+                "name": "parado",
+                "assetId": "5848ed4b455e55aa97cb56404a22ef4a",
+                "md5ext": "5848ed4b455e55aa97cb56404a22ef4a.png",
+                "dataFormat": "png",
+                "bitmapResolution": 2,
+                "rotationCenterX": 128,
+                "rotationCenterY": 128,
+                "tags": [
+                    "robot",
+                    "technology",
+                    "easymaker",
+                    "whiz"
+                ]
+            },
+            {
+                "name": "passada",
+                "assetId": "027345af81f9af923d045f52b1e63ae0",
+                "md5ext": "027345af81f9af923d045f52b1e63ae0.png",
+                "dataFormat": "png",
+                "bitmapResolution": 2,
+                "rotationCenterX": 128,
+                "rotationCenterY": 128,
+                "tags": [
+                    "robot",
+                    "technology",
+                    "easymaker",
+                    "whiz"
+                ]
+            }
+        ],
+        "sounds": [],
+        "variables": {},
+        "blocks": {}
+    },
+    {
         "name": "Winter Hat",
         "tags": [
             "fashion",
