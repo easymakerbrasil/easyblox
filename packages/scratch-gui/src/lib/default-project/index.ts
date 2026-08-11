@@ -4,6 +4,8 @@ import {TranslatorFunction} from '../../gui-config';
 
 import popWav from '!arraybuffer-loader!./83a9787d4cb6f3b7632b4ddfebf74367.wav?';
 import meowWav from '!arraybuffer-loader!./83c36d806dc92327b9e7049a565c6bff.wav?';
+import whizParadoPng from '!arraybuffer-loader!./5848ed4b455e55aa97cb56404a22ef4a.png?';
+import whizPassadaPng from '!arraybuffer-loader!./027345af81f9af923d045f52b1e63ae0.png?';
 import backdrop from '!raw-loader!./cd21514d0531fdffb22204e0ec5ed84a.svg?';
 import costume1 from '!raw-loader!./bcf454acf82e4504149f7ffe07081dbc.svg?';
 import costume2 from '!raw-loader!./0fb9be3e8397c983338cb71dc84d0b25.svg?';
@@ -54,6 +56,16 @@ const defaultProject = (translator?: TranslatorFunction) => {
         assetType: 'ImageVector',
         dataFormat: 'SVG',
         data: encoder.encode(costume2)
+    }, {
+        id: '5848ed4b455e55aa97cb56404a22ef4a',
+        assetType: 'ImageBitmap',
+        dataFormat: 'PNG',
+        data: new Uint8Array(whizParadoPng)
+    }, {
+        id: '027345af81f9af923d045f52b1e63ae0',
+        assetType: 'ImageBitmap',
+        dataFormat: 'PNG',
+        data: new Uint8Array(whizPassadaPng)
     }];
 };
 

@@ -54,7 +54,7 @@ const projectData = (translateFunction?: TranslatorFunction): object => {
             },
             {
                 isStage: false,
-                name: translator(messages.sprite, {index: 1}),
+                name: 'Whiz',
                 variables: {},
                 lists: {},
                 broadcasts: {},
@@ -62,35 +62,25 @@ const projectData = (translateFunction?: TranslatorFunction): object => {
                 currentCostume: 0,
                 costumes: [
                     {
-                        assetId: 'bcf454acf82e4504149f7ffe07081dbc',
-                        name: translator(messages.costume, {index: 1}),
-                        bitmapResolution: 1,
-                        md5ext: 'bcf454acf82e4504149f7ffe07081dbc.svg',
-                        dataFormat: 'svg',
-                        rotationCenterX: 48,
-                        rotationCenterY: 50
+                        assetId: '5848ed4b455e55aa97cb56404a22ef4a',
+                        name: 'parado',
+                        bitmapResolution: 2,
+                        md5ext: '5848ed4b455e55aa97cb56404a22ef4a.png',
+                        dataFormat: 'png',
+                        rotationCenterX: 128,
+                        rotationCenterY: 128
                     },
                     {
-                        assetId: '0fb9be3e8397c983338cb71dc84d0b25',
-                        name: translator(messages.costume, {index: 2}),
-                        bitmapResolution: 1,
-                        md5ext: '0fb9be3e8397c983338cb71dc84d0b25.svg',
-                        dataFormat: 'svg',
-                        rotationCenterX: 46,
-                        rotationCenterY: 53
+                        assetId: '027345af81f9af923d045f52b1e63ae0',
+                        name: 'passada',
+                        bitmapResolution: 2,
+                        md5ext: '027345af81f9af923d045f52b1e63ae0.png',
+                        dataFormat: 'png',
+                        rotationCenterX: 128,
+                        rotationCenterY: 128
                     }
                 ],
-                sounds: [
-                    {
-                        assetId: '83c36d806dc92327b9e7049a565c6bff',
-                        name: translator(messages.meow),
-                        dataFormat: 'wav',
-                        format: '',
-                        rate: 22050,
-                        sampleCount: 18688,
-                        md5ext: '83c36d806dc92327b9e7049a565c6bff.wav'
-                    }
-                ],
+                sounds: [],
                 volume: 100,
                 visible: true,
                 x: 0,
@@ -98,7 +88,7 @@ const projectData = (translateFunction?: TranslatorFunction): object => {
                 size: 100,
                 direction: 90,
                 draggable: false,
-                rotationStyle: 'all around'
+                rotationStyle: 'left-right'
             }
         ],
         meta: {
