@@ -332,24 +332,17 @@ Ainda não realizado:
 
 ## 12. Próximo passo imediato
 
-Mapear as variáveis responsáveis pela barra superior roxa.
+A barra superior já foi alterada do roxo Scratch para o grafite EasyMaker.
 
-Objetivo:
+Arquivos envolvidos:
 
-- aplicar a cor grafite `#282828` na barra;
-- usar o amarelo `#ffc800` nos destaques;
-- preservar contraste, acessibilidade e estados de botões;
-- evitar substituição global de cores;
-- alterar e testar um grupo visual por vez.
+```text
+packages/scratch-gui/src/css/easyblox-colors.css
+packages/scratch-gui/src/components/menu-bar/menu-bar.css
 
-Depois disso:
-
-1. executar `npm start`;
-2. verificar visualmente;
-3. executar a compilação;
-4. atualizar este documento;
-5. criar commit;
-6. enviar ao GitHub.
+$easyblox-yellow: #ffc800;
+$easyblox-graphite: #282828;
+$easyblox-white: #ffffff;
 
 ## 13. Regras permanentes de trabalho
 
