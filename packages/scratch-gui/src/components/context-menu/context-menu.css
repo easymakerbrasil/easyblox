@@ -1,6 +1,7 @@
 @import "../../css/colors.css";
 @import "../../css/units.css";
 @import "../../css/z-index.css";
+@import "../../css/easyblox-colors.css";
 
 .context-menu-content {
 	background-color: white;
@@ -30,7 +31,7 @@
 }
 
 .menu-item[data-highlighted] {
-    background: $looks-secondary;
+    background: $easyblox-graphite;
     color: white;
 }
 
