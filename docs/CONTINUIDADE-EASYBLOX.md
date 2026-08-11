@@ -1,6 +1,6 @@
 # Continuidade do Projeto EasyBlox
 
-Atualizado em: 10 de agosto de 2026
+Atualizado em: 11 de agosto de 2026
 
 ## 1. Finalidade deste documento
 
@@ -76,10 +76,16 @@ Pasta local:
 C:\Users\EasyMaker\source\EasyMakerDev\easyblox
 ```
 
-Branch de desenvolvimento:
+Branch principal de desenvolvimento:
 
 ```text
 easyblox-dev
+```
+
+Branch ativa desta implementação:
+
+```text
+feat/whiz-default-sprite
 ```
 
 Remotos:
@@ -95,17 +101,30 @@ Tag da base original funcional:
 easyblox-baseline-v0.0.0
 ```
 
-Commit mais recente deste documento:
+Checkpoint protegido anterior à implementação do Whiz:
 
 ```text
-5bf4c04135 — feat: add EasyBlox visual identity
+easyblox-branding-v0.1.0
+```
+
+Commits relevantes da branch atual:
+
+```text
+655a803b14 — docs: specify Whiz default sprite animation
+4487e3964e — docs: simplify Whiz default sprite to two costumes
+7a830d8644 — feat: add Whiz as default sprite
+0b17023db — feat: add Whiz to sprite library
 ```
 
 Situação no momento desta atualização:
 
 ```text
-Branch sincronizada com origin/easyblox-dev
-Working tree clean
+Branch ativa: feat/whiz-default-sprite
+Branch sincronizada anteriormente com origin/feat/whiz-default-sprite
+Whiz como ator inicial já implementado, testado e enviado ao origin
+Disponibilidade do Whiz na biblioteca implementada, validada e commitada
+Documentação de continuidade ainda não commitada
+Não realizar merge em easyblox-dev antes da conclusão dos testes, documentação e aprovação final
 ```
 
 ## 4. Ambiente validado
@@ -316,7 +335,19 @@ Concluído:
 - criação da documentação;
 - criação da identidade do EasyBlox;
 - integração inicial da logo;
-- envio de todos os commits ao GitHub.
+- identidade da aba e favicon EasyBlox;
+- Whiz configurado como ator inicial padrão;
+- Whiz com duas fantasias aprovadas: `parado` e `passada`;
+- animação entre as duas fantasias validada;
+- comportamento `left-right` validado nas direções `90` e `-90`;
+- salvamento e reabertura de projeto `.sb3` com o Whiz validados;
+- gato original do Scratch preservado na biblioteca;
+- Whiz adicionado à biblioteca de atores;
+- miniatura local do Whiz na biblioteca validada;
+- remoção e reinserção do Whiz pela biblioteca validadas;
+- commits anteriores da implementação do ator inicial enviados ao GitHub;
+- biblioteca do Whiz registrada no commit `0b17023db`;
+- documentação de continuidade ainda aguardando commit.
 
 Ainda não realizado:
 
@@ -332,23 +363,73 @@ Ainda não realizado:
 
 ## 12. Próximo passo imediato
 
-A identidade da aba do navegador foi concluída e validada.
+A implementação do Whiz como ator inicial está concluída e validada.
 
-Resultado atual:
+O Whiz também foi incorporado à biblioteca de atores para que possa ser recuperado caso seja removido do projeto.
 
-- título da aba definido como `EasyBlox`;
-- nome inicial definido como `Projeto EasyBlox`;
-- favicon alterado do gato do Scratch para o ícone oficial do EasyBlox;
-- favicon original do Scratch preservado;
-- novo favicon criado em formato SVG;
-- Webpack compilado;
-- resultado validado no Google Chrome em `localhost:8601`.
+Configuração aprovada:
 
-Arquivos envolvidos nesta etapa:
+- nome do ator: `Whiz`;
+- fantasia inicial: `parado`;
+- segunda fantasia: `passada`;
+- formato dos assets: PNG transparente;
+- arquivos físicos: 256 × 256 px;
+- `bitmapResolution: 2`;
+- centro de rotação: `128, 128`;
+- tamanho inicial: `100`;
+- direção inicial: `90`;
+- estilo de rotação: `left-right`;
+- sem sons próprios nesta versão.
+
+Assets:
 
 ```text
-packages/scratch-gui/src/playground/index.ejs
-packages/scratch-gui/static/easyblox-favicon.svg
+5848ed4b455e55aa97cb56404a22ef4a.png — parado
+027345af81f9af923d045f52b1e63ae0.png — passada
+```
+
+Arquivos principais da implementação:
+
+```text
+packages/scratch-gui/src/lib/default-project/index.ts
+packages/scratch-gui/src/lib/default-project/project-data.ts
+packages/scratch-gui/src/lib/default-project/5848ed4b455e55aa97cb56404a22ef4a.png
+packages/scratch-gui/src/lib/default-project/027345af81f9af923d045f52b1e63ae0.png
+packages/scratch-gui/src/lib/libraries/sprites.json
+packages/scratch-gui/src/containers/sprite-library.jsx
+```
+
+A biblioteca padrão tenta carregar previews pelo CDN do Scratch. Como os assets do Whiz pertencem ao EasyBlox e não existem nesse CDN, `sprite-library.jsx` fornece os PNGs locais como `rawURL` apenas para a interface. O `rawURL` é removido antes de o ator ser enviado ao Scratch VM.
+
+Validações já concluídas:
+
+- projeto novo abre com Whiz;
+- fantasias `parado` e `passada` carregam corretamente;
+- animação entre fantasias sem salto visual;
+- orientação `90` validada;
+- espelhamento em `-90` validado;
+- salvamento e reabertura de `.sb3` validados;
+- gato original permanece disponível na biblioteca;
+- Whiz aparece corretamente na biblioteca;
+- Whiz pode ser removido e reinserido pela biblioteca;
+- reinserção preserva as duas fantasias;
+- `git diff --check` aprovado;
+- lint localizado sem erros de implementação;
+- `build:dev` compilado com sucesso.
+
+Próxima ação operacional:
+
+```text
+1. concluir e revisar esta documentação de continuidade;
+2. criar o commit da documentação;
+3. enviar os novos commits para origin/feat/whiz-default-sprite;
+4. realizar a auditoria final da branch;
+5. confirmar que o working tree está limpo e sincronizado;
+6. somente após aprovação final, integrar a feature em easyblox-dev.
+```
+
+Não realizar merge em `easyblox-dev` antes desse checkpoint final.
+
 
 ## 13. Regras permanentes de trabalho
 
@@ -361,7 +442,7 @@ packages/scratch-gui/static/easyblox-favicon.svg
 - Testar depois de cada grupo pequeno de mudanças.
 - Atualizar a documentação após cada marco.
 - Usar mensagens de commit convencionais.
-- Trabalhar sempre na branch `easyblox-dev`.
+- Desenvolver recursos isoláveis em branches próprias; usar `easyblox-dev` como branch principal de integração após testes e aprovação.
 - Não executar comandos destrutivos.
 - Não usar `npm audit fix --force`.
 - Não atualizar dependências sem análise específica.
@@ -378,8 +459,11 @@ Quero continuar o desenvolvimento do EasyBlox.
 Repositório:
 https://github.com/easymakerbrasil/easyblox
 
-Branch:
+Branch principal de integração:
 easyblox-dev
+
+Antes de continuar, verifique em docs/CONTINUIDADE-EASYBLOX.md qual é a branch ativa da implementação em andamento.
+Não trocar de branch nem realizar merge sem antes confirmar o estado atual do repositório.
 
 Antes de orientar qualquer alteração, leia integralmente:
 docs/GUIA-DE-DESENVOLVIMENTO.md
