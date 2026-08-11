@@ -1,5 +1,6 @@
 @import "../../css/colors.css";
 @import "../../css/units.css";
+@import "../../css/easyblox-colors.css";
 
 .modal-container {
     display: flex;
@@ -8,7 +9,7 @@
     flex-direction: column;
     align-items: flex-start;
     border-radius: 0.5rem;
-    background: $looks-secondary;
+    background: $easyblox-graphite;
     gap: 0.9375rem;
     box-sizing: border-box;
 }
@@ -61,7 +62,7 @@
 }
 
 .confirm-button span {
-    color: $looks-secondary;
+    color: $easyblox-graphite;
 }
 
 .cancel-button {

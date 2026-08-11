@@ -1,5 +1,6 @@
 /* EasyBlox brand palette */
-
 $easyblox-yellow: #ffc800;
+$easyblox-yellow-transparent: rgba(255, 200, 0, 0.35);
 $easyblox-graphite: #282828;
+$easyblox-graphite-transparent: rgba(40, 40, 40, 0.25);
 $easyblox-white: #ffffff;
