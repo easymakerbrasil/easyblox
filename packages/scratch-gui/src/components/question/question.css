@@ -1,5 +1,6 @@
 @import "../../css/units.css";
 @import "../../css/colors.css";
+@import "../../css/easyblox-colors.css";
 
 .question-container {
     margin: $space;
@@ -34,7 +35,7 @@
     border-radius: 100%;
 
     color: white;
-    background: $looks-secondary;
+    background: $easyblox-graphite;
 }
 
 [dir="ltr"] .question-submit-button {
@@ -60,7 +61,7 @@
 }
 
 .question-input > input:focus {
-    box-shadow: 0px 0px 0px 3px $looks-transparent;
+    box-shadow: 0px 0px 0px 3px $easyblox-graphite-transparent;
 }
 
 .question-submit-button-icon {
