@@ -1,9 +1,10 @@
 @import "../../css/colors.css";
 @import "../../css/units.css";
+@import "../../css/easyblox-colors.css";
 
 .tag-button {
     padding: .625rem 1rem;
-    background: $looks-secondary;
+    background: $easyblox-graphite;
     border-radius: 1.375rem;
     color: $ui-white;
     height: $library-filter-bar-height;
@@ -15,7 +16,8 @@
 }
 
 .tag-button.active {
-    background: $data-primary;
+    background: $easyblox-yellow;
+    color: $easyblox-graphite;
 }
 
 .tag-button:focus-visible {
