@@ -72,11 +72,16 @@ origin   https://github.com/easymakerbrasil/easyblox.git
 upstream https://github.com/scratchfoundation/scratch-editor.git
 ```
 
-Branch de desenvolvimento:
+Branch principal de desenvolvimento:
 
 ```text
 easyblox-dev
 ```
+A easyblox-dev deve permanecer estável e receber apenas alterações previamente desenvolvidas, testadas e aprovadas.
+
+Novos recursos e alterações isoláveis devem ser desenvolvidos em branches próprias, como feat/whiz-default-sprite.
+
+A integração dessas branches em easyblox-dev somente deve ocorrer após os testes técnicos e funcionais e a aprovação do recurso.
 
 Tag da base original funcional:
 
@@ -213,4 +218,52 @@ Depois de uma alteração, verificar:
 git diff
 ```
 
-As alterações deverão ser registradas com mensagens claras e enviadas para a branch `easyblox-dev`.
+As alterações deverão ser registradas com mensagens claras. Recursos isoláveis devem ser desenvolvidos e enviados primeiro para sua branch própria. A integração em easyblox-dev somente deve ocorrer após testes e aprovação.
+
+Antes de um commit importante, executar `git diff --check`.
+
+Para alterações no `scratch-gui`, executar o lint localizado nos arquivos modificados com `npm --prefix packages\scratch-gui run test:lint -- <arquivos-alterados>`.
+
+Depois, validar a compilação com `npm --prefix packages\scratch-gui run build:dev`.
+
+O build deve concluir sem erros antes da integração em `easyblox-dev`.
+
+## 14. Assets proprietários do EasyBlox
+
+Recursos visuais próprios da EasyMaker não devem depender do CDN oficial do Scratch.
+
+Os assets utilizados pelo projeto inicial ficam em `packages/scratch-gui/src/lib/default-project/`.
+
+A biblioteca de atores é definida principalmente em `packages/scratch-gui/src/lib/libraries/sprites.json`.
+
+Cadastrar um ator proprietário em `sprites.json` não garante sozinho que sua miniatura seja exibida corretamente, pois o componente padrão da biblioteca procura os assets no CDN do Scratch.
+
+No caso do Whiz, os PNGs locais do `default-project` são importados por `packages/scratch-gui/src/containers/sprite-library.jsx` e utilizados como `rawURL` somente para a visualização da biblioteca.
+
+Antes de enviar o Whiz ao Scratch VM, o campo `rawURL` deve ser removido. Assim, uma informação exclusiva da interface não é incorporada ao ator nem ao arquivo `.sb3`.
+
+Não alterar globalmente o mecanismo de carregamento dos atores originais do Scratch apenas para suportar assets próprios da EasyMaker.
+
+## 15. Validação de atores padrão e biblioteca
+
+Ao alterar o ator inicial padrão do EasyBlox ou adicionar um ator próprio à biblioteca, validar antes da integração:
+
+- projeto novo abre sem erros;
+- nome, posição, tamanho e direção inicial estão corretos;
+- todas as fantasias carregam corretamente;
+- escala e centro de rotação permanecem consistentes;
+- alternar fantasias não provoca saltos visuais;
+- orientação `90` funciona corretamente;
+- orientação `-90` funciona corretamente quando utilizado `left-right`;
+- o ator pode ser removido do projeto;
+- o ator pode ser adicionado novamente pela biblioteca;
+- a miniatura é exibida corretamente na biblioteca;
+- todas as fantasias permanecem disponíveis após a reinserção;
+- atores originais do Scratch continuam disponíveis;
+- o projeto pode ser salvo em `.sb3`;
+- o arquivo `.sb3` pode ser reaberto mantendo ator, fantasias e programação;
+- `git diff --check` não apresenta erros;
+- lint dos arquivos modificados não apresenta erros relacionados à implementação;
+- `build:dev` conclui com sucesso.
+
+A integração em `easyblox-dev` somente deve acontecer depois dessa validação funcional e da aprovação do recurso.
