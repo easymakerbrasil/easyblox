@@ -334,6 +334,7 @@ class LibraryComponent extends React.Component {
         return (
             <Modal
                 fullScreen
+                headerClassName={styles.libraryHeader}
                 contentLabel={this.props.title}
                 id={this.props.id}
                 onRequestClose={this.handleClose}
