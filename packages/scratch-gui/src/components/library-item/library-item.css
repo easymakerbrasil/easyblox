@@ -1,5 +1,6 @@
 @import "../../css/colors.css";
 @import "../../css/units.css";
+@import "../../css/easyblox-colors.css";
 
 .library-item {
     display: flex;
@@ -29,7 +30,7 @@
 
 .library-item:hover {
     border-width: 2px;
-    border-color: $looks-secondary;
+    border-color: $easyblox-graphite;
 }
 
 .hidden {
