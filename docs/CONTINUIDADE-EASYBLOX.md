@@ -332,23 +332,23 @@ Ainda não realizado:
 
 ## 12. Próximo passo imediato
 
-Os principais nomes visíveis do Scratch na abertura do editor foram substituídos com sucesso.
+A identidade da aba do navegador foi concluída e validada.
 
-Resultado validado:
+Resultado atual:
 
-- título da aba principal alterado para `EasyBlox`;
-- nome inicial do projeto alterado para `Projeto EasyBlox`;
-- títulos dos modos standalone, blocks-only, compatibility testing e player atualizados;
-- identificadores internos do Scratch preservados quando necessários;
-- atribuições técnicas e legais mantidas;
+- título da aba definido como `EasyBlox`;
+- nome inicial definido como `Projeto EasyBlox`;
+- favicon alterado do gato do Scratch para o ícone oficial do EasyBlox;
+- favicon original do Scratch preservado;
+- novo favicon criado em formato SVG;
 - Webpack compilado;
-- interface validada em `localhost:8601`.
+- resultado validado no Google Chrome em `localhost:8601`.
 
-Arquivos envolvidos:
+Arquivos envolvidos nesta etapa:
 
 ```text
-packages/scratch-gui/webpack.config.js
-packages/scratch-gui/src/lib/titled-hoc.jsx
+packages/scratch-gui/src/playground/index.ejs
+packages/scratch-gui/static/easyblox-favicon.svg
 
 ## 13. Regras permanentes de trabalho
 
