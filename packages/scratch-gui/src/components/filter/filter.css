@@ -1,5 +1,6 @@
 @import "../../css/units.css";
 @import "../../css/colors.css";
+@import "../../css/easyblox-colors.css";
 
 .filter {
     display: flex;
@@ -35,7 +36,7 @@
 }
 
 .filter:focus-within {
-    box-shadow: 0 0 0 .25rem $looks-transparent;
+    box-shadow: 0 0 0 .25rem $easyblox-graphite-transparent;
 }
 
 /*
