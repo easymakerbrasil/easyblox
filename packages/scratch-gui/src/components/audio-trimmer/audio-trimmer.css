@@ -1,4 +1,5 @@
 @import "../../css/colors.css";
+@import "../../css/easyblox-colors.css";
 
 $border-radius: 4px;
 $trim-handle-width: 30px;
@@ -41,7 +42,7 @@ $hover-scale: 1.25;
 }
 
 .selection-background {
-    background: $looks-secondary;
+    background: $easyblox-graphite;
     opacity: 0.5;
 }
 
@@ -64,7 +65,7 @@ $hover-scale: 1.25;
 }
 
 .selector .trim-line {
-    border: 1px solid $looks-secondary;
+    border: 1px solid $easyblox-graphite;
 }
 
 .playhead-container {
@@ -77,13 +78,9 @@ $hover-scale: 1.25;
 }
 
 .playhead {
-    /*
-        Even though playhead is just a line, it is 100% width (the width of the waveform)
-        so that we can use transform: translateX() using percentages.
-    */
     width: 100%;
     height: 100%;
-    border-left: 1px solid $looks-secondary;
+    border-left: 1px solid $easyblox-graphite;
     border-top: none;
     border-bottom: none;
     border-right: none;
