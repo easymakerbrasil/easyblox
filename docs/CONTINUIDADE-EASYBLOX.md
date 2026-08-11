@@ -332,17 +332,26 @@ Ainda não realizado:
 
 ## 12. Próximo passo imediato
 
-A barra superior já foi alterada do roxo Scratch para o grafite EasyMaker.
+A personalização principal da barra superior do EasyBlox foi concluída e validada no Windows.
 
-Arquivos envolvidos:
+Resultado atual:
+
+- barra superior em grafite EasyMaker (`#282828`);
+- botão `Partilhar` em amarelo EasyMaker (`#ffc800`);
+- texto do botão em grafite;
+- campo do nome do projeto discreto quando inativo;
+- campo branco, texto grafite e borda amarela quando recebe foco;
+- contraste visual preservado;
+- Webpack compilado;
+- interface validada em `localhost:8601`.
+
+Arquivos envolvidos nesta etapa:
 
 ```text
 packages/scratch-gui/src/css/easyblox-colors.css
 packages/scratch-gui/src/components/menu-bar/menu-bar.css
-
-$easyblox-yellow: #ffc800;
-$easyblox-graphite: #282828;
-$easyblox-white: #ffffff;
+packages/scratch-gui/src/components/menu-bar/share-button.css
+packages/scratch-gui/src/components/menu-bar/project-title-input.css
 
 ## 13. Regras permanentes de trabalho
 

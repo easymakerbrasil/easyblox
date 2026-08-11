@@ -1,4 +1,5 @@
 @import "../../css/colors.css";
+@import "../../css/easyblox-colors.css";
 @import "../../css/units.css";
 @import "../../css/z-index.css";
 
@@ -38,9 +39,13 @@ can set a width for example or what it should do in a flex box (eg. grow).
 
 .title-field:focus {
     outline:none;
-    border: 1px solid $ui-transparent;
+    border: 1px solid $easyblox-yellow;
     -webkit-box-shadow: 0 0 0 calc($space * .5) $ui-white-transparent;
     box-shadow: 0 0 0 calc($space * .5) $ui-white-transparent;
-    background-color: $ui-white;
-    color: $text-primary;
+    background-color: $easyblox-white;
+    color: $easyblox-graphite;
+}
+
+.title-field:focus::placeholder {
+    color: $easyblox-graphite;
 }
