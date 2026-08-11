@@ -1,6 +1,7 @@
 @import "../../css/units.css";
 @import "../../css/colors.css";
 @import "../../css/z-index.css";
+@import "../../css/easyblox-colors.css";
 
 .extension-button-container {
     width: 3.75rem;
@@ -10,9 +11,9 @@
     left: 0;
     right: 0;
     z-index: $z-index-extension-button;
-    background: $looks-secondary;
+    background: $easyblox-graphite;
 
-    border: 1px solid $looks-secondary;
+    border: 1px solid $easyblox-graphite;
     box-sizing: content-box; /* To match scratch-block vertical toolbox borders */
 }
 
