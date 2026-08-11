@@ -332,26 +332,23 @@ Ainda não realizado:
 
 ## 12. Próximo passo imediato
 
-A personalização principal da barra superior do EasyBlox foi concluída e validada no Windows.
+Os principais nomes visíveis do Scratch na abertura do editor foram substituídos com sucesso.
 
-Resultado atual:
+Resultado validado:
 
-- barra superior em grafite EasyMaker (`#282828`);
-- botão `Partilhar` em amarelo EasyMaker (`#ffc800`);
-- texto do botão em grafite;
-- campo do nome do projeto discreto quando inativo;
-- campo branco, texto grafite e borda amarela quando recebe foco;
-- contraste visual preservado;
+- título da aba principal alterado para `EasyBlox`;
+- nome inicial do projeto alterado para `Projeto EasyBlox`;
+- títulos dos modos standalone, blocks-only, compatibility testing e player atualizados;
+- identificadores internos do Scratch preservados quando necessários;
+- atribuições técnicas e legais mantidas;
 - Webpack compilado;
 - interface validada em `localhost:8601`.
 
-Arquivos envolvidos nesta etapa:
+Arquivos envolvidos:
 
 ```text
-packages/scratch-gui/src/css/easyblox-colors.css
-packages/scratch-gui/src/components/menu-bar/menu-bar.css
-packages/scratch-gui/src/components/menu-bar/share-button.css
-packages/scratch-gui/src/components/menu-bar/project-title-input.css
+packages/scratch-gui/webpack.config.js
+packages/scratch-gui/src/lib/titled-hoc.jsx
 
 ## 13. Regras permanentes de trabalho
 

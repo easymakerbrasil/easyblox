@@ -12,10 +12,10 @@ import {setProjectTitle} from '../reducers/project-title';
 
 const messages = defineMessages({
     defaultProjectTitle: {
-        id: 'gui.gui.defaultProjectTitle',
-        description: 'Default title for project',
-        defaultMessage: 'Scratch Project'
-    }
+    id: 'gui.gui.defaultEasyBloxProjectTitle',
+    description: 'Default title for EasyBlox project',
+    defaultMessage: 'Projeto EasyBlox'
+}
 });
 
 /* Higher Order Component to get and set the project title
