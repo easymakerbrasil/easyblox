@@ -130,7 +130,8 @@ Ctrl + C
 ## 8. Situação atual
 
 - Repositório clonado: concluído
-- Branch de desenvolvimento criada: concluído
+- Branch principal `easyblox-dev` criada: concluído
+- Fluxo com branches exclusivas para novos recursos: definido
 - Dependências instaladas: concluído
 - Scratch Editor executado no navegador: concluído
 - Base funcional protegida com tag: concluído
@@ -138,6 +139,12 @@ Ctrl + C
 - Compatibilidade da compilação com Windows: concluído
 - Identidade visual do EasyBlox: concluída
 - Logo EasyBlox integrada à barra do editor: concluído
+- Identidade da aba do navegador e favicon EasyBlox: concluído
+- Whiz configurado como ator inicial padrão: concluído e validado
+- Whiz com duas fantasias (`parado` e `passada`): concluído e validado
+- Whiz disponível na biblioteca de atores: concluído e validado
+- Remoção e reinserção do Whiz pela biblioteca: concluído e validado
+- Salvamento e reabertura de projetos `.sb3` com o Whiz: validado
 - Personalização das cores e dos textos: próxima etapa
 
 ## 9. Compatibilidade de compilação no Windows
