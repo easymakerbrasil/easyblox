@@ -123,7 +123,7 @@ Branch ativa: feat/whiz-default-sprite
 Branch sincronizada anteriormente com origin/feat/whiz-default-sprite
 Whiz como ator inicial já implementado, testado e enviado ao origin
 Disponibilidade do Whiz na biblioteca implementada, validada e commitada
-Documentação de continuidade ainda não commitada
+Documentação de continuidade registrada no commit 3521f136d
 Não realizar merge em easyblox-dev antes da conclusão dos testes, documentação e aprovação final
 ```
 
@@ -347,7 +347,8 @@ Concluído:
 - remoção e reinserção do Whiz pela biblioteca validadas;
 - commits anteriores da implementação do ator inicial enviados ao GitHub;
 - biblioteca do Whiz registrada no commit `0b17023db`;
-- documentação de continuidade ainda aguardando commit.
+- documentação de continuidade registrada no commit `3521f136d`;
+- guia de desenvolvimento atualizado no commit `1f52811be`.
 
 Ainda não realizado:
 
@@ -420,12 +421,12 @@ Validações já concluídas:
 Próxima ação operacional:
 
 ```text
-1. concluir e revisar esta documentação de continuidade;
-2. criar o commit da documentação;
-3. enviar os novos commits para origin/feat/whiz-default-sprite;
-4. realizar a auditoria final da branch;
-5. confirmar que o working tree está limpo e sincronizado;
-6. somente após aprovação final, integrar a feature em easyblox-dev.
+1. concluir esta atualização final da documentação de continuidade;
+2. criar e enviar o commit documental final para origin/feat/whiz-default-sprite;
+3. retornar para easyblox-dev;
+4. atualizar easyblox-dev por fast-forward para o HEAD final da feature;
+5. confirmar working tree limpo e realizar a auditoria final;
+6. somente então enviar easyblox-dev para origin.
 ```
 
 Não realizar merge em `easyblox-dev` antes desse checkpoint final.
