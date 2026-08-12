@@ -164,9 +164,15 @@ const ActionMenu = ({
     }, [focusItem]);
 
     const handleItemClick = useCallback(onClickItem => e => {
-        onClickItem(e);
-        refocusActiveElement();
-    }, []);
+    setIsExpanded(false);
+    onClickItem(e);
+    refocusActiveElement();
+    }, [refocusActiveElement]);
+    const handleMainClick = useCallback(e => {
+    setIsExpanded(false);
+    buttonRef.current.blur();
+    onClick(e);
+}, [onClick]);
 
     return (
         <div
@@ -185,7 +191,7 @@ const ActionMenu = ({
                 className={classNames(styles.button, styles.mainButton)}
                 data-for={mainTooltipId}
                 data-tip={mainTitle}
-                onClick={onClick}
+                onClick={handleMainClick}
                 ref={buttonRef}
                 onMouseEnter={handleItemMouseEnter(-1)}
             >

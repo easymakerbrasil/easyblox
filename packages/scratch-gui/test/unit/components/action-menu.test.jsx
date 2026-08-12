@@ -41,6 +41,42 @@ describe('ActionMenu keyboard navigation', () => {
         expect(mainButton.parentElement).toHaveClass('expanded');
     });
 
+    test('closes menu after clicking a secondary action', () => {
+    render(<ActionMenu {...defaultProps} />);
+
+    const mainButton = screen.getByRole('button', {name: 'Main Button'});
+    const firstItem = screen.getByRole('button', {name: 'Button 1'});
+
+    act(() => {
+        mainButton.focus();
+        });
+
+        expect(mainButton.parentElement).toHaveClass('expanded');
+
+        fireEvent.click(firstItem);
+
+        expect(mockMoreButtonClick).toHaveBeenCalled();
+        expect(mainButton.parentElement).not.toHaveClass('expanded');
+    });
+
+    test('closes menu after clicking the main action', () => {
+    render(<ActionMenu {...defaultProps} />);
+
+    const mainButton = screen.getByRole('button', {name: 'Main Button'});
+
+    act(() => {
+        mainButton.focus();
+    });
+
+    expect(mainButton.parentElement).toHaveClass('expanded');
+
+    fireEvent.click(mainButton);
+
+    expect(mockOnClick).toHaveBeenCalled();
+    expect(mainButton.parentElement).not.toHaveClass('expanded');
+    expect(document.activeElement).not.toBe(mainButton);
+    });
+
     test('focuses first item on arrow_down', async () => {
         render(<ActionMenu {...defaultProps} />);
         const mainButton = screen.getByRole('button', {name: 'Main Button'});
