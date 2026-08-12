@@ -82,10 +82,22 @@ Branch principal de desenvolvimento:
 easyblox-dev
 ```
 
-Branch ativa desta implementação:
+Branch ativa após a integração do marco v0.3.0:
+
+```text
+easyblox-dev
+```
+
+Feature de origem do marco v0.3.0:
 
 ```text
 feat/easyblox-interface-branding
+```
+
+HEAD final aprovado da feature:
+
+```text
+81f9a9da37
 ```
 
 Remotos:
@@ -140,17 +152,20 @@ eb12432b3a — feat: brand EasyBlox input focus states
 Situação no momento desta atualização:
 
 ```text
-Branch ativa: feat/easyblox-interface-branding
-Implementação visual publicada em origin/feat/easyblox-interface-branding até o commit 35172aa240
-Marco de interface v0.3.0 visualmente validado
+Branch ativa: easyblox-dev
+Feature feat/easyblox-interface-branding integrada por fast-forward
+HEAD integrado do marco v0.3.0: 81f9a9da37
+easyblox-dev e origin/easyblox-dev sincronizadas
+Integração publicada no GitHub em 11 de agosto de 2026
+Marco v0.3.0 Interface Branding aprovado e funcionalmente validado
 Whiz v0.2.0 permanece funcional como ator inicial e disponível na biblioteca
-Ajustes do scratch-gui concluídos e validados
-Ajustes do scratch-paint concluídos e validados após recompilação do pacote
-git diff --check aprovado
-Build final do scratch-gui aprovado com webpack 5.109.2
-Aviso de Browserslist permanece informativo; dependências não foram atualizadas
-Documentação final do marco v0.3.0 em atualização nesta branch
-Não realizar merge em easyblox-dev antes do commit documental final, push, working tree limpo e aprovação final
+git diff --check aprovado antes e depois da integração
+scratch-paint recompilado com webpack 5.109.2 sem erros
+scratch-gui build:dev compilado com webpack 5.109.2 sem erros
+Teste funcional em localhost:8601 concluído com sucesso
+Aviso de Browserslist permanece apenas informativo; dependências não foram atualizadas
+Checkpoint documental pós-integração em andamento
+Tag v0.3.0 ainda não criada; criar somente após concluir, validar e publicar este checkpoint documental
 ```
 
 ## 4. Ambiente validado
@@ -358,9 +373,9 @@ Concluído:
 - instalação das dependências;
 - execução do Scratch Editor;
 - compilação completa no Windows;
-- criação da documentação;
-- criação da identidade do EasyBlox;
-- integração inicial da logo;
+- criação da documentação de desenvolvimento e continuidade;
+- criação da identidade visual do EasyBlox;
+- integração da logo EasyBlox;
 - identidade da aba e favicon EasyBlox;
 - Whiz configurado como ator inicial padrão;
 - Whiz com duas fantasias aprovadas: `parado` e `passada`;
@@ -371,16 +386,59 @@ Concluído:
 - Whiz adicionado à biblioteca de atores;
 - miniatura local do Whiz na biblioteca validada;
 - remoção e reinserção do Whiz pela biblioteca validadas;
-- commits anteriores da implementação do ator inicial enviados ao GitHub;
-- biblioteca do Whiz registrada no commit `0b17023db`;
-- documentação de continuidade registrada no commit `3521f136d`;
-- guia de desenvolvimento atualizado no commit `1f52811be`.
+- marco v0.2.0 do Whiz preservado durante o ciclo seguinte;
+- ciclo v0.3.0 Interface Branding concluído e aprovado;
+- feature `feat/easyblox-interface-branding` finalizada no commit `81f9a9da37`;
+- feature integrada em `easyblox-dev` por fast-forward;
+- integração publicada em `origin/easyblox-dev`;
+- `easyblox-dev` e `origin/easyblox-dev` sincronizadas após a integração;
+- paleta principal da interface adequada à identidade EasyBlox;
+- diálogos, menus, bibliotecas, controles, abas, campos e componentes visuais revisados no ciclo de branding;
+- diálogo de confirmação de exclusão de ator adequado à identidade EasyBlox;
+- `scratch-paint` recompilado com sucesso após a integração;
+- `scratch-gui build:dev` compilado com sucesso após a integração;
+- teste funcional em `localhost:8601` concluído com sucesso;
+- tela principal do EasyBlox validada;
+- editor de Código validado;
+- editor de Trajes validado funcionalmente;
+- editor de Sons validado;
+- biblioteca de atores validada;
+- biblioteca de cenários validada;
+- biblioteca de extensões validada;
+- menus Arquivo, Editar e Configurações validados;
+- submenus de idioma, tema e modo de cor validados;
+- modos de tamanho do palco e tela cheia validados;
+- seletor de direção e modos de rotação validados;
+- controles de mostrar e ocultar ator validados;
+- `git diff --check` aprovado antes e depois da integração;
+- working tree permaneceu limpo após builds e testes;
+- aviso de `Browserslist/caniuse-lite` mantido apenas como informativo, sem atualização de dependências.
+
+Pendências conhecidas registradas durante a validação da v0.3.0:
+
+- o Action Menu dos botões de adicionar ator e cenário permanece expandido/focado ao retornar das respectivas bibliotecas e exige novo clique para fechar;
+- a análise confirmou que o comportamento do Action Menu já existia antes da feature v0.3.0 e, portanto, não é regressão do ciclo de branding;
+- a Mochila ainda não possui funcionalidade ativa e apresenta `Em Breve...`, comportamento também anterior à v0.3.0;
+- revisar a localização e a terminologia da interface para português do Brasil;
+- alterar futuramente `Trajes` para `Fantasias`;
+- alterar `Escolher um Actor` para `Escolher um Ator`;
+- traduzir `Load from your computer`;
+- revisar `Descarregar para o seu computador` para uma formulação natural em português do Brasil, como `Baixar para o seu computador`;
+- traduzir `Theme` para `Tema`;
+- traduzir `Color Mode` para `Modo de cor`;
+- avaliar `Língua` para `Idioma`;
+- avaliar `Recuperar Som` para `Restaurar som`;
+- avaliar `Ligar o Modo Turbo` para `Ativar modo turbo`;
+- revisar a nomenclatura `Blocos de Gato`;
+- ativar futuramente a funcionalidade real da Mochila.
 
 Ainda não realizado:
 
-- substituição da paleta roxa pela paleta EasyMaker;
-- substituição dos textos e nomes Scratch por EasyBlox;
-- personalização da tela inicial;
+- checkpoint documental pós-integração da v0.3.0;
+- criação e publicação da tag `v0.3.0`;
+- revisão residual de localização e terminologia pt-BR;
+- correção do comportamento herdado do Action Menu;
+- personalização adicional da tela inicial, quando definida;
 - inclusão das placas Arduino UNO e ESP32;
 - criação dos perfis EasyMaker, EasyDuino e MakerDuino;
 - integração do Arduino CLI;
@@ -390,77 +448,38 @@ Ainda não realizado:
 
 ## 12. Próximo passo imediato
 
-A implementação do Whiz como ator inicial está concluída e validada.
+O marco v0.3.0 Interface Branding já foi aprovado, integrado por fast-forward em `easyblox-dev`, publicado no GitHub e funcionalmente validado.
 
-O Whiz também foi incorporado à biblioteca de atores para que possa ser recuperado caso seja removido do projeto.
+Estado técnico confirmado antes deste checkpoint documental:
 
-Configuração aprovada:
-
-- nome do ator: `Whiz`;
-- fantasia inicial: `parado`;
-- segunda fantasia: `passada`;
-- formato dos assets: PNG transparente;
-- arquivos físicos: 256 × 256 px;
-- `bitmapResolution: 2`;
-- centro de rotação: `128, 128`;
-- tamanho inicial: `100`;
-- direção inicial: `90`;
-- estilo de rotação: `left-right`;
-- sem sons próprios nesta versão.
-
-Assets:
-
-```text
-5848ed4b455e55aa97cb56404a22ef4a.png — parado
-027345af81f9af923d045f52b1e63ae0.png — passada
-```
-
-Arquivos principais da implementação:
-
-```text
-packages/scratch-gui/src/lib/default-project/index.ts
-packages/scratch-gui/src/lib/default-project/project-data.ts
-packages/scratch-gui/src/lib/default-project/5848ed4b455e55aa97cb56404a22ef4a.png
-packages/scratch-gui/src/lib/default-project/027345af81f9af923d045f52b1e63ae0.png
-packages/scratch-gui/src/lib/libraries/sprites.json
-packages/scratch-gui/src/containers/sprite-library.jsx
-```
-
-A biblioteca padrão tenta carregar previews pelo CDN do Scratch. Como os assets do Whiz pertencem ao EasyBlox e não existem nesse CDN, `sprite-library.jsx` fornece os PNGs locais como `rawURL` apenas para a interface. O `rawURL` é removido antes de o ator ser enviado ao Scratch VM.
-
-Validações já concluídas:
-
-- projeto novo abre com Whiz;
-- fantasias `parado` e `passada` carregam corretamente;
-- animação entre fantasias sem salto visual;
-- orientação `90` validada;
-- espelhamento em `-90` validado;
-- salvamento e reabertura de `.sb3` validados;
-- gato original permanece disponível na biblioteca;
-- Whiz aparece corretamente na biblioteca;
-- Whiz pode ser removido e reinserido pela biblioteca;
-- reinserção preserva as duas fantasias;
+- branch ativa: `easyblox-dev`;
+- HEAD integrado do código aprovado: `81f9a9da37`;
+- `easyblox-dev` sincronizada com `origin/easyblox-dev`;
+- working tree limpo antes da atualização documental;
 - `git diff --check` aprovado;
-- lint localizado sem erros de implementação;
-- `build:dev` compilado com sucesso.
+- `scratch-paint` recompilado com sucesso;
+- `scratch-gui build:dev` compilado com sucesso;
+- servidor de desenvolvimento executado com sucesso em `localhost:8601`;
+- validação funcional manual concluída;
+- nenhuma regressão bloqueante identificada no marco v0.3.0.
 
 Próxima ação operacional:
 
-```text
-1. concluir a atualização final da documentação do marco v0.3.0;
-2. criar o commit documental final na feat/easyblox-interface-branding;
-3. enviar o commit para origin/feat/easyblox-interface-branding;
-4. confirmar que a branch está sincronizada e com working tree limpo;
-5. realizar a aprovação final do marco v0.3.0;
-6. somente após a aprovação, retornar para easyblox-dev;
-7. integrar a feat/easyblox-interface-branding em easyblox-dev de forma segura;
-8. executar a auditoria final da branch de integração;
-9. enviar easyblox-dev para origin;
-10. criar o checkpoint/tag da versão v0.3.0 somente após a integração validada.
-```
+1. concluir a atualização pós-integração de `docs/CONTINUIDADE-EASYBLOX.md`;
+2. atualizar `docs/GUIA-DE-DESENVOLVIMENTO.md` para refletir o marco v0.3.0 integrado;
+3. revisar integralmente o diff documental;
+4. executar `git diff --check`;
+5. confirmar que somente os documentos previstos foram alterados;
+6. criar o commit documental de fechamento da v0.3.0 em `easyblox-dev`;
+7. enviar o commit para `origin/easyblox-dev`;
+8. confirmar sincronização entre local e remoto e working tree limpo;
+9. criar a tag `v0.3.0` somente sobre o checkpoint final validado;
+10. publicar a tag no remoto;
+11. verificar a tag publicada antes de considerar o marco encerrado.
 
-Não realizar integração em `easyblox-dev` nem criar a tag da v0.3.0 antes do commit documental final, da sincronização da feature e da aprovação do marco.
+A feature `feat/easyblox-interface-branding` deve ser preservada até a conclusão e verificação da tag `v0.3.0`. Qualquer eventual remoção da branch somente deverá ser avaliada posteriormente.
 
+Após o fechamento da v0.3.0, iniciar um novo ciclo de desenvolvimento para os ajustes de localização, terminologia e UX identificados durante a validação, sem reescrever ou modificar o histórico do marco aprovado.
 
 ## 13. Regras permanentes de trabalho
 

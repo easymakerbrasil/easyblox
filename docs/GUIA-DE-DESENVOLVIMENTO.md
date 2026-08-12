@@ -145,7 +145,9 @@ Ctrl + C
 - Whiz disponível na biblioteca de atores: concluído e validado
 - Remoção e reinserção do Whiz pela biblioteca: concluído e validado
 - Salvamento e reabertura de projetos `.sb3` com o Whiz: validado
-- Personalização das cores e dos textos: próxima etapa
+- Personalização visual da interface — marco v0.3.0 Interface Branding: concluída, integrada e validada
+- Revisão residual de localização e terminologia para português do Brasil: próxima etapa
+- Ajustes de UX identificados durante a validação da v0.3.0: registrados para ciclo posterior
 
 ## 9. Compatibilidade de compilação no Windows
 
@@ -360,3 +362,123 @@ Depois de modificar arquivos do `scratch-paint`, executar:
 
 ```cmd
 npm --prefix packages\scratch-paint run build
+```
+
+Depois da recompilação do `scratch-paint`, validar novamente o `scratch-gui`:
+
+```cmd
+npm --prefix packages\scratch-gui run build:dev
+```
+
+Alterações em `scratch-paint` não devem ser consideradas concluídas apenas porque o código-fonte foi modificado. A versão compilada deve ser regenerada e o EasyBlox deve ser novamente testado antes de commit, integração ou tag.
+
+### 16.5. Integração e validação final do marco v0.3.0
+
+A feature de identidade visual foi concluída em:
+
+```text
+feat/easyblox-interface-branding
+```
+
+HEAD final aprovado da feature:
+
+```text
+81f9a9da37
+```
+
+A integração em `easyblox-dev` foi realizada por fast-forward, preservando exatamente o histórico já aprovado da feature.
+
+Após a integração foram executadas novamente as validações técnicas:
+
+```cmd
+git diff --check origin/easyblox-dev..HEAD
+npm --prefix packages\scratch-paint run build
+npm --prefix packages\scratch-gui run build:dev
+```
+
+Resultados:
+
+- `git diff --check`: aprovado;
+- `scratch-paint`: compilado com sucesso com webpack 5.109.2;
+- `scratch-gui build:dev`: compilado com sucesso com webpack 5.109.2;
+- working tree permaneceu limpo após os builds;
+- aviso de `Browserslist/caniuse-lite` permaneceu apenas informativo;
+- nenhuma atualização de dependências foi realizada.
+
+A aplicação integrada também foi executada em:
+
+```text
+http://localhost:8601/
+```
+
+A validação funcional manual confirmou:
+
+- carregamento da tela principal;
+- funcionamento das abas Código, Trajes e Sons;
+- diálogo de confirmação de exclusão de ator;
+- biblioteca de atores;
+- biblioteca de cenários;
+- biblioteca de extensões;
+- menus Arquivo, Editar e Configurações;
+- submenus de idioma, tema e modo de cor;
+- modos de tamanho do palco;
+- tela cheia;
+- seletor de direção;
+- modos de rotação;
+- controles de mostrar e ocultar ator;
+- preservação do Whiz como ator inicial.
+
+Após os testes, `easyblox-dev` foi publicada em `origin/easyblox-dev` e a sincronização local/remota foi confirmada.
+
+### 16.6. Pendências identificadas durante a validação
+
+As pendências abaixo não bloqueiam o marco v0.3.0 e devem ser tratadas em ciclo posterior.
+
+#### Localização e terminologia pt-BR
+
+Revisar:
+
+- `Trajes` → `Fantasias`;
+- `Escolher um Actor` → `Escolher um Ator`;
+- `Load from your computer` → tradução adequada em português do Brasil;
+- `Descarregar para o seu computador` → avaliar `Baixar para o seu computador`;
+- `Theme` → `Tema`;
+- `Color Mode` → `Modo de cor`;
+- `Língua` → avaliar `Idioma`;
+- `Recuperar Som` → avaliar `Restaurar som`;
+- `Ligar o Modo Turbo` → avaliar `Ativar modo turbo`;
+- nomenclatura `Blocos de Gato`.
+
+#### Action Menu
+
+Ao retornar da biblioteca de atores ou cenários, o menu associado ao botão de criação permanece expandido/focado e exige um novo clique para fechar.
+
+A análise confirmou que esse comportamento já existia antes da feature `feat/easyblox-interface-branding`. Portanto, não é regressão introduzida pelo marco v0.3.0.
+
+A correção deverá ser desenvolvida e validada separadamente.
+
+#### Mochila
+
+A Mochila ainda apresenta apenas:
+
+```text
+Em Breve...
+```
+
+Esse comportamento também é anterior ao marco v0.3.0 e não representa regressão do branding.
+
+A ativação funcional da Mochila deverá ser planejada em ciclo posterior.
+
+### 16.7. Regra para fechamento do marco v0.3.0
+
+A tag `v0.3.0` somente deve ser criada depois de:
+
+1. atualizar `CONTINUIDADE-EASYBLOX.md` e `GUIA-DE-DESENVOLVIMENTO.md`;
+2. revisar integralmente o diff documental;
+3. executar `git diff --check`;
+4. confirmar que somente os documentos previstos foram alterados;
+5. criar e publicar o commit documental de fechamento em `easyblox-dev`;
+6. confirmar que `easyblox-dev` e `origin/easyblox-dev` estão sincronizadas;
+7. confirmar working tree limpo.
+
+Somente depois dessas verificações a tag `v0.3.0` deverá ser criada e publicada no remoto.
