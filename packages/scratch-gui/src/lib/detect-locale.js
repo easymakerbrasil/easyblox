@@ -15,8 +15,9 @@ const detectLocale = supportedLocales => {
     let locale = 'en'; // default
     let browserLocale = window.navigator.userLanguage || window.navigator.language;
     browserLocale = browserLocale.toLowerCase();
-    // try to set locale from browserLocale
-    if (supportedLocales.includes(browserLocale)) {
+    if (browserLocale === 'pt-pt' && supportedLocales.includes('pt-br')) {
+        locale = 'pt-br';
+    } else if (supportedLocales.includes(browserLocale)) {
         locale = browserLocale;
     } else {
         browserLocale = browserLocale.split('-')[0];

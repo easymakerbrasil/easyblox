@@ -1,10 +1,10 @@
 import cookie from 'cookie';
 
-import {DEFAULT_THEME, CAT_BLOCKS_THEME} from '.';
+import {DEFAULT_THEME} from '.';
 
 const COOKIE_KEY = 'scratchblockstheme';
 
-const isValidTheme = theme => [DEFAULT_THEME, CAT_BLOCKS_THEME].includes(theme);
+const isValidTheme = theme => theme === DEFAULT_THEME;
 
 // TODO: The correct way of implementing this would be to know the user info here
 // (e.g., membership status) and filter out unavailable themes. However, there is no easy way to currently do this,

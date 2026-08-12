@@ -21,10 +21,6 @@ const themeMap = {
     [DEFAULT_THEME]: {
         label: messages[DEFAULT_THEME],
         isAvailable: () => true
-    },
-    [CAT_BLOCKS_THEME]: {
-        label: messages[CAT_BLOCKS_THEME],
-        isAvailable: () => true
     }
 };
 

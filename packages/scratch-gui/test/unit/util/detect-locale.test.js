@@ -1,6 +1,6 @@
 import {detectLocale} from '../../../src/lib/detect-locale.js';
 
-const supportedLocales = ['en', 'es', 'pt-br', 'de', 'it'];
+const supportedLocales = ['en', 'es', 'pt', 'pt-br', 'de', 'it'];
 
 /**
  * @type {jest.SpyInstance}
@@ -64,6 +64,12 @@ describe('detectLocale', () => {
     test('uses navigator language property for default if supported', () => {
         mockWindowNavigator.language = 'pt-BR';
         expect(detectLocale(supportedLocales)).toEqual('pt-br');
+    });
+
+    test('prefers Brazilian Portuguese when browser language is pt-PT', () => {
+    mockWindowLocation.search = '?name=val';
+    mockWindowNavigator.language = 'pt-PT';
+    expect(detectLocale(supportedLocales)).toEqual('pt-br');
     });
 
     test('ignores navigator language property if unsupported', () => {

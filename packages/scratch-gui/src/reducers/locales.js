@@ -4,11 +4,20 @@ import editorMessages from 'scratch-l10n/locales/editor-msgs';
 const UPDATE_LOCALES = 'scratch-gui/locales/UPDATE_LOCALES';
 const SELECT_LOCALE = 'scratch-gui/locales/SELECT_LOCALE';
 
+const easyBloxEditorMessages = Object.assign({}, editorMessages, {
+    'pt-br': Object.assign({}, editorMessages['pt-br'], {
+        'gui.sharedMessages.loadFromComputerTitle': 'Carregar do seu computador',
+        'gui.menuBar.colorMode': 'Modo de cor',
+        'gui.menuBar.turboModeOn': 'Ativar modo turbo',
+        'gui.menuBar.turboModeOff': 'Desativar modo turbo'
+    })
+});
+
 const initialState = {
     isRtl: false,
     locale: 'en',
-    messagesByLocale: editorMessages,
-    messages: editorMessages.en
+    messagesByLocale: easyBloxEditorMessages,
+    messages: easyBloxEditorMessages.en
 };
 
 const reducer = function (state, action) {
