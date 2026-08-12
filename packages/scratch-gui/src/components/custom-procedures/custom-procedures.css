@@ -1,5 +1,6 @@
 @import "../../css/colors.css";
 @import "../../css/units.css";
+@import "../../css/easyblox-colors.css";
 
 .modal-content {
     width: 700px;
@@ -92,9 +93,9 @@
 }
 
 .button-row button.ok-button {
-    background: $looks-secondary;
-    border: $looks-secondary;
-    color: white;
+    background: $easyblox-yellow;
+    border: $easyblox-yellow;
+    color: $easyblox-graphite;
 }
 
 [dir="ltr"] .button-row button + button {

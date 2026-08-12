@@ -1,6 +1,7 @@
 @import "../../css/colors.css";
 @import "../../css/units.css";
 @import "../../css/z-index.css";
+@import "../../css/easyblox-colors.css";
 
 .modal-overlay {
     position: fixed;
@@ -67,7 +68,7 @@ $sides: 20rem;
 
     box-sizing: border-box;
     width: 100%;
-    background-color: $looks-secondary;
+    background-color: $easyblox-graphite;
 
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-size: 1rem;
