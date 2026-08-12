@@ -146,7 +146,7 @@ Ctrl + C
 - Remoção e reinserção do Whiz pela biblioteca: concluído e validado
 - Salvamento e reabertura de projetos `.sb3` com o Whiz: validado
 - Personalização visual da interface — marco v0.3.0 Interface Branding: concluída, integrada e validada
-- Refinamento de localização e terminologia pt-BR — branch `feat/easyblox-ptbr-ux-refinement`: implementado e validado, aguardando fechamento documental e publicação da feature
+- Refinamento de localização e terminologia pt-BR — ciclo `feat/easyblox-ptbr-ux-refinement`: implementado, integrado em `easyblox-dev` e validado
 - Correção do Action Menu herdado da base Scratch: implementada e validada no ciclo `feat/easyblox-ptbr-ux-refinement`
 
 ## 9. Compatibilidade de compilação no Windows
@@ -624,3 +624,45 @@ Em Breve...
 ```
 
 Sua implementação funcional continua fora do escopo deste ciclo e deverá ser planejada separadamente.
+
+### 17.8. Integração em easyblox-dev
+
+Após a publicação e validação da branch `feat/easyblox-ptbr-ux-refinement`, a feature foi integrada em `easyblox-dev` por fast-forward.
+
+Estado da integração:
+
+```text
+Base anterior de easyblox-dev: 894799ac29 — v0.3.0
+HEAD integrado: b70a3bf7d7
+Método de integração: fast-forward
+Merge commit adicional: não
+```
+
+Os três commits integrados foram:
+
+```text
+84bf28568d — feat: refine pt-BR localization and theme settings
+dac597eafa — fix: close action menu after selecting actions
+b70a3bf7d7 — docs: document pt-BR UX refinement cycle
+```
+
+Após a integração, as validações foram repetidas diretamente em `easyblox-dev`.
+
+Resultados:
+
+- 4 suites de testes aprovadas;
+- 23 testes aprovados;
+- `scratch-gui build:dev` compilado com webpack 5.109.2 sem erros;
+- nenhum arquivo gerado adicional ficou rastreado;
+- working tree permaneceu limpo após testes e build;
+- fluxo real da biblioteca de atores validado novamente;
+- Action Menu permanece fechado ao retornar da biblioteca ao editor;
+- navegação por teclado permanece preservada;
+- interface em português do Brasil validada;
+- menu Configurações validado com apenas `Idioma` e `Modo de cor`.
+
+Antes deste checkpoint documental pós-integração, `easyblox-dev` local encontrava-se em `b70a3bf7d7`, enquanto `origin/easyblox-dev` permanecia em `894799ac29`.
+
+A tag `v0.3.0` permanece inalterada em `894799ac29`. Nenhuma nova tag deve ser criada automaticamente como consequência desta integração.
+
+O aviso de Browserslist continua sendo apenas informativo. Nenhuma dependência foi atualizada neste ciclo.

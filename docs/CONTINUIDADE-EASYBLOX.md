@@ -459,50 +459,62 @@ Ainda não realizado:
 
 O marco v0.3.0 Interface Branding está encerrado, integrado em `easyblox-dev`, publicado no GitHub e protegido pela tag `v0.3.0` sobre o commit `894799ac29`.
 
-O ciclo ativo é desenvolvido na branch:
+O ciclo de refinamento pt-BR e UX foi desenvolvido na branch:
 
 `feat/easyblox-ptbr-ux-refinement`
 
-Estado técnico confirmado neste checkpoint:
+A feature foi publicada no remoto e posteriormente integrada por fast-forward em `easyblox-dev`.
 
-- a feature foi criada exatamente a partir de `v0.3.0`;
-- `easyblox-dev` e `origin/easyblox-dev` permanecem em `894799ac29`;
-- a branch local possui dois commits de implementação ainda não publicados no remoto;
+Estado técnico confirmado neste checkpoint pós-integração:
+
+- base original do ciclo: `v0.3.0` — commit `894799ac29`;
+- branch da feature publicada e sincronizada com `origin/feat/easyblox-ptbr-ux-refinement`;
+- HEAD final publicado da feature: `b70a3bf7d7`;
+- integração em `easyblox-dev` realizada por fast-forward de `894799ac29` para `b70a3bf7d7`;
+- nenhum merge commit adicional foi criado;
+- - HEAD de implementação integrado em `easyblox-dev` antes deste checkpoint documental: `b70a3bf7d7`;
+- `origin/easyblox-dev` permanecia em `894799ac29` antes da publicação deste checkpoint documental;
+- antes deste checkpoint documental, `easyblox-dev` estava 3 commits à frente de `origin/easyblox-dev`;
 - `84bf28568d` — `feat: refine pt-BR localization and theme settings`;
 - `dac597eafa` — `fix: close action menu after selecting actions`;
-- localização automática de `pt-PT` para `pt-br` implementada;
-- textos específicos da interface EasyBlox refinados para português do Brasil;
+- `b70a3bf7d7` — `docs: document pt-BR UX refinement cycle`;
+- localização automática de `pt-PT` para `pt-br` implementada e validada;
+- refinamentos locais de terminologia pt-BR implementados;
 - opção Cat Blocks removida da seleção de temas;
 - somente o tema padrão permanece disponível ao usuário;
 - preferências antigas de Cat Blocks fazem fallback seguro para o tema padrão;
 - Action Menu corrigido para fechar após ações principal e secundárias;
-- botão principal deixa de permanecer focado ao abrir a biblioteca, evitando a reabertura do menu ao retornar ao editor;
-- fluxo real da biblioteca de atores validado manualmente;
-- suíte consolidada aprovada com 4 suites e 23 testes;
-- `scratch-gui build:dev` compilado com sucesso usando webpack 5.109.2;
-- `git diff --check` aprovado antes do commit da correção;
-- working tree limpo após os dois commits de implementação;
+- foco do botão principal removido antes da abertura da biblioteca, impedindo a reabertura indevida do menu ao retornar ao editor;
+- integração pós-feature validada novamente com 4 suites e 23 testes aprovados;
+- `scratch-gui build:dev` recompilado após a integração com webpack 5.109.2 sem erros;
+- nenhum arquivo gerado adicional ficou rastreado após o build;
+- validação funcional final realizada diretamente na `easyblox-dev`;
+- fluxo da biblioteca de atores validado com o Action Menu permanecendo fechado ao retornar;
+- interface pt-BR validada;
+- menu Configurações validado exibindo apenas `Idioma` e `Modo de cor`;
+- working tree estava limpo antes deste checkpoint documental pós-integração;
 - aviso de Browserslist permanece apenas informativo e não deve provocar atualização de dependências neste ciclo.
 
 Decisões de escopo preservadas:
 
-- a Mochila permanece exibindo `Em Breve...` e não será implementada neste ciclo;
-- Cat Blocks não será renomeado: a opção foi removida da interface;
-- nenhuma alteração de Arduino, ESP32, Arduino CLI, geração Arduino C/C++, comunicação com hardware ou EasyConect pertence a esta feature;
-- o histórico e a tag `v0.3.0` não devem ser modificados.
+- a Mochila permanece exibindo `Em Breve...` e não foi implementada;
+- Cat Blocks não foi renomeado; a opção foi removida da interface;
+- nenhuma alteração de Arduino, ESP32, Arduino CLI, geração Arduino C/C++, comunicação com hardware ou EasyConect foi realizada;
+- nenhum novo tema visual EasyBlox foi desenvolvido neste ciclo;
+- o histórico e a tag `v0.3.0` permanecem intactos em `894799ac29`.
 
 Próxima ação operacional:
 
-1. atualizar `docs/GUIA-DE-DESENVOLVIMENTO.md` com o estado e as decisões do ciclo `feat/easyblox-ptbr-ux-refinement`;
-2. revisar integralmente as alterações documentais;
+1. atualizar `docs/GUIA-DE-DESENVOLVIMENTO.md` para registrar a integração e validação final deste ciclo;
+2. revisar integralmente o diff documental pós-integração;
 3. executar `git diff --check`;
-4. confirmar que somente os documentos previstos foram modificados;
-5. criar um commit documental separado na branch da feature;
-6. publicar a branch `feat/easyblox-ptbr-ux-refinement` no remoto;
-7. confirmar sincronização entre branch local e `origin/feat/easyblox-ptbr-ux-refinement`;
-8. realizar a revisão final do ciclo antes de qualquer integração em `easyblox-dev`.
+4. confirmar que somente os dois documentos previstos foram modificados;
+5. criar um commit documental pós-integração separado em `easyblox-dev`;
+6. publicar `easyblox-dev` em `origin/easyblox-dev`;
+7. confirmar sincronização entre local e remoto;
+8. confirmar working tree limpo antes de considerar o ciclo integrado e publicado.
 
-A integração em `easyblox-dev` somente deverá ocorrer após a conclusão dessas verificações e aprovação final do ciclo, preservando integralmente o checkpoint `v0.3.0`.
+Nenhuma nova tag deverá ser criada automaticamente neste ponto. O versionamento do próximo marco deverá ser definido separadamente antes de qualquer nova tag.
 
 ## 13. Regras permanentes de trabalho
 
