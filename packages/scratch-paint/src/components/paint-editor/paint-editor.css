@@ -172,12 +172,12 @@ $border-radius: 0.25rem;
 .bitmap-button {
     display: flex;
     border-radius: 5px;
-    background-color: $looks-secondary;
+    background-color: #282828;
     padding: calc(2 * $grid-unit);
     line-height: 1.5rem;
     font-size: calc(3 * $grid-unit);
     font-weight: bold;
-    color: white;
+    color: #ffffff;
     justify-content: center;
 }
 
