@@ -146,8 +146,8 @@ Ctrl + C
 - Remoção e reinserção do Whiz pela biblioteca: concluído e validado
 - Salvamento e reabertura de projetos `.sb3` com o Whiz: validado
 - Personalização visual da interface — marco v0.3.0 Interface Branding: concluída, integrada e validada
-- Revisão residual de localização e terminologia para português do Brasil: próxima etapa
-- Ajustes de UX identificados durante a validação da v0.3.0: registrados para ciclo posterior
+- Refinamento de localização e terminologia pt-BR — branch `feat/easyblox-ptbr-ux-refinement`: implementado e validado, aguardando fechamento documental e publicação da feature
+- Correção do Action Menu herdado da base Scratch: implementada e validada no ciclo `feat/easyblox-ptbr-ux-refinement`
 
 ## 9. Compatibilidade de compilação no Windows
 
@@ -482,3 +482,145 @@ A tag `v0.3.0` somente deve ser criada depois de:
 7. confirmar working tree limpo.
 
 Somente depois dessas verificações a tag `v0.3.0` deverá ser criada e publicada no remoto.
+
+## 17. Refinamento pt-BR e UX — ciclo pós-v0.3.0
+
+Após o fechamento e publicação da tag `v0.3.0`, foi iniciado um novo ciclo de desenvolvimento na branch:
+
+`feat/easyblox-ptbr-ux-refinement`
+
+A feature foi criada exatamente a partir do checkpoint `v0.3.0`, commit `894799ac29`, sem modificar o histórico do marco aprovado.
+
+### 17.1. Escopo do ciclo
+
+Este ciclo trata exclusivamente de:
+
+- refinamentos de localização e terminologia para português do Brasil;
+- correções pontuais de UX identificadas durante a validação da v0.3.0;
+- remoção da opção Cat Blocks da seleção de temas;
+- correção do comportamento herdado do Action Menu.
+
+Ficam explicitamente fora deste ciclo:
+
+- implementação da Mochila;
+- Arduino;
+- ESP32;
+- Arduino CLI;
+- geração de Arduino C/C++;
+- comunicação com hardware;
+- EasyConect;
+- desenvolvimento de novos temas visuais EasyBlox.
+
+### 17.2. Localização automática para português do Brasil
+
+O navegador utilizado durante a validação reportava:
+
+```text
+navigator.language = pt-PT
+navigator.languages = ['pt-PT', 'pt', 'en-US', 'en']
+
+```
+
+Como o mecanismo original utilizava o idioma-base `pt` quando `pt-PT` não estava disponível diretamente, a interface era carregada em português europeu.
+
+O EasyBlox passou a tratar especificamente esse cenário:
+
+- quando o navegador reporta `pt-PT`;
+- e `pt-br` está disponível entre os idiomas suportados;
+- o locale automático utilizado passa a ser `pt-br`.
+
+A seleção explícita de outros locales continua preservada.
+
+Foi criado teste de regressão específico para garantir o comportamento `pt-PT` → `pt-br`.
+
+### 17.3. Refinamentos locais pt-BR
+
+Além da seleção correta de `pt-br`, o EasyBlox mantém overrides locais para textos específicos da interface que não possuíam a terminologia desejada no pacote de localização utilizado.
+
+Foram definidos:
+
+- `Carregar do seu computador`;
+- `Modo de cor`;
+- `Ativar modo turbo`;
+- `Desativar modo turbo`.
+
+Com a seleção correta do locale `pt-br`, também foram validados textos como:
+
+- `Fantasias`;
+- `Ator`;
+- `Baixar para o seu computador`;
+- `Idioma`.
+
+Esses overrides ficam na camada do `scratch-gui`, sem edição direta de `node_modules` ou do pacote `scratch-l10n`.
+
+### 17.4. Tema Cat Blocks
+
+A opção Cat Blocks não foi renomeada.
+
+Como o EasyBlox oferece atualmente apenas o tema padrão de blocos, a decisão do projeto foi remover o seletor de tema da interface quando não há mais de uma opção disponível.
+
+O `themeMap` expõe somente o tema padrão ao usuário.
+
+Preferências antigas contendo `cat-blocks` são consideradas inválidas pela persistência e fazem fallback para o tema padrão.
+
+A compatibilidade interna necessária ao código histórico do Scratch permanece preservada onde ainda é utilizada.
+
+### 17.5. Correção do Action Menu
+
+O comportamento registrado durante a validação da v0.3.0 era herdado da base Scratch:
+
+- o usuário abria a biblioteca de atores ou cenários pelo botão principal do Action Menu;
+- ao retornar ao editor, o botão principal recuperava o foco;
+- o evento de foco expandia novamente o Action Menu;
+- o menu permanecia visualmente aberto e exigia um clique adicional para fechar.
+
+A correção foi implementada sem remover a expansão por foco necessária à navegação por teclado.
+
+Para a ação principal:
+
+1. o estado expandido é encerrado;
+2. o foco é removido do botão principal;
+3. a ação original é executada.
+
+As ações secundárias também fecham explicitamente o menu antes de executar sua ação.
+
+Foram adicionados testes de regressão para:
+
+- fechamento após ação secundária;
+- fechamento após ação principal;
+- remoção do foco do botão principal.
+
+Os testes existentes de navegação por teclado continuam preservados.
+
+### 17.6. Validação do ciclo
+
+Checkpoint de implementação atual:
+
+```text
+84bf28568d — feat: refine pt-BR localization and theme settings
+dac597eafa — fix: close action menu after selecting actions
+```
+
+Validações concluídas:
+
+- fluxo real da biblioteca de atores testado manualmente;
+- Action Menu permanece fechado ao retornar ao editor;
+- navegação por teclado preservada;
+- 4 suites de testes aprovadas;
+- 23 testes aprovados;
+- `git diff --check` aprovado;
+- `scratch-gui build:dev` compilado com webpack 5.109.2 sem erros;
+- nenhum arquivo gerado adicional ficou rastreado;
+- nenhuma dependência foi atualizada.
+
+O aviso de Browserslist permanece apenas informativo e não deve motivar atualização de dependências neste ciclo.
+
+### 17.7. Mochila
+
+A Mochila permanece exibindo:
+
+```text
+Em Breve...
+```
+
+Sua implementação funcional continua fora do escopo deste ciclo e deverá ser planejada separadamente.
