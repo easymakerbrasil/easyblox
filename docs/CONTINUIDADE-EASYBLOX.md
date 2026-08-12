@@ -85,7 +85,7 @@ easyblox-dev
 Branch ativa desta implementação:
 
 ```text
-feat/whiz-default-sprite
+feat/easyblox-interface-branding
 ```
 
 Remotos:
@@ -110,21 +110,47 @@ easyblox-branding-v0.1.0
 Commits relevantes da branch atual:
 
 ```text
-655a803b14 — docs: specify Whiz default sprite animation
-4487e3964e — docs: simplify Whiz default sprite to two costumes
-7a830d8644 — feat: add Whiz as default sprite
-0b17023db — feat: add Whiz to sprite library
+df4d53bc02 — docs: update EasyBlox development status
+971c622b3e — feat: apply EasyBlox interface branding
+d92c329db1 — feat: brand EasyBlox context menu
+f2e3c5ae4c — feat: brand EasyBlox extension button
+05990f5c6d — feat: brand EasyBlox backpack more button
+c2dfc28765 — feat: brand EasyBlox drag preview
+bf8590d1e3 — feat: brand EasyBlox library header
+73e9d24299 — feat: brand EasyBlox library category buttons
+2a50ebce4b — feat: brand EasyBlox library filter bar
+93d1a1e4a4 — feat: brand EasyBlox library search
+7ef092bfc2 — feat: brand EasyBlox library item hover
+eee2a1bfa4 — feat: brand EasyBlox top menus
+c9a117b569 — feat: brand EasyBlox direction dial
+bf9acefc68 — feat: brand EasyBlox direction icons
+56b4255757 — feat: brand EasyBlox toggle buttons
+eb12432b3a — feat: brand EasyBlox input focus states
+2377129ca5 — feat: brand EasyBlox audio trimmer
+2595264d8c — feat: brand EasyBlox question prompt
+3654063acb — feat: brand EasyBlox prompt confirmation
+7428181234 — feat: brand EasyBlox stage size icons
+0418d85b44 — feat: brand EasyBlox visibility icons
+8242935903 — feat: brand EasyBlox code tab icon
+77f852e288 — feat: brand EasyBlox editor tabs
+96a0a2cb9d — feat: brand EasyBlox modal headers and custom procedure confirmation
+35172aa240 — feat: brand EasyBlox paint editor controls
 ```
 
 Situação no momento desta atualização:
 
 ```text
-Branch ativa: feat/whiz-default-sprite
-Branch sincronizada anteriormente com origin/feat/whiz-default-sprite
-Whiz como ator inicial já implementado, testado e enviado ao origin
-Disponibilidade do Whiz na biblioteca implementada, validada e commitada
-Documentação de continuidade registrada no commit 3521f136d
-Não realizar merge em easyblox-dev antes da conclusão dos testes, documentação e aprovação final
+Branch ativa: feat/easyblox-interface-branding
+Implementação visual publicada em origin/feat/easyblox-interface-branding até o commit 35172aa240
+Marco de interface v0.3.0 visualmente validado
+Whiz v0.2.0 permanece funcional como ator inicial e disponível na biblioteca
+Ajustes do scratch-gui concluídos e validados
+Ajustes do scratch-paint concluídos e validados após recompilação do pacote
+git diff --check aprovado
+Build final do scratch-gui aprovado com webpack 5.109.2
+Aviso de Browserslist permanece informativo; dependências não foram atualizadas
+Documentação final do marco v0.3.0 em atualização nesta branch
+Não realizar merge em easyblox-dev antes do commit documental final, push, working tree limpo e aprovação final
 ```
 
 ## 4. Ambiente validado
@@ -421,15 +447,19 @@ Validações já concluídas:
 Próxima ação operacional:
 
 ```text
-1. concluir esta atualização final da documentação de continuidade;
-2. criar e enviar o commit documental final para origin/feat/whiz-default-sprite;
-3. retornar para easyblox-dev;
-4. atualizar easyblox-dev por fast-forward para o HEAD final da feature;
-5. confirmar working tree limpo e realizar a auditoria final;
-6. somente então enviar easyblox-dev para origin.
+1. concluir a atualização final da documentação do marco v0.3.0;
+2. criar o commit documental final na feat/easyblox-interface-branding;
+3. enviar o commit para origin/feat/easyblox-interface-branding;
+4. confirmar que a branch está sincronizada e com working tree limpo;
+5. realizar a aprovação final do marco v0.3.0;
+6. somente após a aprovação, retornar para easyblox-dev;
+7. integrar a feat/easyblox-interface-branding em easyblox-dev de forma segura;
+8. executar a auditoria final da branch de integração;
+9. enviar easyblox-dev para origin;
+10. criar o checkpoint/tag da versão v0.3.0 somente após a integração validada.
 ```
 
-Não realizar merge em `easyblox-dev` antes desse checkpoint final.
+Não realizar integração em `easyblox-dev` nem criar a tag da v0.3.0 antes do commit documental final, da sincronização da feature e da aprovação do marco.
 
 
 ## 13. Regras permanentes de trabalho

@@ -274,3 +274,89 @@ Ao alterar o ator inicial padrão do EasyBlox ou adicionar um ator próprio à b
 - `build:dev` conclui com sucesso.
 
 A integração em `easyblox-dev` somente deve acontecer depois dessa validação funcional e da aprovação do recurso.
+
+## 16. Identidade visual da interface — marco v0.3.0
+
+A etapa de identidade visual da interface do EasyBlox foi desenvolvida na branch:
+
+`feat/easyblox-interface-branding`
+
+O objetivo desta etapa foi aproximar visualmente a interface da identidade EasyMaker/EasyBlox sem alterar a arquitetura técnica do Scratch, o funcionamento dos blocos, a comunicação com hardware ou os identificadores internos necessários ao projeto.
+
+### 16.1. Paleta adotada
+
+A interface EasyBlox utiliza como cores institucionais principais:
+
+- amarelo EasyBlox: `#ffc800`;
+- grafite EasyBlox: `#282828`;
+- branco: `#ffffff`.
+
+No `scratch-gui`, as cores próprias da interface ficam centralizadas em:
+
+`packages/scratch-gui/src/css/easyblox-colors.css`
+
+Sempre que possível, novos componentes visuais do `scratch-gui` devem utilizar essas variáveis em vez de repetir códigos hexadecimais.
+
+### 16.2. Linguagem visual adotada
+
+Como regra geral:
+
+- amarelo é utilizado em ações primárias de criação e confirmação;
+- grafite é utilizado em controles secundários, menus, estados selecionados, destaques e ações utilitárias;
+- branco é utilizado sobre fundos grafite quando necessário para contraste;
+- cores semânticas, como estados destrutivos ou de alerta, não devem ser substituídas apenas por motivo de identidade visual;
+- cores originais do Scratch que fazem parte de categorias, blocos ou significados funcionais não devem ser alteradas indiscriminadamente.
+
+A identidade visual deve ser aplicada de forma seletiva, evitando substituições globais de `$looks-secondary` ou `#855CD6` sem antes identificar a função real do componente.
+
+### 16.3. Componentes personalizados nesta etapa
+
+O marco v0.3.0 inclui a personalização visual dos seguintes pontos da interface:
+
+- identidade e favicon EasyBlox;
+- logo e identificação visual do editor;
+- botões de criação de ator e cenário;
+- estados de seleção dos atores;
+- menus de contexto;
+- botão de extensões;
+- botão "Mais" da mochila;
+- pré-visualização durante arraste;
+- cabeçalho, categorias, filtros, pesquisa e hover das bibliotecas;
+- menus superiores;
+- seletor e ícones de direção;
+- botões de alternância;
+- campos de entrada em foco;
+- editor de áudio;
+- confirmações e prompts;
+- controles de tamanho do palco;
+- controles de visibilidade do ator;
+- abas Código, Trajes e Sons;
+- cabeçalhos dos modais;
+- confirmação do modal "Criar um Bloco";
+- botão de conversão Bitmap/Vectorial do editor de Trajes;
+- estado selecionado das ferramentas do editor de Trajes.
+
+### 16.4. Particularidade do scratch-paint
+
+O editor de Trajes pertence ao pacote:
+
+`packages/scratch-paint`
+
+O `scratch-gui` consome a versão compilada desse pacote por meio de:
+
+`@scratch/scratch-paint`
+
+O ponto de resolução utilizado durante o desenvolvimento é o arquivo compilado:
+
+`packages/scratch-paint/dist/web/scratch-paint.js`
+
+Por esse motivo, alterações realizadas em:
+
+`packages/scratch-paint/src/`
+
+não aparecem automaticamente na interface do EasyBlox.
+
+Depois de modificar arquivos do `scratch-paint`, executar:
+
+```cmd
+npm --prefix packages\scratch-paint run build
