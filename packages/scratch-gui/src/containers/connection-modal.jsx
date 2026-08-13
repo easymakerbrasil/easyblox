@@ -5,6 +5,8 @@ import ConnectionModalComponent, {PHASES} from '../components/connection-modal/c
 import VM from '@scratch/scratch-vm';
 import analytics from '../lib/analytics';
 import extensionData from '../lib/libraries/extensions/index.jsx';
+import {resolveUseAutoScan} from '../lib/connection-utils';
+import {PLATFORM} from '../lib/platform';
 import {connect} from 'react-redux';
 
 import {closeConnectionModal} from '../reducers/modals';
@@ -135,6 +137,11 @@ class ConnectionModal extends React.Component {
     }
     render () {
         const canUpdatePeripheral = (this.props.extensionId === 'microbit') && isMicroBitUpdateSupported();
+        const useAutoScan = resolveUseAutoScan(
+            this.state.extension && this.state.extension.useAutoScan,
+            this.state.extension && this.state.extension.connectionTransport,
+            this.props.platform
+        );
         return (
             <ConnectionModalComponent
                 connectingMessage={this.state.extension && this.state.extension.connectingMessage}
@@ -147,7 +154,7 @@ class ConnectionModal extends React.Component {
                 prescanMessage={this.state.extension && this.state.extension.prescanMessage}
                 scanBeginMessage={this.state.extension && this.state.extension.scanBeginMessage}
                 title={this.props.extensionId}
-                useAutoScan={this.state.extension && this.state.extension.useAutoScan}
+                useAutoScan={useAutoScan}
                 useExternalPeripheralList={this.props.useExternalPeripheralList}
                 vm={this.props.vm}
                 onCancel={this.handleCancel}
@@ -166,12 +173,14 @@ class ConnectionModal extends React.Component {
 ConnectionModal.propTypes = {
     extensionId: PropTypes.string.isRequired,
     onCancel: PropTypes.func.isRequired,
+    platform: PropTypes.oneOf(Object.keys(PLATFORM)),
     useExternalPeripheralList: PropTypes.bool,
     vm: PropTypes.instanceOf(VM).isRequired
 };
 
 const mapStateToProps = state => ({
-    extensionId: state.scratchGui.connectionModal.extensionId
+    extensionId: state.scratchGui.connectionModal.extensionId,
+    platform: state.scratchGui.platform.platform
 });
 
 const mapDispatchToProps = dispatch => ({
