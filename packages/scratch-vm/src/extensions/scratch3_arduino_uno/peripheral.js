@@ -38,6 +38,7 @@ class ArduinoUnoPeripheral {
 
         this._nextSequence = 1;
         this._pingSequence = null;
+        this._pendingDigitalReads = new Map();
         this._stageConnected = false;
         this._handshakeTimer = null;
         this._handshakeAttempts = 0;
@@ -137,6 +138,44 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Read an Arduino UNO digital input pin in Stage mode.
+     * @param {number} pin Arduino digital pin, from D2 to D13 or A0 to A5.
+     * @returns {?Promise<number>} Promise resolved with 0 or 1, or null when unavailable.
+     */
+    digitalRead (pin) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(pin) ||
+            pin < 2 ||
+            pin > 19
+        ) {
+            return null;
+        }
+
+        const sequence = this._sendCommand(
+            COMMANDS.DIGITAL_READ,
+            [pin]
+        );
+
+        if (sequence === null) {
+            return null;
+        }
+
+        return new Promise(resolve => {
+            this._pendingDigitalReads.set(
+                sequence,
+                {
+                    pin,
+                    resolve
+                }
+            );
+        });
+    }
+
+    /**
      * Called when the physical serial connection succeeds.
      * Starts the EasyBlox Stage protocol handshake.
      * @returns {void}
@@ -206,6 +245,28 @@ class ArduinoUnoPeripheral {
                 clearTimeout(this._handshakeTimer);
                 this._handshakeTimer = null;
             }
+
+            return;
+        }
+
+        if (frame.command === RESPONSES.DIGITAL_READ) {
+            const pendingRead =
+                this._pendingDigitalReads.get(frame.sequence);
+
+            if (
+                !pendingRead ||
+                frame.payload.length !== 2 ||
+                frame.payload[0] !== pendingRead.pin ||
+                (frame.payload[1] !== 0 && frame.payload[1] !== 1)
+            ) {
+                return;
+            }
+
+            this._pendingDigitalReads.delete(frame.sequence);
+
+            pendingRead.resolve(
+                frame.payload[1]
+            );
         }
     }
 
@@ -250,6 +311,11 @@ class ArduinoUnoPeripheral {
         }
 
         this._parser.reset();
+        for (const pendingRead of this._pendingDigitalReads.values()) {
+            pendingRead.resolve(null);
+        }
+
+        this._pendingDigitalReads.clear();
         this._nextSequence = 1;
         this._pingSequence = null;
         this._stageConnected = false;

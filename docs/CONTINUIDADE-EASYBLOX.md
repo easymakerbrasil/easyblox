@@ -1489,3 +1489,383 @@ A sequência permanece incremental:
 6. somente depois criar o bloco visual correspondente.
 
 Não iniciar ESP32, EasyMaker Conect ou outras placas antes da conclusão da base Arduino UNO.
+
+## 19. Checkpoint — Arduino UNO DIGITAL_READ funcional no Modo Palco
+
+Data: 14/08/2026.
+
+### 19.1. Objetivo concluído
+
+O segundo primitive físico do Arduino UNO no Modo Palco foi concluído:
+
+`DIGITAL_READ`
+
+O fluxo completo validado é:
+
+`bloco reporter EasyBlox → Scratch VM → ArduinoUnoPeripheral → protocolo Stage → firmware Arduino UNO → digitalRead() → resposta serial → reporter EasyBlox`
+
+A leitura digital foi validada tanto diretamente pela camada JavaScript quanto pelo bloco visual da extensão.
+
+### 19.2. Contrato do protocolo
+
+Novo comando:
+
+`DIGITAL_READ = 0x11`
+
+Payload da requisição:
+
+`[PIN]`
+
+Nova resposta:
+
+`DIGITAL_READ = 0x91`
+
+Payload da resposta:
+
+`[PIN, VALUE]`
+
+Onde:
+
+- `PIN` identifica o pino solicitado;
+- `VALUE = 0` representa nível BAIXO;
+- `VALUE = 1` representa nível ALTO.
+
+A resposta utiliza a mesma `SEQ` da requisição para permitir correlação entre comando e resposta.
+
+Exemplo:
+
+`DIGITAL_READ D2`
+
+Requisição:
+
+`COMMAND = 0x11`
+`PAYLOAD = [2]`
+
+Resposta em nível ALTO:
+
+`COMMAND = 0x91`
+`PAYLOAD = [2, 1]`
+
+### 19.3. Faixa de pinos digitais
+
+A leitura digital segue a mesma faixa adotada no `DIGITAL_WRITE`:
+
+- D2–D13;
+- A0–A5 utilizados como GPIO digital.
+
+Mapeamento interno:
+
+- A0 = 14;
+- A1 = 15;
+- A2 = 16;
+- A3 = 17;
+- A4 = 18;
+- A5 = 19.
+
+Faixa numérica aceita:
+
+`2..19`
+
+D0 e D1 permanecem protegidos porque são utilizados pela UART/Serial.
+
+A validação existe tanto no EasyBlox/JavaScript quanto no firmware Arduino.
+
+### 19.4. Firmware Arduino UNO
+
+Arquivo:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Foi implementado:
+
+`COMMAND_DIGITAL_READ = 0x11`
+
+e:
+
+`RESPONSE_DIGITAL_READ = 0x91`
+
+O firmware:
+
+1. valida payload com exatamente 1 byte;
+2. valida o pino na faixa 2–19;
+3. configura o pino como `INPUT`;
+4. executa `digitalRead(pin)`;
+5. converte o resultado para `0` ou `1`;
+6. responde com `[PIN, VALUE]`;
+7. preserva a `SEQ` da requisição.
+
+Payload ou pino inválido continuam produzindo:
+
+`RESPONSE_ERROR = 0xFF`
+
+### 19.5. Uso de memória do firmware
+
+Compilação para:
+
+`arduino:avr:uno`
+
+Resultado após inclusão do `DIGITAL_READ`:
+
+- Flash: 2468 bytes de 32256 bytes — 7%;
+- SRAM global: 223 bytes de 2048 bytes — 10%;
+- SRAM restante para variáveis locais: 1825 bytes.
+
+A SRAM permaneceu no mesmo consumo observado no marco anterior.
+
+### 19.6. ArduinoUnoPeripheral
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+Foi implementado:
+
+`digitalRead(pin)`
+
+A leitura é assíncrona e retorna uma `Promise`.
+
+Cada leitura pendente é registrada em:
+
+`_pendingDigitalReads`
+
+utilizando a `SEQ` como chave.
+
+Uma resposta somente é aceita quando:
+
+- o comando é `RESPONSES.DIGITAL_READ`;
+- existe uma leitura pendente com a mesma `SEQ`;
+- o payload possui exatamente 2 bytes;
+- o pino recebido corresponde ao pino solicitado;
+- o valor recebido é `0` ou `1`.
+
+Após uma resposta válida, a leitura pendente é removida e a Promise é resolvida com o valor recebido.
+
+Em reset ou desconexão, leituras ainda pendentes são resolvidas com `null` e removidas, evitando Promises abandonadas.
+
+### 19.7. Testes do protocolo
+
+Arquivo:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+Foram acrescentados testes para:
+
+- codificação da requisição `DIGITAL_READ`;
+- payload `[PIN]`;
+- comando `0x11`;
+- parsing da resposta `0x91`;
+- payload `[PIN, VALUE]`;
+- preservação da `SEQ`.
+
+Resultado:
+
+- 45 asserts;
+- 45 pass;
+- 0 fail;
+- 1 suíte aprovada.
+
+### 19.8. Testes da extensão Arduino UNO
+
+Arquivo:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Foram acrescentados testes para:
+
+- envio de `DIGITAL_READ` após handshake;
+- retorno de uma Promise;
+- frame correto com payload `[PIN]`;
+- correlação da resposta pela `SEQ`;
+- resolução da Promise com `0` ou `1`;
+- bloqueio antes do handshake;
+- proteção de D0 e D1;
+- rejeição de pinos acima de A5;
+- rejeição de pinos não inteiros;
+- existência do reporter visual;
+- reutilização do menu `digitalPins`;
+- conversão do valor do menu para número;
+- delegação correta para `ArduinoUnoPeripheral.digitalRead()`.
+
+Resultado final:
+
+- 67 asserts;
+- 67 pass;
+- 0 fail;
+- 1 suíte aprovada.
+
+### 19.9. Build
+
+Após as alterações em `packages/scratch-vm/src`, foi executado:
+
+`npm --workspace @scratch/scratch-vm run build`
+
+O build foi concluído com sucesso.
+
+Permaneceram apenas os warnings conhecidos e não bloqueantes:
+
+- TypeDoc;
+- Browserslist/caniuse-lite;
+- canvas/jsdom.
+
+Nenhuma dependência foi atualizada por causa desses warnings.
+
+### 19.10. Validação física direta
+
+O firmware foi gravado fisicamente no Arduino UNO pela COM11.
+
+Foi necessário liberar a COM11 antes do upload porque o Web Serial mantinha a porta ocupada.
+
+A leitura direta pelo `ArduinoUnoPeripheral.digitalRead()` foi validada fisicamente.
+
+D2:
+
+- D2 conectado ao GND → `digitalRead(2)` retornou `0`;
+- D2 conectado ao 5V → `digitalRead(2)` retornou `1`.
+
+Também foi validado um pino analógico utilizado como GPIO digital.
+
+A2 corresponde internamente ao pino digital 16:
+
+- A2 conectado ao GND → `digitalRead(16)` retornou `0`;
+- A2 conectado ao 5V → `digitalRead(16)` retornou `1`.
+
+### 19.11. Reporter visual
+
+Novo bloco:
+
+`ler pino digital [PIN]`
+
+Tipo:
+
+`BlockType.REPORTER`
+
+Opcode:
+
+`digitalRead`
+
+O reporter reutiliza o menu:
+
+`digitalPins`
+
+portanto disponibiliza:
+
+- D2–D13;
+- A0–A5.
+
+O bloco retorna:
+
+- `0` para BAIXO;
+- `1` para ALTO.
+
+A terminologia visual ALTO/BAIXO permanece utilizada nos blocos que apresentam seleção textual de estado.
+
+### 19.12. Validação física pelo bloco visual
+
+O reporter foi validado diretamente no editor EasyBlox sem uso do Console.
+
+Com A2 selecionado:
+
+- A2 → 5V → `ler pino digital [A2]` retornou `1`;
+- A2 → GND → `ler pino digital [A2]` retornou `0`.
+
+Isso confirma o fluxo completo:
+
+`bloco visual → Scratch VM → peripheral → protocolo → firmware → Arduino UNO → resposta → reporter`
+
+### 19.13. Instrumentação temporária
+
+Durante a validação física antes da criação do reporter, a VM foi temporariamente exposta como:
+
+`window.easyBloxVM`
+
+em:
+
+`packages/scratch-gui/src/lib/app-state-provider-hoc.jsx`
+
+A instrumentação foi completamente removida após os testes.
+
+O arquivo voltou exatamente ao estado original e não possui diff pendente.
+
+Nenhuma exposição de `window.easyBloxVM` deverá entrar no commit.
+
+### 19.14. Separação entre leitura digital e analógica
+
+Foi definida a separação conceitual e visual entre os dois tipos de leitura:
+
+`ler pino digital [PIN]`
+
+e futuramente:
+
+`ler pino analógico [PIN]`
+
+A leitura digital retorna nível lógico:
+
+`0 ou 1`
+
+A leitura analógica utilizará o ADC do Arduino UNO e retornará:
+
+`0..1023`
+
+O futuro bloco de leitura analógica deverá possuir menu específico:
+
+`A0–A5`
+
+A existência do bloco analógico não remove a possibilidade de utilizar A0–A5 como GPIO digital.
+
+Portanto, A0–A5 podem participar do bloco digital quando utilizados como GPIO e também do futuro bloco analógico quando utilizados pelo ADC.
+
+### 19.15. Estado funcional atual
+
+O Arduino UNO no Modo Palco possui agora:
+
+- Web Serial;
+- conexão física;
+- handshake automático;
+- protocolo Stage;
+- PING/PONG;
+- tratamento do auto-reset;
+- `DIGITAL_WRITE`;
+- `DIGITAL_READ`;
+- D2–D13 como GPIO digital;
+- A0–A5 como GPIO digital;
+- bloco `definir pino [PIN] como [VALUE]`;
+- reporter `ler pino digital [PIN]`;
+- escrita física validada;
+- leitura física validada;
+- leitura assíncrona correlacionada por `SEQ`.
+
+Os dois primeiros primitives físicos completos do Modo Palco Arduino UNO estão, portanto, funcionais:
+
+1. escrita digital;
+2. leitura digital.
+
+### 19.16. Próximo passo exato
+
+Após concluir o commit e o push deste checkpoint, o próximo primitive será:
+
+`ANALOG_READ`
+
+Bloco visual previsto:
+
+`ler pino analógico [PIN]`
+
+Menu:
+
+`A0–A5`
+
+Faixa esperada no Arduino UNO:
+
+`0..1023`
+
+O desenvolvimento deverá continuar incrementalmente:
+
+1. definir contrato do protocolo;
+2. criar testes do protocolo;
+3. implementar firmware;
+4. compilar;
+5. implementar peripheral;
+6. criar testes;
+7. validar fisicamente;
+8. somente depois criar e validar o reporter visual.
+
+Não iniciar ESP32, EasyMaker Conect ou outras placas antes da conclusão da base Arduino UNO.

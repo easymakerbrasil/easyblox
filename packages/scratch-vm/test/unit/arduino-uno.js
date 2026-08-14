@@ -325,6 +325,92 @@ tap.test('Arduino UNO rejects invalid DIGITAL_WRITE requests', t => {
     t.end();
 });
 
+tap.test('Arduino UNO reads a digital pin after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const readPromise = peripheral.digitalRead(2);
+
+    t.ok(readPromise instanceof Promise);
+    t.equal(writtenFrames.length, 2);
+
+    const readFrame = writtenFrames[1];
+
+    t.equal(
+        readFrame[4],
+        COMMANDS.DIGITAL_READ
+    );
+
+    t.equal(readFrame[5], 1);
+    t.equal(readFrame[6], 2);
+
+    const readSequence = readFrame[3];
+
+    onData(
+        encodeFrame(
+            readSequence,
+            RESPONSES.DIGITAL_READ,
+            [2, 1]
+        )
+    );
+
+    t.equal(
+        await readPromise,
+        1
+    );
+});
+
+tap.test('Arduino UNO rejects invalid DIGITAL_READ requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.digitalRead(13),
+        null,
+        'does not read before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    t.equal(peripheral.digitalRead(0), null);
+    t.equal(peripheral.digitalRead(1), null);
+    t.equal(peripheral.digitalRead(20), null);
+    t.equal(peripheral.digitalRead(13.5), null);
+
+    t.end();
+});
+
 tap.test('Arduino UNO exposes the DIGITAL_WRITE block and delegates numeric values', t => {
     const runtime = new MockRuntime(null);
     const extension = new Scratch3ArduinoUnoBlocks(runtime);
@@ -385,6 +471,48 @@ tap.test('Arduino UNO exposes the DIGITAL_WRITE block and delegates numeric valu
     t.equal(receivedPin, 13);
     t.equal(receivedValue, 1);
     t.equal(result, 42);
+
+    t.end();
+});
+
+tap.test('Arduino UNO exposes the DIGITAL_READ reporter and delegates numeric pin', t => {
+    const runtime = new MockRuntime(null);
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+
+    const info = extension.getInfo();
+    const digitalReadBlock = info.blocks.find(
+        block => block.opcode === 'digitalRead'
+    );
+
+    t.ok(digitalReadBlock);
+    t.equal(
+        digitalReadBlock.text,
+        'ler pino digital [PIN]'
+    );
+    t.equal(
+        digitalReadBlock.arguments.PIN.defaultValue,
+        2
+    );
+    t.equal(
+        digitalReadBlock.arguments.PIN.menu,
+        'digitalPins'
+    );
+
+    let receivedPin = null;
+    const expectedResult = Promise.resolve(1);
+
+    extension._peripheral.digitalRead = pin => {
+        receivedPin = pin;
+
+        return expectedResult;
+    };
+
+    const result = extension.digitalRead({
+        PIN: '2'
+    });
+
+    t.equal(receivedPin, 2);
+    t.equal(result, expectedResult);
 
     t.end();
 });

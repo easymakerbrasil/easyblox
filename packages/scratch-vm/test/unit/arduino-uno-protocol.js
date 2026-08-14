@@ -252,3 +252,53 @@ tap.test('reset discards an incomplete frame', t => {
 
     t.end();
 });
+
+tap.test('encodes DIGITAL_READ payload', t => {
+    const frame = encodeFrame(
+        0x2B,
+        COMMANDS.DIGITAL_READ,
+        [2]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x2B);
+    t.equal(frame[4], COMMANDS.DIGITAL_READ);
+    t.equal(frame[5], 1);
+    t.equal(frame[6], 2);
+
+    t.equal(
+        frame[7],
+        calculateChecksum(frame.subarray(2, 7))
+    );
+
+    t.end();
+});
+
+tap.test('parses DIGITAL_READ response', t => {
+    const frames = [];
+
+    const parser = new StageProtocolParser(frame => {
+        frames.push(frame);
+    });
+
+    parser.push(
+        encodeFrame(
+            0x2B,
+            RESPONSES.DIGITAL_READ,
+            [2, 1]
+        )
+    );
+
+    t.equal(frames.length, 1);
+    t.equal(frames[0].sequence, 0x2B);
+    t.equal(frames[0].command, RESPONSES.DIGITAL_READ);
+
+    t.same(
+        Array.from(frames[0].payload),
+        [2, 1]
+    );
+
+    t.end();
+});

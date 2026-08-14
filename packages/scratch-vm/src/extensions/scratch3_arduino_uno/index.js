@@ -43,6 +43,18 @@ class Scratch3ArduinoUnoBlocks {
                             defaultValue: 1
                         }
                     }
+                },
+                {
+                    opcode: 'digitalRead',
+                    blockType: BlockType.REPORTER,
+                    text: 'ler pino digital [PIN]',
+                    arguments: {
+                        PIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'digitalPins',
+                            defaultValue: 2
+                        }
+                    }
                 }
             ],
             menus: {
@@ -95,6 +107,17 @@ class Scratch3ArduinoUnoBlocks {
         return this._peripheral.digitalWrite(
             Number(args.PIN),
             Number(args.VALUE)
+        );
+    }
+
+    /**
+     * Read a digital Arduino UNO pin in Stage mode.
+     * @param {object} args Scratch block arguments.
+     * @returns {?Promise<number>} Promise resolved with 0 or 1, or null when unavailable.
+     */
+    digitalRead (args) {
+        return this._peripheral.digitalRead(
+            Number(args.PIN)
         );
     }
 }
