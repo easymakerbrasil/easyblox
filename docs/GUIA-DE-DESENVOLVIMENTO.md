@@ -1292,33 +1292,224 @@ geração C++
 
 continua pertencendo a uma etapa posterior do ciclo Arduino UNO.
 
-### 19.12. Próximo primitive Stage
+### 19.12. DIGITAL_WRITE consolidado
 
-O próximo primitive a ser implementado é:
+O primeiro primitive físico completo do Modo Palco Arduino UNO é:
 
-`DIGITAL_WRITE`
+`DIGITAL_WRITE = 0x10`
 
-Fluxo-alvo:
+Formato:
 
-bloco/comando EasyBlox
-→ `ArduinoUnoPeripheral`
+`payload [PIN, VALUE]`
+
+onde:
+
+- `PIN` identifica o GPIO da Arduino UNO;
+- `VALUE = 1` representa nível lógico ALTO;
+- `VALUE = 0` representa nível lógico BAIXO.
+
+A implementação completa passa por:
+
+bloco EasyBlox
+→ `Scratch3ArduinoUnoBlocks.digitalWrite()`
+→ `ArduinoUnoPeripheral.digitalWrite()`
+→ `_sendCommand()`
 → frame `DIGITAL_WRITE`
 → Serial
 → firmware Stage
-→ `pinMode`
-→ `digitalWrite`
+→ `pinMode(pin, OUTPUT)`
+→ `digitalWrite()`
 → alteração física do pino.
 
-A implementação deve ser validada primeiro no protocolo/peripheral/firmware e em hardware real.
+Arquivos principais:
 
-Somente depois deverá ser considerada concluída a integração do primeiro bloco visual Arduino UNO.
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/index.js`
 
-Após isso, avançar progressivamente para:
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
 
-- leitura digital;
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+### 19.13. Faixa de GPIO digital da Arduino UNO
+
+Para `DIGITAL_WRITE`, são suportados:
+
+- D2 até D13;
+- A0 até A5 usados como GPIO digital.
+
+Mapeamento interno:
+
+- D2–D13 → 2–13;
+- A0 → 14;
+- A1 → 15;
+- A2 → 16;
+- A3 → 17;
+- A4 → 18;
+- A5 → 19.
+
+A faixa interna válida é, portanto:
+
+`2–19`
+
+D0 e D1 não devem ser disponibilizados para primitives comuns do Modo Palco porque são utilizados pela UART/Serial.
+
+Pinos inferiores a 2 ou superiores a 19 devem ser rejeitados pelo peripheral e pelo firmware.
+
+A validação deve existir nas duas camadas:
+
+- EasyBlox/JavaScript;
+- firmware Arduino.
+
+Não confiar apenas na validação feita pelo host.
+
+### 19.14. Terminologia de nível lógico
+
+Na interface visual do EasyBlox utilizar:
+
+- `ALTO`;
+- `BAIXO`.
+
+Mapeamento:
+
+- `ALTO` → `1`;
+- `BAIXO` → `0`.
+
+Os termos técnicos `HIGH` e `LOW` continuam válidos internamente no firmware, código-fonte e documentação técnica quando necessário.
+
+O menu visual do bloco deve apresentar a terminologia em português.
+
+Exemplo:
+
+`definir pino [D13] como [ALTO]`
+
+### 19.15. Menus de pinos de extensão
+
+Menus declarados em `getInfo()` não devem utilizar números diretamente como itens.
+
+A infraestrutura atual do Scratch VM interpreta itens de menu como:
+
+- strings; ou
+- objetos com `text` e `value`.
+
+Portanto, utilizar o padrão:
+
+`{text: 'D13', value: '13'}`
+
+e:
+
+`{text: 'A0', value: '14'}`
+
+Os valores do menu podem chegar ao primitive como strings.
+
+Antes de delegar ao peripheral, converter explicitamente:
+
+`Number(args.PIN)`
+
+e:
+
+`Number(args.VALUE)`
+
+Isso mantém o peripheral trabalhando com números e permite validação rígida com `Number.isInteger()`.
+
+### 19.16. Validação física do DIGITAL_WRITE
+
+O primitive foi validado em hardware real pela COM11.
+
+D13:
+
+`definir pino [D13] como [ALTO]`
+
+→ LED L integrado acendeu.
+
+`definir pino [D13] como [BAIXO]`
+
+→ LED L integrado apagou.
+
+A0 utilizado como GPIO digital:
+
+`definir pino [A0] como [ALTO]`
+
+→ aproximadamente `4,92 V` medidos entre A0 e GND.
+
+`definir pino [A0] como [BAIXO]`
+
+→ `0 V`.
+
+Portanto, está validado fisicamente:
+
+bloco visual
+→ Scratch VM
+→ peripheral
+→ protocolo Stage
+→ firmware
+→ GPIO real.
+
+### 19.17. Estado atual dos testes Arduino UNO
+
+Teste do protocolo:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+Estado atual validado:
+
+- 33 asserts;
+- 33 pass;
+- 0 fail.
+
+Teste da extensão/peripheral:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Estado atual validado:
+
+- 49 asserts;
+- 49 pass;
+- 0 fail.
+
+Os testes atuais cobrem também:
+
+- envio de `DIGITAL_WRITE`;
+- bloqueio antes do handshake Stage;
+- proteção de D0/D1;
+- rejeição de pino acima de A5;
+- rejeição de valores diferentes de 0/1;
+- existência do bloco visual;
+- menus D2–D13;
+- menus A0–A5;
+- ALTO/BAIXO;
+- conversão de argumentos;
+- delegação para `ArduinoUnoPeripheral`.
+
+### 19.18. Footprint atual do firmware Stage
+
+Com `PING/PONG` e `DIGITAL_WRITE` implementados, o firmware Stage foi validado com:
+
+- 2166 bytes de Flash — 6%;
+- 223 bytes de SRAM global — 10%;
+- 1825 bytes restantes para variáveis locais.
+
+Esses valores são referência do estado atual e continuarão crescendo progressivamente conforme novos primitives forem adicionados.
+
+Continuar acompanhando Flash e SRAM durante toda a evolução do firmware para ATmega328P.
+
+### 19.19. Próximo primitive Stage
+
+Após a conclusão de `DIGITAL_WRITE`, o próximo primitive do ciclo Arduino UNO é a leitura digital.
+
+A implementação deve continuar seguindo a mesma disciplina:
+
+1. definir o comando no protocolo;
+2. implementar no firmware;
+3. implementar no `ArduinoUnoPeripheral`;
+4. criar ou ampliar testes;
+5. compilar;
+6. validar em hardware real;
+7. somente depois criar e validar o bloco visual correspondente.
+
+Depois da leitura digital, avançar progressivamente para:
 - leitura analógica;
 - PWM;
 - tone;
 - demais primitives Arduino.
 
-ESP32 e EasyMaker Conect permanecem fora deste ciclo.
+ESP32, EasyMaker Conect e outras placas permanecem fora deste ciclo.
+A base Arduino UNO deve ser estabilizada antes da expansão para outras famílias.

@@ -111,6 +111,32 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Set an Arduino UNO digital output pin HIGH or LOW in Stage mode.
+     * @param {number} pin Arduino digital pin, from D2 to D13 or A0 to A5.
+     * @param {number} value Digital value: 0 for LOW or 1 for HIGH.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    digitalWrite (pin, value) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(pin) ||
+            pin < 2 ||
+            pin > 19 ||
+            (value !== 0 && value !== 1)
+        ) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.DIGITAL_WRITE,
+            [pin, value]
+        );
+    }
+
+    /**
      * Called when the physical serial connection succeeds.
      * Starts the EasyBlox Stage protocol handshake.
      * @returns {void}

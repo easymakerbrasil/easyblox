@@ -1149,3 +1149,343 @@ Após `DIGITAL_WRITE`, seguir progressivamente para:
 ESP32 e EasyMaker Conect continuam fora deste ciclo.
 
 Geração C++, compilação e Upload integrados ao EasyBlox continuam posteriores à estabilização do Modo Palco básico.
+
+## 18. Checkpoint — Arduino UNO DIGITAL_WRITE funcional no Modo Palco
+
+Data: 14/08/2026
+
+### 18.1. Objetivo deste marco
+
+Foi concluído o primeiro primitive físico completo do Modo Palco Arduino UNO:
+
+`DIGITAL_WRITE = 0x10`
+
+Este marco é a primeira validação completa do fluxo:
+
+EasyBlox
+→ bloco visual Arduino UNO
+→ Scratch VM
+→ `ArduinoUnoPeripheral`
+→ protocolo Stage
+→ Web Serial
+→ Arduino UNO
+→ firmware Stage
+→ alteração física real de um pino.
+
+### 18.2. Formato do comando
+
+Comando:
+
+`DIGITAL_WRITE = 0x10`
+
+Payload:
+
+`[PIN, VALUE]`
+
+Valores:
+
+- `VALUE = 1` → nível lógico ALTO;
+- `VALUE = 0` → nível lógico BAIXO.
+
+Respostas utilizadas:
+
+- `ACK = 0x80`;
+- `ERROR = 0xFF`.
+
+O firmware responde `ACK` após uma escrita digital válida e `ERROR` quando o payload, pino ou valor recebido é inválido.
+
+### 18.3. Pinos digitais suportados
+
+A faixa inicialmente planejada como D2–D13 foi ampliada durante a validação para aproveitar também os pinos analógicos da Arduino UNO como GPIO digital.
+
+Pinos disponíveis no bloco:
+
+- D2 até D13;
+- A0 até A5.
+
+Mapeamento interno utilizado pela Arduino:
+
+- A0 → 14;
+- A1 → 15;
+- A2 → 16;
+- A3 → 17;
+- A4 → 18;
+- A5 → 19.
+
+Portanto, a faixa interna válida para `DIGITAL_WRITE` é:
+
+`2–19`
+
+D0 e D1 permanecem protegidos porque são utilizados pela UART/Serial.
+
+Valores acima de 19 são rejeitados.
+
+### 18.4. Firmware Stage
+
+Arquivo:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Foi implementado:
+
+- `COMMAND_DIGITAL_WRITE = 0x10`;
+- `RESPONSE_ACK = 0x80`;
+- `RESPONSE_ERROR = 0xFF`;
+- validação obrigatória de payload com exatamente 2 bytes;
+- validação do pino entre 2 e 19;
+- validação do valor como somente 0 ou 1;
+- configuração automática com `pinMode(pin, OUTPUT)`;
+- escrita com `digitalWrite()`;
+- resposta `ACK` após execução válida;
+- resposta `ERROR` para parâmetros inválidos.
+
+O comportamento anterior de `PING → PONG` foi preservado.
+
+### 18.5. Compilação do firmware
+
+O firmware Stage atualizado foi compilado com:
+
+`arduino-cli 1.5.1`
+
+FQBN:
+
+`arduino:avr:uno`
+
+Resultado:
+
+- programa: 2166 bytes de 32256 bytes — 6%;
+- variáveis globais: 223 bytes de 2048 bytes — 10%;
+- 1825 bytes disponíveis para variáveis locais.
+
+O firmware foi gravado fisicamente na Arduino UNO pela COM11.
+
+Permanece válida a regra:
+
+antes de usar Arduino CLI para upload, a COM11 deve ser liberada usando `Desconectar` no EasyBlox.
+
+### 18.6. ArduinoUnoPeripheral
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+Foi criado:
+
+`digitalWrite(pin, value)`
+
+O método:
+
+- exige `isStageConnected() === true`;
+- aceita somente pinos inteiros entre 2 e 19;
+- rejeita D0 e D1;
+- rejeita valores diferentes de 0 e 1;
+- envia `COMMANDS.DIGITAL_WRITE`;
+- utiliza payload `[pin, value]`;
+- reutiliza `_sendCommand()` e a infraestrutura Stage existente.
+
+Nenhuma nova camada Serial foi criada.
+
+### 18.7. Primeiro bloco visual Arduino UNO
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/index.js`
+
+Foi criado o primeiro bloco físico da extensão Arduino UNO:
+
+`definir pino [PIN] como [VALUE]`
+
+Menus atuais:
+
+PIN:
+
+- D2;
+- D3;
+- D4;
+- D5;
+- D6;
+- D7;
+- D8;
+- D9;
+- D10;
+- D11;
+- D12;
+- D13;
+- A0;
+- A1;
+- A2;
+- A3;
+- A4;
+- A5.
+
+VALUE:
+
+- `ALTO` → valor interno `1`;
+- `BAIXO` → valor interno `0`.
+
+A terminologia visual aprovada para o EasyBlox é:
+
+- ALTO;
+- BAIXO.
+
+Os termos técnicos HIGH/LOW podem continuar sendo utilizados internamente em código e documentação técnica quando necessário.
+
+### 18.8. Validação física D13
+
+O primeiro teste físico do bloco visual utilizou o LED integrado da Arduino UNO em D13.
+
+Foi validado:
+
+`definir pino [D13] como [ALTO]`
+
+Resultado:
+
+- LED L integrado acendeu.
+
+Em seguida:
+
+`definir pino [D13] como [BAIXO]`
+
+Resultado:
+
+- LED L integrado apagou.
+
+Portanto, o primeiro fluxo completo executado pelo próprio bloco visual foi confirmado fisicamente.
+
+### 18.9. Validação física A0 como GPIO digital
+
+Também foi validado o uso de um pino analógico como saída digital.
+
+Com multímetro entre A0 e GND:
+
+`definir pino [A0] como [ALTO]`
+
+Resultado observado:
+
+`4,92 V`
+
+Depois:
+
+`definir pino [A0] como [BAIXO]`
+
+Resultado observado:
+
+`0 V`
+
+Isso confirma fisicamente o mapeamento:
+
+`A0 → pino digital interno 14`
+
+e valida a ampliação da faixa para A0–A5.
+
+### 18.10. Testes unitários
+
+Teste:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Resultado final deste marco:
+
+- 49 asserts;
+- 49 pass;
+- 0 fail;
+- 1 suíte aprovada.
+
+Foram adicionadas validações para:
+
+- envio de `DIGITAL_WRITE` após handshake;
+- frame correto com payload `[13, 1]`;
+- bloqueio antes do Stage estar conectado;
+- proteção de D0 e D1;
+- rejeição de pinos acima de A5;
+- rejeição de valores digitais inválidos;
+- existência do bloco visual;
+- menu D2–D13;
+- menu A0–A5;
+- terminologia ALTO/BAIXO;
+- conversão dos valores do Blockly para números;
+- delegação correta para `ArduinoUnoPeripheral`.
+
+Teste do protocolo:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+Resultado:
+
+- 33 asserts;
+- 33 pass;
+- 0 fail;
+- 1 suíte aprovada.
+
+### 18.11. Build e verificações
+
+`scratch-vm` foi recompilado com sucesso após as alterações.
+
+Warnings conhecidos e não bloqueantes permaneceram:
+
+- TypeDoc de Runtime/VirtualMachine/ExtensionManager;
+- Browserslist/caniuse-lite;
+- canvas/jsdom;
+- warnings JSDoc já conhecidos.
+
+Nenhuma dependência foi atualizada por causa desses warnings.
+
+`git diff --check` dos arquivos Arduino deste marco foi aprovado.
+
+O warning de conversão:
+
+`LF will be replaced by CRLF`
+
+em `stage.ino` permanece conhecido e não bloqueante no Windows.
+
+### 18.12. Instrumentação temporária de validação
+
+Durante a primeira validação de `DIGITAL_WRITE`, a VM foi temporariamente exposta no navegador para permitir chamada direta de:
+
+`ArduinoUnoPeripheral.digitalWrite(13, 1)`
+
+e:
+
+`ArduinoUnoPeripheral.digitalWrite(13, 0)`
+
+Essa instrumentação foi utilizada somente antes da criação do bloco visual.
+
+Após a validação, a alteração temporária foi completamente removida.
+
+Nenhuma exposição de `window.easyBloxVM` permanece no código atual.
+
+### 18.13. Estado funcional atual
+
+Neste checkpoint, o Arduino UNO já possui no Modo Palco:
+
+- Web Serial funcional;
+- conexão física;
+- protocolo Stage;
+- handshake automático;
+- PING/PONG;
+- tratamento do auto-reset;
+- `isConnected()`;
+- `isStageConnected()`;
+- `DIGITAL_WRITE`;
+- D2–D13 como saídas digitais;
+- A0–A5 como saídas digitais;
+- primeiro bloco visual funcional;
+- ALTO/BAIXO;
+- validação física real pelo editor.
+
+Este é o primeiro primitive físico completo do EasyBlox executado diretamente por um bloco visual no Arduino UNO.
+
+### 18.14. Próximo passo exato
+
+O próximo primitive do ciclo Arduino UNO será a leitura digital.
+
+A sequência permanece incremental:
+
+1. definir o comando de leitura digital no protocolo Stage;
+2. implementar no firmware;
+3. implementar no `ArduinoUnoPeripheral`;
+4. criar testes;
+5. validar fisicamente;
+6. somente depois criar o bloco visual correspondente.
+
+Não iniciar ESP32, EasyMaker Conect ou outras placas antes da conclusão da base Arduino UNO.

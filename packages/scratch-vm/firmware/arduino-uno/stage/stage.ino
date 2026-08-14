@@ -9,8 +9,11 @@ constexpr uint8_t PROTOCOL_VERSION = 0x01;
 constexpr uint8_t MAX_PAYLOAD_LENGTH = 32;
 
 constexpr uint8_t COMMAND_PING = 0x01;
+constexpr uint8_t COMMAND_DIGITAL_WRITE = 0x10;
 
+constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
+constexpr uint8_t RESPONSE_ERROR = 0xFF;
 
 enum class ParserState : uint8_t {
     WaitStart1,
@@ -93,12 +96,54 @@ void sendFrame(
     );
 }
 
+void handleDigitalWrite() {
+    if (payloadLength != 2) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t pin = payload[0];
+    const uint8_t value = payload[1];
+
+    if (
+        pin < 2 ||
+        pin > 19 ||
+        value > 1
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    pinMode(pin, OUTPUT);
+
+    digitalWrite(
+        pin,
+        value == 0 ? LOW : HIGH
+    );
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
 void handleFrame() {
     if (command == COMMAND_PING) {
         sendFrame(
             sequence,
             RESPONSE_PONG
         );
+        return;
+    }
+
+    if (command == COMMAND_DIGITAL_WRITE) {
+        handleDigitalWrite();
     }
 }
 

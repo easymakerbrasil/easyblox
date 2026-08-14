@@ -1,6 +1,7 @@
 const tap = require('tap');
 
 const ArduinoUnoPeripheral = require('../../src/extensions/scratch3_arduino_uno/peripheral');
+const Scratch3ArduinoUnoBlocks = require('../../src/extensions/scratch3_arduino_uno');
 const {
     COMMANDS,
     RESPONSES,
@@ -250,4 +251,140 @@ tap.test('Arduino UNO retries the Stage handshake until PONG is received', async
     await new Promise(resolve => setTimeout(resolve, 550));
 
     t.equal(writtenFrames.length, 2);
+});
+
+tap.test('Arduino UNO sends DIGITAL_WRITE after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const sequence = peripheral.digitalWrite(13, 1);
+
+    t.equal(sequence, 2);
+    t.equal(writtenFrames.length, 2);
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            sequence,
+            COMMANDS.DIGITAL_WRITE,
+            [13, 1]
+        )
+    );
+});
+
+tap.test('Arduino UNO rejects invalid DIGITAL_WRITE requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.digitalWrite(13, 1),
+        null,
+        'does not write before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    t.equal(peripheral.digitalWrite(0, 1), null);
+    t.equal(peripheral.digitalWrite(1, 1), null);
+    t.equal(peripheral.digitalWrite(20, 1), null);
+    t.equal(peripheral.digitalWrite(13, 2), null);
+    t.equal(peripheral.digitalWrite(13, -1), null);
+    t.equal(peripheral.digitalWrite(13.5, 1), null);
+
+    t.end();
+});
+
+tap.test('Arduino UNO exposes the DIGITAL_WRITE block and delegates numeric values', t => {
+    const runtime = new MockRuntime(null);
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+
+    const info = extension.getInfo();
+    const digitalWriteBlock = info.blocks.find(
+        block => block.opcode === 'digitalWrite'
+    );
+
+    t.ok(digitalWriteBlock);
+    t.equal(digitalWriteBlock.text, 'definir pino [PIN] como [VALUE]');
+    t.equal(digitalWriteBlock.arguments.PIN.defaultValue, 13);
+    t.equal(digitalWriteBlock.arguments.VALUE.defaultValue, 1);
+
+    t.same(
+        info.menus.digitalPins.items[0],
+        {text: 'D2', value: '2'}
+    );
+
+    t.same(
+        info.menus.digitalPins.items[11],
+        {text: 'D13', value: '13'}
+    );
+
+    t.same(
+        info.menus.digitalPins.items[12],
+        {text: 'A0', value: '14'}
+    );
+
+    t.same(
+        info.menus.digitalPins.items[17],
+        {text: 'A5', value: '19'}
+    );
+
+    t.same(
+        info.menus.digitalValues.items,
+        [
+            {text: 'ALTO', value: '1'},
+            {text: 'BAIXO', value: '0'}
+        ]
+    );
+
+    let receivedPin = null;
+    let receivedValue = null;
+
+    extension._peripheral.digitalWrite = (pin, value) => {
+        receivedPin = pin;
+        receivedValue = value;
+
+        return 42;
+    };
+
+    const result = extension.digitalWrite({
+        PIN: '13',
+        VALUE: '1'
+    });
+
+    t.equal(receivedPin, 13);
+    t.equal(receivedValue, 1);
+    t.equal(result, 42);
+
+    t.end();
 });
