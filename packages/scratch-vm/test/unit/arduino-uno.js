@@ -412,6 +412,92 @@ tap.test('Arduino UNO rejects invalid DIGITAL_READ requests', t => {
     t.end();
 });
 
+tap.test('Arduino UNO reads an analog pin after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const readPromise = peripheral.analogRead(14);
+
+    t.ok(readPromise instanceof Promise);
+    t.equal(writtenFrames.length, 2);
+
+    const readFrame = writtenFrames[1];
+
+    t.equal(
+        readFrame[4],
+        COMMANDS.ANALOG_READ
+    );
+
+    t.equal(readFrame[5], 1);
+    t.equal(readFrame[6], 14);
+    t.equal(readFrame[3], 2);
+
+    const readSequence = readFrame[3];
+
+    onData(
+        encodeFrame(
+            readSequence,
+            RESPONSES.ANALOG_READ,
+            [14, 0x03, 0xFF]
+        )
+    );
+
+    t.equal(
+        await readPromise,
+        1023
+    );
+});
+
+tap.test('Arduino UNO rejects invalid ANALOG_READ requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.analogRead(14),
+        null,
+        'does not read before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    t.equal(peripheral.analogRead(13), null);
+    t.equal(peripheral.analogRead(20), null);
+    t.equal(peripheral.analogRead(14.5), null);
+
+    t.end();
+});
+
 tap.test('Arduino UNO exposes the DIGITAL_WRITE block and delegates numeric values', t => {
     const runtime = new MockRuntime(null);
     const extension = new Scratch3ArduinoUnoBlocks(runtime);
@@ -530,6 +616,67 @@ tap.test('Arduino UNO exposes the DIGITAL_READ boolean block and delegates numer
     });
 
     t.equal(lowResult, false);
+
+    t.end();
+});
+
+tap.test('Arduino UNO exposes the ANALOG_READ reporter block and delegates numeric pin', async t => {
+    const runtime = new MockRuntime(null);
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+
+    const info = extension.getInfo();
+    const analogReadBlock = info.blocks.find(
+        block => block.opcode === 'analogRead'
+    );
+
+    t.ok(analogReadBlock);
+
+    t.equal(
+        analogReadBlock.blockType,
+        BlockType.REPORTER
+    );
+
+    t.equal(
+        analogReadBlock.text,
+        'ler pino analógico [PIN]'
+    );
+
+    t.equal(
+        analogReadBlock.arguments.PIN.defaultValue,
+        14
+    );
+
+    t.equal(
+        analogReadBlock.arguments.PIN.menu,
+        'analogPins'
+    );
+
+    t.same(
+        info.menus.analogPins.items,
+        [
+            {text: 'A0', value: '14'},
+            {text: 'A1', value: '15'},
+            {text: 'A2', value: '16'},
+            {text: 'A3', value: '17'},
+            {text: 'A4', value: '18'},
+            {text: 'A5', value: '19'}
+        ]
+    );
+
+    let receivedPin = null;
+
+    extension._peripheral.analogRead = pin => {
+        receivedPin = pin;
+
+        return Promise.resolve(512);
+    };
+
+    const result = await extension.analogRead({
+        PIN: '16'
+    });
+
+    t.equal(receivedPin, 16);
+    t.equal(result, 512);
 
     t.end();
 });

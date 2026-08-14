@@ -11,10 +11,12 @@ constexpr uint8_t MAX_PAYLOAD_LENGTH = 32;
 constexpr uint8_t COMMAND_PING = 0x01;
 constexpr uint8_t COMMAND_DIGITAL_WRITE = 0x10;
 constexpr uint8_t COMMAND_DIGITAL_READ = 0x11;
+constexpr uint8_t COMMAND_ANALOG_READ = 0x12;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
 constexpr uint8_t RESPONSE_DIGITAL_READ = 0x91;
+constexpr uint8_t RESPONSE_ANALOG_READ = 0x92;
 constexpr uint8_t RESPONSE_ERROR = 0xFF;
 
 enum class ParserState : uint8_t {
@@ -175,6 +177,48 @@ void handleDigitalRead() {
     );
 }
 
+void handleAnalogRead() {
+    if (payloadLength != 1) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t pin = payload[0];
+
+    if (
+        pin < 14 ||
+        pin > 19
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    pinMode(pin, INPUT);
+    digitalWrite(pin, LOW);
+
+    const uint16_t value =
+        static_cast<uint16_t>(analogRead(pin));
+
+    const uint8_t responsePayload[] = {
+        pin,
+        static_cast<uint8_t>((value >> 8) & 0xFF),
+        static_cast<uint8_t>(value & 0xFF)
+    };
+
+    sendFrame(
+        sequence,
+        RESPONSE_ANALOG_READ,
+        responsePayload,
+        sizeof(responsePayload)
+    );
+}
+
 void handleFrame() {
     if (command == COMMAND_PING) {
         sendFrame(
@@ -191,6 +235,11 @@ void handleFrame() {
 
     if (command == COMMAND_DIGITAL_READ) {
         handleDigitalRead();
+        return;
+    }
+
+    if (command == COMMAND_ANALOG_READ) {
+        handleAnalogRead();
     }
 }
 

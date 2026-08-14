@@ -6,13 +6,15 @@ const MAX_PAYLOAD_LENGTH = 32;
 const COMMANDS = Object.freeze({
     PING: 0x01,
     DIGITAL_WRITE: 0x10,
-    DIGITAL_READ: 0x11
+    DIGITAL_READ: 0x11,
+    ANALOG_READ: 0x12
 });
 
 const RESPONSES = Object.freeze({
     ACK: 0x80,
     PONG: 0x81,
     DIGITAL_READ: 0x91,
+    ANALOG_READ: 0x92,
     ERROR: 0xFF
 });
 

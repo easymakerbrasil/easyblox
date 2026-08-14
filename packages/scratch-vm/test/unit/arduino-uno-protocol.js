@@ -302,3 +302,53 @@ tap.test('parses DIGITAL_READ response', t => {
 
     t.end();
 });
+
+tap.test('encodes ANALOG_READ payload', t => {
+    const frame = encodeFrame(
+        0x2C,
+        COMMANDS.ANALOG_READ,
+        [14]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x2C);
+    t.equal(frame[4], COMMANDS.ANALOG_READ);
+    t.equal(frame[5], 1);
+    t.equal(frame[6], 14);
+
+    t.equal(
+        frame[7],
+        calculateChecksum(frame.subarray(2, 7))
+    );
+
+    t.end();
+});
+
+tap.test('parses ANALOG_READ response', t => {
+    const frames = [];
+
+    const parser = new StageProtocolParser(frame => {
+        frames.push(frame);
+    });
+
+    parser.push(
+        encodeFrame(
+            0x2C,
+            RESPONSES.ANALOG_READ,
+            [14, 0x03, 0xFF]
+        )
+    );
+
+    t.equal(frames.length, 1);
+    t.equal(frames[0].sequence, 0x2C);
+    t.equal(frames[0].command, RESPONSES.ANALOG_READ);
+
+    t.same(
+        Array.from(frames[0].payload),
+        [14, 0x03, 0xFF]
+    );
+
+    t.end();
+});

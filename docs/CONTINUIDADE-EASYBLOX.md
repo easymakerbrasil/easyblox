@@ -1906,3 +1906,351 @@ O desenvolvimento deverá continuar incrementalmente:
 8. somente depois criar e validar o reporter visual.
 
 Não iniciar ESP32, EasyMaker Conect ou outras placas antes da conclusão da base Arduino UNO.
+
+## 20. Checkpoint — Arduino UNO ANALOG_READ funcional no Modo Palco
+
+O terceiro primitive físico da base Arduino UNO foi concluído e validado de ponta a ponta:
+
+`ANALOG_READ`
+
+O fluxo completo está funcional:
+
+`bloco visual → Scratch VM → ArduinoUnoPeripheral → protocolo Stage → firmware → ADC do Arduino UNO → resposta serial → valor 0..1023`
+
+### 20.1. Contrato do protocolo
+
+Foi definido o comando:
+
+`ANALOG_READ = 0x12`
+
+E a resposta:
+
+`ANALOG_READ = 0x92`
+
+A requisição utiliza payload:
+
+`[PIN]`
+
+Os pinos analógicos são representados internamente como:
+
+- A0 = 14;
+- A1 = 15;
+- A2 = 16;
+- A3 = 17;
+- A4 = 18;
+- A5 = 19.
+
+A resposta utiliza payload:
+
+`[PIN, VALUE_MSB, VALUE_LSB]`
+
+A ordem dos bytes é MSB-first.
+
+Exemplo para A0 retornando 1023:
+
+`[14, 0x03, 0xFF]`
+
+No host, o valor é reconstruído por:
+
+`(VALUE_MSB << 8) | VALUE_LSB`
+
+A faixa válida é:
+
+`0..1023`
+
+A resposta é correlacionada à requisição pelo mesmo `SEQ`.
+
+### 20.2. Testes do protocolo
+
+Foram adicionados testes para:
+
+- codificação da requisição `ANALOG_READ`;
+- parsing da resposta `ANALOG_READ`;
+- preservação do `SEQ`;
+- payload com PIN + MSB + LSB.
+
+Resultado:
+
+`57 pass / 0 fail`
+
+Arquivo:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+### 20.3. Firmware Arduino UNO
+
+Arquivo:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Foram adicionados:
+
+`COMMAND_ANALOG_READ = 0x12`
+
+`RESPONSE_ANALOG_READ = 0x92`
+
+O firmware aceita somente os pinos internos:
+
+`14..19`
+
+correspondentes a:
+
+`A0..A5`
+
+Antes da leitura, o pino é configurado como entrada e o pull-up interno é desabilitado.
+
+A leitura utiliza:
+
+`analogRead(pin)`
+
+O resultado de 10 bits é dividido em:
+
+- byte alto;
+- byte baixo.
+
+A resposta é enviada no formato:
+
+`[PIN, VALUE_MSB, VALUE_LSB]`
+
+### 20.4. Footprint do firmware
+
+Compilação para:
+
+`arduino:avr:uno`
+
+Resultado:
+
+- Flash: `2616 bytes (8%)`;
+- SRAM global: `223 bytes (10%)`;
+- SRAM livre: `1825 bytes`.
+
+Comparação com o marco anterior `DIGITAL_READ`:
+
+- Flash: `2468 → 2616 bytes`;
+- aumento: `148 bytes`;
+- SRAM: permaneceu em `223 bytes`.
+
+### 20.5. ArduinoUnoPeripheral
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+Foi implementado:
+
+`analogRead(pin)`
+
+O método:
+
+- exige handshake Stage concluído;
+- aceita somente inteiros de 14 a 19;
+- envia `COMMANDS.ANALOG_READ`;
+- mantém a leitura pendente correlacionada por `SEQ`;
+- aguarda `RESPONSES.ANALOG_READ`;
+- valida o PIN retornado;
+- valida payload de três bytes;
+- reconstrói MSB/LSB;
+- rejeita valores maiores que 1023;
+- resolve uma `Promise<number>` com o resultado.
+
+Foi criado:
+
+`_pendingAnalogReads`
+
+No `_reset()`, todas as leituras analógicas pendentes são resolvidas com `null` e o mapa é limpo.
+
+O mecanismo de `DIGITAL_READ` permaneceu independente e preservado.
+
+### 20.6. Testes da extensão Arduino UNO
+
+Foram adicionados testes para:
+
+- envio de `ANALOG_READ` após handshake;
+- pino A0 codificado como 14;
+- correlação pelo mesmo `SEQ`;
+- reconstrução de `[0x03, 0xFF]` como `1023`;
+- rejeição de leitura antes do handshake;
+- rejeição de pinos fora de A0–A5;
+- rejeição de pino não inteiro;
+- metadata do bloco visual;
+- menu analógico;
+- conversão do valor do menu para número;
+- delegação ao `ArduinoUnoPeripheral`.
+
+Resultado final:
+
+`89 pass / 0 fail`
+
+Arquivo:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+### 20.7. Bloco visual
+
+Foi adicionado o reporter:
+
+`ler pino analógico [PIN]`
+
+Tipo:
+
+`BlockType.REPORTER`
+
+O menu é exclusivo:
+
+- A0;
+- A1;
+- A2;
+- A3;
+- A4;
+- A5.
+
+Internamente:
+
+- A0 = 14;
+- A1 = 15;
+- A2 = 16;
+- A3 = 17;
+- A4 = 18;
+- A5 = 19.
+
+O método da extensão converte o valor recebido pelo menu com `Number(args.PIN)` e delega a leitura ao peripheral.
+
+O reporter retorna diretamente um valor numérico na faixa:
+
+`0..1023`
+
+A inclusão deste menu não modifica os blocos digitais.
+
+A0–A5 continuam disponíveis também em:
+
+`digitalPins`
+
+quando utilizados como GPIO digital.
+
+### 20.8. Validação física
+
+O firmware foi gravado fisicamente no Arduino UNO pela porta:
+
+`COM11`
+
+A leitura analógica foi validada diretamente no A2, representado internamente pelo pino 16.
+
+Teste inferior:
+
+`A2 → GND`
+
+Resultado:
+
+`0`
+
+Teste superior:
+
+`A2 → 5 V`
+
+Resultado:
+
+`1023`
+
+Isso confirmou fisicamente:
+
+- protocolo;
+- firmware;
+- ADC;
+- serial;
+- correlação por `SEQ`;
+- reconstrução MSB/LSB;
+- `ArduinoUnoPeripheral.analogRead()`.
+
+O bloco visual também foi validado no EasyBlox após rebuild do Scratch VM e reinicialização do dev-server.
+
+### 20.9. Build do Scratch VM
+
+Após as alterações em:
+
+`packages/scratch-vm/src`
+
+foi executado:
+
+`npm --workspace @scratch/scratch-vm run build`
+
+O build foi concluído com sucesso.
+
+Warnings conhecidos e não bloqueantes permaneceram:
+
+- TypeDoc Runtime/VirtualMachine/ExtensionManager;
+- Browserslist/caniuse-lite;
+- canvas/jsdom.
+
+Nenhuma dependência foi atualizada por causa desses warnings.
+
+Foi novamente confirmado que alterações no Scratch VM exigem:
+
+1. build do `@scratch/scratch-vm`;
+2. reinicialização do dev-server do Scratch GUI;
+3. recarga da interface.
+
+Apenas recarregar o navegador pode manter bundle ou instância anterior.
+
+### 20.10. Instrumentação temporária
+
+Para a validação física antes do bloco visual, a VM foi temporariamente exposta como:
+
+`window.easyBloxVM`
+
+A instrumentação foi realizada em:
+
+`packages/scratch-gui/src/reducers/vm.ts`
+
+Ela foi completamente removida após os testes.
+
+O arquivo voltou ao estado original e não possui diff pendente.
+
+Nenhuma instrumentação temporária deverá entrar no commit.
+
+### 20.11. Estado funcional atual do Arduino UNO
+
+O Modo Palco Arduino UNO possui agora três primitives físicos completos:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`.
+
+Estão funcionais:
+
+- Web Serial;
+- conexão e seleção da porta;
+- handshake automático;
+- retry após auto-reset;
+- protocolo binário Stage;
+- `PING/PONG`;
+- escrita digital;
+- leitura digital;
+- leitura analógica;
+- D2–D13 como GPIO digital;
+- A0–A5 como GPIO digital;
+- A0–A5 como entradas ADC;
+- bloco `definir pino [PIN] como [VALUE]`;
+- bloco booleano `ler pino digital [PIN]`;
+- reporter `ler pino analógico [PIN]`;
+- correlação assíncrona por `SEQ`;
+- hardware real validado.
+
+### 20.12. Próximo passo exato
+
+Antes de iniciar outro primitive:
+
+1. atualizar `docs/GUIA-DE-DESENVOLVIMENTO.md`;
+2. executar `git diff --check`;
+3. revisar todos os diffs do ciclo;
+4. manter fora do commit a alteração não relacionada em `packages/scratch-gui/src/components/action-menu/icon--sprite.svg`;
+5. adicionar explicitamente somente os arquivos do `ANALOG_READ` e os documentos;
+6. executar `git diff --cached --check`;
+7. criar o commit do checkpoint;
+8. fazer push da branch `feat/easyblox-arduino-uno-foundation`;
+9. confirmar branch sincronizada e working tree contendo apenas alterações deliberadamente externas ao ciclo.
+
+Depois desse checkpoint, continuar a evolução incremental da base Arduino UNO antes de iniciar ESP32, EasyMaker Conect ou outras placas.
+
+O próximo primitive da base deverá ser definido mantendo a mesma disciplina:
+
+`protocolo → testes → firmware → compile → peripheral → testes → build → hardware → bloco visual → documentação → commit`

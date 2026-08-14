@@ -55,6 +55,18 @@ class Scratch3ArduinoUnoBlocks {
                             defaultValue: 2
                         }
                     }
+                },
+                {
+                    opcode: 'analogRead',
+                    blockType: BlockType.REPORTER,
+                    text: 'ler pino analógico [PIN]',
+                    arguments: {
+                        PIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'analogPins',
+                            defaultValue: 14
+                        }
+                    }
                 }
             ],
             menus: {
@@ -73,6 +85,17 @@ class Scratch3ArduinoUnoBlocks {
                         {text: 'D11', value: '11'},
                         {text: 'D12', value: '12'},
                         {text: 'D13', value: '13'},
+                        {text: 'A0', value: '14'},
+                        {text: 'A1', value: '15'},
+                        {text: 'A2', value: '16'},
+                        {text: 'A3', value: '17'},
+                        {text: 'A4', value: '18'},
+                        {text: 'A5', value: '19'}
+                    ]
+                },
+                analogPins: {
+                    acceptReporters: true,
+                    items: [
                         {text: 'A0', value: '14'},
                         {text: 'A1', value: '15'},
                         {text: 'A2', value: '16'},
@@ -126,6 +149,16 @@ class Scratch3ArduinoUnoBlocks {
 
         return result.then(value => value === 1);
     }
-}
 
+    /**
+     * Read an analog Arduino UNO pin in Stage mode.
+     * @param {object} args Scratch block arguments.
+     * @returns {?Promise<number>} Promise resolved with a value from 0 to 1023, or null when unavailable.
+     */
+    analogRead (args) {
+        return this._peripheral.analogRead(
+            Number(args.PIN)
+        );
+    }
+}
 module.exports = Scratch3ArduinoUnoBlocks;
