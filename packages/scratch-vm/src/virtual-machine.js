@@ -1613,6 +1613,13 @@ class VirtualMachine extends EventEmitter {
     configureScratchLinkSocketFactory (factory) {
         this.runtime.configureScratchLinkSocketFactory(factory);
     }
+    /**
+     * Configure how serial transports are created.
+     * @param {?Function} factory The factory for creating serial transports.
+     */
+    configureSerialTransportFactory (factory) {
+        this.runtime.configureSerialTransportFactory(factory);
+    }
 }
 
 module.exports = VirtualMachine;

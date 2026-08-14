@@ -578,3 +578,282 @@ Este arquivo deverá ser atualizado sempre que ocorrer:
 - mudança no próximo passo.
 
 O GitHub e os documentos do repositório são a fonte oficial da continuidade do EasyBlox.
+
+## 16. Checkpoint — Fundação Arduino UNO e conexão física Web Serial
+
+Data do checkpoint: 14/08/2026.
+
+Branch ativa:
+
+`feat/easyblox-arduino-uno-foundation`
+
+Base do ciclo:
+
+`79988efd0f` — checkpoint final do ciclo pt-BR / UX integrado em `easyblox-dev`.
+
+### 16.1. Prioridade e escopo atual
+
+A prioridade prática do EasyBlox é concluir primeiro o fluxo Arduino UNO de ponta a ponta.
+
+Ordem de implementação aprovada:
+
+1. infraestrutura Serial compartilhada;
+2. Arduino UNO como extensão nativa;
+3. conexão física com a placa;
+4. Modo Palco;
+5. blocos Arduino;
+6. geração de C++;
+7. compilação;
+8. Carregar/Upload para a placa;
+9. validação das placas da família EasyMaker sobre essa base.
+
+As placas da família EasyMaker atendidas inicialmente sobre a arquitetura Arduino são:
+
+- EasyMaker;
+- EasyDuino;
+- MakerDuino.
+
+ESP32 e EasyMaker Conect ficam explicitamente para uma etapa posterior, somente depois de Arduino UNO, Modo Palco e Upload funcionarem de ponta a ponta na prática.
+
+Micro:bit não faz parte do roadmap de hardware do EasyBlox. Código herdado relacionado a micro:bit pode ser consultado apenas como referência arquitetural pontual do Scratch VM quando necessário.
+
+A partir deste ciclo, investigações arquiteturais extensas devem ser evitadas. Fazer apenas verificações objetivas quando forem necessárias para desbloquear uma implementação concreta.
+
+### 16.2. Infraestrutura Serial compartilhada
+
+Foi criada a infraestrutura Serial em:
+
+`packages/scratch-vm/src/io/serial.js`
+
+Responsabilidades atuais:
+
+- descoberta ou seleção de periféricos seriais;
+- conexão;
+- desconexão;
+- estado lógico de conexão;
+- escrita binária;
+- recebimento de `Uint8Array`;
+- classificação de desconexão deliberada versus perda inesperada;
+- emissão dos eventos de periféricos já usados pelo Scratch VM.
+
+Foi adicionada ao Runtime a capacidade de receber uma factory de transportes Serial:
+
+- `getSerialTransport()`;
+- `configureSerialTransportFactory(factory)`.
+
+A API também foi exposta por `VirtualMachine` através de:
+
+`configureSerialTransportFactory(factory)`.
+
+O `scratch-vm` permanece independente de Web Serial, Electron, Node Serial ou qualquer implementação física específica.
+
+### 16.3. Arduino UNO no Scratch VM
+
+Foi criada a extensão:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/`
+
+Estrutura atual:
+
+- `index.js` — classe da extensão `Scratch3ArduinoUnoBlocks`;
+- `peripheral.js` — `ArduinoUnoPeripheral`.
+
+O `ArduinoUnoPeripheral`:
+
+- registra-se no Runtime com `extensionId: 'arduinoUno'`;
+- utiliza a infraestrutura compartilhada `Serial`;
+- usa atualmente `115200 baud`;
+- implementa `scan()`;
+- implementa `connect(peripheralId)`;
+- implementa `disconnect()`;
+- implementa `isConnected()`;
+- já possui pontos reservados para inicialização, parser e reset do futuro Modo Palco.
+
+A extensão foi registrada como built-in em:
+
+`packages/scratch-vm/src/extension-support/extension-manager.js`
+
+Validação direta pelo próprio VM aprovada:
+
+```text
+Arduino UNO extension loaded successfully
+Peripheral registered: ArduinoUnoPeripheral
+Connected: false
+
+### 16.4. Arduino UNO na biblioteca da GUI
+
+A Arduino UNO foi adicionada à biblioteca visual de extensões em:
+
+packages/scratch-gui/src/lib/libraries/extensions/index.jsx
+
+Metadados principais:
+
+extensionId: 'arduinoUno';
+launchPeripheralConnectionFlow: true;
+useAutoScan: false;
+connectionTransport: 'serial'.
+
+O comportamento platform-aware implementado anteriormente permanece:
+
+WEB → fluxo AutoScanningStep, permitindo seleção explícita através do seletor da plataforma;
+DESKTOP → fluxo ScanningStep, preparado para futura enumeração de portas;
+demais plataformas → comportamento declarado pela extensão.
+
+Foi criado temporariamente o asset:
+
+packages/scratch-gui/src/lib/libraries/extensions/arduinoUno/arduino-uno.svg
+
+Esse asset é provisório e serve apenas para permitir a implementação funcional. A identidade visual definitiva da extensão poderá ser refinada posteriormente sem alterar a arquitetura.
+
+### 16.5. Web Serial Transport
+
+Foi criado:
+
+packages/scratch-gui/src/lib/serial/web-serial-transport.js
+
+Contrato implementado:
+
+requestPort();
+open(peripheralId, options);
+close();
+write(data);
+setOnData(callback);
+setOnClose(callback);
+setOnError(callback).
+
+A implementação utiliza Web Serial somente na camada GUI e não introduz navigator.serial dentro do scratch-vm.
+
+O transporte foi conectado à criação padrão do VM em:
+
+packages/scratch-gui/src/reducers/vm.ts
+
+através de:
+
+vm.configureSerialTransportFactory(...).
+
+Durante os testes foi identificado e corrigido um loop infinito no _readLoop() quando reader.read() retornava done: true. O problema causava crescimento contínuo de memória até JavaScript heap out of memory.
+
+Após a correção, o término do stream encerra corretamente o loop externo e pode ser classificado como perda inesperada quando apropriado.
+
+### 16.6. Testes automatizados aprovados
+
+Infraestrutura Serial:
+
+packages/scratch-vm/test/unit/serial.js
+
+Resultado:
+
+23 asserts
+23 pass
+0 fail
+
+Arduino UNO Peripheral:
+
+packages/scratch-vm/test/unit/arduino-uno.js
+
+Resultado:
+
+13 asserts
+13 pass
+0 fail
+
+Web Serial Transport:
+
+packages/scratch-gui/test/unit/util/web-serial-transport.test.js
+
+Resultado:
+
+Test Suites: 1 passed
+Tests:       7 passed
+Snapshots:   0
+
+Os testes Web Serial validam:
+
+seleção de porta;
+identificação USB VID/PID;
+estabilidade do peripheralId;
+cancelamento do seletor;
+Web Serial indisponível;
+listener de desconexão física;
+open();
+write();
+close();
+recebimento de Uint8Array.
+
+Avisos não bloqueantes conhecidos durante os testes da GUI:
+
+duplicate manual mock index entre os modos de cor dark/default;
+Browserslist/caniuse-lite desatualizado.
+
+Não atualizar dependências apenas por causa desses avisos.
+
+### 16.7. Build e validação física
+
+O scratch-vm foi recompilado após a introdução da nova API Serial.
+
+Resultado:
+
+webpack 5.109.2 compiled successfully
+
+Foi necessário reiniciar o dev-server depois do rebuild do scratch-vm, pois o processo anterior mantinha um bundle/HMR que ainda não possuía configureSerialTransportFactory() e provocava tela branca na inicialização.
+
+Após reinicialização limpa:
+
+EasyBlox carregou normalmente;
+Arduino UNO apareceu na biblioteca de extensões;
+a extensão foi adicionada ao projeto;
+o diálogo de conexão Serial foi aberto;
+o Chrome apresentou o seletor nativo Web Serial;
+uma placa física foi detectada como USB Serial (COM11);
+a porta foi selecionada e aberta;
+o EasyBlox exibiu estado Conectado;
+o botão Desconectar foi disponibilizado.
+
+Portanto, está validado na prática:
+
+Arduino UNO física
+→ USB
+→ Chrome Web Serial
+→ WebSerialTransport
+→ Serial
+→ ArduinoUnoPeripheral
+→ Runtime
+→ GUI EasyBlox
+→ estado Conectado
+
+Este é o primeiro marco de comunicação física Arduino UNO funcional no EasyBlox.
+
+### 16.8. Estado Git deste checkpoint
+
+Os arquivos Arduino/Serial deste marco estão preparados no stage para validação e commit.
+
+Existe uma modificação local conhecida e não relacionada em:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+Essa alteração NÃO deve ser incluída em commits Arduino/Serial.
+
+git diff --cached --check foi executado e aprovado após a remoção de um trailing whitespace no teste Web Serial.
+
+### 16.9. Próximo passo exato
+
+Depois de documentar, validar e criar o checkpoint Git deste marco, iniciar a implementação prática do Modo Palco da Arduino UNO.
+
+O próximo bloco técnico deve concentrar-se em:
+
+definir o protocolo mínimo necessário entre EasyBlox e Arduino UNO;
+implementar framing/parser no ArduinoUnoPeripheral;
+implementar inicialização da conexão Stage;
+introduzir os primeiros blocos Arduino, começando por operações digitais simples;
+testar comunicação real EasyBlox → Arduino UNO;
+somente depois expandir para leitura analógica, PWM, tone e demais recursos.
+
+Não iniciar ESP32, EasyMaker Conect, Arduino CLI ou geração C++ antes de estabilizar o Modo Palco Arduino UNO na prática.
+
+### 16.10. Backlog registrado, fora do ciclo atual
+
+Foi registrado para um ciclo futuro de UX:
+
+permitir remover do projeto uma extensão previamente adicionada, comportamento inexistente atualmente no Scratch herdado e desejado para o EasyBlox com referência conceitual no PictoBlox.
+
+Esse item não deve desviar o ciclo atual Arduino UNO.

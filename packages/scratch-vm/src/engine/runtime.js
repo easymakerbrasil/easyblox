@@ -1512,6 +1512,23 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Get a serial transport created by the configured platform factory.
+     * @returns {?object} The serial transport, or null if serial is unavailable.
+     */
+    getSerialTransport () {
+        if (!this._serialTransportFactory) return null;
+        return this._serialTransportFactory();
+    }
+
+    /**
+     * Configure how serial transports are created.
+     * @param {?Function} factory The factory for creating serial transports.
+     */
+    configureSerialTransportFactory (factory) {
+        this._serialTransportFactory = factory;
+    }
+
+    /**
      * Register an extension that communications with a hardware peripheral by id,
      * to have access to it and its peripheral functions in the future.
      * @param {string} extensionId - the id of the extension.

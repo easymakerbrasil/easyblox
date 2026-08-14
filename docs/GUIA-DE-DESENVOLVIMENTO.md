@@ -666,3 +666,363 @@ Antes deste checkpoint documental pós-integração, `easyblox-dev` local encont
 A tag `v0.3.0` permanece inalterada em `894799ac29`. Nenhuma nova tag deve ser criada automaticamente como consequência desta integração.
 
 O aviso de Browserslist continua sendo apenas informativo. Nenhuma dependência foi atualizada neste ciclo.
+
+C:\Users\EasyMaker\source\EasyMakerDev\easyblox>node -e "const fs=require('fs');const p='docs/GUIA-DE-DESENVOLVIMENTO.md';const a=fs.readFileSync(p,'utf8').split(/\r?\n/);a.forEach((l,i)=>{if(/^#{1,3} /.test(l)||/Arduino|Serial|hardware/i.test(l))console.log(String(i+1).padStart(4,' ')+': '+l);});"
+   1: # Guia de Desenvolvimento do EasyBlox
+   3: ## 1. Visão do projeto
+   7: ### Produtos
+  11: - **Placas iniciais:** Arduino UNO e ESP32.
+  12: - **Perfis de hardware:** EasyMaker, EasyDuino e MakerDuino.
+  14: ## 2. Objetivos iniciais
+  19: - geração de código Arduino C/C++;
+  20: - compilação e gravação no Arduino UNO e ESP32;
+  27: ## 3. Comunicação Bluetooth
+  31: | Arduino | Função | HC-06 |
+  33: | D2 | RX do Arduino | TX do HC-06 |
+  34: | D3 | TX do Arduino | RX do HC-06 |
+  42: O aplicativo utilizará Bluetooth Classic com comunicação serial SPP/RFCOMM.
+  44: ## 4. Ambiente validado
+  51: - Arduino IDE instalado
+  54: ## 5. Repositório
+  92: ## 6. Instalação das dependências no Windows
+  99: npm ci --foreground-scripts --cache "%LOCALAPPDATA%\EasyBloxNpmCacheSerial"
+ 113: ## 7. Executando o ambiente de desenvolvimento
+ 130: ## 8. Situação atual
+ 152: ## 9. Compatibilidade de compilação no Windows
+ 179: ## 10. Estrutura principal do projeto
+ 189: ## 11. Etapas planejadas
+ 195: 5. Adicionar suporte ao Arduino UNO.
+ 197: 7. Integrar o Arduino CLI.
+ 198: 8. Gerar código Arduino C/C++ a partir dos blocos.
+ 204: ## 12. Identidade visual prevista
+ 216: ## 13. Controle das alterações
+ 240: ## 14. Assets proprietários do EasyBlox
+ 256: ## 15. Validação de atores padrão e biblioteca
+ 280: ## 16. Identidade visual da interface — marco v0.3.0
+ 286: O objetivo desta etapa foi aproximar visualmente a interface da identidade EasyMaker/EasyBlox sem alterar a arquitetura técnica do Scratch, o funcionamento dos blocos, a comunicação com hardware ou os identificadores internos necessários ao projeto.
+ 288: ### 16.1. Paleta adotada
+ 302: ### 16.2. Linguagem visual adotada
+ 314: ### 16.3. Componentes personalizados nesta etapa
+ 341: ### 16.4. Particularidade do scratch-paint
+ 375: ### 16.5. Integração e validação final do marco v0.3.0
+ 433: ### 16.6. Pendências identificadas durante a validação
+ 472: ### 16.7. Regra para fechamento do marco v0.3.0
+ 486: ## 17. Refinamento pt-BR e UX — ciclo pós-v0.3.0
+ 494: ### 17.1. Escopo do ciclo
+ 506: - Arduino;
+ 508: - Arduino CLI;
+ 509: - geração de Arduino C/C++;
+ 510: - comunicação com hardware;
+ 514: ### 17.2. Localização automática para português do Brasil
+ 536: ### 17.3. Refinamentos locais pt-BR
+ 556: ### 17.4. Tema Cat Blocks
+ 568: ### 17.5. Correção do Action Menu
+ 595: ### 17.6. Validação do ciclo
+ 618: ### 17.7. Mochila
+ 628: ### 17.8. Integração em easyblox-dev
+
+C:\Users\EasyMaker\source\EasyMakerDev\easyblox>node -e "const fs=require('fs');const p='docs/GUIA-DE-DESENVOLVIMENTO.md';const a=fs.readFileSync(p,'utf8').split(/\r?\n/);a.forEach((l,i)=>{if(/^#{1,3} /.test(l)||/Arduino|Serial|hardware/i.test(l))console.log(String(i+1).padStart(4,' ')+': '+l);});"
+   1: # Guia de Desenvolvimento do EasyBlox
+   3: ## 1. Visão do projeto
+   7: ### Produtos
+  11: - **Placas iniciais:** Arduino UNO e ESP32.
+  12: - **Perfis de hardware:** EasyMaker, EasyDuino e MakerDuino.
+  14: ## 2. Objetivos iniciais
+  19: - geração de código Arduino C/C++;
+  20: - compilação e gravação no Arduino UNO e ESP32;
+  27: ## 3. Comunicação Bluetooth
+  31: | Arduino | Função | HC-06 |
+  33: | D2 | RX do Arduino | TX do HC-06 |
+  34: | D3 | TX do Arduino | RX do HC-06 |
+  42: O aplicativo utilizará Bluetooth Classic com comunicação serial SPP/RFCOMM.
+  44: ## 4. Ambiente validado
+  51: - Arduino IDE instalado
+  54: ## 5. Repositório
+  92: ## 6. Instalação das dependências no Windows
+  99: npm ci --foreground-scripts --cache "%LOCALAPPDATA%\EasyBloxNpmCacheSerial"
+ 113: ## 7. Executando o ambiente de desenvolvimento
+ 130: ## 8. Situação atual
+ 152: ## 9. Compatibilidade de compilação no Windows
+ 179: ## 10. Estrutura principal do projeto
+ 189: ## 11. Etapas planejadas
+ 195: 5. Adicionar suporte ao Arduino UNO.
+ 197: 7. Integrar o Arduino CLI.
+ 198: 8. Gerar código Arduino C/C++ a partir dos blocos.
+ 204: ## 12. Identidade visual prevista
+ 216: ## 13. Controle das alterações
+ 240: ## 14. Assets proprietários do EasyBlox
+ 256: ## 15. Validação de atores padrão e biblioteca
+ 280: ## 16. Identidade visual da interface — marco v0.3.0
+ 286: O objetivo desta etapa foi aproximar visualmente a interface da identidade EasyMaker/EasyBlox sem alterar a arquitetura técnica do Scratch, o funcionamento dos blocos, a comunicação com hardware ou os identificadores internos necessários ao projeto.
+ 288: ### 16.1. Paleta adotada
+ 302: ### 16.2. Linguagem visual adotada
+ 314: ### 16.3. Componentes personalizados nesta etapa
+ 341: ### 16.4. Particularidade do scratch-paint
+ 375: ### 16.5. Integração e validação final do marco v0.3.0
+ 433: ### 16.6. Pendências identificadas durante a validação
+ 472: ### 16.7. Regra para fechamento do marco v0.3.0
+ 486: ## 17. Refinamento pt-BR e UX — ciclo pós-v0.3.0
+ 494: ### 17.1. Escopo do ciclo
+ 506: - Arduino;
+ 508: - Arduino CLI;
+ 509: - geração de Arduino C/C++;
+ 510: - comunicação com hardware;
+ 514: ### 17.2. Localização automática para português do Brasil
+ 536: ### 17.3. Refinamentos locais pt-BR
+ 556: ### 17.4. Tema Cat Blocks
+ 568: ### 17.5. Correção do Action Menu
+ 595: ### 17.6. Validação do ciclo
+ 618: ### 17.7. Mochila
+ 628: ### 17.8. Integração em easyblox-dev
+
+## 18. Fundação Arduino UNO e comunicação Serial
+
+Início da implementação prática: agosto de 2026.
+
+Branch de desenvolvimento:
+
+`feat/easyblox-arduino-uno-foundation`
+
+A prioridade deste ciclo é concluir o Arduino UNO de ponta a ponta antes de iniciar ESP32.
+
+Ordem de trabalho atual:
+
+1. comunicação Serial;
+2. Arduino UNO como extensão nativa;
+3. conexão física;
+4. Modo Palco;
+5. blocos Arduino;
+6. geração de C++;
+7. compilação;
+8. Carregar/Upload;
+9. validação da família EasyMaker.
+
+As placas EasyMaker, EasyDuino e MakerDuino deverão utilizar a base Arduino UNO. ESP32/EasyMaker Conect será tratado somente em ciclo posterior.
+
+### 18.1. Arquitetura Serial
+
+A infraestrutura Serial compartilhada está em:
+
+`packages/scratch-vm/src/io/serial.js`
+
+Regra arquitetural:
+
+```text
+ArduinoUnoPeripheral
+        ↓
+Serial
+        ↓
+Serial Transport
+        ↓
+implementação da plataforma
+
+O scratch-vm não deve importar diretamente:
+
+Web Serial;
+navigator.serial;
+Electron;
+bibliotecas Node de porta serial;
+implementações específicas da plataforma.
+
+A plataforma injeta uma factory através de:
+
+vm.configureSerialTransportFactory(factory);
+
+O Runtime disponibiliza:
+
+runtime.getSerialTransport();
+runtime.configureSerialTransportFactory(factory);
+
+Cada periférico pode possuir sua própria instância de transporte.
+
+### 18.2. Arduino UNO Peripheral
+
+A implementação está em:
+
+packages/scratch-vm/src/extensions/scratch3_arduino_uno/
+├── index.js
+└── peripheral.js
+
+Responsabilidades:
+
+index.js
+
+classe da extensão Scratch;
+metadata;
+futuros blocos Arduino;
+semântica Stage/Upload.
+
+peripheral.js
+
+conexão com a placa;
+lifecycle;
+futuro protocolo do Modo Palco;
+parser;
+estado da placa;
+watchdog/reset.
+
+O ArduinoUnoPeripheral utiliza atualmente:
+
+baudRate: 115200
+
+e implementa o contrato esperado pelo Runtime:
+
+scan()
+connect(peripheralId)
+disconnect()
+isConnected()
+
+A extensão utiliza:
+
+extensionId: arduinoUno
+
+e está registrada como built-in no ExtensionManager.
+
+### 18.3. Web Serial
+
+A implementação Web está em:
+
+packages/scratch-gui/src/lib/serial/web-serial-transport.js
+
+Contrato atual:
+
+requestPort()
+open()
+close()
+write()
+setOnData()
+setOnClose()
+setOnError()
+
+O transporte trabalha com dados binários através de Uint8Array.
+
+No Web:
+
+usuário
+→ Inicie a Busca
+→ seletor Web Serial do navegador
+→ porta selecionada
+→ ArduinoUnoPeripheral
+→ conexão
+
+A implementação Web Serial é configurada durante a criação do VM em:
+
+packages/scratch-gui/src/reducers/vm.ts
+
+A implementação Desktop deverá utilizar posteriormente o mesmo contrato, mas com seu próprio adapter de porta Serial.
+
+### 18.4. GUI e fluxo de conexão
+
+A extensão Arduino UNO está registrada na biblioteca em:
+
+packages/scratch-gui/src/lib/libraries/extensions/index.jsx
+
+Configuração relevante:
+
+extensionId: 'arduinoUno',
+launchPeripheralConnectionFlow: true,
+useAutoScan: false,
+connectionTransport: 'serial'
+
+A resolução platform-aware determina:
+
+WEB
+→ AutoScanningStep
+→ seleção externa da porta
+
+
+DESKTOP
+→ ScanningStep
+→ futura enumeração de portas
+
+Não criar IDs separados como arduinoUnoWeb ou arduinoUnoDesktop.
+
+A extensão lógica é única; somente o transporte físico depende da plataforma.
+
+### 18.5. Validação física já aprovada
+
+Foi realizada conexão real em navegador Chrome com uma placa compatível com Arduino UNO.
+
+Fluxo validado:
+
+Arduino UNO física
+→ USB Serial
+→ Chrome Web Serial
+→ WebSerialTransport
+→ Serial
+→ ArduinoUnoPeripheral
+→ Runtime
+→ GUI EasyBlox
+
+A porta foi apresentada pelo navegador como:
+
+USB Serial (COM11)
+
+Após seleção da porta, o EasyBlox apresentou corretamente o estado:
+
+Conectado
+
+e disponibilizou o comando:
+
+Desconectar
+
+Portanto, a base de conexão física Web Serial está funcional.
+
+### 18.6. Testes da fundação
+
+Testes atuais:
+
+scratch-vm Serial:
+23 asserts aprovados
+
+
+ArduinoUnoPeripheral:
+13 asserts aprovados
+
+
+WebSerialTransport:
+7 testes aprovados
+
+Durante o desenvolvimento foi identificado um loop infinito no _readLoop() do Web Serial quando reader.read() retornava done: true.
+
+O problema foi corrigido antes da integração com hardware real.
+
+### 18.7. Regra de rebuild do scratch-vm
+
+Quando uma API pública do scratch-vm for alterada, por exemplo:
+
+VirtualMachine
+Runtime
+ExtensionManager
+
+pode ser necessário recompilar o workspace:
+
+npm --workspace @scratch/scratch-vm run build
+
+Após alterações desse tipo, se o dev-server estiver mantendo bundle/HMR anterior, reiniciá-lo antes da validação manual.
+
+Esse comportamento foi confirmado quando a GUI inicialmente apresentou:
+
+defaultVM.configureSerialTransportFactory is not a function
+
+apesar de o código-fonte já possuir o método.
+
+Após rebuild do scratch-vm e reinicialização limpa do dev-server, a GUI carregou corretamente.
+
+### 18.8. Próximo desenvolvimento
+
+O próximo objetivo é o Modo Palco da Arduino UNO.
+
+A implementação deverá avançar nesta ordem:
+
+protocolo mínimo EasyBlox ↔ Arduino UNO;
+framing e parser;
+inicialização do protocolo após conexão;
+primeiro comando digital;
+primeiro bloco Arduino funcional;
+teste real do comando na placa;
+leitura digital e analógica;
+PWM;
+tone e demais recursos.
+
+Não iniciar Arduino CLI, geração de C++ ou ESP32 enquanto o fluxo básico do Modo Palco ainda não estiver validado com hardware real.

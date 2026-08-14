@@ -19,6 +19,8 @@ import translateInsetIconURL from './translate/translate-small.png';
 import makeymakeyIconURL from './makeymakey/makeymakey.png';
 import makeymakeyInsetIconURL from './makeymakey/makeymakey-small.svg';
 
+import arduinoUnoIconURL from './arduinoUno/arduino-uno.svg';
+
 import microbitIconURL from './microbit/microbit.png';
 import microbitInsetIconURL from './microbit/microbit-small.svg';
 import microbitConnectionIconURL from './microbit/microbit-illustration.svg';
@@ -48,6 +50,7 @@ import gdxforConnectionSmallIconURL from './gdxfor/gdxfor-small.svg';
 
 import faceSensingIconURL from './faceSensing/faceSensing.png';
 import faceSensingInsetIconURL from './faceSensing/faceSensing-small.svg';
+
 
 export default [
     {
@@ -188,6 +191,40 @@ export default [
             />
         ),
         featured: true
+    },
+    {
+        name: 'Arduino UNO',
+        extensionId: 'arduinoUno',
+        iconURL: arduinoUnoIconURL,
+        insetIconURL: arduinoUnoIconURL,
+        description: (
+            <FormattedMessage
+                defaultMessage="Programe placas Arduino UNO e a família EasyMaker."
+                description="Description for the Arduino UNO extension"
+                id="gui.extension.arduinoUno.description"
+            />
+        ),
+        featured: true,
+        disabled: false,
+        launchPeripheralConnectionFlow: true,
+        useAutoScan: false,
+        connectionTransport: 'serial',
+        connectionIconURL: arduinoUnoIconURL,
+        connectionSmallIconURL: arduinoUnoIconURL,
+        prescanMessage: (
+            <FormattedMessage
+                defaultMessage="Conecte sua placa Arduino UNO ao computador pelo cabo USB e pressione o botão abaixo."
+                description="Prompt before selecting an Arduino UNO serial port"
+                id="gui.extension.arduinoUno.prescanMessage"
+            />
+        ),
+        scanBeginMessage: (
+            <FormattedMessage
+                defaultMessage="Selecione a porta serial da sua placa Arduino UNO."
+                description="Information shown while selecting an Arduino UNO serial port"
+                id="gui.extension.arduinoUno.scanBeginMessage"
+            />
+        )
     },
     {
         name: 'micro:bit',

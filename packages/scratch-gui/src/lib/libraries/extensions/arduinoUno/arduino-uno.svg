@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160">
+    <rect x="20" y="20" width="200" height="120" rx="14" fill="#282828"/>
+    <rect x="34" y="34" width="172" height="92" rx="10" fill="#ffc800"/>
+    <rect x="46" y="58" width="46" height="34" rx="4" fill="#282828"/>
+    <rect x="108" y="54" width="72" height="42" rx="5" fill="#282828"/>
+    <circle cx="193" cy="49" r="8" fill="#282828"/>
+    <circle cx="193" cy="111" r="8" fill="#282828"/>
+    <text
+        x="120"
+        y="119"
+        text-anchor="middle"
+        font-family="Arial, sans-serif"
+        font-size="18"
+        font-weight="700"
+        fill="#282828"
+    >UNO</text>
+</svg>

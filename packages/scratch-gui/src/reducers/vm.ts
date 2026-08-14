@@ -1,11 +1,18 @@
 import VM from '@scratch/scratch-vm';
 import {GUIConfig} from '../gui-config';
+import WebSerialTransport from '../lib/serial/web-serial-transport';
 
 const SET_VM = 'scratch-gui/vm/SET_VM';
 
 const createVM = function (config: GUIConfig) {
     const defaultVM = new VM();
+
     defaultVM.attachStorage(config.storage.scratchStorage);
+
+    defaultVM.configureSerialTransportFactory(
+        () => new WebSerialTransport()
+    );
+
     return defaultVM;
 };
 
