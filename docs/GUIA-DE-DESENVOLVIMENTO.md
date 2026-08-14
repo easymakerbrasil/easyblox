@@ -1477,8 +1477,8 @@ Teste da extensão/peripheral:
 
 Estado atual validado:
 
-- 67 asserts;
-- 67 pass;
+- 69 asserts;
+- 69 pass;
 - 0 fail.
 
 Os testes atuais cobrem também:
@@ -1499,7 +1499,10 @@ Os testes atuais cobrem também:
 - resolução de leitura pela resposta correspondente;
 - correlação pela `SEQ`;
 - bloco visual de escrita;
-- reporter visual de leitura digital;
+- bloco booleano de leitura digital;
+- `BlockType.BOOLEAN`;
+- conversão visual de `1` para `true`;
+- conversão visual de `0` para `false`;
 - menus D2–D13;
 - menus A0–A5;
 - terminologia ALTO/BAIXO;
@@ -1622,9 +1625,9 @@ Em reset ou desconexão:
 
 Isso evita requisições de leitura permanentemente penduradas.
 
-### 19.21. Reporter visual de leitura digital
+### 19.21. Bloco booleano de leitura digital
 
-A extensão Arduino UNO possui agora o reporter:
+A extensão Arduino UNO possui agora o bloco:
 
 `ler pino digital [PIN]`
 
@@ -1634,9 +1637,15 @@ Opcode:
 
 Tipo:
 
-`BlockType.REPORTER`
+`BlockType.BOOLEAN`
 
-O reporter reutiliza:
+O tipo booleano faz o bloco ser apresentado visualmente em formato hexagonal, permitindo uso direto em condições lógicas.
+
+Exemplo:
+
+`se <ler pino digital [D2]> então`
+
+O bloco reutiliza:
 
 `digitalPins`
 
@@ -1645,16 +1654,32 @@ e disponibiliza:
 - D2–D13;
 - A0–A5.
 
+A0–A5 permanecem no menu digital porque também correspondem aos GPIO digitais internos 14–19:
+
+- A0 → 14;
+- A1 → 15;
+- A2 → 16;
+- A3 → 17;
+- A4 → 18;
+- A5 → 19.
+
 Os valores de menu continuam sendo armazenados como strings para compatibilidade com a infraestrutura do Scratch VM.
 
 Antes da delegação ao peripheral utilizar:
 
 `Number(args.PIN)`
 
-O valor retornado pelo reporter é:
+O firmware e o `ArduinoUnoPeripheral` trabalham com:
 
 - `0` para nível BAIXO;
 - `1` para nível ALTO.
+
+Na camada do bloco booleano, converter:
+
+- `0` → `false`;
+- `1` → `true`.
+
+A conversão deve ocorrer no método da extensão, preservando o protocolo e o peripheral em sua representação numérica original.
 
 ### 19.22. Validação física do DIGITAL_READ
 
@@ -1672,25 +1697,28 @@ A2 utilizado como GPIO digital:
 - A2 → GND → `digitalRead(16)` retornou `0`;
 - A2 → 5V → `digitalRead(16)` retornou `1`.
 
-Também foi validado o reporter diretamente na interface EasyBlox:
+Após a conversão do bloco para `BlockType.BOOLEAN`, ele também foi validado diretamente na interface EasyBlox:
 
 `ler pino digital [A2]`
 
-Resultado:
+Resultado visual:
 
-- A2 → 5V → `1`;
-- A2 → GND → `0`.
+- nível ALTO → `true`;
+- nível BAIXO → `false`.
+
+Também foi confirmado o formato booleano/hexagonal do bloco.
 
 Portanto está validado fisicamente o fluxo completo:
 
-bloco visual
+bloco booleano
 → Scratch VM
 → ArduinoUnoPeripheral
 → protocolo Stage
 → firmware
 → `digitalRead()`
-→ resposta serial
-→ reporter visual.
+→ resposta serial `0/1`
+→ conversão `false/true`
+→ bloco visual.
 
 ### 19.23. Build após alterações do Scratch VM
 
@@ -1745,9 +1773,14 @@ e:
 
 `ler pino analógico [PIN]`
 
-A leitura digital representa nível lógico:
+A leitura digital no firmware e no peripheral representa nível lógico como:
 
 `0 ou 1`
+
+No bloco visual booleano:
+
+- `0` → `false`;
+- `1` → `true`.
 
 A leitura analógica utiliza o ADC do ATmega328P e deverá retornar:
 
@@ -1785,7 +1818,7 @@ Neste ponto estão funcionais e fisicamente validados:
 8. `DIGITAL_WRITE`;
 9. `DIGITAL_READ`;
 10. bloco visual de escrita digital;
-11. reporter visual de leitura digital;
+11. bloco booleano de leitura digital;
 12. D2–D13 como GPIO digital;
 13. A0–A5 como GPIO digital.
 
@@ -1834,422 +1867,3 @@ Depois de `ANALOG_READ`, avançar progressivamente para primitives como:
 ESP32, EasyMaker Conect e outras placas permanecem fora deste ciclo.
 
 A base Arduino UNO deve ser estabilizada antes da expansão para outras famílias.
-C:\Users\EasyMaker\source\EasyMakerDev\easyblox>git --no-pager diff -- docs/GUIA-DE-DESENVOLVIMENTO.md
-diff --git a/docs/GUIA-DE-DESENVOLVIMENTO.md b/docs/GUIA-DE-DESENVOLVIMENTO.md
-index d4f32fece1..b5b07e74fe 100644
---- a/docs/GUIA-DE-DESENVOLVIMENTO.md
-+++ b/docs/GUIA-DE-DESENVOLVIMENTO.md
-@@ -1451,65 +1451,386 @@ Teste do protocolo:
-
- Estado atual validado:
-
--- 33 asserts;
--- 33 pass;
-+- 45 asserts;
-+- 45 pass;
- - 0 fail.
-
-+Os testes do protocolo cobrem atualmente:
-+
-+- cálculo de checksum XOR;
-+- codificação de `PING`;
-+- codificação de `DIGITAL_WRITE`;
-+- codificação de `DIGITAL_READ`;
-+- parsing de frames completos;
-+- parsing de frames recebidos em partes;
-+- frames consecutivos;
-+- recuperação após ruído;
-+- rejeição e recuperação após checksum inválido;
-+- reset do parser;
-+- parsing da resposta de leitura digital;
-+- preservação da `SEQ`;
-+- payload `[PIN, VALUE]`.
-+
- Teste da extensão/peripheral:
-
- `packages/scratch-vm/test/unit/arduino-uno.js`
-
- Estado atual validado:
-
--- 49 asserts;
--- 49 pass;
-+- 67 asserts;
-+- 67 pass;
- - 0 fail.
-
- Os testes atuais cobrem também:
-
-+- registro da extensão como peripheral;
-+- conexão Serial em 115200 baud;
-+- conexão e desconexão;
-+- handshake `PING/PONG`;
-+- retry automático após auto-reset do Arduino UNO;
- - envio de `DIGITAL_WRITE`;
--- bloqueio antes do handshake Stage;
-+- envio de `DIGITAL_READ`;
-+- bloqueio de comandos antes do handshake Stage;
- - proteção de D0/D1;
- - rejeição de pino acima de A5;
--- rejeição de valores diferentes de 0/1;
--- existência do bloco visual;
-+- rejeição de pinos digitais não inteiros;
-+- rejeição de valores digitais diferentes de 0/1;
-+- criação de leitura assíncrona;
-+- resolução de leitura pela resposta correspondente;
-+- correlação pela `SEQ`;
-+- bloco visual de escrita;
-+- reporter visual de leitura digital;
- - menus D2–D13;
- - menus A0–A5;
--- ALTO/BAIXO;
--- conversão de argumentos;
-+- terminologia ALTO/BAIXO;
-+- conversão de argumentos do Blockly para números;
- - delegação para `ArduinoUnoPeripheral`.
-
- ### 19.18. Footprint atual do firmware Stage
-
--Com `PING/PONG` e `DIGITAL_WRITE` implementados, o firmware Stage foi validado com:
-+Com:
-+
-+- `PING/PONG`;
-+- `DIGITAL_WRITE`;
-+- `DIGITAL_READ`;
-+
-+o firmware Stage foi validado para:
-+
-+`arduino:avr:uno`
-+
-+com:
-
--- 2166 bytes de Flash — 6%;
-+- 2468 bytes de Flash — 7%;
- - 223 bytes de SRAM global — 10%;
- - 1825 bytes restantes para variáveis locais.
-
--Esses valores são referência do estado atual e continuarão crescendo progressivamente conforme novos primitives forem adicionados.
-+A inclusão do `DIGITAL_READ` aumentou o uso de Flash, mas não aumentou o consumo global de SRAM em relação ao marco anterior.
-
- Continuar acompanhando Flash e SRAM durante toda a evolução do firmware para ATmega328P.
-
--### 19.19. Próximo primitive Stage
-+### 19.19. DIGITAL_READ no protocolo Stage
-
--Após a conclusão de `DIGITAL_WRITE`, o próximo primitive do ciclo Arduino UNO é a leitura digital.
-+O segundo primitive físico completo do Arduino UNO é:
-
--A implementação deve continuar seguindo a mesma disciplina:
-+`DIGITAL_READ`
-
--1. definir o comando no protocolo;
--2. implementar no firmware;
--3. implementar no `ArduinoUnoPeripheral`;
--4. criar ou ampliar testes;
--5. compilar;
--6. validar em hardware real;
--7. somente depois criar e validar o bloco visual correspondente.
-+Comando:
-+
-+`0x11`
-+
-+Payload da requisição:
-+
-+`[PIN]`
-+
-+Resposta:
-+
-+`0x91`
-+
-+Payload da resposta:
-+
-+`[PIN, VALUE]`
-+
-+Onde:
-+
-+- `VALUE = 0` representa nível BAIXO;
-+- `VALUE = 1` representa nível ALTO.
-+
-+A resposta deve preservar a mesma `SEQ` da requisição.
-+
-+A `SEQ` é utilizada pelo host para correlacionar uma resposta de leitura com a requisição que a originou.
-+
-+Pinos digitais válidos:
-+
-+- D2–D13;
-+- A0–A5 utilizados como GPIO digital.
-+
-+Mapeamento de A0–A5:
-+
-+- A0 → 14;
-+- A1 → 15;
-+- A2 → 16;
-+- A3 → 17;
-+- A4 → 18;
-+- A5 → 19.
-+
-+Faixa interna:
-+
-+`2–19`
-+
-+D0 e D1 permanecem reservados para UART/Serial.
-+
-+### 19.20. Leitura assíncrona no ArduinoUnoPeripheral
-+
-+Arquivo:
-+
-+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
-+
-+O método:
-+
-+`digitalRead(pin)`
-+
-+é assíncrono.
-+
-+Ele:
-+
-+1. valida se o Stage está conectado;
-+2. valida o pino;
-+3. envia `COMMANDS.DIGITAL_READ`;
-+4. recebe a `SEQ` utilizada pelo protocolo;
-+5. cria uma `Promise`;
-+6. armazena a leitura pendente em `_pendingDigitalReads`;
-+7. aguarda a resposta `RESPONSES.DIGITAL_READ`.
-+
-+As leituras pendentes são associadas pela `SEQ`.
-+
-+Uma resposta somente deve resolver a leitura quando:
-+
-+- houver requisição pendente com a mesma `SEQ`;
-+- o payload tiver exatamente 2 bytes;
-+- o pino da resposta for igual ao pino solicitado;
-+- o valor for `0` ou `1`.
-+
-+Depois de uma resposta válida:
-+
-+- a entrada é removida de `_pendingDigitalReads`;
-+- a Promise é resolvida com `0` ou `1`.
-+
-+Em reset ou desconexão:
-+
-+- Promises pendentes devem ser resolvidas com `null`;
-+- `_pendingDigitalReads` deve ser limpo.
-+
-+Isso evita requisições de leitura permanentemente penduradas.
-+
-+### 19.21. Reporter visual de leitura digital
-+
-+A extensão Arduino UNO possui agora o reporter:
-+
-+`ler pino digital [PIN]`
-+
-+Opcode:
-+
-+`digitalRead`
-+
-+Tipo:
-+
-+`BlockType.REPORTER`
-+
-+O reporter reutiliza:
-+
-+`digitalPins`
-+
-+e disponibiliza:
-+
-+- D2–D13;
-+- A0–A5.
-+
-+Os valores de menu continuam sendo armazenados como strings para compatibilidade com a infraestrutura do Scratch VM.
-+
-+Antes da delegação ao peripheral utilizar:
-+
-+`Number(args.PIN)`
-+
-+O valor retornado pelo reporter é:
-+
-+- `0` para nível BAIXO;
-+- `1` para nível ALTO.
-+
-+### 19.22. Validação física do DIGITAL_READ
-+
-+O primitive foi validado em hardware real pela COM11.
-+
-+Validação direta pelo `ArduinoUnoPeripheral`:
-+
-+D2:
-+
-+- D2 → GND → `digitalRead(2)` retornou `0`;
-+- D2 → 5V → `digitalRead(2)` retornou `1`.
-+
-+A2 utilizado como GPIO digital:
-+
-+- A2 → GND → `digitalRead(16)` retornou `0`;
-+- A2 → 5V → `digitalRead(16)` retornou `1`.
-+
-+Também foi validado o reporter diretamente na interface EasyBlox:
-+
-+`ler pino digital [A2]`
-+
-+Resultado:
-+
-+- A2 → 5V → `1`;
-+- A2 → GND → `0`.
-+
-+Portanto está validado fisicamente o fluxo completo:
-+
-+bloco visual
-+→ Scratch VM
-+→ ArduinoUnoPeripheral
-+→ protocolo Stage
-+→ firmware
-+→ `digitalRead()`
-+→ resposta serial
-+→ reporter visual.
-+
-+### 19.23. Build após alterações do Scratch VM
-+
-+Sempre que houver alteração em:
-+
-+`packages/scratch-vm/src`
-+
-+executar:
-+
-+`npm --workspace @scratch/scratch-vm run build`
-+
-+Depois reiniciar o dev-server do Scratch GUI antes de validar a alteração na interface.
-+
-+Não confiar somente no HMR para alterações do Scratch VM, pois o navegador pode continuar utilizando uma instância ou bundle anterior.
-+
-+No marco `DIGITAL_READ`, o build foi concluído com sucesso.
-+
-+Warnings conhecidos e não bloqueantes:
-+
-+- TypeDoc de Runtime/VirtualMachine/ExtensionManager;
-+- Browserslist/caniuse-lite;
-+- canvas/jsdom;
-+- warnings JSDoc já conhecidos.
-+
-+Não atualizar dependências somente por causa desses warnings.
-+
-+### 19.24. Instrumentação temporária de depuração
-+
-+Durante validações físicas pode ser necessário expor temporariamente a VM no navegador.
-+
-+No marco `DIGITAL_READ` foi utilizado temporariamente:
-+
-+`window.easyBloxVM`
-+
-+Essa instrumentação foi removida integralmente após os testes.
-+
-+Não deixar acessos temporários de depuração em commits de produção.
-+
-+O arquivo:
-+
-+`packages/scratch-gui/src/lib/app-state-provider-hoc.jsx`
-+
-+deve permanecer sem alteração decorrente dessa instrumentação.
-+
-+### 19.25. Separação entre leitura digital e leitura analógica
-+
-+A extensão deve manter dois primitives conceitualmente distintos:
-+
-+`ler pino digital [PIN]`
-+
-+e:
-+
-+`ler pino analógico [PIN]`
-+
-+A leitura digital representa nível lógico:
-+
-+`0 ou 1`
-+
-+A leitura analógica utiliza o ADC do ATmega328P e deverá retornar:
-+
-+`0–1023`
-+
-+O menu do bloco digital permanece:
-+
-+- D2–D13;
-+- A0–A5.
-+
-+O futuro menu de leitura analógica deverá conter somente:
-+
-+- A0;
-+- A1;
-+- A2;
-+- A3;
-+- A4;
-+- A5.
-+
-+A existência de leitura analógica não modifica a capacidade de A0–A5 funcionarem como GPIO digital.
-+
-+O comportamento depende do primitive utilizado.
-+
-+### 19.26. Estado funcional atual do Modo Palco Arduino UNO
-+
-+Neste ponto estão funcionais e fisicamente validados:
-+
-+1. conexão Web Serial;
-+2. seleção da porta serial;
-+3. conexão física;
-+4. handshake automático;
-+5. retry após auto-reset;
-+6. protocolo binário Stage;
-+7. `PING/PONG`;
-+8. `DIGITAL_WRITE`;
-+9. `DIGITAL_READ`;
-+10. bloco visual de escrita digital;
-+11. reporter visual de leitura digital;
-+12. D2–D13 como GPIO digital;
-+13. A0–A5 como GPIO digital.
-+
-+Os dois primeiros primitives físicos completos são:
-+
-+1. escrita digital;
-+2. leitura digital.
-+
-+### 19.27. Próximo primitive Stage
-+
-+O próximo primitive do ciclo Arduino UNO é:
-+
-+`ANALOG_READ`
-+
-+Bloco visual previsto:
-+
-+`ler pino analógico [PIN]`
-+
-+Menu previsto:
-+
-+`A0–A5`
-+
-+Faixa esperada no Arduino UNO:
-+
-+`0–1023`
-+
-+A implementação deverá continuar seguindo a disciplina incremental:
-+
-+1. definir o comando e a resposta no protocolo;
-+2. criar testes do protocolo;
-+3. implementar o firmware;
-+4. compilar para `arduino:avr:uno`;
-+5. implementar no `ArduinoUnoPeripheral`;
-+6. criar ou ampliar os testes;
-+7. executar o build do Scratch VM;
-+8. gravar e validar em hardware real;
-+9. somente depois criar o reporter visual;
-+10. validar o reporter fisicamente pelo editor.
-+
-+Depois de `ANALOG_READ`, avançar progressivamente para primitives como:
-
--Depois da leitura digital, avançar progressivamente para:
--- leitura analógica;
- - PWM;
- - tone;
--- demais primitives Arduino.
-+- demais recursos Arduino necessários à base.
-
- ESP32, EasyMaker Conect e outras placas permanecem fora deste ciclo.
--A base Arduino UNO deve ser estabilizada antes da expansão para outras famílias.
-+
-+A base Arduino UNO deve ser estabilizada antes da expansão para outras famílias.
-\ No newline at end of file

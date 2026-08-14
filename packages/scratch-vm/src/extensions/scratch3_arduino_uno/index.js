@@ -46,7 +46,7 @@ class Scratch3ArduinoUnoBlocks {
                 },
                 {
                     opcode: 'digitalRead',
-                    blockType: BlockType.REPORTER,
+                    blockType: BlockType.BOOLEAN,
                     text: 'ler pino digital [PIN]',
                     arguments: {
                         PIN: {
@@ -113,12 +113,18 @@ class Scratch3ArduinoUnoBlocks {
     /**
      * Read a digital Arduino UNO pin in Stage mode.
      * @param {object} args Scratch block arguments.
-     * @returns {?Promise<number>} Promise resolved with 0 or 1, or null when unavailable.
+     * @returns {?Promise<boolean>} Promise resolved with true or false, or null when unavailable.
      */
     digitalRead (args) {
-        return this._peripheral.digitalRead(
+        const result = this._peripheral.digitalRead(
             Number(args.PIN)
         );
+
+        if (!result) {
+            return result;
+        }
+
+        return result.then(value => value === 1);
     }
 }
 

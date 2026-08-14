@@ -1,5 +1,6 @@
 const tap = require('tap');
 
+const BlockType = require('../../src/extension-support/block-type');
 const ArduinoUnoPeripheral = require('../../src/extensions/scratch3_arduino_uno/peripheral');
 const Scratch3ArduinoUnoBlocks = require('../../src/extensions/scratch3_arduino_uno');
 const {
@@ -475,7 +476,7 @@ tap.test('Arduino UNO exposes the DIGITAL_WRITE block and delegates numeric valu
     t.end();
 });
 
-tap.test('Arduino UNO exposes the DIGITAL_READ reporter and delegates numeric pin', t => {
+tap.test('Arduino UNO exposes the DIGITAL_READ boolean block and delegates numeric pin', async t => {
     const runtime = new MockRuntime(null);
     const extension = new Scratch3ArduinoUnoBlocks(runtime);
 
@@ -485,34 +486,50 @@ tap.test('Arduino UNO exposes the DIGITAL_READ reporter and delegates numeric pi
     );
 
     t.ok(digitalReadBlock);
+
+    t.equal(
+        digitalReadBlock.blockType,
+        BlockType.BOOLEAN
+    );
+
     t.equal(
         digitalReadBlock.text,
         'ler pino digital [PIN]'
     );
+
     t.equal(
         digitalReadBlock.arguments.PIN.defaultValue,
         2
     );
+
     t.equal(
         digitalReadBlock.arguments.PIN.menu,
         'digitalPins'
     );
 
     let receivedPin = null;
-    const expectedResult = Promise.resolve(1);
 
     extension._peripheral.digitalRead = pin => {
         receivedPin = pin;
 
-        return expectedResult;
+        return Promise.resolve(1);
     };
 
-    const result = extension.digitalRead({
+    const highResult = await extension.digitalRead({
         PIN: '2'
     });
 
     t.equal(receivedPin, 2);
-    t.equal(result, expectedResult);
+    t.equal(highResult, true);
+
+    extension._peripheral.digitalRead = () =>
+        Promise.resolve(0);
+
+    const lowResult = await extension.digitalRead({
+        PIN: '2'
+    });
+
+    t.equal(lowResult, false);
 
     t.end();
 });

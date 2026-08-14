@@ -1673,23 +1673,26 @@ Arquivo:
 Foram acrescentados testes para:
 
 - envio de `DIGITAL_READ` após handshake;
-- retorno de uma Promise;
+- retorno de uma Promise pelo peripheral;
 - frame correto com payload `[PIN]`;
 - correlação da resposta pela `SEQ`;
-- resolução da Promise com `0` ou `1`;
+- resolução da leitura física com `0` ou `1`;
 - bloqueio antes do handshake;
 - proteção de D0 e D1;
 - rejeição de pinos acima de A5;
 - rejeição de pinos não inteiros;
-- existência do reporter visual;
+- existência do bloco visual de leitura digital;
+- `BlockType.BOOLEAN`;
 - reutilização do menu `digitalPins`;
 - conversão do valor do menu para número;
-- delegação correta para `ArduinoUnoPeripheral.digitalRead()`.
+- delegação correta para `ArduinoUnoPeripheral.digitalRead()`;
+- conversão visual de `1` para `true`;
+- conversão visual de `0` para `false`.
 
 Resultado final:
 
-- 67 asserts;
-- 67 pass;
+- 69 asserts;
+- 69 pass;
 - 0 fail;
 - 1 suíte aprovada.
 
@@ -1729,7 +1732,7 @@ A2 corresponde internamente ao pino digital 16:
 - A2 conectado ao GND → `digitalRead(16)` retornou `0`;
 - A2 conectado ao 5V → `digitalRead(16)` retornou `1`.
 
-### 19.11. Reporter visual
+### 19.11. Bloco booleano de leitura digital
 
 Novo bloco:
 
@@ -1737,13 +1740,19 @@ Novo bloco:
 
 Tipo:
 
-`BlockType.REPORTER`
+`BlockType.BOOLEAN`
 
 Opcode:
 
 `digitalRead`
 
-O reporter reutiliza o menu:
+O formato booleano faz o bloco ser apresentado visualmente em formato hexagonal, adequado para uso direto em condições lógicas.
+
+Exemplo:
+
+`se <ler pino digital [D2]> então`
+
+O bloco reutiliza o menu:
 
 `digitalPins`
 
@@ -1752,25 +1761,48 @@ portanto disponibiliza:
 - D2–D13;
 - A0–A5.
 
-O bloco retorna:
+A0–A5 permanecem corretamente disponíveis para leitura digital porque também correspondem aos GPIO digitais internos 14–19:
+
+- A0 = 14;
+- A1 = 15;
+- A2 = 16;
+- A3 = 17;
+- A4 = 18;
+- A5 = 19.
+
+O firmware e o `ArduinoUnoPeripheral` continuam trabalhando com o nível lógico bruto:
 
 - `0` para BAIXO;
 - `1` para ALTO.
+
+Na camada visual do bloco booleano, o EasyBlox converte:
+
+- `0` → `false`;
+- `1` → `true`.
 
 A terminologia visual ALTO/BAIXO permanece utilizada nos blocos que apresentam seleção textual de estado.
 
 ### 19.12. Validação física pelo bloco visual
 
-O reporter foi validado diretamente no editor EasyBlox sem uso do Console.
+O bloco booleano foi validado diretamente no editor EasyBlox.
 
 Com A2 selecionado:
 
-- A2 → 5V → `ler pino digital [A2]` retornou `1`;
-- A2 → GND → `ler pino digital [A2]` retornou `0`.
+- nível ALTO → `ler pino digital [A2]` retornou `true`;
+- nível BAIXO → `ler pino digital [A2]` retornou `false`.
+
+A validação confirmou também o formato visual booleano/hexagonal do bloco.
+
+A camada física permanece baseada em:
+
+- `0` para BAIXO;
+- `1` para ALTO.
+
+A conversão para `false/true` ocorre somente na camada do bloco da extensão.
 
 Isso confirma o fluxo completo:
 
-`bloco visual → Scratch VM → peripheral → protocolo → firmware → Arduino UNO → resposta → reporter`
+`bloco booleano → Scratch VM → peripheral → protocolo → firmware → Arduino UNO → resposta 0/1 → conversão false/true → bloco visual`
 
 ### 19.13. Instrumentação temporária
 
@@ -1798,9 +1830,14 @@ e futuramente:
 
 `ler pino analógico [PIN]`
 
-A leitura digital retorna nível lógico:
+A leitura digital no firmware e no peripheral representa nível lógico como:
 
 `0 ou 1`
+
+No bloco visual booleano, esses valores são apresentados como:
+
+- `false` para nível BAIXO;
+- `true` para nível ALTO.
 
 A leitura analógica utilizará o ADC do Arduino UNO e retornará:
 
