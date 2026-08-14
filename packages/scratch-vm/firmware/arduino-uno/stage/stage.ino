@@ -1,0 +1,191 @@
+#include <Arduino.h>
+
+namespace EasyBloxStage {
+
+constexpr uint8_t START_BYTE_1 = 0xFF;
+constexpr uint8_t START_BYTE_2 = 0x55;
+constexpr uint8_t PROTOCOL_VERSION = 0x01;
+
+constexpr uint8_t MAX_PAYLOAD_LENGTH = 32;
+
+constexpr uint8_t COMMAND_PING = 0x01;
+
+constexpr uint8_t RESPONSE_PONG = 0x81;
+
+enum class ParserState : uint8_t {
+    WaitStart1,
+    WaitStart2,
+    ReadVersion,
+    ReadSequence,
+    ReadCommand,
+    ReadLength,
+    ReadPayload,
+    ReadChecksum
+};
+
+ParserState parserState = ParserState::WaitStart1;
+
+uint8_t version = 0;
+uint8_t sequence = 0;
+uint8_t command = 0;
+uint8_t payloadLength = 0;
+uint8_t payloadIndex = 0;
+uint8_t payload[MAX_PAYLOAD_LENGTH];
+uint8_t checksum = 0;
+
+void resetParser() {
+    parserState = ParserState::WaitStart1;
+
+    version = 0;
+    sequence = 0;
+    command = 0;
+    payloadLength = 0;
+    payloadIndex = 0;
+    checksum = 0;
+}
+
+uint8_t calculateChecksum(
+    uint8_t frameVersion,
+    uint8_t frameSequence,
+    uint8_t frameCommand,
+    const uint8_t *framePayload,
+    uint8_t framePayloadLength
+) {
+    uint8_t result = 0;
+
+    result ^= frameVersion;
+    result ^= frameSequence;
+    result ^= frameCommand;
+    result ^= framePayloadLength;
+
+    for (uint8_t index = 0; index < framePayloadLength; index++) {
+        result ^= framePayload[index];
+    }
+
+    return result;
+}
+
+void sendFrame(
+    uint8_t frameSequence,
+    uint8_t frameCommand,
+    const uint8_t *framePayload = nullptr,
+    uint8_t framePayloadLength = 0
+) {
+    Serial.write(START_BYTE_1);
+    Serial.write(START_BYTE_2);
+    Serial.write(PROTOCOL_VERSION);
+    Serial.write(frameSequence);
+    Serial.write(frameCommand);
+    Serial.write(framePayloadLength);
+
+    for (uint8_t index = 0; index < framePayloadLength; index++) {
+        Serial.write(framePayload[index]);
+    }
+
+    Serial.write(
+        calculateChecksum(
+            PROTOCOL_VERSION,
+            frameSequence,
+            frameCommand,
+            framePayload,
+            framePayloadLength
+        )
+    );
+}
+
+void handleFrame() {
+    if (command == COMMAND_PING) {
+        sendFrame(
+            sequence,
+            RESPONSE_PONG
+        );
+    }
+}
+
+void processByte(uint8_t value) {
+    switch (parserState) {
+        case ParserState::WaitStart1:
+            if (value == START_BYTE_1) {
+                parserState = ParserState::WaitStart2;
+            }
+            break;
+
+        case ParserState::WaitStart2:
+            if (value == START_BYTE_2) {
+                parserState = ParserState::ReadVersion;
+            } else if (value != START_BYTE_1) {
+                parserState = ParserState::WaitStart1;
+            }
+            break;
+
+        case ParserState::ReadVersion:
+            version = value;
+            checksum = value;
+            parserState = ParserState::ReadSequence;
+            break;
+
+        case ParserState::ReadSequence:
+            sequence = value;
+            checksum ^= value;
+            parserState = ParserState::ReadCommand;
+            break;
+
+        case ParserState::ReadCommand:
+            command = value;
+            checksum ^= value;
+            parserState = ParserState::ReadLength;
+            break;
+
+        case ParserState::ReadLength:
+            payloadLength = value;
+            checksum ^= value;
+
+            if (payloadLength > MAX_PAYLOAD_LENGTH) {
+                resetParser();
+                break;
+            }
+
+            payloadIndex = 0;
+
+            parserState =
+                payloadLength == 0
+                    ? ParserState::ReadChecksum
+                    : ParserState::ReadPayload;
+
+            break;
+
+        case ParserState::ReadPayload:
+            payload[payloadIndex++] = value;
+            checksum ^= value;
+
+            if (payloadIndex >= payloadLength) {
+                parserState = ParserState::ReadChecksum;
+            }
+            break;
+
+        case ParserState::ReadChecksum:
+            if (
+                version == PROTOCOL_VERSION &&
+                value == checksum
+            ) {
+                handleFrame();
+            }
+
+            resetParser();
+            break;
+    }
+}
+
+} // namespace EasyBloxStage
+
+void setup() {
+    Serial.begin(115200);
+}
+
+void loop() {
+    while (Serial.available() > 0) {
+        EasyBloxStage::processByte(
+            static_cast<uint8_t>(Serial.read())
+        );
+    }
+}

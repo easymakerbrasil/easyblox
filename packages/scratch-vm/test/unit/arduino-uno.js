@@ -1,6 +1,11 @@
 const tap = require('tap');
 
 const ArduinoUnoPeripheral = require('../../src/extensions/scratch3_arduino_uno/peripheral');
+const {
+    COMMANDS,
+    RESPONSES,
+    encodeFrame
+} = require('../../src/extensions/scratch3_arduino_uno/protocol');
 
 class MockRuntime {
     constructor (transport) {
@@ -98,7 +103,7 @@ tap.test('Arduino UNO connects to the selected serial port', async t => {
 
     peripheral.connect('COM3');
 
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise(resolve => setTimeout(resolve, 550));
 
     t.equal(openedPeripheralId, 'COM3');
 
@@ -144,4 +149,105 @@ tap.test('Arduino UNO disconnects from the serial port', async t => {
         runtime.events[runtime.events.length - 1].event,
         MockRuntime.PERIPHERAL_DISCONNECTED
     );
+});
+
+tap.test('Arduino UNO completes the Stage handshake with PING and PONG', async t => {
+    let onData = null;
+    let writtenFrame = null;
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrame = data;
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(peripheral.isStageConnected(), false);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    t.equal(peripheral.isConnected(), true);
+    t.equal(peripheral.isStageConnected(), false);
+
+    t.ok(writtenFrame instanceof Uint8Array);
+
+    t.equal(
+        writtenFrame[4],
+        COMMANDS.PING
+    );
+
+    const pingSequence = writtenFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+});
+
+tap.test('Arduino UNO retries the Stage handshake until PONG is received', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 1050));
+
+    t.equal(peripheral.isConnected(), true);
+    t.equal(peripheral.isStageConnected(), false);
+
+    t.equal(writtenFrames.length, 2);
+
+    t.equal(
+        writtenFrames[0][4],
+        COMMANDS.PING
+    );
+
+    t.equal(
+        writtenFrames[1][4],
+        COMMANDS.PING
+    );
+
+    const retrySequence = writtenFrames[1][3];
+
+    onData(
+        encodeFrame(
+            retrySequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    t.equal(writtenFrames.length, 2);
 });

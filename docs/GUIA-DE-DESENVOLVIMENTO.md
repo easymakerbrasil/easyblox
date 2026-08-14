@@ -1026,3 +1026,299 @@ PWM;
 tone e demais recursos.
 
 Não iniciar Arduino CLI, geração de C++ ou ESP32 enquanto o fluxo básico do Modo Palco ainda não estiver validado com hardware real.
+
+## 19. Protocolo Stage Arduino UNO
+
+O Modo Palco da Arduino UNO utiliza um protocolo binário próprio do EasyBlox sobre a infraestrutura Serial compartilhada.
+
+Esta seção complementa a seção 18 e registra as decisões arquiteturais permanentes estabelecidas após a validação física do primeiro handshake.
+
+### 19.1. Separação entre conexão física e conexão Stage
+
+Não considerar uma porta Serial aberta como prova de que a placa está executando um firmware compatível com o EasyBlox.
+
+O `ArduinoUnoPeripheral` distingue:
+
+`isConnected()`
+
+Indica somente que o transporte Serial está fisicamente conectado.
+
+`isStageConnected()`
+
+Indica que o firmware Stage respondeu corretamente ao protocolo EasyBlox.
+
+Portanto:
+
+porta Serial aberta
+≠
+Modo Palco validado.
+
+O estado Stage somente deve ser considerado ativo após handshake válido.
+
+### 19.2. Formato do protocolo
+
+A implementação de referência está em:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/protocol.js`
+
+Formato:
+
+`FF 55 | VERSION | SEQ | COMMAND | LENGTH | PAYLOAD | CHECKSUM`
+
+Campos:
+
+- `0xFF 0x55`: assinatura do protocolo;
+- `VERSION`: versão do protocolo;
+- `SEQ`: sequence da requisição;
+- `COMMAND`: comando ou resposta;
+- `LENGTH`: tamanho do payload;
+- `PAYLOAD`: dados específicos do comando;
+- `CHECKSUM`: XOR entre `VERSION` e o último byte do payload.
+
+Configuração inicial:
+
+- versão: `0x01`;
+- payload máximo: 32 bytes;
+- sequence: 8 bits.
+
+O protocolo trabalha exclusivamente com bytes.
+
+Não utilizar JSON, texto delimitado, `String` Arduino ou JSONRPC para a comunicação Stage da Arduino UNO.
+
+### 19.3. Parser incremental
+
+O parser deve aceitar dados Serial independentemente de como o transporte divide os bytes.
+
+Portanto, ele deve funcionar corretamente quando:
+
+- um frame chega inteiro;
+- um frame chega dividido entre vários reads;
+- vários frames chegam no mesmo read;
+- existem bytes de ruído antes de um frame;
+- ocorre frame inválido;
+- ocorre checksum inválido.
+
+O parser deve recuperar sincronização procurando novamente a assinatura:
+
+`0xFF 0x55`
+
+Não assumir que cada chamada de `onData` corresponde exatamente a um frame.
+
+### 19.4. Handshake
+
+O handshake inicial utiliza:
+
+`PING = 0x01`
+
+e:
+
+`PONG = 0x81`
+
+O `PONG` deve preservar a mesma sequence do `PING`.
+
+Fluxo esperado:
+
+conexão Serial
+→ estabilização da placa
+→ PING
+→ PONG
+→ validação da sequence
+→ `isStageConnected() = true`
+
+Um PONG com sequence diferente não deve validar o handshake atual.
+
+### 19.5. Auto-reset da Arduino UNO
+
+Ao abrir a porta Serial, placas Arduino UNO podem reiniciar automaticamente.
+
+Portanto, não enviar apenas um único PING imediatamente após `open()` e assumir que ele será recebido.
+
+A configuração atualmente validada é:
+
+- atraso inicial: 500 ms;
+- intervalo de retry: 500 ms;
+- máximo: 6 tentativas.
+
+O retry deve parar imediatamente quando um PONG válido for recebido.
+
+Ao desconectar ou resetar o estado do peripheral:
+
+- cancelar timers pendentes;
+- limpar sequence de handshake;
+- limpar contador de tentativas;
+- definir `isStageConnected()` novamente como falso;
+- resetar o parser.
+
+### 19.6. Firmware Stage
+
+O firmware de referência da Arduino UNO fica em:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Manter o firmware separado do código JavaScript de `src`.
+
+Diretrizes para o ATmega328P:
+
+- usar buffers de tamanho fixo;
+- evitar alocação dinâmica;
+- evitar `String`;
+- processar Serial incrementalmente;
+- manter baixo consumo de SRAM;
+- não bloquear o `loop()` desnecessariamente.
+
+A compilação inicial validada para `arduino:avr:uno` utilizou aproximadamente:
+
+- 1814 bytes de Flash;
+- 191 bytes de SRAM global.
+
+Esses números são apenas referência do firmware inicial PING/PONG e mudarão conforme novos comandos forem adicionados.
+
+### 19.7. Comandos iniciais
+
+IDs reservados atualmente:
+
+Comandos:
+
+- `0x01` — `PING`;
+- `0x10` — `DIGITAL_WRITE`.
+
+Respostas:
+
+- `0x80` — `ACK`;
+- `0x81` — `PONG`;
+- `0xFF` — `ERROR`.
+
+Ao adicionar comandos:
+
+1. registrar o ID em `protocol.js`;
+2. implementar o comportamento no firmware;
+3. implementar a operação correspondente no peripheral;
+4. criar ou ampliar testes;
+5. validar em hardware real antes de considerar o primitive estável.
+
+Evitar reutilizar IDs já publicados.
+
+### 19.8. Testes mínimos do protocolo
+
+Os testes de referência ficam em:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+e:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+No checkpoint inicial do Modo Palco foram aprovados:
+
+- protocolo: 33 asserts;
+- ArduinoUnoPeripheral: 26 asserts.
+
+Os testes devem continuar cobrindo, no mínimo:
+
+- framing;
+- checksum;
+- parser incremental;
+- recuperação após dados inválidos;
+- handshake;
+- sequence;
+- atraso inicial;
+- retry;
+- cancelamento de retry após PONG;
+- reset de estado.
+
+### 19.9. Validação física já concluída
+
+O handshake automático foi validado em hardware real com Arduino UNO conectada por Web Serial.
+
+Resultado observado:
+
+`isConnected() === true`
+
+e:
+
+`isStageConnected() === true`
+
+sem envio manual de PING.
+
+Portanto, já está validado:
+
+EasyBlox
+→ ArduinoUnoPeripheral
+→ protocolo Stage
+→ Serial
+→ WebSerialTransport
+→ Web Serial
+→ Arduino UNO
+→ firmware Stage
+→ PONG
+→ parser
+→ estado Stage conectado.
+
+A seção 18.8 registra o próximo passo existente antes dessa validação e deve ser tratada como histórico.
+
+### 19.10. Regra de rebuild durante o desenvolvimento
+
+Alterações realizadas dentro de:
+
+`packages/scratch-vm/src`
+
+podem exigir rebuild antes de serem refletidas pelo `scratch-gui`.
+
+Executar quando necessário:
+
+`npm --workspace @scratch/scratch-vm run build`
+
+Se o dev-server continuar utilizando bundle antigo, reiniciá-lo.
+
+Durante a implementação do handshake, essa necessidade foi confirmada quando a GUI ainda utilizava uma versão anterior de `ArduinoUnoPeripheral`.
+
+Não diagnosticar comportamento de hardware utilizando um bundle antigo do `scratch-vm`.
+
+### 19.11. Arduino CLI neste estágio
+
+O Arduino CLI já foi utilizado externamente durante o desenvolvimento para:
+
+- compilar o firmware Stage;
+- gravar o firmware na placa física;
+- validar o protocolo em hardware real.
+
+Isso não significa que o fluxo de compilação e Upload já esteja integrado ao EasyBlox.
+
+A integração interna de:
+
+geração C++
+→ compilação
+→ Upload
+
+continua pertencendo a uma etapa posterior do ciclo Arduino UNO.
+
+### 19.12. Próximo primitive Stage
+
+O próximo primitive a ser implementado é:
+
+`DIGITAL_WRITE`
+
+Fluxo-alvo:
+
+bloco/comando EasyBlox
+→ `ArduinoUnoPeripheral`
+→ frame `DIGITAL_WRITE`
+→ Serial
+→ firmware Stage
+→ `pinMode`
+→ `digitalWrite`
+→ alteração física do pino.
+
+A implementação deve ser validada primeiro no protocolo/peripheral/firmware e em hardware real.
+
+Somente depois deverá ser considerada concluída a integração do primeiro bloco visual Arduino UNO.
+
+Após isso, avançar progressivamente para:
+
+- leitura digital;
+- leitura analógica;
+- PWM;
+- tone;
+- demais primitives Arduino.
+
+ESP32 e EasyMaker Conect permanecem fora deste ciclo.

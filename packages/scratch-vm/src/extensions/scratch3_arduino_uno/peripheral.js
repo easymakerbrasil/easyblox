@@ -1,13 +1,23 @@
 const Serial = require('../../io/serial');
 
+const {
+    COMMANDS,
+    RESPONSES,
+    StageProtocolParser,
+    encodeFrame
+} = require('./protocol');
+
 const EXTENSION_ID = 'arduinoUno';
 const DEFAULT_BAUD_RATE = 115200;
+const STAGE_HANDSHAKE_INITIAL_DELAY = 500;
+const STAGE_HANDSHAKE_RETRY_DELAY = 500;
+const STAGE_HANDSHAKE_MAX_ATTEMPTS = 6;
 
 /**
  * Arduino UNO hardware peripheral.
  *
- * Owns the board-facing serial connection and will later contain the Stage
- * protocol parser, board state and connection watchdog.
+ * Owns the board-facing serial connection, Stage protocol parser and
+ * board-specific connection state.
  */
 class ArduinoUnoPeripheral {
     /**
@@ -21,6 +31,16 @@ class ArduinoUnoPeripheral {
         this._serialOptions = {
             baudRate: DEFAULT_BAUD_RATE
         };
+
+        this._parser = new StageProtocolParser(
+            this._handleFrame.bind(this)
+        );
+
+        this._nextSequence = 1;
+        this._pingSequence = null;
+        this._stageConnected = false;
+        this._handshakeTimer = null;
+        this._handshakeAttempts = 0;
 
         this._runtime.registerPeripheralExtension(
             EXTENSION_ID,
@@ -69,43 +89,145 @@ class ArduinoUnoPeripheral {
      * @returns {void}
      */
     disconnect () {
+        this._reset();
+
         if (this._serial) {
             this._serial.disconnect();
         }
     }
 
     /**
-     * @returns {boolean} Whether the Arduino UNO serial connection is active.
+     * @returns {boolean} Whether the physical serial connection is active.
      */
     isConnected () {
         return this._serial ? this._serial.isConnected() : false;
     }
 
     /**
+     * @returns {boolean} Whether the EasyBlox Stage protocol handshake succeeded.
+     */
+    isStageConnected () {
+        return this._stageConnected;
+    }
+
+    /**
      * Called when the physical serial connection succeeds.
-     * Stage protocol initialization will be added here.
+     * Starts the EasyBlox Stage protocol handshake.
      * @returns {void}
      */
     _handleConnect () {
-        // Stage Mode initialization will be implemented in the next layer.
+        this._reset();
+
+        this._scheduleHandshake(
+            STAGE_HANDSHAKE_INITIAL_DELAY
+        );
+    }
+
+    /**
+     * Schedule a Stage protocol handshake attempt.
+     * Arduino UNO boards can reset when the serial port opens, so the
+     * handshake is retried while the board bootloader is finishing.
+     * @param {number} delay Delay before the attempt, in milliseconds.
+     * @returns {void}
+     */
+    _scheduleHandshake (delay) {
+        this._handshakeTimer = setTimeout(() => {
+            this._handshakeTimer = null;
+
+            if (!this.isConnected() || this._stageConnected) {
+                return;
+            }
+
+            this._handshakeAttempts++;
+
+            this._pingSequence = this._sendCommand(
+                COMMANDS.PING
+            );
+
+            if (
+                this._handshakeAttempts <
+                STAGE_HANDSHAKE_MAX_ATTEMPTS
+            ) {
+                this._scheduleHandshake(
+                    STAGE_HANDSHAKE_RETRY_DELAY
+                );
+            }
+        }, delay);
     }
 
     /**
      * Receive raw bytes from the Serial layer.
-     * Stage protocol parsing will be added here.
      * @param {Uint8Array} data Received serial bytes.
      * @returns {void}
      */
     _handleData (data) {
-        void data;
+        this._parser.push(data);
     }
 
     /**
-     * Reset board-specific runtime state after an unexpected disconnect.
+     * Handle a valid EasyBlox Stage protocol frame.
+     * @param {object} frame Decoded protocol frame.
+     * @returns {void}
+     */
+    _handleFrame (frame) {
+        if (
+            frame.command === RESPONSES.PONG &&
+            frame.sequence === this._pingSequence
+        ) {
+            this._stageConnected = true;
+
+            if (this._handshakeTimer) {
+                clearTimeout(this._handshakeTimer);
+                this._handshakeTimer = null;
+            }
+        }
+    }
+
+    /**
+     * Send a Stage protocol command.
+     * @param {number} command Protocol command.
+     * @param {Uint8Array|Array<number>} payload Command payload.
+     * @returns {?number} Sequence number or null when serial is unavailable.
+     */
+    _sendCommand (command, payload = []) {
+        if (!this._serial || !this._serial.isConnected()) {
+            return null;
+        }
+
+        const sequence = this._nextSequence;
+
+        this._nextSequence++;
+
+        if (this._nextSequence > 0xFF) {
+            this._nextSequence = 1;
+        }
+
+        const frame = encodeFrame(
+            sequence,
+            command,
+            payload
+        );
+
+        this._serial.write(frame);
+
+        return sequence;
+    }
+
+    /**
+     * Reset board-specific Stage protocol state.
      * @returns {void}
      */
     _reset () {
-        // Board state will be reset here when Stage Mode state is introduced.
+        if (this._handshakeTimer) {
+            clearTimeout(this._handshakeTimer);
+            this._handshakeTimer = null;
+        }
+
+        this._parser.reset();
+        this._nextSequence = 1;
+        this._pingSequence = null;
+        this._stageConnected = false;
+        this._handshakeAttempts = 0;
     }
 }
 
