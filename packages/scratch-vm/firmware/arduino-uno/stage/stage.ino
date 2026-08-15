@@ -12,6 +12,7 @@ constexpr uint8_t COMMAND_PING = 0x01;
 constexpr uint8_t COMMAND_DIGITAL_WRITE = 0x10;
 constexpr uint8_t COMMAND_DIGITAL_READ = 0x11;
 constexpr uint8_t COMMAND_ANALOG_READ = 0x12;
+constexpr uint8_t COMMAND_PWM_WRITE = 0x13;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -219,6 +220,50 @@ void handleAnalogRead() {
     );
 }
 
+bool isPwmPin(uint8_t pin) {
+    return (
+        pin == 3 ||
+        pin == 5 ||
+        pin == 6 ||
+        pin == 9 ||
+        pin == 10 ||
+        pin == 11
+    );
+}
+
+void handlePwmWrite() {
+    if (payloadLength != 2) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t pin = payload[0];
+    const uint8_t value = payload[1];
+
+    if (!isPwmPin(pin)) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    pinMode(pin, OUTPUT);
+
+    analogWrite(
+        pin,
+        value
+    );
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
 void handleFrame() {
     if (command == COMMAND_PING) {
         sendFrame(
@@ -240,6 +285,11 @@ void handleFrame() {
 
     if (command == COMMAND_ANALOG_READ) {
         handleAnalogRead();
+        return;
+    }
+
+    if (command == COMMAND_PWM_WRITE) {
+        handlePwmWrite();
     }
 }
 

@@ -2271,3 +2271,485 @@ não pertence ao ciclo Arduino UNO e não deve ser incluída neste commit.
 Após o checkpoint, continuar evoluindo incrementalmente a base Arduino UNO.
 
 Não iniciar ESP32, EasyMaker Conect ou outras placas antes da estabilização dessa base.
+
+### 19.40. PWM_WRITE — contrato do protocolo
+
+O quarto primitive físico completo do Modo Palco Arduino UNO é:
+
+`PWM_WRITE`
+
+Comando:
+
+`COMMANDS.PWM_WRITE = 0x13`
+
+A requisição utiliza:
+
+`[PIN, VALUE]`
+
+A resposta reutiliza:
+
+`RESPONSES.ACK = 0x80`
+
+Não foi criado um novo tipo de resposta específico para PWM.
+
+O mesmo `SEQ` identifica a requisição e o ACK correspondente.
+
+Pinos PWM válidos no Arduino UNO:
+
+- D3 = 3;
+- D5 = 5;
+- D6 = 6;
+- D9 = 9;
+- D10 = 10;
+- D11 = 11.
+
+Faixa do valor PWM:
+
+`0..255`
+
+Semântica:
+
+- `0` → saída em 0% de duty cycle;
+- `1..254` → modulação PWM;
+- `255` → saída em 100% de duty cycle.
+
+Pinos que não possuem PWM por hardware não devem ser aceitos pelo primitive.
+
+### 19.41. Testes do protocolo PWM_WRITE
+
+Arquivo:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+Foi adicionado teste para:
+
+`COMMANDS.PWM_WRITE`
+
+Payload protegido:
+
+`[3, 128]`
+
+O teste confirma:
+
+- versão do protocolo;
+- `SEQ`;
+- comando `0x13`;
+- comprimento igual a 2;
+- PIN;
+- VALUE;
+- checksum.
+
+Resultado da suíte:
+
+`66 pass / 0 fail`
+
+### 19.42. Firmware PWM_WRITE
+
+Arquivo:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Foi definido:
+
+`COMMAND_PWM_WRITE = 0x13`
+
+Foi criado:
+
+`isPwmPin(pin)`
+
+Esse helper aceita somente:
+
+`3, 5, 6, 9, 10, 11`
+
+Foi implementado:
+
+`handlePwmWrite()`
+
+Contrato:
+
+`[PIN, VALUE]`
+
+O handler:
+
+1. exige payload de dois bytes;
+2. verifica se o PIN possui PWM;
+3. configura o pino como `OUTPUT`;
+4. executa `analogWrite(pin, value)`;
+5. retorna `RESPONSE_ACK`.
+
+Em caso de payload inválido ou pino não-PWM:
+
+`RESPONSE_ERROR = 0xFF`
+
+O VALUE é recebido como `uint8_t`, portanto o protocolo transporta naturalmente valores entre:
+
+`0..255`
+
+### 19.43. Footprint do firmware com PWM_WRITE
+
+Compilação para:
+
+`arduino:avr:uno`
+
+Resultado:
+
+- Flash: `2870 bytes (8%)`;
+- SRAM global: `223 bytes (10%)`;
+- SRAM livre: `1825 bytes`.
+
+Comparação com o marco `ANALOG_READ`:
+
+- Flash anterior: `2616 bytes`;
+- Flash atual: `2870 bytes`;
+- aumento: `254 bytes`;
+- SRAM permaneceu em `223 bytes`.
+
+### 19.44. ArduinoUnoPeripheral.pwmWrite()
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+Foi implementado:
+
+`pwmWrite(pin, value)`
+
+Regras:
+
+- exige handshake Stage concluído;
+- PIN deve ser inteiro;
+- VALUE deve ser inteiro;
+- PIN deve pertencer a `[3, 5, 6, 9, 10, 11]`;
+- VALUE deve estar entre `0` e `255`.
+
+Em caso válido:
+
+`COMMANDS.PWM_WRITE`
+
+é enviado com:
+
+`[pin, value]`
+
+O método retorna o `SEQ` do comando.
+
+Em caso de indisponibilidade ou argumento inválido:
+
+`null`
+
+Assim como `digitalWrite()`, o primitive não mantém uma Promise pendente aguardando ACK.
+
+### 19.45. Testes da extensão com PWM_WRITE
+
+Arquivo:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Após a implementação completa do PWM, a suíte passou para:
+
+`131 pass / 0 fail`
+
+Os testes cobrem:
+
+- handshake obrigatório;
+- envio de `PWM_WRITE`;
+- D3 com valor 0;
+- D11 com valor 255;
+- progressão do `SEQ`;
+- payload correto;
+- rejeição de todos os pinos não-PWM relevantes;
+- rejeição de pino não inteiro;
+- rejeição de VALUE negativo;
+- rejeição de VALUE acima de 255;
+- rejeição de VALUE não inteiro;
+- metadata do bloco visual;
+- `BlockType.COMMAND`;
+- menu `pwmPins`;
+- valor padrão;
+- conversão de argumentos para número;
+- delegação ao peripheral.
+
+Os primitives anteriores permanecem cobertos pela mesma suíte.
+
+### 19.46. Bloco visual PWM
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/index.js`
+
+Foi criado:
+
+`definir PWM no pino [PIN] como [VALUE]`
+
+Tipo:
+
+`BlockType.COMMAND`
+
+Menu:
+
+`pwmPins`
+
+Itens:
+
+- D3;
+- D5;
+- D6;
+- D9;
+- D10;
+- D11.
+
+O VALUE utiliza entrada numérica.
+
+O valor padrão aprovado é:
+
+`255`
+
+Não usar `128` como valor padrão do bloco.
+
+O valor `128` continua sendo válido e útil para testes de aproximadamente 50% de duty cycle.
+
+O método visual executa:
+
+`Number(args.PIN)`
+
+e:
+
+`Number(args.VALUE)`
+
+O VALUE é então limitado à faixa válida do PWM:
+
+`0..255`
+
+A normalização ocorre por clamp antes da chamada ao peripheral:
+
+- valor abaixo de `0` → `0`;
+- valor entre `0` e `255` → preservado;
+- valor acima de `255` → `255`.
+
+Casos protegidos por teste:
+
+- `-20` → `0`;
+- `128` → `128`;
+- `600` → `255`.
+
+Depois da normalização, o valor é delegado para:
+
+`this._peripheral.pwmWrite(...)`
+
+A validação de faixa existente no `ArduinoUnoPeripheral` permanece como segunda camada defensiva.
+
+Dessa forma, um valor digitado pelo usuário como `600` não é simplesmente rejeitado: o bloco o normaliza para o maior valor PWM permitido, `255`.
+
+### 19.47. Validação elétrica do PWM
+
+A primeira validação foi realizada em D3.
+
+Foram observados:
+
+- PWM 0 → `0 V`;
+- PWM 128 → `1,96 V`;
+- PWM 255 → `3,96 V`.
+
+A alimentação da placa foi medida em:
+
+`4,93 V`
+
+Para verificar se a queda era causada pelo PWM, foi executado:
+
+`digitalWrite(3, 1)`
+
+Resultado em D3:
+
+`3,96 V`
+
+Portanto, a tensão reduzida no D3 não é causada especificamente por `analogWrite()` ou pelo primitive `PWM_WRITE`.
+
+A validação foi repetida em D5.
+
+Com saída digital HIGH:
+
+`D5 → 4,92 V`
+
+Com PWM:
+
+- `0` → `0,00 V`;
+- `128` → `2,46 V`;
+- `255` → `4,92 V`.
+
+D5 é, portanto, a referência física validada para este checkpoint.
+
+Os resultados correspondem corretamente a:
+
+- 0%;
+- aproximadamente 50%;
+- 100% de duty cycle.
+
+### 19.48. Validação pelo próprio bloco PWM
+
+Após o build do Scratch VM e restart do dev-server, o bloco apareceu corretamente no EasyBlox.
+
+Estado visual inicial:
+
+`definir PWM no pino [D3] como [255]`
+
+Foram confirmados:
+
+- formato COMMAND;
+- menu de pinos;
+- valor padrão `255`;
+- permanência dos blocos anteriores.
+
+Para validação física pelo editor foi utilizado:
+
+`definir PWM no pino [D5] como [128]`
+
+Resultado:
+
+`2,46 V`
+
+Portanto foi validado o fluxo completo:
+
+`bloco visual → Scratch VM → ArduinoUnoPeripheral → PWM_WRITE → firmware → analogWrite() → saída física D5`
+
+### 19.49. Retorno null após restart ou reload
+
+Depois de reinicializar o ambiente, executar um primitive físico antes de restabelecer o handshake Stage pode retornar:
+
+`null`
+
+Esse comportamento é esperado.
+
+No caso do PWM, ocorreu após restart/reload enquanto o Arduino ainda não havia sido reconectado à nova instância da VM.
+
+Após reconectar pela:
+
+`COM11`
+
+o bloco PWM voltou a funcionar normalmente.
+
+Portanto, ao investigar `null` em primitives de hardware, verificar primeiro:
+
+1. conexão serial;
+2. handshake Stage;
+3. `isStageConnected()`.
+
+Não interpretar automaticamente `null` como erro do primitive.
+
+### 19.50. Instrumentação temporária de hardware
+
+Para a validação direta do peripheral foi temporariamente utilizado:
+
+`window.easyBloxVM`
+
+O gancho foi inserido em:
+
+`packages/scratch-gui/src/reducers/vm.ts`
+
+e removido após o teste.
+
+O arquivo voltou ao estado original e deve permanecer sem diff relacionado à depuração.
+
+Nenhuma instrumentação temporária pode entrar em commits de produção.
+
+### 19.51. Estado atual da base Arduino UNO
+
+O Modo Palco Arduino UNO possui agora quatro primitives físicos completos:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`.
+
+Resultados consolidados:
+
+- protocolo: `66/66`;
+- extensão: `131/131`;
+- Flash: `2870 bytes`;
+- SRAM: `223 bytes`;
+- PWM D5 em 0: `0 V`;
+- PWM D5 em 128: `2,46 V`;
+- PWM D5 em 255: `4,92 V`.
+
+Pinos e funções atualmente estabelecidos:
+
+- D2–D13 e A0–A5 como GPIO digital quando aplicável;
+- A0–A5 como entradas ADC;
+- D3, D5, D6, D9, D10 e D11 como PWM.
+
+Blocos disponíveis:
+
+`definir pino [PIN] como [VALUE]`
+
+`ler pino digital [PIN]`
+
+`ler pino analógico [PIN]`
+
+`definir PWM no pino [PIN] como [VALUE]`
+
+### 19.52. Procedimento após alterações no Scratch VM
+
+Sempre que houver alteração em:
+
+`packages/scratch-vm/src`
+
+executar:
+
+`npm --workspace @scratch/scratch-vm run build`
+
+Depois:
+
+1. parar o dev-server;
+2. iniciar novamente;
+3. recarregar o EasyBlox;
+4. reconectar o Arduino UNO;
+5. aguardar o handshake Stage;
+6. somente então testar os primitives físicos.
+
+Essa sequência evita testes contra bundles ou instâncias anteriores.
+
+### 19.53. Slider para campos numéricos — backlog de UX
+
+Foi considerada a inclusão de um controle deslizante para o VALUE do bloco PWM, com faixa:
+
+`0..255`
+
+O Scratch já utiliza sliders em outros contextos da interface, como na alteração interativa de valores de variáveis.
+
+A decisão atual é não implementar um slider específico somente para `PWM_WRITE`.
+
+Esse recurso deverá ser estudado em um ciclo futuro como uma capacidade reutilizável do EasyBlox para argumentos numéricos que possuam faixa bem definida.
+
+Possíveis aplicações futuras incluem:
+
+- PWM;
+- intensidade;
+- velocidade;
+- brilho;
+- potência;
+- ângulos ou outras faixas limitadas, quando tecnicamente apropriado.
+
+A solução futura deverá buscar reutilizar a infraestrutura existente do ecossistema Scratch, permitindo preferencialmente:
+
+- valor mínimo;
+- valor máximo;
+- entrada manual;
+- controle deslizante;
+- atualização visual imediata.
+
+Evitar criar uma implementação exclusiva de slider para apenas um bloco.
+
+### 19.54. Próximo checkpoint
+
+Antes de iniciar outro primitive:
+
+1. executar `git diff --check`;
+2. revisar os arquivos do ciclo;
+3. manter fora do commit a alteração externa em `packages/scratch-gui/src/components/action-menu/icon--sprite.svg`;
+4. fazer staging explícito;
+5. executar `git diff --cached --check`;
+6. criar commit;
+7. fazer push;
+8. confirmar sincronização local/remota.
+
+Depois do checkpoint, continuar evoluindo a base Arduino UNO incrementalmente.
+
+ESP32, EasyMaker Conect e demais placas permanecem fora deste ciclo até a estabilização da base UNO.

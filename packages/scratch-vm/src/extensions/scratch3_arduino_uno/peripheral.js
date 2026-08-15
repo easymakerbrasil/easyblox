@@ -139,6 +139,33 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Set PWM output on an Arduino UNO PWM-capable pin in Stage mode.
+     * @param {number} pin Arduino PWM pin: D3, D5, D6, D9, D10 or D11.
+     * @param {number} value PWM value from 0 to 255.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    pwmWrite (pin, value) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(pin) ||
+            !Number.isInteger(value) ||
+            ![3, 5, 6, 9, 10, 11].includes(pin) ||
+            value < 0 ||
+            value > 255
+        ) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.PWM_WRITE,
+            [pin, value]
+        );
+    }
+
+    /**
      * Read an Arduino UNO digital input pin in Stage mode.
      * @param {number} pin Arduino digital pin, from D2 to D13 or A0 to A5.
      * @returns {?Promise<number>} Promise resolved with 0 or 1, or null when unavailable.

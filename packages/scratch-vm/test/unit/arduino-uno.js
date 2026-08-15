@@ -326,6 +326,113 @@ tap.test('Arduino UNO rejects invalid DIGITAL_WRITE requests', t => {
     t.end();
 });
 
+tap.test('Arduino UNO sends PWM_WRITE after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const lowSequence = peripheral.pwmWrite(3, 0);
+    const highSequence = peripheral.pwmWrite(11, 255);
+
+    t.equal(lowSequence, 2);
+    t.equal(highSequence, 3);
+    t.equal(writtenFrames.length, 3);
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            lowSequence,
+            COMMANDS.PWM_WRITE,
+            [3, 0]
+        )
+    );
+
+    t.same(
+        writtenFrames[2],
+        encodeFrame(
+            highSequence,
+            COMMANDS.PWM_WRITE,
+            [11, 255]
+        )
+    );
+});
+
+tap.test('Arduino UNO rejects invalid PWM_WRITE requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.pwmWrite(3, 128),
+        null,
+        'does not write PWM before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    const invalidPins = [
+        0,
+        1,
+        2,
+        4,
+        7,
+        8,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+    ];
+
+    for (const pin of invalidPins) {
+        t.equal(
+            peripheral.pwmWrite(pin, 128),
+            null,
+            `rejects non-PWM pin ${pin}`
+        );
+    }
+
+    t.equal(peripheral.pwmWrite(3, -1), null);
+    t.equal(peripheral.pwmWrite(3, 256), null);
+    t.equal(peripheral.pwmWrite(3, 128.5), null);
+    t.equal(peripheral.pwmWrite(3.5, 128), null);
+
+    t.end();
+});
+
 tap.test('Arduino UNO reads a digital pin after the Stage handshake', async t => {
     let onData = null;
     const writtenFrames = [];
@@ -494,6 +601,102 @@ tap.test('Arduino UNO rejects invalid ANALOG_READ requests', t => {
     t.equal(peripheral.analogRead(13), null);
     t.equal(peripheral.analogRead(20), null);
     t.equal(peripheral.analogRead(14.5), null);
+
+    t.end();
+});
+
+tap.test('Arduino UNO exposes the PWM_WRITE block and delegates numeric values', t => {
+    const runtime = new MockRuntime(null);
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+
+    const info = extension.getInfo();
+    const pwmWriteBlock = info.blocks.find(
+        block => block.opcode === 'pwmWrite'
+    );
+
+    t.ok(pwmWriteBlock);
+
+    t.equal(
+        pwmWriteBlock.blockType,
+        BlockType.COMMAND
+    );
+
+    t.equal(
+        pwmWriteBlock.text,
+        'definir PWM no pino [PIN] como [VALUE]'
+    );
+
+    t.equal(
+        pwmWriteBlock.arguments.PIN.defaultValue,
+        3
+    );
+
+    t.equal(
+        pwmWriteBlock.arguments.PIN.menu,
+        'pwmPins'
+    );
+
+    t.equal(
+        pwmWriteBlock.arguments.VALUE.defaultValue,
+        255
+    );
+
+    t.same(
+        info.menus.pwmPins.items,
+        [
+            {text: 'D3', value: '3'},
+            {text: 'D5', value: '5'},
+            {text: 'D6', value: '6'},
+            {text: 'D9', value: '9'},
+            {text: 'D10', value: '10'},
+            {text: 'D11', value: '11'}
+        ]
+    );
+
+    let receivedPin = null;
+    let receivedValue = null;
+
+    extension._peripheral.pwmWrite = (pin, value) => {
+        receivedPin = pin;
+        receivedValue = value;
+
+        return 42;
+    };
+
+    const result = extension.pwmWrite({
+        PIN: '5',
+        VALUE: '128'
+    });
+
+    t.equal(receivedPin, 5);
+    t.equal(receivedValue, 128);
+    t.equal(result, 42);
+
+    const highResult = extension.pwmWrite({
+        PIN: '5',
+        VALUE: '600'
+    });
+
+    t.equal(receivedPin, 5);
+    t.equal(
+        receivedValue,
+        255,
+        'clamps PWM values above 255 to 255'
+    );
+    t.equal(highResult, 42);
+
+    const lowResult = extension.pwmWrite({
+        PIN: '5',
+        VALUE: '-20'
+    });
+
+    t.equal(receivedPin, 5);
+    t.equal(
+        receivedValue,
+        0,
+        'clamps PWM values below 0 to 0'
+    );
+    t.equal(lowResult, 42);
 
     t.end();
 });

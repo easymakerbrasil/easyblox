@@ -45,6 +45,22 @@ class Scratch3ArduinoUnoBlocks {
                     }
                 },
                 {
+                    opcode: 'pwmWrite',
+                    blockType: BlockType.COMMAND,
+                    text: 'definir PWM no pino [PIN] como [VALUE]',
+                    arguments: {
+                        PIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'pwmPins',
+                            defaultValue: 3
+                        },
+                        VALUE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        }
+                    }
+                },
+                {
                     opcode: 'digitalRead',
                     blockType: BlockType.BOOLEAN,
                     text: 'ler pino digital [PIN]',
@@ -104,6 +120,17 @@ class Scratch3ArduinoUnoBlocks {
                         {text: 'A5', value: '19'}
                     ]
                 },
+                pwmPins: {
+                    acceptReporters: true,
+                    items: [
+                        {text: 'D3', value: '3'},
+                        {text: 'D5', value: '5'},
+                        {text: 'D6', value: '6'},
+                        {text: 'D9', value: '9'},
+                        {text: 'D10', value: '10'},
+                        {text: 'D11', value: '11'}
+                    ]
+                },
                 digitalValues: {
                     acceptReporters: true,
                     items: [
@@ -130,6 +157,27 @@ class Scratch3ArduinoUnoBlocks {
         return this._peripheral.digitalWrite(
             Number(args.PIN),
             Number(args.VALUE)
+        );
+    }
+
+    /**
+     * Set PWM output on an Arduino UNO PWM-capable pin in Stage mode.
+     * @param {object} args Scratch block arguments.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    pwmWrite (args) {
+        const pin = Number(args.PIN);
+        const value = Math.max(
+            0,
+            Math.min(
+                255,
+                Number(args.VALUE)
+            )
+        );
+
+        return this._peripheral.pwmWrite(
+            pin,
+            value
         );
     }
 

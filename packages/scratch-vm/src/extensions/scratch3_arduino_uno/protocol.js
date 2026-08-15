@@ -7,7 +7,8 @@ const COMMANDS = Object.freeze({
     PING: 0x01,
     DIGITAL_WRITE: 0x10,
     DIGITAL_READ: 0x11,
-    ANALOG_READ: 0x12
+    ANALOG_READ: 0x12,
+    PWM_WRITE: 0x13
 });
 
 const RESPONSES = Object.freeze({
