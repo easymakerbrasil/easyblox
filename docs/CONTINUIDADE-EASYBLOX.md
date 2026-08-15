@@ -2702,3 +2702,54 @@ A evolução da base Arduino UNO continua antes de ESP32, EasyMaker Conect e out
 Manter a disciplina:
 
 `protocolo → testes → firmware → compile → peripheral → testes → build → hardware → bloco visual → documentação → commit`
+
+### 21.16. Fechamento oficial do checkpoint PWM_WRITE
+
+O checkpoint `PWM_WRITE` foi concluído, commitado e enviado ao repositório remoto.
+
+Branch:
+
+`feat/easyblox-arduino-uno-foundation`
+
+Commit final:
+
+`67fbcb0f8c`
+
+Mensagem:
+
+`feat: add Arduino UNO Stage PWM write`
+
+Push concluído:
+
+`417610dfc8 → 67fbcb0f8c`
+
+Estado confirmado após o push:
+
+`Your branch is up to date with 'origin/feat/easyblox-arduino-uno-foundation'.`
+
+Validações finais deste checkpoint:
+
+- protocolo: `66/66`;
+- extensão Arduino UNO: `131/131`;
+- build do Scratch VM concluído com sucesso;
+- firmware compilado para Arduino UNO;
+- firmware validado em hardware real;
+- bloco visual PWM validado em hardware real;
+- clamp de VALUE para `0..255` implementado e protegido por testes;
+- documentação técnica atualizada;
+- slider numérico registrado como melhoria futura reutilizável.
+
+Apenas a alteração local já existente em:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+permanece fora deste checkpoint e não foi incluída no commit.
+
+Estado funcional consolidado da base Arduino UNO no Modo Palco:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`.
+
+Este é o ponto oficial de retomada para o próximo primitive físico da base Arduino UNO.
