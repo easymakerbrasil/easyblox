@@ -3317,3 +3317,62 @@ Manter a disciplina:
 `protocolo → testes → firmware → compile → peripheral → testes → build → hardware → bloco visual → documentação → commit`
 
 Somente após o fechamento deste checkpoint deve ser iniciado o próximo primitive físico da base Arduino UNO.
+
+### 22.18. Fechamento oficial do checkpoint TONE_START / TONE_STOP
+
+O checkpoint `TONE_START / TONE_STOP` foi concluído, commitado e enviado ao repositório remoto.
+
+Branch:
+
+`feat/easyblox-arduino-uno-foundation`
+
+Commit funcional final:
+
+`9a1f78671`
+
+Mensagem:
+
+`feat: add Arduino UNO Stage tone control`
+
+Push concluído:
+
+`fde069cd9f → 9a1f786710`
+
+Estado confirmado após o push:
+
+`Your branch is up to date with 'origin/feat/easyblox-arduino-uno-foundation'.`
+
+Validações finais deste checkpoint:
+
+- protocolo: `84/84`;
+- extensão Arduino UNO: `196/196`;
+- `git diff --check` aprovado;
+- `git diff --cached --check` aprovado;
+- firmware compilado para `arduino:avr:uno`;
+- Flash: `4454 bytes (13%)`;
+- SRAM: `242 bytes (11%)`;
+- Scratch VM build aprovado;
+- firmware Stage carregado em hardware real;
+- EasyDuino com buzzer integrado em D6 validada;
+- `TONE_START(D6, 440 Hz)` validado;
+- `TONE_STOP(D6)` validado;
+- blocos visuais validados no EasyBlox;
+- contrato de frequência sem duração aprovado;
+- camada musical com nota, BPM, duração e pausas mantida para ciclo futuro;
+- correção futura do campo visual de `PWM_WRITE` acima de `255` registrada no backlog.
+
+A alteração local já existente em:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+permanece fora deste checkpoint e não foi incluída no commit.
+
+Estado funcional consolidado da base Arduino UNO no Modo Palco:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`;
+5. `TONE_START / TONE_STOP`.
+
+Este é o novo ponto oficial de retomada para o próximo primitive físico da base Arduino UNO.
