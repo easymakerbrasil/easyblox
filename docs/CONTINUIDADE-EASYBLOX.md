@@ -2753,3 +2753,567 @@ Estado funcional consolidado da base Arduino UNO no Modo Palco:
 4. `PWM_WRITE`.
 
 Este é o ponto oficial de retomada para o próximo primitive físico da base Arduino UNO.
+
+## 22. Checkpoint — Arduino UNO TONE_START / TONE_STOP funcional no Modo Palco
+
+O próximo primitive físico da base Arduino UNO foi concluído funcionalmente como um par de comandos:
+
+`TONE_START`
+
+e:
+
+`TONE_STOP`
+
+O fluxo validado é:
+
+`bloco visual → Scratch VM → ArduinoUnoPeripheral → protocolo Stage → firmware → tone()/noTone() → buzzer real`
+
+Este checkpoint foi desenvolvido na branch:
+
+`feat/easyblox-arduino-uno-foundation`
+
+Neste momento a implementação, os testes automatizados, o build e a validação em hardware real estão concluídos.
+
+O commit e o push ainda devem ser executados após a revisão final dos diffs e da documentação.
+
+### 22.1. Contrato do protocolo
+
+Foram reservados:
+
+`TONE_START = 0x14`
+
+`TONE_STOP = 0x15`
+
+O `TONE_START` utiliza:
+
+`[PIN, FREQ_LSB, FREQ_MSB]`
+
+A frequência é transmitida como inteiro de 16 bits em little-endian.
+
+Exemplo:
+
+`440 Hz = 0x01B8`
+
+Para D6:
+
+`[6, 0xB8, 0x01]`
+
+Faixa válida:
+
+`1..65535 Hz`
+
+O `TONE_STOP` utiliza:
+
+`[PIN]`
+
+Ambos reutilizam:
+
+`RESPONSES.ACK = 0x80`
+
+Não foi criado novo tipo de resposta específico para tone.
+
+### 22.2. Pinos permitidos
+
+Por decisão do contrato EasyBlox, tone utiliza somente os pinos PWM do Arduino UNO:
+
+- D3 = 3;
+- D5 = 5;
+- D6 = 6;
+- D9 = 9;
+- D10 = 10;
+- D11 = 11.
+
+O firmware e o peripheral reutilizam a mesma lista já estabelecida para:
+
+`PWM_WRITE`
+
+No firmware é reutilizado:
+
+`isPwmPin(pin)`
+
+Essa limitação é uma decisão de produto do EasyBlox para manter a interface física consistente para o aluno.
+
+### 22.3. Semântica aprovada
+
+O primitive atual trabalha diretamente com frequência.
+
+Bloco:
+
+`tocar tom no pino [PIN] com frequência [FREQUENCY] Hz`
+
+Exemplo padrão:
+
+`tocar tom no pino [D6] com frequência [440] Hz`
+
+O `TONE_START` inicia um som contínuo.
+
+Ele permanece ativo até o recebimento explícito de:
+
+`TONE_STOP`
+
+Bloco:
+
+`parar tom no pino [PIN]`
+
+Portanto, o contrato físico atual não possui duração embutida.
+
+Não fazem parte deste primitive:
+
+- nomes de notas musicais;
+- BPM;
+- figuras rítmicas;
+- duração de nota;
+- pausa musical.
+
+Essas abstrações serão implementadas futuramente em uma camada musical que reutilizará `TONE_START/TONE_STOP`.
+
+Exemplo conceitual futuro:
+
+`Lá4 → 440 Hz`
+
+e:
+
+`tocar nota [Lá4] por [1/4]`
+
+A camada musical deverá fazer internamente a conversão para frequência e tempo sem exigir alteração no protocolo Stage atual.
+
+### 22.4. Protocolo e testes
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/protocol.js`
+
+Foram adicionados:
+
+`TONE_START: 0x14`
+
+`TONE_STOP: 0x15`
+
+Arquivo de testes:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+Foram protegidos:
+
+- comando `TONE_START`;
+- comando `TONE_STOP`;
+- SEQ;
+- comprimento dos payloads;
+- PIN;
+- frequência em little-endian;
+- checksum.
+
+Payload de referência de `TONE_START`:
+
+`[6, 0xB8, 0x01]`
+
+Payload de referência de `TONE_STOP`:
+
+`[6]`
+
+Resultado:
+
+`84 pass / 0 fail`
+
+### 22.5. Firmware
+
+Arquivo:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Foram definidos:
+
+`COMMAND_TONE_START = 0x14`
+
+`COMMAND_TONE_STOP = 0x15`
+
+Foi adicionado controle do pino atualmente utilizado por tone:
+
+`activeTonePin`
+
+com estado sem tone representado por:
+
+`NO_TONE_PIN = 0xFF`
+
+Foi implementado:
+
+`handleToneStart()`
+
+O handler:
+
+1. exige payload de três bytes;
+2. recupera PIN;
+3. reconstrói a frequência de 16 bits;
+4. exige pino pertencente à lista PWM;
+5. rejeita frequência igual a zero;
+6. encerra o tone anterior se houver mudança de pino;
+7. executa `tone(pin, frequency)`;
+8. registra o novo `activeTonePin`;
+9. retorna `RESPONSE_ACK`.
+
+Foi implementado:
+
+`handleToneStop()`
+
+O handler:
+
+1. exige payload de um byte;
+2. valida o pino PWM;
+3. executa `noTone(pin)` caso seja o tone atualmente ativo;
+4. limpa `activeTonePin`;
+5. retorna `RESPONSE_ACK`.
+
+O `TONE_STOP` é idempotente para pinos válidos.
+
+O firmware mantém somente um tone ativo por vez.
+
+### 22.6. Compilação e footprint do firmware
+
+Firmware compilado para:
+
+`arduino:avr:uno`
+
+Resultado:
+
+- Flash: `4454 bytes (13%)`;
+- SRAM global: `242 bytes (11%)`;
+- SRAM livre: `1806 bytes`.
+
+Marco anterior com `PWM_WRITE`:
+
+- Flash: `2870 bytes`;
+- SRAM: `223 bytes`.
+
+Variação:
+
+- Flash: `+1584 bytes`;
+- SRAM: `+19 bytes`.
+
+Apesar do aumento causado pela infraestrutura de tone do core AVR, permanece ampla margem de Flash e SRAM no Arduino UNO.
+
+### 22.7. ArduinoUnoPeripheral
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+Foram implementados:
+
+`toneStart(pin, frequency)`
+
+e:
+
+`toneStop(pin)`
+
+`toneStart()` valida:
+
+- conexão Stage;
+- PIN inteiro;
+- pino PWM;
+- frequência inteira;
+- frequência entre `1..65535`.
+
+Depois envia:
+
+`COMMANDS.TONE_START`
+
+com:
+
+`[PIN, FREQ_LSB, FREQ_MSB]`
+
+`toneStop()` valida:
+
+- conexão Stage;
+- PIN inteiro;
+- pino PWM.
+
+Depois envia:
+
+`COMMANDS.TONE_STOP`
+
+com:
+
+`[PIN]`
+
+### 22.8. Blocos visuais
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/index.js`
+
+Foram adicionados:
+
+`tocar tom no pino [PIN] com frequência [FREQUENCY] Hz`
+
+e:
+
+`parar tom no pino [PIN]`
+
+Os dois reutilizam:
+
+`menu: 'pwmPins'`
+
+Valores padrão:
+
+- PIN: `D6`;
+- frequência: `440 Hz`.
+
+A camada visual faz clamp da frequência para:
+
+`1..65535`
+
+O peripheral continua responsável pela validação final.
+
+### 22.9. Testes da extensão Arduino UNO
+
+Arquivo:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Foram adicionados testes para:
+
+- envio de `TONE_START` após handshake;
+- envio de `TONE_STOP` após handshake;
+- payload little-endian para `440 Hz`;
+- rejeição antes da conexão Stage;
+- rejeição de pinos não-PWM;
+- rejeição de frequências inválidas;
+- exposição dos blocos em `getInfo()`;
+- uso de `pwmPins`;
+- valores padrão;
+- delegação para o peripheral;
+- conversão de argumentos para número;
+- clamp visual de frequência para `1..65535`.
+
+Resultado final:
+
+`196 pass / 0 fail`
+
+### 22.10. Build do Scratch VM
+
+Foi executado:
+
+`npm run build`
+
+Resultado:
+
+- TypeDoc: `0 errors`;
+- webpack concluído com sucesso;
+- build do Scratch VM aprovado.
+
+Permaneceram apenas warnings já conhecidos relacionados a:
+
+- referências de documentação;
+- Browserslist/caniuse-lite;
+- dependência opcional `canvas` utilizada pelo jsdom.
+
+Nenhum deles impediu a compilação.
+
+### 22.11. Upload e hardware real
+
+O Arduino conectado foi identificado em:
+
+`COM11`
+
+Dispositivo:
+
+`USB-SERIAL CH340`
+
+Firmware Stage carregado com sucesso para:
+
+`arduino:avr:uno`
+
+A validação física foi realizada utilizando uma EasyDuino.
+
+A EasyDuino utilizada possui buzzer integrado no:
+
+`D6`
+
+Foi inicialmente enviado diretamente pelo protocolo:
+
+`TONE_START(D6, 440 Hz)`
+
+Resultado:
+
+- buzzer iniciou corretamente;
+- som permaneceu contínuo enquanto nenhum `TONE_STOP` foi recebido.
+
+Depois foi enviado:
+
+`TONE_STOP(D6)`
+
+Resultado:
+
+- buzzer interrompido corretamente.
+
+Validação física direta do protocolo:
+
+`TONE_START ✅`
+
+`TONE_STOP ✅`
+
+### 22.12. Validação no EasyBlox
+
+Depois do build do Scratch VM:
+
+1. o dev-server antigo foi encerrado;
+2. uma nova instância do dev-server foi iniciada;
+3. webpack recompilou corretamente;
+4. a interface foi recarregada em `localhost:8601`;
+5. a extensão Arduino UNO foi aberta;
+6. os dois novos blocos apareceram corretamente;
+7. os blocos foram executados com hardware real.
+
+Blocos confirmados:
+
+`tocar tom no pino [D6] com frequência [440] Hz`
+
+`parar tom no pino [D6]`
+
+Resultado informado após os testes em hardware real:
+
+`funcionando perfeitamente`
+
+Portanto, está validado o fluxo completo:
+
+`bloco visual → Scratch VM → ArduinoUnoPeripheral → protocolo Stage → firmware → EasyDuino D6`
+
+### 22.13. Backlog musical
+
+A base atual deverá ser reutilizada futuramente para uma camada musical mais amigável.
+
+Possíveis recursos:
+
+- nota musical por nome;
+- oitava;
+- frequência automática;
+- BPM;
+- semibreve;
+- mínima;
+- semínima;
+- colcheia;
+- outras divisões rítmicas;
+- pausas;
+- sequências musicais.
+
+A implementação futura deverá manter a separação:
+
+`camada musical → TONE_START/TONE_STOP → protocolo físico`
+
+evitando duplicar ou substituir a primitive física já validada.
+
+### 22.14. PWM_WRITE — correção futura do campo visual
+
+Durante a validação do tone foi observado novamente que o campo visual do bloco:
+
+`definir PWM no pino [PIN] como [VALUE]`
+
+continua permitindo a digitação de valores superiores a:
+
+`255`
+
+O comportamento interno está correto.
+
+A camada do bloco já faz clamp para:
+
+`0..255`
+
+e o peripheral também protege o contrato.
+
+Portanto, esta não é uma falha funcional de `PWM_WRITE`.
+
+A melhoria futura deve atuar na experiência de entrada visual, impedindo ou normalizando de forma mais clara valores fora da faixa permitida.
+
+Essa correção deverá preferencialmente ser tratada junto da infraestrutura reutilizável de campos numéricos e slider já registrada no backlog.
+
+### 22.15. Estado consolidado da base Arduino UNO
+
+O Modo Palco Arduino UNO possui agora cinco grupos de primitives físicos completos:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`;
+5. `TONE_START / TONE_STOP`.
+
+Estão funcionalmente validados:
+
+- Web Serial;
+- seleção de porta;
+- conexão física;
+- handshake Stage;
+- protocolo binário;
+- `PING/PONG`;
+- escrita digital;
+- leitura digital;
+- leitura analógica;
+- PWM;
+- tone por frequência;
+- interrupção de tone;
+- hardware real;
+- blocos visuais correspondentes.
+
+Resultados deste checkpoint:
+
+- protocolo tone: `84/84`;
+- extensão Arduino UNO: `196/196`;
+- firmware: `4454 bytes Flash`;
+- SRAM: `242 bytes`;
+- Scratch VM build: aprovado;
+- firmware real: aprovado;
+- EasyDuino D6: aprovado;
+- bloco `toneStart`: aprovado;
+- bloco `toneStop`: aprovado.
+
+### 22.16. Arquivos do checkpoint
+
+Arquivos de implementação:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/index.js`
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/protocol.js`
+
+Arquivos de testes:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Documentação:
+
+`docs/GUIA-DE-DESENVOLVIMENTO.md`
+
+`docs/CONTINUIDADE-EASYBLOX.md`
+
+A alteração local já existente em:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+não pertence ao primitive `TONE_START/TONE_STOP` e deve permanecer fora do commit.
+
+### 22.17. Próximo passo exato
+
+O primitive `TONE_START/TONE_STOP` está funcionalmente concluído.
+
+Antes de considerar este checkpoint oficialmente fechado:
+
+1. executar `git diff --check`;
+2. revisar o diff dos oito arquivos pertencentes ao checkpoint;
+3. manter `icon--sprite.svg` fora do staging;
+4. fazer staging explícito somente dos seis arquivos de implementação/testes e dos dois documentos;
+5. executar `git diff --cached --check`;
+6. revisar `git diff --cached --stat`;
+7. criar o commit do checkpoint;
+8. fazer push para `origin/feat/easyblox-arduino-uno-foundation`;
+9. confirmar que a branch local está sincronizada com o remoto;
+10. registrar nesta seção o hash e a mensagem final do commit.
+
+Manter a disciplina:
+
+`protocolo → testes → firmware → compile → peripheral → testes → build → hardware → bloco visual → documentação → commit`
+
+Somente após o fechamento deste checkpoint deve ser iniciado o próximo primitive físico da base Arduino UNO.

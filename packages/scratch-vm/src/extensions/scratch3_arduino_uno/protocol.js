@@ -8,7 +8,9 @@ const COMMANDS = Object.freeze({
     DIGITAL_WRITE: 0x10,
     DIGITAL_READ: 0x11,
     ANALOG_READ: 0x12,
-    PWM_WRITE: 0x13
+    PWM_WRITE: 0x13,
+    TONE_START: 0x14,
+    TONE_STOP: 0x15
 });
 
 const RESPONSES = Object.freeze({

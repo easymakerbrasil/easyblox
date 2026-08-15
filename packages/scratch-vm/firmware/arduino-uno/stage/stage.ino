@@ -13,6 +13,8 @@ constexpr uint8_t COMMAND_DIGITAL_WRITE = 0x10;
 constexpr uint8_t COMMAND_DIGITAL_READ = 0x11;
 constexpr uint8_t COMMAND_ANALOG_READ = 0x12;
 constexpr uint8_t COMMAND_PWM_WRITE = 0x13;
+constexpr uint8_t COMMAND_TONE_START = 0x14;
+constexpr uint8_t COMMAND_TONE_STOP = 0x15;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -40,6 +42,9 @@ uint8_t payloadLength = 0;
 uint8_t payloadIndex = 0;
 uint8_t payload[MAX_PAYLOAD_LENGTH];
 uint8_t checksum = 0;
+
+constexpr uint8_t NO_TONE_PIN = 0xFF;
+uint8_t activeTonePin = NO_TONE_PIN;
 
 void resetParser() {
     parserState = ParserState::WaitStart1;
@@ -264,6 +269,82 @@ void handlePwmWrite() {
     );
 }
 
+void handleToneStart() {
+    if (payloadLength != 3) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t pin = payload[0];
+
+    const uint16_t frequency =
+        static_cast<uint16_t>(payload[1]) |
+        (static_cast<uint16_t>(payload[2]) << 8);
+
+    if (
+        !isPwmPin(pin) ||
+        frequency == 0
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    if (
+        activeTonePin != NO_TONE_PIN &&
+        activeTonePin != pin
+    ) {
+        noTone(activeTonePin);
+    }
+
+    tone(
+        pin,
+        frequency
+    );
+
+    activeTonePin = pin;
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
+void handleToneStop() {
+    if (payloadLength != 1) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t pin = payload[0];
+
+    if (!isPwmPin(pin)) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    if (activeTonePin == pin) {
+        noTone(pin);
+        activeTonePin = NO_TONE_PIN;
+    }
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
 void handleFrame() {
     if (command == COMMAND_PING) {
         sendFrame(
@@ -290,6 +371,16 @@ void handleFrame() {
 
     if (command == COMMAND_PWM_WRITE) {
         handlePwmWrite();
+        return;
+    }
+
+    if (command == COMMAND_TONE_START) {
+        handleToneStart();
+        return;
+    }
+
+    if (command == COMMAND_TONE_STOP) {
+        handleToneStop();
     }
 }
 

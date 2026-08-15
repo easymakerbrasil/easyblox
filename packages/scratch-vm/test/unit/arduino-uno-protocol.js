@@ -376,3 +376,51 @@ tap.test('encodes PWM_WRITE payload', t => {
 
     t.end();
 });
+
+tap.test('encodes TONE_START payload', t => {
+    const frame = encodeFrame(
+        0x2E,
+        COMMANDS.TONE_START,
+        [6, 0xB8, 0x01]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x2E);
+    t.equal(frame[4], COMMANDS.TONE_START);
+    t.equal(frame[5], 3);
+    t.equal(frame[6], 6);
+    t.equal(frame[7], 0xB8);
+    t.equal(frame[8], 0x01);
+
+    t.equal(
+        frame[9],
+        calculateChecksum(frame.subarray(2, 9))
+    );
+
+    t.end();
+});
+
+tap.test('encodes TONE_STOP payload', t => {
+    const frame = encodeFrame(
+        0x2F,
+        COMMANDS.TONE_STOP,
+        [6]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x2F);
+    t.equal(frame[4], COMMANDS.TONE_STOP);
+    t.equal(frame[5], 1);
+    t.equal(frame[6], 6);
+
+    t.equal(
+        frame[7],
+        calculateChecksum(frame.subarray(2, 7))
+    );
+
+    t.end();
+});

@@ -433,6 +433,126 @@ tap.test('Arduino UNO rejects invalid PWM_WRITE requests', t => {
     t.end();
 });
 
+tap.test('Arduino UNO sends TONE_START and TONE_STOP after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const startSequence = peripheral.toneStart(6, 440);
+    const stopSequence = peripheral.toneStop(6);
+
+    t.equal(startSequence, 2);
+    t.equal(stopSequence, 3);
+    t.equal(writtenFrames.length, 3);
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            startSequence,
+            COMMANDS.TONE_START,
+            [6, 0xB8, 0x01]
+        )
+    );
+
+    t.same(
+        writtenFrames[2],
+        encodeFrame(
+            stopSequence,
+            COMMANDS.TONE_STOP,
+            [6]
+        )
+    );
+});
+
+tap.test('Arduino UNO rejects invalid TONE_START and TONE_STOP requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.toneStart(6, 440),
+        null,
+        'does not start tone before the Stage handshake'
+    );
+
+    t.equal(
+        peripheral.toneStop(6),
+        null,
+        'does not stop tone before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    const invalidPins = [
+        0,
+        1,
+        2,
+        4,
+        7,
+        8,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+    ];
+
+    for (const pin of invalidPins) {
+        t.equal(
+            peripheral.toneStart(pin, 440),
+            null,
+            `rejects non-PWM tone start pin ${pin}`
+        );
+
+        t.equal(
+            peripheral.toneStop(pin),
+            null,
+            `rejects non-PWM tone stop pin ${pin}`
+        );
+    }
+
+    t.equal(peripheral.toneStart(6, 0), null);
+    t.equal(peripheral.toneStart(6, 65536), null);
+    t.equal(peripheral.toneStart(6, 440.5), null);
+    t.equal(peripheral.toneStart(6.5, 440), null);
+    t.equal(peripheral.toneStop(6.5), null);
+
+    t.end();
+});
+
 tap.test('Arduino UNO reads a digital pin after the Stage handshake', async t => {
     let onData = null;
     const writtenFrames = [];
@@ -697,6 +817,130 @@ tap.test('Arduino UNO exposes the PWM_WRITE block and delegates numeric values',
         'clamps PWM values below 0 to 0'
     );
     t.equal(lowResult, 42);
+
+    t.end();
+});
+
+tap.test('Arduino UNO exposes TONE_START and TONE_STOP blocks and delegates numeric values', t => {
+    const runtime = new MockRuntime(null);
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+
+    const info = extension.getInfo();
+
+    const toneStartBlock = info.blocks.find(
+        block => block.opcode === 'toneStart'
+    );
+
+    const toneStopBlock = info.blocks.find(
+        block => block.opcode === 'toneStop'
+    );
+
+    t.ok(toneStartBlock);
+    t.ok(toneStopBlock);
+
+    t.equal(
+        toneStartBlock.blockType,
+        BlockType.COMMAND
+    );
+
+    t.equal(
+        toneStartBlock.text,
+        'tocar tom no pino [PIN] com frequência [FREQUENCY] Hz'
+    );
+
+    t.equal(
+        toneStartBlock.arguments.PIN.defaultValue,
+        6
+    );
+
+    t.equal(
+        toneStartBlock.arguments.PIN.menu,
+        'pwmPins'
+    );
+
+    t.equal(
+        toneStartBlock.arguments.FREQUENCY.defaultValue,
+        440
+    );
+
+    t.equal(
+        toneStopBlock.blockType,
+        BlockType.COMMAND
+    );
+
+    t.equal(
+        toneStopBlock.text,
+        'parar tom no pino [PIN]'
+    );
+
+    t.equal(
+        toneStopBlock.arguments.PIN.defaultValue,
+        6
+    );
+
+    t.equal(
+        toneStopBlock.arguments.PIN.menu,
+        'pwmPins'
+    );
+
+    let receivedStartPin = null;
+    let receivedFrequency = null;
+    let receivedStopPin = null;
+
+    extension._peripheral.toneStart = (pin, frequency) => {
+        receivedStartPin = pin;
+        receivedFrequency = frequency;
+
+        return 43;
+    };
+
+    extension._peripheral.toneStop = pin => {
+        receivedStopPin = pin;
+
+        return 44;
+    };
+
+    const startResult = extension.toneStart({
+        PIN: '6',
+        FREQUENCY: '440'
+    });
+
+    t.equal(receivedStartPin, 6);
+    t.equal(receivedFrequency, 440);
+    t.equal(startResult, 43);
+
+    const highResult = extension.toneStart({
+        PIN: '6',
+        FREQUENCY: '70000'
+    });
+
+    t.equal(receivedStartPin, 6);
+    t.equal(
+        receivedFrequency,
+        65535,
+        'clamps tone frequencies above 65535 to 65535'
+    );
+    t.equal(highResult, 43);
+
+    const lowResult = extension.toneStart({
+        PIN: '6',
+        FREQUENCY: '0'
+    });
+
+    t.equal(receivedStartPin, 6);
+    t.equal(
+        receivedFrequency,
+        1,
+        'clamps tone frequencies below 1 to 1'
+    );
+    t.equal(lowResult, 43);
+
+    const stopResult = extension.toneStop({
+        PIN: '6'
+    });
+
+    t.equal(receivedStopPin, 6);
+    t.equal(stopResult, 44);
 
     t.end();
 });

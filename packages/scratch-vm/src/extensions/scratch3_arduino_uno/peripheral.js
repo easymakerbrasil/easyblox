@@ -166,6 +166,60 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Start a tone on an Arduino UNO PWM-capable pin in Stage mode.
+     * @param {number} pin Arduino PWM pin: D3, D5, D6, D9, D10 or D11.
+     * @param {number} frequency Tone frequency from 1 to 65535 Hz.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    toneStart (pin, frequency) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(pin) ||
+            !Number.isInteger(frequency) ||
+            ![3, 5, 6, 9, 10, 11].includes(pin) ||
+            frequency < 1 ||
+            frequency > 65535
+        ) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.TONE_START,
+            [
+                pin,
+                frequency & 0xFF,
+                (frequency >> 8) & 0xFF
+            ]
+        );
+    }
+
+    /**
+     * Stop a tone on an Arduino UNO PWM-capable pin in Stage mode.
+     * @param {number} pin Arduino PWM pin: D3, D5, D6, D9, D10 or D11.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    toneStop (pin) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(pin) ||
+            ![3, 5, 6, 9, 10, 11].includes(pin)
+        ) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.TONE_STOP,
+            [pin]
+        );
+    }
+
+    /**
      * Read an Arduino UNO digital input pin in Stage mode.
      * @param {number} pin Arduino digital pin, from D2 to D13 or A0 to A5.
      * @returns {?Promise<number>} Promise resolved with 0 or 1, or null when unavailable.

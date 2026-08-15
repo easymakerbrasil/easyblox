@@ -61,6 +61,36 @@ class Scratch3ArduinoUnoBlocks {
                     }
                 },
                 {
+                    opcode: 'toneStart',
+                    blockType: BlockType.COMMAND,
+                    text: 'tocar tom no pino [PIN] com frequência [FREQUENCY] Hz',
+                    arguments: {
+                        PIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'pwmPins',
+                            defaultValue: 6
+                        },
+                        FREQUENCY: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 440
+                        }
+                    }
+                },
+
+                {
+                    opcode: 'toneStop',
+                    blockType: BlockType.COMMAND,
+                    text: 'parar tom no pino [PIN]',
+                    arguments: {
+                        PIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'pwmPins',
+                            defaultValue: 6
+                        }
+                    }
+                },
+
+                {
                     opcode: 'digitalRead',
                     blockType: BlockType.BOOLEAN,
                     text: 'ler pino digital [PIN]',
@@ -178,6 +208,38 @@ class Scratch3ArduinoUnoBlocks {
         return this._peripheral.pwmWrite(
             pin,
             value
+        );
+    }
+
+    /**
+     * Start a tone on an Arduino UNO PWM-capable pin in Stage mode.
+     * @param {object} args Scratch block arguments.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    toneStart (args) {
+        const pin = Number(args.PIN);
+        const frequency = Math.max(
+            1,
+            Math.min(
+                65535,
+                Number(args.FREQUENCY)
+            )
+        );
+
+        return this._peripheral.toneStart(
+            pin,
+            frequency
+        );
+    }
+
+    /**
+     * Stop a tone on an Arduino UNO PWM-capable pin in Stage mode.
+     * @param {object} args Scratch block arguments.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    toneStop (args) {
+        return this._peripheral.toneStop(
+            Number(args.PIN)
         );
     }
 

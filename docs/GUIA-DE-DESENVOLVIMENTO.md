@@ -2753,3 +2753,440 @@ Antes de iniciar outro primitive:
 Depois do checkpoint, continuar evoluindo a base Arduino UNO incrementalmente.
 
 ESP32, EasyMaker Conect e demais placas permanecem fora deste ciclo até a estabilização da base UNO.
+
+### 19.55. TONE_START / TONE_STOP — contrato do protocolo
+
+O quinto primitive físico completo do Modo Palco Arduino UNO é composto pelo par:
+
+`TONE_START`
+
+e:
+
+`TONE_STOP`
+
+Comandos:
+
+`COMMANDS.TONE_START = 0x14`
+
+`COMMANDS.TONE_STOP = 0x15`
+
+O `TONE_START` utiliza o payload:
+
+`[PIN, FREQ_LSB, FREQ_MSB]`
+
+A frequência é transportada como inteiro sem sinal de 16 bits em little-endian.
+
+Exemplo para `440 Hz`:
+
+`440 = 0x01B8`
+
+Payload para D6:
+
+`[6, 0xB8, 0x01]`
+
+Faixa de frequência aceita:
+
+`1..65535 Hz`
+
+O `TONE_STOP` utiliza:
+
+`[PIN]`
+
+Ambos reutilizam:
+
+`RESPONSES.ACK = 0x80`
+
+Não foram criados novos tipos de resposta específicos para tone.
+
+Por decisão do projeto EasyBlox, os primitives de tone aceitam somente os pinos PWM do Arduino UNO:
+
+- D3 = 3;
+- D5 = 5;
+- D6 = 6;
+- D9 = 9;
+- D10 = 10;
+- D11 = 11.
+
+Embora a API `tone()` do Arduino não exija tecnicamente pino PWM, o contrato do EasyBlox restringe essa funcionalidade aos mesmos pinos definidos no menu `pwmPins`, mantendo uma interface consistente para o aluno.
+
+### 19.56. Semântica de TONE_START / TONE_STOP
+
+O primitive físico atual trabalha diretamente com frequência.
+
+Bloco:
+
+`tocar tom no pino [PIN] com frequência [FREQUENCY] Hz`
+
+Semântica:
+
+`TONE_START(pin, frequency)`
+
+O som permanece ativo continuamente até que seja recebido:
+
+`TONE_STOP(pin)`
+
+Bloco:
+
+`parar tom no pino [PIN]`
+
+O contrato atual não inclui:
+
+- nota musical;
+- duração;
+- figura rítmica;
+- BPM;
+- pausa musical.
+
+Essas abstrações pertencem a uma camada musical futura do EasyBlox e deverão reutilizar os primitives físicos já estabelecidos.
+
+Exemplo futuro:
+
+`Lá4 → 440 Hz`
+
+A camada musical poderá converter internamente nota, andamento e duração em operações sobre `TONE_START` e `TONE_STOP`, sem exigir alteração deste protocolo.
+
+### 19.57. Testes do protocolo TONE_START / TONE_STOP
+
+Arquivo:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+Foram adicionados testes de codificação para:
+
+`COMMANDS.TONE_START`
+
+com payload protegido:
+
+`[6, 0xB8, 0x01]`
+
+e:
+
+`COMMANDS.TONE_STOP`
+
+com payload:
+
+`[6]`
+
+Os testes confirmam:
+
+- versão do protocolo;
+- SEQ;
+- comandos `0x14` e `0x15`;
+- comprimento dos payloads;
+- PIN;
+- bytes LSB/MSB da frequência;
+- checksum.
+
+Resultado da suíte específica do protocolo após a inclusão:
+
+`84 pass / 0 fail`
+
+### 19.58. Firmware TONE_START / TONE_STOP
+
+Arquivo:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Foram definidos:
+
+`COMMAND_TONE_START = 0x14`
+
+`COMMAND_TONE_STOP = 0x15`
+
+Foi reutilizado:
+
+`isPwmPin(pin)`
+
+portanto somente:
+
+`3, 5, 6, 9, 10, 11`
+
+são aceitos.
+
+Foi implementado:
+
+`handleToneStart()`
+
+Contrato:
+
+`[PIN, FREQ_LSB, FREQ_MSB]`
+
+O handler:
+
+1. exige payload de três bytes;
+2. verifica se o PIN pertence à lista PWM;
+3. reconstrói a frequência de 16 bits;
+4. rejeita frequência igual a zero;
+5. encerra um tone anterior caso esteja ativo em outro pino;
+6. executa `tone(pin, frequency)`;
+7. registra o pino atualmente ativo;
+8. retorna `RESPONSE_ACK`.
+
+Também foi implementado:
+
+`handleToneStop()`
+
+Contrato:
+
+`[PIN]`
+
+O handler:
+
+1. exige payload de um byte;
+2. verifica se o PIN pertence à lista PWM;
+3. executa `noTone(pin)` quando esse pino é o tone atualmente ativo;
+4. limpa o estado de tone ativo;
+5. retorna `RESPONSE_ACK`.
+
+O `TONE_STOP` é idempotente para pinos válidos: solicitar a parada de um tone que já não está ativo continua retornando ACK.
+
+O firmware mantém somente um tone ativo por vez.
+
+### 19.59. Footprint do firmware com TONE_START / TONE_STOP
+
+Compilação validada para:
+
+`arduino:avr:uno`
+
+Resultado:
+
+- Flash: `4454 bytes (13%)`;
+- SRAM global: `242 bytes (11%)`;
+- SRAM livre: `1806 bytes`.
+
+Comparação com o marco `PWM_WRITE`:
+
+- Flash anterior: `2870 bytes`;
+- Flash atual: `4454 bytes`;
+- aumento: `1584 bytes`;
+- SRAM anterior: `223 bytes`;
+- SRAM atual: `242 bytes`;
+- aumento: `19 bytes`.
+
+Mesmo com o aumento causado pela infraestrutura de `tone()` do core AVR, o firmware permanece com ampla margem de Flash e SRAM no Arduino UNO.
+
+### 19.60. ArduinoUnoPeripheral.toneStart() / toneStop()
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+Foi implementado:
+
+`toneStart(pin, frequency)`
+
+Validações:
+
+- Stage conectado;
+- PIN inteiro;
+- PIN pertencente a `3, 5, 6, 9, 10, 11`;
+- frequência inteira;
+- frequência entre `1..65535`.
+
+Envio:
+
+`COMMANDS.TONE_START`
+
+Payload:
+
+`[PIN, FREQ_LSB, FREQ_MSB]`
+
+Também foi implementado:
+
+`toneStop(pin)`
+
+Validações:
+
+- Stage conectado;
+- PIN inteiro;
+- PIN pertencente a `3, 5, 6, 9, 10, 11`.
+
+Envio:
+
+`COMMANDS.TONE_STOP`
+
+Payload:
+
+`[PIN]`
+
+### 19.61. Blocos visuais de tone
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/index.js`
+
+Foram adicionados os blocos:
+
+`tocar tom no pino [PIN] com frequência [FREQUENCY] Hz`
+
+e:
+
+`parar tom no pino [PIN]`
+
+Ambos reutilizam:
+
+`menu: 'pwmPins'`
+
+Pino padrão:
+
+`D6`
+
+Frequência padrão:
+
+`440 Hz`
+
+A camada visual faz clamp da frequência para:
+
+`1..65535`
+
+O peripheral continua sendo a camada responsável pela validação final de inteiros e pinos permitidos.
+
+### 19.62. Testes da extensão Arduino UNO com tone
+
+Arquivo:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Foram protegidos:
+
+- envio de `TONE_START` após handshake Stage;
+- envio de `TONE_STOP` após handshake Stage;
+- payload little-endian de `440 Hz`;
+- rejeição de pinos não-PWM;
+- rejeição de frequências inválidas;
+- rejeição antes do handshake;
+- exposição dos dois blocos em `getInfo()`;
+- menu `pwmPins`;
+- valores padrão;
+- conversão de argumentos numéricos;
+- clamp visual de frequência para `1..65535`;
+- delegação para `ArduinoUnoPeripheral`.
+
+Resultado final da suíte específica:
+
+`196 pass / 0 fail`
+
+### 19.63. Build e validação em hardware real
+
+O Scratch VM foi recompilado após as alterações.
+
+Resultado:
+
+- TypeDoc: `0 errors`;
+- webpack: compilação concluída com sucesso;
+- warnings existentes de documentação, Browserslist e dependência opcional `canvas` não impediram o build.
+
+O firmware Stage foi carregado em Arduino UNO compatível conectado por:
+
+`USB-SERIAL CH340 (COM11)`
+
+A validação física utilizou uma EasyDuino com buzzer integrado no:
+
+`D6`
+
+Foi validado diretamente no protocolo:
+
+`TONE_START(D6, 440 Hz)`
+
+Resultado:
+
+- buzzer iniciou o tone corretamente;
+- tone permaneceu contínuo enquanto nenhum `TONE_STOP` foi recebido.
+
+Depois foi validado:
+
+`TONE_STOP(D6)`
+
+Resultado:
+
+- tone interrompido corretamente.
+
+Após rebuild do Scratch VM e reinicialização limpa do dev-server, os dois blocos apareceram corretamente no EasyBlox e foram validados pelo usuário em hardware real.
+
+Resultado:
+
+`TONE_START ✅`
+
+`TONE_STOP ✅`
+
+### 19.64. Backlog musical sobre a base TONE
+
+A camada física de tone está deliberadamente separada da futura camada musical.
+
+Futuramente poderão ser implementados recursos como:
+
+- seleção de notas musicais, por exemplo `Lá4`;
+- conversão automática de nota para frequência;
+- definição de andamento em BPM;
+- figuras rítmicas;
+- duração de notas;
+- pausas;
+- sequências musicais.
+
+Exemplo conceitual futuro:
+
+`definir andamento para [120] BPM`
+
+`tocar nota [Lá4] por [1/4]`
+
+`pausa por [1/8]`
+
+Essa camada deverá utilizar internamente os primitives já consolidados:
+
+`TONE_START`
+
+e:
+
+`TONE_STOP`
+
+sem alterar o protocolo físico existente.
+
+### 19.65. PWM_WRITE — correção futura do campo visual
+
+Durante a validação dos blocos de tone foi novamente observado que o campo visual do bloco:
+
+`definir PWM no pino [PIN] como [VALUE]`
+
+continua permitindo ao usuário digitar valores acima de:
+
+`255`
+
+O primitive `PWM_WRITE` já faz clamp interno para:
+
+`0..255`
+
+e esse comportamento está protegido por testes.
+
+Portanto, não existe erro funcional no primitive.
+
+A correção futura pertence à camada de UX/entrada visual e deverá impedir ou normalizar de forma mais clara valores fora da faixa visível permitida.
+
+Essa melhoria pode ser tratada junto ao backlog já registrado de campos numéricos reutilizáveis e slider, evitando criar uma solução exclusiva para PWM.
+
+### 19.66. Estado atual da base Arduino UNO
+
+O Modo Palco Arduino UNO possui agora cinco grupos de primitives físicos completos:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`;
+5. `TONE_START / TONE_STOP`.
+
+Resultados consolidados do checkpoint de tone:
+
+- protocolo tone: `84/84`;
+- extensão Arduino UNO: `196/196`;
+- firmware compilado para `arduino:avr:uno`;
+- Flash: `4454 bytes (13%)`;
+- SRAM: `242 bytes (11%)`;
+- hardware real validado;
+- blocos visuais validados;
+- `TONE_START` funcional;
+- `TONE_STOP` funcional.
+
+Pinos de tone definidos pelo EasyBlox:
+
+`D3, D5, D6, D9, D10, D11`
+
+O contrato permanece incremental e deve continuar sendo evoluído sem iniciar outras placas antes da estabilização da base Arduino UNO.
