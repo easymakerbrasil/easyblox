@@ -3995,3 +3995,291 @@ O desenvolvimento de MOTOR somente deve começar após:
 2. push do commit documental;
 3. confirmação da sincronização com o remoto;
 4. avaliação e remoção segura do stash temporário de Servo.
+
+### 22.35. Checkpoint complementar — PWM Range 0..255
+
+Após o fechamento oficial do SERVO, foi retomado o backlog visual do primitive:
+
+`PWM_WRITE`
+
+O primitive já estava funcionalmente concluído anteriormente.
+
+Contrato existente:
+
+`PWM_WRITE = 0x13`
+
+Faixa funcional:
+
+`0..255`
+
+Pinos:
+
+`D3, D5, D6, D9, D10, D11`
+
+O problema pendente era exclusivamente de UX.
+
+O bloco:
+
+`definir PWM no pino [PIN] como [VALUE]`
+
+ainda utilizava:
+
+`ArgumentType.NUMBER`
+
+permitindo ao usuário digitar visualmente valores acima de `255`, embora o método funcional e o peripheral já protegessem a faixa válida.
+
+Status deste backlog:
+
+`RESOLVIDO`
+
+### 22.36. Reutilização do EasyBloxRangeNumberField no PWM
+
+A infraestrutura criada no checkpoint de Servo:
+
+`EasyBloxRangeNumberField`
+
+foi reutilizada para o PWM.
+
+Foi criado no Scratch GUI o shadow:
+
+`easyblox_pwm_value`
+
+Configuração:
+
+- default: `255`;
+- min: `0`;
+- max: `255`;
+- precision: `1`.
+
+A arquitetura visual passa a ser:
+
+`ArgumentType.PWM_VALUE`
+
+↓
+
+`easyblox_pwm_value`
+
+↓
+
+`field_easyblox_range_number`
+
+↓
+
+`0..255`
+
+O novo tipo foi registrado em:
+
+`packages/scratch-vm/src/extension-support/argument-type.js`
+
+como:
+
+`PWM_VALUE: 'pwm_value'`
+
+O Runtime passou a mapear:
+
+`ArgumentType.PWM_VALUE → easyblox_pwm_value`
+
+O argumento:
+
+`VALUE`
+
+do bloco `pwmWrite` passou de:
+
+`ArgumentType.NUMBER`
+
+para:
+
+`ArgumentType.PWM_VALUE`
+
+O método:
+
+`pwmWrite(args)`
+
+não foi alterado e continua mantendo o clamp interno:
+
+`0..255`
+
+como segunda camada de proteção.
+
+### 22.37. Arquivos alterados no checkpoint PWM Range
+
+Scratch GUI:
+
+`packages/scratch-gui/src/lib/blocks.js`
+
+Scratch VM:
+
+`packages/scratch-vm/src/engine/runtime.js`
+
+`packages/scratch-vm/src/extension-support/argument-type.js`
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/index.js`
+
+Teste:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Documentação:
+
+`docs/GUIA-DE-DESENVOLVIMENTO.md`
+
+`docs/CONTINUIDADE-EASYBLOX.md`
+
+Arquivo independente que NÃO pertence ao checkpoint:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+Nenhuma alteração foi necessária em:
+
+- `protocol.js`;
+- `peripheral.js`;
+- firmware `stage.ino`.
+
+### 22.38. Validações do PWM Range
+
+Foi adicionada uma assertion garantindo que:
+
+`pwmWriteBlock.arguments.VALUE.type`
+
+permaneça igual a:
+
+`ArgumentType.PWM_VALUE`
+
+Teste isolado executado:
+
+`npx tap packages/scratch-vm/test/unit/arduino-uno.js`
+
+Resultado:
+
+`223 pass / 0 fail`
+
+O número anterior era:
+
+`222/222`
+
+A assertion adicional corresponde à proteção do novo tipo visual do PWM.
+
+Scratch VM build:
+
+`APROVADO`
+
+Resultado:
+
+`webpack 5.109.2 compiled successfully`
+
+Scratch GUI build:
+
+`APROVADO`
+
+Resultado:
+
+`webpack 5.109.2 compiled successfully`
+
+Validação visual realizada no EasyBlox:
+
+- slider em `0`: aprovado;
+- valor `128`: aprovado;
+- slider em `255`: aprovado;
+- valor digitado abaixo de `0`: limitado corretamente;
+- valor digitado acima de `255`: limitado corretamente;
+- precisão inteira: aprovada;
+- digitação direta: aprovada;
+- slider: aprovado;
+- ausência de erro de `ephemeral focus`: aprovada.
+
+Resultado final:
+
+`PWM RANGE 0..255 ✅`
+
+### 22.39. Estado do EasyBloxRangeNumberField
+
+A infraestrutura numérica reutilizável passa oficialmente a atender dois casos:
+
+`SERVO → 0..180`
+
+`PWM → 0..255`
+
+Portanto, o componente não deve ser tratado como implementação exclusiva do Servo.
+
+Estrutura consolidada:
+
+`EasyBloxRangeNumberField`
+
+↓
+
+constraints configuráveis:
+
+- `min`;
+- `max`;
+- `precision`;
+
+↓
+
+editor numérico + slider.
+
+Essa infraestrutura poderá ser reutilizada em futuros blocos que necessitem entrada numérica visualmente limitada.
+
+### 22.40. Estado atual antes do MOTOR
+
+Último commit funcional remoto do SERVO:
+
+`dcbfc724170a2ee3144335aa212e7d040088a615`
+
+Mensagem:
+
+`feat: add Arduino UNO Stage servo control`
+
+Último commit documental remoto:
+
+`6bfe11591`
+
+Mensagem:
+
+`docs: close Arduino UNO servo checkpoint`
+
+Branch antes do início deste pequeno checkpoint:
+
+`feat/easyblox-arduino-uno-foundation`
+
+sincronizada com:
+
+`origin/feat/easyblox-arduino-uno-foundation`
+
+O stash temporário criado durante a investigação de Servo foi completamente inspecionado e removido com segurança.
+
+Não existem mais stashes pendentes desse checkpoint.
+
+Alteração local independente preservada:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+Ela continua fora do escopo Arduino UNO.
+
+Primitives consolidados no Modo Palco:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`;
+5. `TONE_START / TONE_STOP`;
+6. `SERVO_WRITE`.
+
+Backlog visual de PWM:
+
+`ENCERRADO`
+
+Próximo primitive oficial:
+
+`MOTOR`
+
+Antes de iniciar MOTOR, falta apenas fechar este checkpoint complementar:
+
+1. `git diff --check`;
+2. revisar o diff;
+3. manter `icon--sprite.svg` fora do staging;
+4. staging explícito dos arquivos PWM Range + documentação;
+5. `git diff --cached --check`;
+6. revisar staged files;
+7. commit;
+8. push;
+9. confirmar sincronização com o remoto.

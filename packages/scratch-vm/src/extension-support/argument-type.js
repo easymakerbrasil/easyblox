@@ -10,6 +10,8 @@ const ArgumentType = {
 
     SERVO_ANGLE: 'servo_angle',
 
+    PWM_VALUE: 'pwm_value',
+
     /**
      * Boolean value with hexagonal placeholder
      */

@@ -55,7 +55,7 @@ class Scratch3ArduinoUnoBlocks {
                             defaultValue: 3
                         },
                         VALUE: {
-                            type: ArgumentType.NUMBER,
+                            type: ArgumentType.PWM_VALUE,
                             defaultValue: 255
                         }
                     }

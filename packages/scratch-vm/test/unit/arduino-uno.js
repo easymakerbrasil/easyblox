@@ -1,6 +1,7 @@
 const tap = require('tap');
 
 const BlockType = require('../../src/extension-support/block-type');
+const ArgumentType = require('../../src/extension-support/argument-type');
 const ArduinoUnoPeripheral = require('../../src/extensions/scratch3_arduino_uno/peripheral');
 const Scratch3ArduinoUnoBlocks = require('../../src/extensions/scratch3_arduino_uno');
 const {
@@ -866,6 +867,11 @@ tap.test('Arduino UNO exposes the PWM_WRITE block and delegates numeric values',
     t.equal(
         pwmWriteBlock.arguments.VALUE.defaultValue,
         255
+    );
+
+    t.equal(
+        pwmWriteBlock.arguments.VALUE.type,
+        ArgumentType.PWM_VALUE
     );
 
     t.same(

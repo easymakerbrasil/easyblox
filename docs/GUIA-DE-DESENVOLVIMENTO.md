@@ -3652,3 +3652,139 @@ O próximo primitive oficial da sequência é:
 `MOTOR`
 
 Antes de iniciar MOTOR, concluir apenas o commit documental deste fechamento e confirmar seu push no remoto.
+
+### 19.78. PWM_WRITE — fechamento do range visual 0..255
+
+O backlog visual do bloco:
+
+`definir PWM no pino [PIN] como [VALUE]`
+
+foi concluído.
+
+Antes desta correção, o primitive já possuía proteção funcional:
+
+- clamp interno no bloco;
+- validação no peripheral;
+- faixa aceita pelo protocolo de `0..255`.
+
+Porém, o campo visual ainda utilizava:
+
+`ArgumentType.NUMBER`
+
+e permitia ao usuário digitar valores fora da faixa esperada.
+
+A infraestrutura reutilizável criada durante o checkpoint de Servo:
+
+`EasyBloxRangeNumberField`
+
+passou a ser reutilizada também pelo PWM.
+
+Foi criado o shadow:
+
+`easyblox_pwm_value`
+
+com a seguinte configuração:
+
+- valor padrão: `255`;
+- mínimo: `0`;
+- máximo: `255`;
+- precisão: `1`.
+
+Também foi criado o tipo interno:
+
+`ArgumentType.PWM_VALUE`
+
+com o mapeamento:
+
+`ArgumentType.PWM_VALUE → easyblox_pwm_value`
+
+O argumento:
+
+`VALUE`
+
+do bloco `pwmWrite` deixou de utilizar:
+
+`ArgumentType.NUMBER`
+
+e passou a utilizar:
+
+`ArgumentType.PWM_VALUE`.
+
+O método funcional:
+
+`pwmWrite(args)`
+
+permaneceu com o clamp interno existente em:
+
+`0..255`
+
+como segunda camada de proteção.
+
+A arquitetura final do campo reutilizável passa a atender:
+
+`Servo → EasyBloxRangeNumberField → 0..180`
+
+`PWM → EasyBloxRangeNumberField → 0..255`
+
+### 19.79. Validação do range visual PWM
+
+Foi adicionada proteção automatizada para garantir que o bloco PWM continue utilizando:
+
+`ArgumentType.PWM_VALUE`
+
+Resultado do teste isolado:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Resultado:
+
+`223 pass / 0 fail`
+
+O aumento de `222` para `223` assertions corresponde à nova verificação do tipo visual do argumento `VALUE`.
+
+Builds aprovados após a alteração:
+
+- Scratch VM;
+- Scratch GUI.
+
+Scratch VM:
+
+`webpack 5.109.2 compiled successfully`
+
+Scratch GUI:
+
+`webpack 5.109.2 compiled successfully`
+
+Validação visual realizada no EasyBlox:
+
+- slider mínimo: `0`;
+- valor intermediário: `128`;
+- slider máximo: `255`;
+- digitação abaixo de `0` limitada corretamente;
+- digitação acima de `255` limitada corretamente;
+- precisão inteira;
+- digitação direta funcional;
+- slider funcional;
+- ausência de erro de `ephemeral focus`.
+
+Resultado:
+
+`PWM RANGE 0..255 ✅`
+
+Nenhuma alteração foi necessária em:
+
+- protocolo Stage;
+- peripheral Arduino UNO;
+- firmware Arduino UNO.
+
+O backlog registrado anteriormente para o campo visual de `PWM_WRITE` está, portanto, encerrado.
+
+A alteração local independente:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+não pertence a este ajuste e deve permanecer fora do commit.
+
+Após o fechamento documental e commit deste pequeno checkpoint, o próximo primitive oficial continua sendo:
+
+`MOTOR`

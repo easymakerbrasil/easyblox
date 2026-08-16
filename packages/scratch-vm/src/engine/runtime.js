@@ -77,6 +77,13 @@ const ArgumentTypeMap = (() => {
         }
     };
 
+    map[ArgumentType.PWM_VALUE] = {
+        shadow: {
+            type: 'easyblox_pwm_value',
+            fieldName: 'NUM'
+        }
+    };
+
     map[ArgumentType.COLOR] = {
         shadow: {
             type: 'colour_picker',
