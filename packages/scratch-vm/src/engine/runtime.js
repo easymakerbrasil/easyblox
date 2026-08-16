@@ -69,6 +69,14 @@ const ArgumentTypeMap = (() => {
             fieldName: 'NUM'
         }
     };
+
+    map[ArgumentType.SERVO_ANGLE] = {
+        shadow: {
+            type: 'easyblox_servo_angle',
+            fieldName: 'NUM'
+        }
+    };
+
     map[ArgumentType.COLOR] = {
         shadow: {
             type: 'colour_picker',
@@ -1536,6 +1544,15 @@ class Runtime extends EventEmitter {
      */
     registerPeripheralExtension (extensionId, extension) {
         this.peripheralExtensions[extensionId] = extension;
+    }
+
+    /**
+     * Get a registered hardware peripheral extension by id.
+     * @param {string} extensionId - the id of the extension.
+     * @returns {?object} The registered peripheral extension, or null when unavailable.
+     */
+    getPeripheralExtension (extensionId) {
+        return this.peripheralExtensions[extensionId] || null;
     }
 
     /**

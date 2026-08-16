@@ -125,3 +125,67 @@ test('load sync', t => {
 
     t.end();
 });
+
+test('Arduino UNO and actuators load as companion extensions', t => {
+    const vmFromArduino = new VirtualMachine();
+
+    vmFromArduino.extensionManager.loadExtensionIdSync('arduinoUno');
+
+    t.ok(
+        vmFromArduino.extensionManager.isExtensionLoaded('arduinoUno'),
+        'Arduino UNO is loaded'
+    );
+
+    t.ok(
+        vmFromArduino.extensionManager.isExtensionLoaded('actuators'),
+        'actuators are loaded automatically with Arduino UNO'
+    );
+
+    const vmFromActuators = new VirtualMachine();
+
+    vmFromActuators.extensionManager.loadExtensionIdSync('actuators');
+
+    t.ok(
+        vmFromActuators.extensionManager.isExtensionLoaded('arduinoUno'),
+        'Arduino UNO is loaded as an actuators dependency'
+    );
+
+    t.ok(
+        vmFromActuators.extensionManager.isExtensionLoaded('actuators'),
+        'actuators are loaded'
+    );
+
+    t.end();
+});
+
+test('Arduino UNO and actuators load as companion extensions asynchronously', t => {
+    const vmFromArduino = new VirtualMachine();
+
+    return vmFromArduino.extensionManager.loadExtensionURL('arduinoUno')
+        .then(() => {
+            t.ok(
+                vmFromArduino.extensionManager.isExtensionLoaded('arduinoUno'),
+                'Arduino UNO is loaded asynchronously'
+            );
+
+            t.ok(
+                vmFromArduino.extensionManager.isExtensionLoaded('actuators'),
+                'actuators are loaded automatically with Arduino UNO asynchronously'
+            );
+
+            const vmFromActuators = new VirtualMachine();
+
+            return vmFromActuators.extensionManager.loadExtensionURL('actuators')
+                .then(() => {
+                    t.ok(
+                        vmFromActuators.extensionManager.isExtensionLoaded('arduinoUno'),
+                        'Arduino UNO is loaded as an asynchronous actuators dependency'
+                    );
+
+                    t.ok(
+                        vmFromActuators.extensionManager.isExtensionLoaded('actuators'),
+                        'actuators are loaded asynchronously'
+                    );
+                });
+        });
+});

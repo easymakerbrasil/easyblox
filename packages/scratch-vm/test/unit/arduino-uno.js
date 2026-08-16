@@ -553,6 +553,113 @@ tap.test('Arduino UNO rejects invalid TONE_START and TONE_STOP requests', t => {
     t.end();
 });
 
+tap.test('Arduino UNO sends SERVO_WRITE after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const lowSequence = peripheral.servoWrite(3, 0);
+    const highSequence = peripheral.servoWrite(11, 180);
+
+    t.equal(lowSequence, 2);
+    t.equal(highSequence, 3);
+    t.equal(writtenFrames.length, 3);
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            lowSequence,
+            COMMANDS.SERVO_WRITE,
+            [3, 0]
+        )
+    );
+
+    t.same(
+        writtenFrames[2],
+        encodeFrame(
+            highSequence,
+            COMMANDS.SERVO_WRITE,
+            [11, 180]
+        )
+    );
+});
+
+tap.test('Arduino UNO rejects invalid SERVO_WRITE requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.servoWrite(5, 90),
+        null,
+        'does not move servo before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    const invalidPins = [
+        0,
+        1,
+        2,
+        4,
+        7,
+        8,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+    ];
+
+    for (const pin of invalidPins) {
+        t.equal(
+            peripheral.servoWrite(pin, 90),
+            null,
+            `rejects non-PWM servo pin ${pin}`
+        );
+    }
+
+    t.equal(peripheral.servoWrite(5, -1), null);
+    t.equal(peripheral.servoWrite(5, 181), null);
+    t.equal(peripheral.servoWrite(5, 90.5), null);
+    t.equal(peripheral.servoWrite(5.5, 90), null);
+
+    t.end();
+});
+
 tap.test('Arduino UNO reads a digital pin after the Stage handshake', async t => {
     let onData = null;
     const writtenFrames = [];

@@ -1,3 +1,5 @@
+import registerEasyBloxRangeNumberField from './easyblox-range-number-field';
+
 /**
  * Connect scratch blocks with the vm
  * @param {VirtualMachine} vm - The scratch vm
@@ -5,6 +7,29 @@
  */
 export default function (vm) {
     const ScratchBlocks = require('scratch-blocks');
+
+    registerEasyBloxRangeNumberField(ScratchBlocks);
+
+    ScratchBlocks.Blocks.easyblox_servo_angle = {
+        init: function () {
+            this.jsonInit({
+                message0: '%1',
+                args0: [
+                    {
+                        type: 'field_easyblox_range_number',
+                        name: 'NUM',
+                        value: 90,
+                        min: 0,
+                        max: 180,
+                        precision: 1
+                    }
+                ],
+                output: 'Number',
+                outputShape: ScratchBlocks.OUTPUT_SHAPE_ROUND,
+                extensions: ['colours_textfield']
+            });
+        }
+    };
 
     const jsonForMenuBlock = function (name, menuOptionsFn, category, start) {
         return {

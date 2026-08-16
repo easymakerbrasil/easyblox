@@ -220,6 +220,33 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Move a servo on an Arduino UNO PWM-capable pin in Stage mode.
+     * @param {number} pin Arduino PWM pin: D3, D5, D6, D9, D10 or D11.
+     * @param {number} angle Servo angle from 0 to 180 degrees.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    servoWrite (pin, angle) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(pin) ||
+            !Number.isInteger(angle) ||
+            ![3, 5, 6, 9, 10, 11].includes(pin) ||
+            angle < 0 ||
+            angle > 180
+        ) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.SERVO_WRITE,
+            [pin, angle]
+        );
+    }
+
+    /**
      * Read an Arduino UNO digital input pin in Stage mode.
      * @param {number} pin Arduino digital pin, from D2 to D13 or A0 to A5.
      * @returns {?Promise<number>} Promise resolved with 0 or 1, or null when unavailable.

@@ -8,6 +8,8 @@ const ArgumentType = {
      */
     ANGLE: 'angle',
 
+    SERVO_ANGLE: 'servo_angle',
+
     /**
      * Boolean value with hexagonal placeholder
      */

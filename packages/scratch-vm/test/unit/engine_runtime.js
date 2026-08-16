@@ -272,3 +272,27 @@ test('Clock is reset on runtime dispose', t => {
     t.ok(c.projectTimer() === 0);
     t.end();
 });
+
+test('getPeripheralExtension', t => {
+    const r = new Runtime();
+    const peripheral = {};
+
+    t.equal(
+        r.getPeripheralExtension('arduinoUno'),
+        null,
+        'returns null when the peripheral is not registered'
+    );
+
+    r.registerPeripheralExtension(
+        'arduinoUno',
+        peripheral
+    );
+
+    t.equal(
+        r.getPeripheralExtension('arduinoUno'),
+        peripheral,
+        'returns the registered peripheral instance'
+    );
+
+    t.end();
+});

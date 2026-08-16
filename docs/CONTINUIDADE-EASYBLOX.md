@@ -3376,3 +3376,497 @@ Estado funcional consolidado da base Arduino UNO no Modo Palco:
 5. `TONE_START / TONE_STOP`.
 
 Este é o novo ponto oficial de retomada para o próximo primitive físico da base Arduino UNO.
+
+### 22.19. Checkpoint atual — Atuadores + SERVO_WRITE
+
+O desenvolvimento da base Arduino UNO avançou para o primeiro primitive da nova categoria visual:
+
+`Atuadores`
+
+Primitive atual:
+
+`SERVO_WRITE`
+
+Status funcional:
+
+`CONCLUÍDO`
+
+O checkpoint ainda não está oficialmente fechado porque falta concluir a revisão final, staging, commit e push.
+
+Branch:
+
+`feat/easyblox-arduino-uno-foundation`
+
+A alteração local independente em:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+continua fora deste trabalho e não deve ser incluída no commit de Servo.
+
+### 22.20. Arquitetura da categoria Atuadores
+
+Foi criada a extensão interna:
+
+`actuators`
+
+Nome visual:
+
+`Atuadores`
+
+Ela é carregada automaticamente como extensão companheira quando:
+
+`arduinoUno`
+
+é carregada.
+
+Também existe dependência:
+
+`actuators → arduinoUno`
+
+para garantir que o peripheral Arduino UNO esteja disponível caso a extensão Atuadores seja carregada diretamente em testes ou internamente.
+
+A arquitetura consolidada é:
+
+`Arduino UNO → proprietário da conexão Serial e do peripheral`
+
+`Atuadores → camada visual reutilizando o peripheral Arduino UNO`
+
+Não existe segunda conexão Serial, segundo handshake ou firmware independente para Atuadores.
+
+O Runtime recebeu:
+
+`getPeripheralExtension(extensionId)`
+
+para permitir que extensões companheiras reutilizem peripherals já registrados.
+
+A extensão `actuators` permanece fora da biblioteca normal de extensões e é carregada automaticamente junto ao Arduino UNO.
+
+### 22.21. Contrato SERVO_WRITE
+
+Novo comando:
+
+`SERVO_WRITE = 0x16`
+
+Payload:
+
+`[PIN, ANGLE]`
+
+Regras:
+
+- `PIN`: inteiro;
+- `ANGLE`: inteiro;
+- faixa de ângulo: `0..180`;
+- resposta de sucesso: `ACK = 0x80`.
+
+Pinos permitidos pelo contrato EasyBlox:
+
+`D3, D5, D6, D9, D10, D11`
+
+A restrição aos pinos PWM é uma decisão de produto/UX do EasyBlox.
+
+Não existe `SERVO_ATTACH` separado nesta primeira versão.
+
+O attach ocorre automaticamente no primeiro `SERVO_WRITE` realizado no pino.
+
+### 22.22. Firmware Servo
+
+Biblioteca utilizada:
+
+`Servo 1.3.0`
+
+Firmware:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+O firmware mantém slots de Servo para:
+
+`D3, D5, D6, D9, D10, D11`
+
+O handler de `SERVO_WRITE`:
+
+1. valida o payload;
+2. valida o pino;
+3. valida o ângulo;
+4. verifica conflito com tone;
+5. executa attach automático quando necessário;
+6. executa `servo.write(angle)`;
+7. responde com `ACK`.
+
+Compilação final do firmware:
+
+- Flash: `5664 bytes`;
+- SRAM: `298 bytes`.
+
+### 22.23. Arbitragem de recursos
+
+Após um Servo ser anexado em determinado pino, esse mesmo pino rejeita:
+
+- `DIGITAL_WRITE`;
+- `DIGITAL_READ`;
+- `PWM_WRITE`;
+- `TONE_START`.
+
+`TONE_STOP` permanece idempotente.
+
+`SERVO_WRITE` é rejeitado quando existe tone ativo no mesmo pino.
+
+A leitura analógica permanece independente.
+
+A biblioteca Servo AVR utiliza:
+
+`Timer1`
+
+Por isso, enquanto existir qualquer Servo anexado, o firmware rejeita:
+
+`PWM_WRITE(D9)`
+
+e:
+
+`PWM_WRITE(D10)`
+
+Os pinos D9 e D10 continuam permitidos como pinos de Servo.
+
+A política definida é rejeitar conflitos explicitamente em vez de destacar silenciosamente um Servo ou alterar a propriedade do recurso sem conhecimento do usuário.
+
+### 22.24. Bloco visual Servo
+
+Categoria:
+
+`Atuadores`
+
+Bloco:
+
+`mover servo no pino [PIN] para [ANGLE] graus`
+
+Defaults:
+
+- pino: `D5`;
+- ângulo: `90`.
+
+Menu de pinos:
+
+`D3, D5, D6, D9, D10, D11`
+
+O método visual mantém clamp interno:
+
+`0..180`
+
+como camada adicional de proteção.
+
+### 22.25. Campo numérico reutilizável EasyBlox
+
+Durante o checkpoint foi criada a infraestrutura:
+
+`EasyBloxRangeNumberField`
+
+Arquivo:
+
+`packages/scratch-gui/src/lib/easyblox-range-number-field.js`
+
+Base:
+
+`ScratchBlocks.FieldNumber`
+
+Recursos:
+
+- digitação direta;
+- slider;
+- mínimo rígido;
+- máximo rígido;
+- precisão configurável.
+
+Para Servo foi criado:
+
+`easyblox_servo_angle`
+
+Configuração:
+
+- min: `0`;
+- max: `180`;
+- precision: `1`;
+- default: `90`.
+
+Novo tipo interno:
+
+`ArgumentType.SERVO_ANGLE`
+
+Mapeamento:
+
+`ArgumentType.SERVO_ANGLE → easyblox_servo_angle`
+
+O campo foi criado de forma reutilizável.
+
+Uso futuro previsto:
+
+`PWM_WRITE → 0..255`
+
+eliminando o backlog atual em que o campo visual PWM ainda permite digitação acima de 255.
+
+### 22.26. Correção de ephemeral focus
+
+No primeiro teste visual, o editor numérico inline e o slider baseado em `DropDownDiv` tentaram gerenciar simultaneamente o foco efêmero do Blockly.
+
+Isso gerou erro de:
+
+`ephemeral focus`
+
+A API do `FieldInput` permite desabilitar essa administração no editor base.
+
+A chamada foi ajustada para:
+
+`super.showEditor_(event, false, false)`
+
+Após a correção:
+
+- editor numérico funcionando;
+- slider funcionando;
+- ausência do erro;
+- campo validado visualmente.
+
+### 22.27. Validações realizadas
+
+Testes específicos já aprovados no checkpoint:
+
+- `test/unit/arduino-uno-protocol.js`: `93/93`;
+- `test/unit/arduino-uno.js`: `222/222`;
+- `test/unit/actuators.js`: `14/14`;
+- `test/integration/internal-extension.js`: `32/32`.
+
+O teste:
+
+`test/unit/engine_runtime.js`
+
+apresenta uma anomalia de teardown já reproduzida com o arquivo original no ambiente atual:
+
+`Node.js 24.19.0`
+
+Erro observado:
+
+`Error: Should not already be working.`
+
+Origem do stack:
+
+`react-reconciler`
+
+As assertions executadas são concluídas antes do teardown.
+
+Esse comportamento não deve ser atribuído ao Servo e não justifica alteração da versão do Node.
+
+Também foi observado que:
+
+`npm test`
+
+e:
+
+`npm run tap -- test/unit/actuators.js`
+
+não são adequados para executar somente esse teste no workspace atual, pois os scripts acrescentam lint e/ou toda a suíte.
+
+O comando isolado validado foi:
+
+`npx tap test/unit/actuators.js`
+
+Resultado:
+
+`14 pass / 0 fail`
+
+Builds finais aprovados após a integração do campo visual:
+
+- Scratch VM: aprovado;
+- Scratch GUI: aprovado.
+
+Scratch GUI:
+
+`webpack 5.109.2 compiled successfully`
+
+Scratch VM:
+
+`webpack 5.109.2 compiled successfully`
+
+### 22.28. Validação em hardware real
+
+O firmware completo com Servo foi carregado no Arduino UNO.
+
+O bloco Servo da categoria Atuadores foi executado através do fluxo completo:
+
+`GUI → scratch-vm → SERVO_WRITE → Serial → firmware → Servo`
+
+Posições físicas validadas:
+
+`0°`
+
+`90°`
+
+`180°`
+
+Resultado:
+
+`FUNCIONANDO CORRETAMENTE`
+
+Também foram validados:
+
+- slider mínimo `0`;
+- slider máximo `180`;
+- digitação fora da faixa;
+- precisão inteira;
+- edição direta;
+- ausência de erro de foco.
+
+Assim, o primitive:
+
+`SERVO_WRITE`
+
+está funcionalmente concluído.
+
+### 22.29. Regressão transitória investigada
+
+Durante o desenvolvimento ocorreu temporariamente um estado em que comandos executados pelo GUI retornavam `null`.
+
+A ocorrência chegou a afetar também um teste de:
+
+`DIGITAL_WRITE`
+
+enquanto o firmware respondia corretamente em acesso Serial direto.
+
+Foi realizada uma reconstrução incremental das alterações de Servo.
+
+Ao final, o firmware completo voltou a funcionar sem que a falha pudesse ser reproduzida.
+
+Não existe causa única comprovada.
+
+Portanto:
+
+- não atribuir a falha ao CH340;
+- não atribuir a falha à biblioteca Servo;
+- não atribuir a falha ao protocolo;
+- não alterar o driver CH340 enquanto o fluxo permanecer funcional.
+
+Durante ciclos de hardware, manter sincronização explícita:
+
+`firmware correto → VM recompilado → GUI recompilado/reiniciado → navegador atualizado`
+
+### 22.30. Arquivos do checkpoint Servo
+
+Scratch GUI:
+
+`packages/scratch-gui/src/lib/blocks.js`
+
+`packages/scratch-gui/src/lib/easyblox-range-number-field.js`
+
+Scratch VM — infraestrutura:
+
+`packages/scratch-vm/src/engine/runtime.js`
+
+`packages/scratch-vm/src/extension-support/argument-type.js`
+
+`packages/scratch-vm/src/extension-support/extension-manager.js`
+
+Scratch VM — Arduino UNO:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/protocol.js`
+
+Scratch VM — Atuadores:
+
+`packages/scratch-vm/src/extensions/scratch3_actuators/index.js`
+
+Firmware:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Testes:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+`packages/scratch-vm/test/unit/actuators.js`
+
+`packages/scratch-vm/test/unit/engine_runtime.js`
+
+`packages/scratch-vm/test/integration/internal-extension.js`
+
+Documentação:
+
+`docs/GUIA-DE-DESENVOLVIMENTO.md`
+
+`docs/CONTINUIDADE-EASYBLOX.md`
+
+Arquivo que NÃO pertence ao checkpoint:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+### 22.31. Proteção temporária do trabalho
+
+Durante a investigação da regressão foi criado o stash:
+
+`stash@{0}: wip-servo-actuators-baseline-test`
+
+Esse stash contém uma proteção intermediária do trabalho de Servo/Atuadores.
+
+Ele deve permanecer disponível até o checkpoint atual estar seguramente:
+
+- commitado;
+- enviado ao remoto;
+- confirmado como sincronizado.
+
+Somente depois poderá ser removido com segurança.
+
+### 22.32. Estado funcional da base Arduino UNO
+
+Primitives completos no Modo Palco:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`;
+5. `TONE_START / TONE_STOP`;
+6. `SERVO_WRITE`.
+
+Nova categoria estabelecida:
+
+`Atuadores`
+
+Primeiro atuador concluído:
+
+`SERVO`
+
+Próximo primitive oficial:
+
+`MOTOR`
+
+Sequência aprovada:
+
+1. SERVO — concluído funcionalmente;
+2. MOTOR — próximo;
+3. RELÉ;
+4. ULTRASSÔNICO;
+5. DHT;
+6. MATRIZ DE LED;
+7. DISPLAY 7 SEGMENTOS;
+8. DISPLAY LCD 16x2 I2C;
+9. JOYSTICK X/Y.
+
+### 22.33. Próximo passo exato
+
+Antes de iniciar MOTOR:
+
+1. executar `git diff --check`;
+2. revisar integralmente o diff do checkpoint Servo/Atuadores;
+3. confirmar ausência de logs temporários de diagnóstico;
+4. manter `icon--sprite.svg` fora do staging;
+5. fazer staging explícito somente dos arquivos do checkpoint;
+6. executar `git diff --cached --check`;
+7. revisar `git diff --cached --stat`;
+8. revisar a lista exata de arquivos staged;
+9. criar o commit funcional de Servo/Atuadores;
+10. fazer push para `origin/feat/easyblox-arduino-uno-foundation`;
+11. confirmar sincronização local/remota;
+12. registrar hash e mensagem do commit neste documento;
+13. somente então remover o stash temporário, se não houver mais necessidade dele;
+14. iniciar MOTOR.
+
+Manter a disciplina:
+
+`protocolo → testes → firmware → compile → peripheral → testes → build → hardware → bloco visual → documentação → commit`

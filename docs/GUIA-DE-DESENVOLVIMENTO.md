@@ -3190,3 +3190,376 @@ Pinos de tone definidos pelo EasyBlox:
 `D3, D5, D6, D9, D10, D11`
 
 O contrato permanece incremental e deve continuar sendo evoluído sem iniciar outras placas antes da estabilização da base Arduino UNO.
+
+### 19.67. Categoria visual Atuadores
+
+A implementação de Servo inaugurou uma nova categoria visual genérica no EasyBlox:
+
+`Atuadores`
+
+ID técnico:
+
+`actuators`
+
+A categoria não representa uma nova conexão de hardware.
+
+Quando o Arduino UNO é carregado, a extensão `actuators` é carregada automaticamente como extensão companheira.
+
+A arquitetura definida é:
+
+`Arduino UNO → proprietário da conexão Serial`
+
+`Atuadores → camada visual que reutiliza o peripheral Arduino UNO`
+
+Portanto, não deve existir:
+
+- segunda conexão Serial;
+- segundo handshake;
+- segundo objeto de transporte;
+- firmware independente para Atuadores.
+
+A extensão `actuators` obtém o peripheral registrado do Arduino UNO através do Runtime e reutiliza a mesma sessão Stage.
+
+Também foi implementada a dependência inversa necessária para desenvolvimento:
+
+`actuators → arduinoUno`
+
+Assim, se `actuators` for carregada diretamente internamente, o Arduino UNO é carregado antes dela.
+
+A extensão Atuadores permanece oculta da biblioteca normal de extensões e aparece automaticamente quando Arduino UNO está ativo.
+
+Essa arquitetura deverá ser reutilizada pelos próximos atuadores, inicialmente:
+
+1. Servo;
+2. Motor;
+3. Relé.
+
+### 19.68. SERVO_WRITE — contrato do protocolo
+
+O comando Stage definido para controle de Servo é:
+
+`SERVO_WRITE = 0x16`
+
+Payload:
+
+`[PIN, ANGLE]`
+
+onde:
+
+- `PIN` ocupa 1 byte;
+- `ANGLE` ocupa 1 byte;
+- `ANGLE` aceita somente valores inteiros entre `0` e `180`.
+
+Resposta de sucesso:
+
+`ACK = 0x80`
+
+Pinos permitidos pelo contrato EasyBlox:
+
+`D3, D5, D6, D9, D10, D11`
+
+A restrição aos pinos PWM é uma decisão de produto e UX do EasyBlox.
+
+Embora a biblioteca Servo do Arduino permita outros pinos digitais, a primeira versão do EasyBlox mantém uma lista única e previsível de pinos compatíveis com atuadores controlados por temporização.
+
+Não foi criado um primitive separado de `SERVO_ATTACH`.
+
+O primeiro:
+
+`SERVO_WRITE`
+
+realizado em determinado pino executa o attach automaticamente.
+
+### 19.69. Biblioteca Servo e firmware Arduino UNO
+
+Foi instalada e utilizada a biblioteca oficial:
+
+`Servo 1.3.0`
+
+O firmware Stage passou a incluir:
+
+`#include <Servo.h>`
+
+Foi criada uma instância de `Servo` para cada pino permitido pelo contrato:
+
+`D3, D5, D6, D9, D10, D11`
+
+O firmware mantém controle sobre quais Servos estão efetivamente anexados.
+
+O handler de:
+
+`SERVO_WRITE`
+
+executa:
+
+1. validação do tamanho do payload;
+2. validação do pino;
+3. validação de `ANGLE <= 180`;
+4. verificação de conflito com tone no mesmo pino;
+5. attach automático caso necessário;
+6. `servo.write(angle)`;
+7. envio de `ACK`.
+
+Resultado da compilação final do firmware com Servo:
+
+- Flash: `5664 bytes`;
+- SRAM: `298 bytes`.
+
+### 19.70. Arbitragem entre Servo, PWM, Digital e Tone
+
+A introdução de Servo exige arbitragem explícita de recursos.
+
+Quando um Servo está anexado a um pino, o EasyBlox rejeita naquele mesmo pino:
+
+- `DIGITAL_WRITE`;
+- `DIGITAL_READ`;
+- `PWM_WRITE`;
+- `TONE_START`.
+
+`TONE_STOP` permanece idempotente.
+
+`SERVO_WRITE` também é rejeitado caso exista um tone ativo no mesmo pino.
+
+A leitura analógica permanece independente.
+
+Existe ainda uma particularidade do Arduino UNO relacionada ao Timer1.
+
+A biblioteca Servo AVR utiliza o:
+
+`Timer1`
+
+Consequentemente, depois que qualquer Servo é anexado, o PWM de hardware nos pinos:
+
+`D9`
+
+e:
+
+`D10`
+
+fica indisponível.
+
+Por isso, o firmware rejeita:
+
+`PWM_WRITE(D9)`
+
+e:
+
+`PWM_WRITE(D10)`
+
+enquanto existir qualquer Servo anexado.
+
+Os pinos D9 e D10 continuam válidos como pinos de Servo.
+
+A política adotada é rejeitar conflitos explicitamente, e não destacar silenciosamente um Servo ou alterar a propriedade do pino sem conhecimento do usuário.
+
+### 19.71. Bloco visual Servo
+
+O primeiro bloco da categoria Atuadores é:
+
+`mover servo no pino [PIN] para [ANGLE] graus`
+
+Configuração inicial:
+
+- pino padrão: `D5`;
+- ângulo padrão: `90`;
+- pinos disponíveis: `D3, D5, D6, D9, D10, D11`.
+
+O método visual mantém também clamp interno entre:
+
+`0..180`
+
+como segunda camada de proteção.
+
+A validação visual não substitui a validação existente no peripheral nem no firmware.
+
+### 19.72. EasyBloxRangeNumberField
+
+Durante o desenvolvimento de Servo foi concluída uma infraestrutura visual numérica reutilizável:
+
+`EasyBloxRangeNumberField`
+
+Arquivo:
+
+`packages/scratch-gui/src/lib/easyblox-range-number-field.js`
+
+A implementação utiliza como base:
+
+`ScratchBlocks.FieldNumber`
+
+e preserva os constraints nativos de:
+
+- mínimo;
+- máximo;
+- precisão.
+
+Foi acrescentado um controle:
+
+`<input type="range">`
+
+ao editor do campo.
+
+Para Servo foi criado o shadow:
+
+`easyblox_servo_angle`
+
+com:
+
+- mínimo: `0`;
+- máximo: `180`;
+- precisão: `1`;
+- valor padrão: `90`.
+
+O novo tipo de argumento interno é:
+
+`ArgumentType.SERVO_ANGLE`
+
+mapeado pelo Runtime para:
+
+`easyblox_servo_angle`
+
+A experiência final permite:
+
+- digitação direta;
+- slider;
+- limite inferior rígido;
+- limite superior rígido;
+- valores inteiros.
+
+O campo foi deliberadamente implementado como infraestrutura reutilizável, e não como lógica específica do Servo.
+
+Uma aplicação futura natural é corrigir também o campo visual do:
+
+`PWM_WRITE`
+
+usando a mesma base com faixa:
+
+`0..255`.
+
+### 19.73. Ajuste de foco do editor numérico e slider
+
+Durante o primeiro teste visual do `EasyBloxRangeNumberField`, o editor numérico inline e o `DropDownDiv` utilizado pelo slider tentaram assumir simultaneamente o controle de foco efêmero do Blockly.
+
+O resultado foi um erro de runtime relacionado a:
+
+`ephemeral focus`
+
+A API do `FieldInput` já prevê esse cenário através do parâmetro:
+
+`manageEphemeralFocus`
+
+A chamada do editor base foi ajustada para:
+
+`super.showEditor_(event, false, false)`
+
+Com isso:
+
+- o editor numérico permanece funcional;
+- o slider permanece funcional;
+- apenas o mecanismo apropriado administra o foco;
+- o erro desapareceu.
+
+Após o ajuste, o campo foi validado visualmente no EasyBlox.
+
+### 19.74. Validação automática e física do Servo
+
+Testes específicos concluídos durante o checkpoint:
+
+- protocolo Arduino UNO: `93/93`;
+- peripheral Arduino UNO: `222/222`;
+- extensão Atuadores: `14/14`;
+- integração de extensões internas: `32/32`.
+
+O teste de `engine_runtime.js` apresenta uma anomalia de teardown já observada no ambiente com Node.js `24.19.0`, relacionada ao `react-reconciler`.
+
+As assertions executadas antes do teardown são concluídas, e o mesmo comportamento foi reproduzido com o teste original, portanto não foi atribuído ao código de Servo.
+
+Não alterar a versão do Node por causa dessa anomalia.
+
+Builds aprovados:
+
+- Scratch VM;
+- Scratch GUI.
+
+O firmware foi carregado no Arduino UNO e o bloco Servo foi validado em hardware real.
+
+Posições testadas:
+
+`0°`
+
+`90°`
+
+`180°`
+
+Resultado:
+
+`SERVO_WRITE ✅`
+
+O slider e a digitação direta também foram validados na interface final.
+
+### 19.75. Observação sobre a regressão transitória durante o desenvolvimento
+
+Durante a implementação foi observado temporariamente um estado em que comandos enviados pelo GUI retornavam `null`, incluindo Servo e posteriormente um teste de `DIGITAL_WRITE`.
+
+O firmware respondia corretamente quando testado diretamente pela porta Serial.
+
+Foi realizada uma investigação incremental e uma reconstrução controlada das alterações de Servo.
+
+Ao final, o firmware completo, o Scratch VM e o Scratch GUI voltaram a operar corretamente sem que fosse possível reproduzir a falha.
+
+Não foi identificada uma causa única comprovada.
+
+Portanto, não registrar essa ocorrência como defeito do CH340, da biblioteca Servo ou do protocolo.
+
+A conclusão segura é manter disciplina rigorosa de sincronização durante testes de hardware:
+
+`firmware correto → VM recompilado → GUI recompilado/reiniciado → navegador atualizado`
+
+O driver CH340 não necessita alteração enquanto o fluxo permanecer funcional.
+
+### 19.76. Estado atual após SERVO_WRITE
+
+A base Arduino UNO no Modo Palco possui agora:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`;
+5. `TONE_START / TONE_STOP`;
+6. `SERVO_WRITE`.
+
+A categoria genérica:
+
+`Atuadores`
+
+também está estabelecida e pronta para receber os próximos primitives sem duplicar a infraestrutura Serial.
+
+O primeiro atuador completo é:
+
+`SERVO`
+
+Próximo primitive aprovado:
+
+`MOTOR`
+
+A ordem de desenvolvimento permanece:
+
+1. SERVO — concluído funcionalmente;
+2. MOTOR — próximo;
+3. RELÉ;
+4. ULTRASSÔNICO;
+5. DHT;
+6. MATRIZ DE LED;
+7. DISPLAY 7 SEGMENTOS;
+8. DISPLAY LCD 16x2 I2C;
+9. JOYSTICK X/Y.
+
+O checkpoint SERVO somente será considerado oficialmente encerrado após:
+
+- documentação final;
+- `git diff --check`;
+- revisão do diff;
+- staging explícito;
+- validação do staged diff;
+- commit;
+- push;
+- confirmação da sincronização com o remoto.

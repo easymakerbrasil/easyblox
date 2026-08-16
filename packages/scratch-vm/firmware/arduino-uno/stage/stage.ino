@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Servo.h>
 
 namespace EasyBloxStage {
 
@@ -15,6 +16,7 @@ constexpr uint8_t COMMAND_ANALOG_READ = 0x12;
 constexpr uint8_t COMMAND_PWM_WRITE = 0x13;
 constexpr uint8_t COMMAND_TONE_START = 0x14;
 constexpr uint8_t COMMAND_TONE_STOP = 0x15;
+constexpr uint8_t COMMAND_SERVO_WRITE = 0x16;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -45,6 +47,49 @@ uint8_t checksum = 0;
 
 constexpr uint8_t NO_TONE_PIN = 0xFF;
 uint8_t activeTonePin = NO_TONE_PIN;
+
+constexpr uint8_t SERVO_PIN_COUNT = 6;
+
+constexpr uint8_t SERVO_PINS[SERVO_PIN_COUNT] = {
+    3,
+    5,
+    6,
+    9,
+    10,
+    11
+};
+
+Servo servoSlots[SERVO_PIN_COUNT];
+
+int8_t getServoSlotIndex(uint8_t pin) {
+    for (uint8_t index = 0; index < SERVO_PIN_COUNT; index++) {
+        if (SERVO_PINS[index] == pin) {
+            return static_cast<int8_t>(index);
+        }
+    }
+
+    return -1;
+}
+
+bool hasAttachedServo() {
+    for (uint8_t index = 0; index < SERVO_PIN_COUNT; index++) {
+        if (servoSlots[index].attached()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool isServoAttachedOnPin(uint8_t pin) {
+    const int8_t slotIndex =
+        getServoSlotIndex(pin);
+
+    return (
+        slotIndex >= 0 &&
+        servoSlots[slotIndex].attached()
+    );
+}
 
 void resetParser() {
     parserState = ParserState::WaitStart1;
@@ -121,7 +166,8 @@ void handleDigitalWrite() {
     if (
         pin < 2 ||
         pin > 19 ||
-        value > 1
+        value > 1 ||
+        isServoAttachedOnPin(pin)
     ) {
         sendFrame(
             sequence,
@@ -156,7 +202,8 @@ void handleDigitalRead() {
 
     if (
         pin < 2 ||
-        pin > 19
+        pin > 19 ||
+        isServoAttachedOnPin(pin)
     ) {
         sendFrame(
             sequence,
@@ -248,7 +295,14 @@ void handlePwmWrite() {
     const uint8_t pin = payload[0];
     const uint8_t value = payload[1];
 
-    if (!isPwmPin(pin)) {
+    if (
+        !isPwmPin(pin) ||
+        isServoAttachedOnPin(pin) ||
+        (
+            hasAttachedServo() &&
+            (pin == 9 || pin == 10)
+        )
+    ) {
         sendFrame(
             sequence,
             RESPONSE_ERROR
@@ -286,7 +340,8 @@ void handleToneStart() {
 
     if (
         !isPwmPin(pin) ||
-        frequency == 0
+        frequency == 0 ||
+        isServoAttachedOnPin(pin)
     ) {
         sendFrame(
             sequence,
@@ -345,6 +400,48 @@ void handleToneStop() {
     );
 }
 
+void handleServoWrite() {
+    if (payloadLength != 2) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t pin = payload[0];
+    const uint8_t angle = payload[1];
+
+    const int8_t slotIndex =
+        getServoSlotIndex(pin);
+
+    if (
+        slotIndex < 0 ||
+        angle > 180 ||
+        activeTonePin == pin
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    Servo &servo =
+        servoSlots[slotIndex];
+
+    if (!servo.attached()) {
+        servo.attach(pin);
+    }
+
+    servo.write(angle);
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
 void handleFrame() {
     if (command == COMMAND_PING) {
         sendFrame(
@@ -381,6 +478,11 @@ void handleFrame() {
 
     if (command == COMMAND_TONE_STOP) {
         handleToneStop();
+        return;
+    }
+
+    if (command == COMMAND_SERVO_WRITE) {
+        handleServoWrite();
     }
 }
 
