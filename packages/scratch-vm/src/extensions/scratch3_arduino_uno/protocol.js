@@ -13,7 +13,8 @@ const COMMANDS = Object.freeze({
     TONE_STOP: 0x15,
     SERVO_WRITE: 0x16,
     MOTOR_WRITE: 0x17,
-    MOTOR_STOP: 0x18
+    MOTOR_STOP: 0x18,
+    RELAY_WRITE: 0x19
 });
 
 const RESPONSES = Object.freeze({

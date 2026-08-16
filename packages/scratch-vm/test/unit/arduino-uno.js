@@ -808,6 +808,97 @@ tap.test('Arduino UNO rejects invalid motor requests', t => {
     t.end();
 });
 
+tap.test('Arduino UNO sends RELAY_WRITE after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const offSequence = peripheral.relayWrite(
+        12,
+        0
+    );
+
+    const onSequence = peripheral.relayWrite(
+        12,
+        1
+    );
+
+    t.equal(offSequence, 2);
+    t.equal(onSequence, 3);
+    t.equal(writtenFrames.length, 3);
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            offSequence,
+            COMMANDS.RELAY_WRITE,
+            [12, 0]
+        )
+    );
+
+    t.same(
+        writtenFrames[2],
+        encodeFrame(
+            onSequence,
+            COMMANDS.RELAY_WRITE,
+            [12, 1]
+        )
+    );
+});
+
+tap.test('Arduino UNO rejects invalid RELAY_WRITE requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.relayWrite(12, 1),
+        null,
+        'does not write relay before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    t.equal(peripheral.relayWrite(1, 1), null);
+    t.equal(peripheral.relayWrite(20, 1), null);
+    t.equal(peripheral.relayWrite(12.5, 1), null);
+
+    t.equal(peripheral.relayWrite(12, -1), null);
+    t.equal(peripheral.relayWrite(12, 2), null);
+    t.equal(peripheral.relayWrite(12, 0.5), null);
+
+    t.end();
+});
+
 tap.test('Arduino UNO reads a digital pin after the Stage handshake', async t => {
     let onData = null;
     const writtenFrames = [];

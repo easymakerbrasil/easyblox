@@ -41,7 +41,7 @@ test('Actuators expose the servo block and supported servo pins', t => {
 
     t.equal(info.id, 'actuators');
     t.equal(info.name, 'Atuadores');
-    t.equal(info.blocks.length, 3);
+    t.equal(info.blocks.length, 4);
 
     const servoBlock = info.blocks[0];
 
@@ -136,7 +136,7 @@ test('Actuators expose motor blocks and motor menus', t => {
         ]
     );
 
-        t.same(
+    t.same(
         info.menus.motorDigitalPins.items,
         [
             {text: 'D2', value: '2'},
@@ -169,6 +169,68 @@ test('Actuators expose motor blocks and motor menus', t => {
             {text: 'D9', value: '9'},
             {text: 'D10', value: '10'},
             {text: 'D11', value: '11'}
+        ]
+    );
+
+    t.end();
+});
+
+test('Actuators expose relay block and relay menus', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({})
+    };
+
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+    const info = extension.getInfo();
+
+    const relayBlock = info.blocks[3];
+
+    t.equal(relayBlock.opcode, 'relayWrite');
+
+    t.equal(
+        relayBlock.text,
+        'definir relé no pino [PIN] como [STATE]'
+    );
+
+    t.equal(
+        relayBlock.arguments.PIN.defaultValue,
+        12
+    );
+
+    t.equal(
+        relayBlock.arguments.STATE.defaultValue,
+        '1'
+    );
+
+    t.same(
+        info.menus.relayStates.items,
+        [
+            {text: 'ligado', value: '1'},
+            {text: 'desligado', value: '0'}
+        ]
+    );
+
+    t.same(
+        info.menus.relayPins.items,
+        [
+            {text: 'D2', value: '2'},
+            {text: 'D3', value: '3'},
+            {text: 'D4', value: '4'},
+            {text: 'D5', value: '5'},
+            {text: 'D6', value: '6'},
+            {text: 'D7', value: '7'},
+            {text: 'D8', value: '8'},
+            {text: 'D9', value: '9'},
+            {text: 'D10', value: '10'},
+            {text: 'D11', value: '11'},
+            {text: 'D12', value: '12'},
+            {text: 'D13', value: '13'},
+            {text: 'A0', value: '14'},
+            {text: 'A1', value: '15'},
+            {text: 'A2', value: '16'},
+            {text: 'A3', value: '17'},
+            {text: 'A4', value: '18'},
+            {text: 'A5', value: '19'}
         ]
     );
 
@@ -323,7 +385,7 @@ test('Actuators normalize motor speed percentage and delegate motor writes', t =
         SPEED: '100'
     });
 
-        extension.motorWrite({
+    extension.motorWrite({
         IN1: '2',
         IN2: '4',
         PWM: '3',
@@ -445,6 +507,59 @@ test('Actuators delegate motor stop modes to the shared peripheral', t => {
                 in2Pin: 8,
                 pwmPin: 5,
                 stopMode: 1
+            }
+        ]
+    );
+
+    t.end();
+});
+
+test('Actuators delegate relay states to the shared peripheral', t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        relayWrite: (pin, state) => {
+            calls.push({
+                pin,
+                state
+            });
+
+            return 44;
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension: () => sharedPeripheral
+    };
+
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+
+    const onResult = extension.relayWrite({
+        PIN: '12',
+        STATE: '1'
+    });
+
+    extension.relayWrite({
+        PIN: '2',
+        STATE: '0'
+    });
+
+    t.equal(
+        onResult,
+        44,
+        'returns the shared peripheral command result'
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                pin: 12,
+                state: 1
+            },
+            {
+                pin: 2,
+                state: 0
             }
         ]
     );

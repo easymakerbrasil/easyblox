@@ -338,6 +338,37 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Set one relay output in Stage mode.
+     * @param {number} pin Arduino digital pin, from D2 to D13 or A0 to A5.
+     * @param {number} state Relay state: 0 off or 1 on.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    relayWrite (pin, state) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(pin) ||
+            !Number.isInteger(state) ||
+            pin < 2 ||
+            pin > 19 ||
+            state < 0 ||
+            state > 1
+        ) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.RELAY_WRITE,
+            [
+                pin,
+                state
+            ]
+        );
+    }
+
+    /**
      * Read an Arduino UNO digital input pin in Stage mode.
      * @param {number} pin Arduino digital pin, from D2 to D13 or A0 to A5.
      * @returns {?Promise<number>} Promise resolved with 0 or 1, or null when unavailable.

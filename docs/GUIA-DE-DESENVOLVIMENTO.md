@@ -4240,3 +4240,442 @@ Com MOTOR v1 concluído, a sequência Stage passa a ser:
 O próximo primitive oficial é:
 
 `RELÉ`
+
+### 19.89. RELÉ v1 — princípio arquitetural
+
+O primitive de RELÉ foi implementado na base Arduino UNO Stage como o terceiro atuador da categoria interna:
+
+`Atuadores`
+
+A arquitetura permanece:
+
+`Atuadores`
+
+↓
+
+`ArduinoUnoPeripheral`
+
+↓
+
+`Protocolo Stage`
+
+↓
+
+`Firmware Arduino UNO`
+
+A extensão `actuators` não possui:
+
+- conexão Serial própria;
+- handshake próprio;
+- transporte próprio;
+- firmware próprio.
+
+Ela continua reutilizando exatamente o peripheral registrado pelo Arduino UNO.
+
+O bloco de RELÉ representa semanticamente:
+
+`ligado / desligado`
+
+e não deve expor diretamente:
+
+`HIGH / LOW`
+
+ao usuário.
+
+### 19.90. Contrato RELAY_WRITE
+
+Comando Stage:
+
+`RELAY_WRITE = 0x19`
+
+Payload:
+
+`[PIN, STATE]`
+
+Onde:
+
+- `PIN` ocupa 1 byte;
+- `STATE` ocupa 1 byte;
+- `STATE = 0` → OFF / desligado;
+- `STATE = 1` → ON / ligado.
+
+Respostas:
+
+`ACK = 0x80`
+
+`ERROR = 0xFF`
+
+Nenhuma nova response específica foi criada.
+
+Pinos permitidos:
+
+`D2..D13`
+
+e:
+
+`A0..A5`
+
+representados internamente como:
+
+`14..19`
+
+Semântica elétrica genérica Arduino UNO:
+
+`desligado → LOW`
+
+`ligado → HIGH`
+
+Essa relação não deve ser confundida com a semântica educacional do bloco.
+
+Caso um perfil de hardware futuro utilize relé ativo em LOW, a inversão deverá ficar no perfil específico da placa/módulo.
+
+A interface deve continuar mostrando somente:
+
+`ligado`
+
+e:
+
+`desligado`
+
+### 19.91. Arbitragem de recursos do RELÉ
+
+O firmware rejeita `RELAY_WRITE` quando:
+
+- `PIN < 2`;
+- `PIN > 19`;
+- `STATE > 1`;
+- existe Servo anexado no mesmo pino;
+- existe Tone ativo no mesmo pino.
+
+A política permanece:
+
+`conflito de recurso → ERROR`
+
+Não realizar:
+
+- detach automático de Servo;
+- interrupção automática de Tone;
+- apropriação silenciosa de recursos.
+
+O RELÉ não introduz ownership persistente dos pinos utilizados pelo MOTOR.
+
+O contrato MOTOR v1 permanece inalterado.
+
+### 19.92. Peripheral RELÉ
+
+Arquivo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+Método:
+
+`relayWrite(pin, state)`
+
+Responsabilidades do peripheral:
+
+- exigir Stage conectado;
+- exigir `pin` inteiro;
+- exigir `state` inteiro;
+- limitar `pin` a `2..19`;
+- limitar `state` a `0..1`;
+- enviar `RELAY_WRITE` com `[PIN, STATE]`.
+
+A arbitragem dinâmica com Servo e Tone permanece no firmware.
+
+Essa separação deve ser preservada porque o firmware é a camada que possui o estado real dos recursos físicos.
+
+### 19.93. Bloco RELÉ em Atuadores
+
+A categoria `Atuadores` passa a possuir quatro blocos:
+
+1. Servo;
+2. acionar motor;
+3. parar motor;
+4. relé.
+
+Bloco:
+
+`definir relé no pino [PIN] como [STATE]`
+
+Default:
+
+`PIN = D12`
+
+Estado padrão:
+
+`ligado`
+
+Menu:
+
+`ligado → 1`
+
+`desligado → 0`
+
+Menu de pinos:
+
+- D2;
+- D3;
+- D4;
+- D5;
+- D6;
+- D7;
+- D8;
+- D9;
+- D10;
+- D11;
+- D12;
+- D13;
+- A0;
+- A1;
+- A2;
+- A3;
+- A4;
+- A5.
+
+O menu próprio:
+
+`relayPins`
+
+deve ser mantido semanticamente separado de:
+
+`motorDigitalPins`
+
+mesmo que atualmente ambos apresentem a mesma faixa de pinos digitais.
+
+Não foi necessário criar:
+
+- `ArgumentType` específico;
+- shadow block específico;
+- campo numérico customizado;
+- alteração no `EasyBloxRangeNumberField`.
+
+### 19.94. Firmware RELÉ
+
+Arquivo:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Foram adicionados:
+
+`COMMAND_RELAY_WRITE = 0x19`
+
+e:
+
+`handleRelayWrite()`
+
+Fluxo do handler:
+
+1. valida payload de 2 bytes;
+2. lê PIN;
+3. lê STATE;
+4. valida PIN;
+5. valida STATE;
+6. verifica Servo no mesmo pino;
+7. verifica Tone no mesmo pino;
+8. configura o pino como OUTPUT;
+9. aplica LOW ou HIGH;
+10. responde ACK.
+
+Compilação:
+
+`arduino:avr:uno`
+
+Resultado:
+
+- programa: `6284 bytes / 32256 bytes` — 19%;
+- SRAM global: `298 bytes / 2048 bytes` — 14%;
+- RAM disponível: `1750 bytes`.
+
+Comparação com MOTOR:
+
+`6216 → 6284 bytes`
+
+Aumento:
+
+`68 bytes`
+
+SRAM:
+
+`298 → 298 bytes`
+
+Nenhum aumento.
+
+Upload aprovado pela:
+
+`COM11`
+
+### 19.95. Validação automatizada RELÉ
+
+Protocolo:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+Resultado:
+
+`125 pass / 0 fail`
+
+Cobertura adicionada para:
+
+- opcode `RELAY_WRITE`;
+- payload `[PIN, STATE]`;
+- comprimento;
+- checksum.
+
+Arduino UNO / peripheral:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Resultado:
+
+`272 pass / 0 fail`
+
+Cobertura adicionada para:
+
+- envio após handshake;
+- OFF;
+- ON;
+- frames gerados;
+- operação antes do handshake;
+- limites de PIN;
+- PIN não inteiro;
+- limites de STATE;
+- STATE não inteiro.
+
+Atuadores:
+
+`packages/scratch-vm/test/unit/actuators.js`
+
+Resultado:
+
+`38 pass / 0 fail`
+
+Cobertura adicionada para:
+
+- total de quatro blocos;
+- opcode;
+- texto visual;
+- default D12;
+- default ligado;
+- menu de estados;
+- lista completa de pinos;
+- conversão STRING → NUMBER;
+- delegação ao peripheral compartilhado.
+
+Scratch VM:
+
+`webpack 5.109.2 compiled successfully`
+
+Scratch GUI:
+
+- `build:dev` aprovado;
+- `build:dist` aprovado com 2 warnings;
+- `build:dist-standalone` aprovado com 2 warnings.
+
+Os warnings de tamanho de assets/entrypoints e o aviso do Browserslist/caniuse-lite não são bloqueantes e não justificam atualização de dependências neste checkpoint.
+
+### 19.96. Validação física RELÉ
+
+Após upload do firmware, foi realizado teste direto do protocolo pela COM11.
+
+Foram enviados:
+
+`RELAY_WRITE D13 ON`
+
+e:
+
+`RELAY_WRITE D13 OFF`
+
+ACK de ON:
+
+`FF 55 01 01 80 00 80`
+
+ACK de OFF:
+
+`FF 55 01 02 80 00 83`
+
+Esse teste confirmou o transporte, parsing, execução do comando e respostas ACK.
+
+A validação física visual end-to-end foi realizada posteriormente pelo próprio EasyBlox.
+
+Hardware:
+
+`EasyDuino`
+
+Porta:
+
+`COM11`
+
+Canal utilizado:
+
+`D11`
+
+O D11 corresponde a um dos canais do LED RGB integrado da EasyDuino e permite observação visual imediata.
+
+Blocos executados:
+
+`definir relé no pino [D11] como [ligado]`
+
+e:
+
+`definir relé no pino [D11] como [desligado]`
+
+Resultado:
+
+`APROVADO`
+
+Foi confirmada a cadeia completa:
+
+`bloco visual`
+
+↓
+
+`relayWrite(args)`
+
+↓
+
+`ArduinoUnoPeripheral.relayWrite()`
+
+↓
+
+`RELAY_WRITE 0x19`
+
+↓
+
+`firmware Stage`
+
+↓
+
+`hardware`
+
+Resultado:
+
+`RELÉ v1 ✅`
+
+Para futuras validações visuais de saídas digitais na EasyDuino, preferir:
+
+- D9;
+- D10;
+- D11.
+
+Quando não existir conflito de recurso, utilizar preferencialmente:
+
+`D11`
+
+Essa diretriz é exclusiva de teste/laboratório e não altera o contrato genérico do Arduino UNO.
+
+### 19.97. Estado após RELÉ v1
+
+Primitives consolidados no Modo Palco:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`;
+5. `TONE_START / TONE_STOP`;
+6. `SERVO_WRITE`;
+7. `MOTOR_WRITE / MOTOR_STOP`;
+8. `RELAY_WRITE`.
+
+O próximo primitive oficial é:
+
+`ULTRASSÔNICO`

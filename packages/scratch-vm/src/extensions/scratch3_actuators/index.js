@@ -98,6 +98,23 @@ class Scratch3ActuatorsBlocks {
                             defaultValue: '0'
                         }
                     }
+                },
+                {
+                    opcode: 'relayWrite',
+                    blockType: BlockType.COMMAND,
+                    text: 'definir relé no pino [PIN] como [STATE]',
+                    arguments: {
+                        PIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'relayPins',
+                            defaultValue: 12
+                        },
+                        STATE: {
+                            type: ArgumentType.STRING,
+                            menu: 'relayStates',
+                            defaultValue: '1'
+                        }
+                    }
                 }
             ],
             menus: {
@@ -158,6 +175,36 @@ class Scratch3ActuatorsBlocks {
                     items: [
                         {text: 'livre', value: '0'},
                         {text: 'frear', value: '1'}
+                    ]
+                },
+                relayPins: {
+                    acceptReporters: true,
+                    items: [
+                        {text: 'D2', value: '2'},
+                        {text: 'D3', value: '3'},
+                        {text: 'D4', value: '4'},
+                        {text: 'D5', value: '5'},
+                        {text: 'D6', value: '6'},
+                        {text: 'D7', value: '7'},
+                        {text: 'D8', value: '8'},
+                        {text: 'D9', value: '9'},
+                        {text: 'D10', value: '10'},
+                        {text: 'D11', value: '11'},
+                        {text: 'D12', value: '12'},
+                        {text: 'D13', value: '13'},
+                        {text: 'A0', value: '14'},
+                        {text: 'A1', value: '15'},
+                        {text: 'A2', value: '16'},
+                        {text: 'A3', value: '17'},
+                        {text: 'A4', value: '18'},
+                        {text: 'A5', value: '19'}
+                    ]
+                },
+                relayStates: {
+                    acceptReporters: true,
+                    items: [
+                        {text: 'ligado', value: '1'},
+                        {text: 'desligado', value: '0'}
                     ]
                 }
             }
@@ -232,6 +279,21 @@ class Scratch3ActuatorsBlocks {
             in2Pin,
             pwmPin,
             stopMode
+        );
+    }
+
+    /**
+     * Set one relay using the active board peripheral.
+     * @param {object} args Scratch block arguments.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    relayWrite (args) {
+        const pin = Number(args.PIN);
+        const state = Number(args.STATE);
+
+        return this._peripheral.relayWrite(
+            pin,
+            state
         );
     }
 }

@@ -19,6 +19,7 @@ constexpr uint8_t COMMAND_TONE_STOP = 0x15;
 constexpr uint8_t COMMAND_SERVO_WRITE = 0x16;
 constexpr uint8_t COMMAND_MOTOR_WRITE = 0x17;
 constexpr uint8_t COMMAND_MOTOR_STOP = 0x18;
+constexpr uint8_t COMMAND_RELAY_WRITE = 0x19;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -585,6 +586,45 @@ void handleMotorStop() {
     );
 }
 
+void handleRelayWrite() {
+    if (payloadLength != 2) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t pin = payload[0];
+    const uint8_t state = payload[1];
+
+    if (
+        pin < 2 ||
+        pin > 19 ||
+        state > 1 ||
+        isServoAttachedOnPin(pin) ||
+        activeTonePin == pin
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    pinMode(pin, OUTPUT);
+
+    digitalWrite(
+        pin,
+        state == 1 ? HIGH : LOW
+    );
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
 void handleFrame() {
     if (command == COMMAND_PING) {
         sendFrame(
@@ -636,6 +676,11 @@ void handleFrame() {
 
     if (command == COMMAND_MOTOR_STOP) {
         handleMotorStop();
+        return;
+    }
+
+    if (command == COMMAND_RELAY_WRITE) {
+        handleRelayWrite();
     }
 }
 

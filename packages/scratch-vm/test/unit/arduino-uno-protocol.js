@@ -501,3 +501,27 @@ tap.test('encodes MOTOR_STOP payload', t => {
 
     t.end();
 });
+
+tap.test('encodes RELAY_WRITE payload', t => {
+    const frame = encodeFrame(
+        0x33,
+        COMMANDS.RELAY_WRITE,
+        [12, 0x01]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x33);
+    t.equal(frame[4], COMMANDS.RELAY_WRITE);
+    t.equal(frame[5], 2);
+    t.equal(frame[6], 12);
+    t.equal(frame[7], 0x01);
+
+    t.equal(
+        frame[8],
+        calculateChecksum(frame.subarray(2, 8))
+    );
+
+    t.end();
+});
