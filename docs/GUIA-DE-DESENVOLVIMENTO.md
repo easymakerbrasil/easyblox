@@ -3563,3 +3563,92 @@ O checkpoint SERVO somente será considerado oficialmente encerrado após:
 - commit;
 - push;
 - confirmação da sincronização com o remoto.
+
+### 19.77. Fechamento oficial do checkpoint SERVO
+
+O checkpoint de Servo da base Arduino UNO foi oficialmente concluído.
+
+Primitive:
+
+`SERVO_WRITE = 0x16`
+
+Branch:
+
+`feat/easyblox-arduino-uno-foundation`
+
+Commit funcional:
+
+`dcbfc724170a2ee3144335aa212e7d040088a615`
+
+Hash abreviado:
+
+`dcbfc7241`
+
+Mensagem:
+
+`feat: add Arduino UNO Stage servo control`
+
+Push concluído:
+
+`819b35432e → dcbfc72417`
+
+Sincronização confirmada entre:
+
+`HEAD`
+
+e:
+
+`origin/feat/easyblox-arduino-uno-foundation`
+
+ambos em:
+
+`dcbfc724170a2ee3144335aa212e7d040088a615`
+
+O checkpoint consolidou:
+
+- categoria visual `Atuadores`;
+- compartilhamento do peripheral Arduino UNO;
+- `SERVO_WRITE`;
+- biblioteca `Servo 1.3.0`;
+- attach automático;
+- arbitragem entre Servo, Digital, PWM e Tone;
+- tratamento explícito do conflito Timer1 em D9/D10;
+- campo numérico reutilizável `EasyBloxRangeNumberField`;
+- slider e digitação limitada a `0..180`;
+- `ArgumentType.SERVO_ANGLE`;
+- shadow `easyblox_servo_angle`;
+- testes automatizados;
+- builds do Scratch VM e Scratch GUI;
+- compilação do firmware;
+- validação em hardware real.
+
+Resultados finais relevantes:
+
+- protocolo Arduino UNO: `93/93`;
+- peripheral Arduino UNO: `222/222`;
+- extensão Atuadores: `14/14`;
+- integração de extensões internas: `32/32`;
+- Flash: `5664 bytes`;
+- SRAM: `298 bytes`;
+- Servo físico validado em `0°`, `90°` e `180°`.
+
+A alteração local independente:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+não pertence ao checkpoint e permaneceu fora do commit.
+
+Estado atual dos primitives Arduino UNO no Modo Palco:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`;
+5. `TONE_START / TONE_STOP`;
+6. `SERVO_WRITE`.
+
+O próximo primitive oficial da sequência é:
+
+`MOTOR`
+
+Antes de iniciar MOTOR, concluir apenas o commit documental deste fechamento e confirmar seu push no remoto.

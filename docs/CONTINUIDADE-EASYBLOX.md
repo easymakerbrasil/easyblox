@@ -3870,3 +3870,128 @@ Antes de iniciar MOTOR:
 Manter a disciplina:
 
 `protocolo → testes → firmware → compile → peripheral → testes → build → hardware → bloco visual → documentação → commit`
+
+### 22.34. Fechamento oficial do checkpoint SERVO
+
+O checkpoint `SERVO_WRITE` foi concluído, commitado e enviado ao repositório remoto.
+
+Branch:
+
+`feat/easyblox-arduino-uno-foundation`
+
+Commit funcional:
+
+`dcbfc724170a2ee3144335aa212e7d040088a615`
+
+Hash abreviado:
+
+`dcbfc7241`
+
+Mensagem:
+
+`feat: add Arduino UNO Stage servo control`
+
+Push concluído:
+
+`819b35432e → dcbfc72417`
+
+Sincronização confirmada:
+
+`HEAD = dcbfc724170a2ee3144335aa212e7d040088a615`
+
+`origin/feat/easyblox-arduino-uno-foundation = dcbfc724170a2ee3144335aa212e7d040088a615`
+
+Estado confirmado após o push:
+
+`Your branch is up to date with 'origin/feat/easyblox-arduino-uno-foundation'.`
+
+Validações consolidadas deste checkpoint:
+
+- `SERVO_WRITE = 0x16`;
+- payload `[PIN, ANGLE]`;
+- pinos `D3, D5, D6, D9, D10, D11`;
+- ângulo `0..180`;
+- attach automático no primeiro comando;
+- biblioteca `Servo 1.3.0`;
+- arbitragem com Digital, PWM e Tone implementada;
+- conflito Timer1 com PWM em D9/D10 tratado explicitamente;
+- protocolo Arduino UNO: `93/93`;
+- peripheral Arduino UNO: `222/222`;
+- extensão Atuadores: `14/14`;
+- integração de extensões internas: `32/32`;
+- Scratch VM build aprovado;
+- Scratch GUI build aprovado;
+- firmware Arduino UNO compilado;
+- Flash: `5664 bytes`;
+- SRAM: `298 bytes`;
+- `git diff --check` aprovado;
+- `git diff --cached --check` aprovado;
+- slider `0..180` validado;
+- digitação direta validada;
+- limites e precisão inteira validados;
+- correção de `ephemeral focus` validada;
+- Servo físico validado em `0°`, `90°` e `180°`;
+- fluxo completo `GUI → VM → Serial → firmware → Servo` aprovado.
+
+Também foi consolidada a nova categoria visual:
+
+`Atuadores`
+
+A categoria reutiliza o peripheral do Arduino UNO e não cria uma segunda conexão Serial.
+
+A infraestrutura reutilizável:
+
+`EasyBloxRangeNumberField`
+
+também está aprovada e poderá futuramente ser reutilizada para corrigir o campo visual de PWM para a faixa:
+
+`0..255`
+
+A regressão transitória de comandos retornando `null` durante o desenvolvimento não foi reproduzida no estado final e não possui causa única comprovada.
+
+Não atribuir essa ocorrência ao:
+
+- CH340;
+- protocolo;
+- firmware Servo;
+- biblioteca Servo.
+
+Manter como prática de validação:
+
+`firmware correto → VM recompilado → GUI recompilado/reiniciado → navegador atualizado`
+
+A alteração independente:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+permaneceu fora do commit funcional de Servo.
+
+O stash de proteção:
+
+`stash@{0}: wip-servo-actuators-baseline-test`
+
+deve permanecer temporariamente até o commit documental deste fechamento também estar seguro no remoto.
+
+Estado funcional consolidado da base Arduino UNO no Modo Palco:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`;
+5. `TONE_START / TONE_STOP`;
+6. `SERVO_WRITE`.
+
+Primeiro atuador concluído:
+
+`SERVO`
+
+Próximo primitive oficial:
+
+`MOTOR`
+
+O desenvolvimento de MOTOR somente deve começar após:
+
+1. commit deste fechamento documental;
+2. push do commit documental;
+3. confirmação da sincronização com o remoto;
+4. avaliação e remoção segura do stash temporário de Servo.
