@@ -4283,3 +4283,480 @@ Antes de iniciar MOTOR, falta apenas fechar este checkpoint complementar:
 7. commit;
 8. push;
 9. confirmar sincronização com o remoto.
+
+### 22.41. Checkpoint MOTOR v1
+
+O primitive `MOTOR` foi implementado e validado sobre a base Arduino UNO Stage.
+
+O contrato aprovado mantém separadas:
+
+- a abstração genérica do primitive;
+- a pinagem física específica de cada placa/shield.
+
+O protocolo genérico não conhece `Motor A`, `Motor B`, `Motor 1` ou `Motor 2`.
+
+Cada motor é representado por:
+
+`IN1 + IN2 + PWM`
+
+Isso permite que futuras extensões específicas de EasyMaker, EasyDuino e MakerDuino façam o mapeamento lógico dos motores sem alterar o protocolo Stage.
+
+### 22.42. Contrato MOTOR v1
+
+Comandos:
+
+`MOTOR_WRITE = 0x17`
+
+`MOTOR_STOP = 0x18`
+
+`MOTOR_WRITE` controla exatamente um motor por comando.
+
+Payload:
+
+`[IN1, IN2, PWM_PIN, DIRECTION, SPEED]`
+
+Campos:
+
+- `IN1`: pino digital;
+- `IN2`: pino digital;
+- `PWM_PIN`: pino PWM;
+- `DIRECTION`: `0 = FORWARD`, `1 = REVERSE`;
+- `SPEED`: `0..255`.
+
+Na interface EasyBlox, a velocidade é apresentada em:
+
+`0..100%`
+
+A primitive da categoria Atuadores converte para o protocolo usando:
+
+`Math.round(percent * 255 / 100)`
+
+Portanto:
+
+- `0% → 0`;
+- `50% → 128`;
+- `100% → 255`.
+
+`MOTOR_WRITE` com velocidade `0` equivale semanticamente a parada livre (`COAST`).
+
+`MOTOR_STOP` possui payload:
+
+`[IN1, IN2, PWM_PIN, STOP_MODE]`
+
+Modos:
+
+- `0 = COAST`;
+- `1 = BRAKE`.
+
+Respostas permanecem utilizando o contrato já existente:
+
+- `ACK = 0x80`;
+- `ERROR = 0xFF`.
+
+Nenhuma nova response foi criada.
+
+### 22.43. Validação de pinos e arbitragem
+
+Para Arduino UNO:
+
+`IN1` e `IN2`:
+
+`D2..D19`
+
+onde `14..19` correspondem a:
+
+`A0..A5`
+
+O pino PWM deve ser um dos seguintes:
+
+- D3;
+- D5;
+- D6;
+- D9;
+- D10;
+- D11.
+
+`IN1`, `IN2` e `PWM_PIN` devem ser três pinos distintos.
+
+O MOTOR respeita a arbitragem já consolidada de Servo e Tone.
+
+O firmware rejeita MOTOR quando:
+
+- existe Servo anexado em `IN1`;
+- existe Servo anexado em `IN2`;
+- existe Servo anexado em `PWM_PIN`;
+- qualquer um dos três pinos corresponde ao tone ativo;
+- existe qualquer Servo anexado e o PWM solicitado é D9 ou D10.
+
+Não existe detach automático de Servo para resolver conflito.
+
+A política permanece:
+
+`conflito de recurso → ERROR explícito`
+
+### 22.44. Firmware MOTOR
+
+Firmware:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Foram adicionados:
+
+- `COMMAND_MOTOR_WRITE = 0x17`;
+- `COMMAND_MOTOR_STOP = 0x18`;
+- `handleMotorWrite()`;
+- `handleMotorStop()`;
+- dispatch dos dois comandos em `handleFrame()`.
+
+`handleMotorWrite()`:
+
+1. valida payload de 5 bytes;
+2. valida pinos;
+3. valida direção;
+4. valida conflitos de Servo/Tone;
+5. desabilita momentaneamente o PWM antes de alterar a direção;
+6. configura `IN1` e `IN2`;
+7. aplica o valor PWM;
+8. envia `ACK`.
+
+Semântica:
+
+FORWARD:
+
+`IN1 = HIGH`
+
+`IN2 = LOW`
+
+REVERSE:
+
+`IN1 = LOW`
+
+`IN2 = HIGH`
+
+Para `SPEED = 0`:
+
+- PWM desabilitado;
+- IN1 LOW;
+- IN2 LOW.
+
+`handleMotorStop()`:
+
+COAST:
+
+- IN1 LOW;
+- IN2 LOW;
+- PWM/ENABLE 0.
+
+BRAKE:
+
+- IN1 LOW;
+- IN2 LOW;
+- PWM/ENABLE 255.
+
+Compilação Arduino UNO aprovada:
+
+`arduino:avr:uno`
+
+Resultado:
+
+- programa: `6216 bytes / 32256 bytes` — 19%;
+- variáveis globais: `298 bytes / 2048 bytes` — 14%;
+- RAM disponível: `1750 bytes`.
+
+Upload físico realizado com sucesso pela:
+
+`COM11`
+
+### 22.45. Peripheral e protocolo Scratch VM
+
+Protocolo:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/protocol.js`
+
+Foram adicionados:
+
+- `MOTOR_WRITE: 0x17`;
+- `MOTOR_STOP: 0x18`.
+
+Peripheral:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+Métodos adicionados:
+
+`motorWrite(in1Pin, in2Pin, pwmPin, direction, speed)`
+
+`motorStop(in1Pin, in2Pin, pwmPin, stopMode)`
+
+O peripheral trabalha com valores já normalizados para o wire protocol.
+
+Portanto:
+
+`motorWrite()` recebe `speed` em `0..255`.
+
+A conversão de percentual não pertence ao peripheral.
+
+Os conflitos dinâmicos de Servo e Tone continuam sendo arbitrados no firmware, que possui o estado real dos recursos físicos.
+
+### 22.46. Blocos MOTOR na categoria Atuadores
+
+A extensão interna:
+
+`actuators`
+
+continua reutilizando exatamente a mesma instância de:
+
+`ArduinoUnoPeripheral`
+
+Nenhuma nova conexão Serial, handshake ou transporte foi criado.
+
+Foram adicionados dois blocos:
+
+`girar motor IN1 [IN1] IN2 [IN2] PWM [PWM] direção [DIRECTION] velocidade [SPEED] %`
+
+e:
+
+`parar motor IN1 [IN1] IN2 [IN2] PWM [PWM] modo [STOP_MODE]`
+
+Menus de direção:
+
+- `frente → 0`;
+- `trás → 1`.
+
+Menus de parada:
+
+- `livre → 0`;
+- `frear → 1`.
+
+Para velocidade foi criado:
+
+`ArgumentType.MOTOR_SPEED`
+
+com mapeamento:
+
+`ArgumentType.MOTOR_SPEED → easyblox_motor_speed`
+
+Shadow visual:
+
+`easyblox_motor_speed`
+
+Configuração:
+
+- valor padrão: `100`;
+- mínimo: `0`;
+- máximo: `100`;
+- precisão: `1`.
+
+O campo reutiliza:
+
+`EasyBloxRangeNumberField`
+
+A infraestrutura passa oficialmente a atender:
+
+`Servo → 0..180`
+
+`PWM → 0..255`
+
+`Motor → 0..100%`
+
+### 22.47. Testes e builds do MOTOR
+
+Teste de protocolo:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+Resultado:
+
+`116 pass / 0 fail`
+
+Teste Arduino UNO/peripheral:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Resultado:
+
+`259 pass / 0 fail`
+
+Teste da categoria Atuadores:
+
+`packages/scratch-vm/test/unit/actuators.js`
+
+Resultado:
+
+`30 pass / 0 fail`
+
+Scratch VM build:
+
+`APROVADO`
+
+Resultado final:
+
+`webpack 5.109.2 compiled successfully`
+
+Scratch GUI build:
+
+`APROVADO`
+
+Foram aprovados:
+
+- `build:dev`;
+- `build:dist`;
+- `build:dist-standalone`.
+
+Os warnings de Browserslist e tamanho de assets/entrypoints não impediram a compilação e não exigiram alteração de dependências.
+
+### 22.48. Validação física MOTOR
+
+A validação física foi realizada utilizando a EasyDuino sobre Arduino UNO.
+
+Mapeamento físico confirmado:
+
+Motor 1:
+
+- IN1 = D2;
+- IN2 = D4;
+- PWM = D3.
+
+Motor 2:
+
+- IN1 = D7;
+- IN2 = D8;
+- PWM = D5.
+
+Motor 1 — FORWARD:
+
+`MOTOR_WRITE`
+
+PWM:
+
+`255`
+
+Resultado:
+
+- ACK correto;
+- motor girou normalmente;
+- funcionamento por aproximadamente 1,5 segundo;
+- `MOTOR_STOP` em COAST recebeu ACK;
+- motor parou normalmente.
+
+Também foi testado PWM `128`.
+
+Nesse conjunto físico específico, o canal foi energizado corretamente e o comando recebeu ACK, mas o motor não venceu a inércia de partida.
+
+Isso não foi interpretado como falha do protocolo.
+
+Motor 1 — REVERSE:
+
+- direction = `1`;
+- PWM = `255`;
+- ACK correto;
+- sentido físico invertido corretamente;
+- parada em COAST normal.
+
+Motor 1 — BRAKE:
+
+O comando foi aceito e executado.
+
+Neste motor/conjunto específico, não foi percebida diferença visual significativa entre BRAKE e COAST.
+
+Não interpretar isso como falha do protocolo.
+
+Motor 2:
+
+- IN1 = D7;
+- IN2 = D8;
+- PWM = D5;
+- MOTOR_WRITE com PWM 255 aprovado;
+- ACK correto;
+- motor girou normalmente;
+- MOTOR_STOP em COAST aprovado.
+
+Após o novo firmware, também foi confirmada regressão física básica do Stage:
+
+- conexão pela COM11 aprovada;
+- `DIGITAL_WRITE` no D13 continuou funcionando normalmente.
+
+### 22.49. Validação visual MOTOR
+
+Os novos blocos apareceram corretamente na categoria:
+
+`Atuadores`
+
+A validação prática no EasyBlox foi aprovada.
+
+Foram confirmados:
+
+- bloco de acionamento do motor;
+- seleção de pinos;
+- seleção de direção;
+- velocidade em percentual;
+- campo de velocidade limitado visualmente a `0..100`;
+- slider funcional;
+- bloco de parada;
+- modos livre e frear;
+- execução física pelo EasyBlox funcionando corretamente.
+
+Resultado:
+
+`MOTOR v1 ✅`
+
+### 22.50. Backlog futuro — instanciação lógica de motores
+
+Foi registrada uma melhoria futura de UX para permitir configurar/instanciar motores antes do uso.
+
+Conceito desejado:
+
+`Conectar motor [1] direção 1 [D2] direção 2 [D4] & PWM [D3]`
+
+Depois da configuração, os blocos operacionais utilizariam apenas o identificador lógico:
+
+`Acionar motor [1] no sentido [frente] com velocidade [100] %`
+
+e:
+
+`[livre/frear] do motor [1]`
+
+Exemplo de associação:
+
+`Motor 1 → IN1 D2 / IN2 D4 / PWM D3`
+
+`Motor 2 → IN1 D7 / IN2 D8 / PWM D5`
+
+Essa melhoria deve ficar em uma camada superior de UX/perfil de placa.
+
+Ela NÃO altera o contrato MOTOR v1 atual.
+
+O protocolo genérico permanece baseado em:
+
+`IN1 + IN2 + PWM`
+
+Não implementar essa abstração agora nem reabrir o primitive MOTOR v1 por causa deste backlog.
+
+### 22.51. Estado após implementação do MOTOR
+
+Primitives consolidados no Modo Palco:
+
+1. `DIGITAL_WRITE`;
+2. `DIGITAL_READ`;
+3. `ANALOG_READ`;
+4. `PWM_WRITE`;
+5. `TONE_START / TONE_STOP`;
+6. `SERVO_WRITE`;
+7. `MOTOR_WRITE / MOTOR_STOP`.
+
+Próximo primitive oficial:
+
+`RELÉ`
+
+Antes de iniciar RELÉ, fechar o checkpoint MOTOR com:
+
+1. atualizar `docs/GUIA-DE-DESENVOLVIMENTO.md`;
+2. `git diff --check`;
+3. revisar todos os arquivos alterados;
+4. manter `packages/scratch-gui/src/components/action-menu/icon--sprite.svg` fora do staging;
+5. staging explícito dos arquivos do MOTOR e documentação;
+6. `git diff --cached --check`;
+7. revisar staged files;
+8. commit;
+9. push;
+10. confirmar sincronização local/remoto.

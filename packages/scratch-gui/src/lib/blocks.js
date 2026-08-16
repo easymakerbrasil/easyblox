@@ -52,6 +52,27 @@ export default function (vm) {
         }
     };
 
+    ScratchBlocks.Blocks.easyblox_motor_speed = {
+        init: function () {
+            this.jsonInit({
+                message0: '%1',
+                args0: [
+                    {
+                        type: 'field_easyblox_range_number',
+                        name: 'NUM',
+                        value: 100,
+                        min: 0,
+                        max: 100,
+                        precision: 1
+                    }
+                ],
+                output: 'Number',
+                outputShape: ScratchBlocks.OUTPUT_SHAPE_ROUND,
+                extensions: ['colours_textfield']
+            });
+        }
+    };
+
     const jsonForMenuBlock = function (name, menuOptionsFn, category, start) {
         return {
             message0: '%1',

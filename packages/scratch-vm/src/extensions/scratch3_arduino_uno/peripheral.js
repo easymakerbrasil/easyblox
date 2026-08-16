@@ -247,6 +247,97 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Drive one DC motor through a three-pin H-bridge interface in Stage mode.
+     * @param {number} in1Pin First direction pin, from D2 to D13 or A0 to A5.
+     * @param {number} in2Pin Second direction pin, from D2 to D13 or A0 to A5.
+     * @param {number} pwmPin PWM enable pin: D3, D5, D6, D9, D10 or D11.
+     * @param {number} direction Motor direction: 0 forward or 1 reverse.
+     * @param {number} speed Motor speed from 0 to 255.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    motorWrite (in1Pin, in2Pin, pwmPin, direction, speed) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(in1Pin) ||
+            !Number.isInteger(in2Pin) ||
+            !Number.isInteger(pwmPin) ||
+            !Number.isInteger(direction) ||
+            !Number.isInteger(speed) ||
+            in1Pin < 2 ||
+            in1Pin > 19 ||
+            in2Pin < 2 ||
+            in2Pin > 19 ||
+            ![3, 5, 6, 9, 10, 11].includes(pwmPin) ||
+            in1Pin === in2Pin ||
+            in1Pin === pwmPin ||
+            in2Pin === pwmPin ||
+            direction < 0 ||
+            direction > 1 ||
+            speed < 0 ||
+            speed > 255
+        ) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.MOTOR_WRITE,
+            [
+                in1Pin,
+                in2Pin,
+                pwmPin,
+                direction,
+                speed
+            ]
+        );
+    }
+
+    /**
+     * Stop one DC motor through a three-pin H-bridge interface in Stage mode.
+     * @param {number} in1Pin First direction pin, from D2 to D13 or A0 to A5.
+     * @param {number} in2Pin Second direction pin, from D2 to D13 or A0 to A5.
+     * @param {number} pwmPin PWM enable pin: D3, D5, D6, D9, D10 or D11.
+     * @param {number} stopMode Stop mode: 0 coast or 1 brake.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    motorStop (in1Pin, in2Pin, pwmPin, stopMode) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(in1Pin) ||
+            !Number.isInteger(in2Pin) ||
+            !Number.isInteger(pwmPin) ||
+            !Number.isInteger(stopMode) ||
+            in1Pin < 2 ||
+            in1Pin > 19 ||
+            in2Pin < 2 ||
+            in2Pin > 19 ||
+            ![3, 5, 6, 9, 10, 11].includes(pwmPin) ||
+            in1Pin === in2Pin ||
+            in1Pin === pwmPin ||
+            in2Pin === pwmPin ||
+            stopMode < 0 ||
+            stopMode > 1
+        ) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.MOTOR_STOP,
+            [
+                in1Pin,
+                in2Pin,
+                pwmPin,
+                stopMode
+            ]
+        );
+    }
+
+    /**
      * Read an Arduino UNO digital input pin in Stage mode.
      * @param {number} pin Arduino digital pin, from D2 to D13 or A0 to A5.
      * @returns {?Promise<number>} Promise resolved with 0 or 1, or null when unavailable.

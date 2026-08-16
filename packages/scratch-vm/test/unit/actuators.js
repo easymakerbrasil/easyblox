@@ -41,7 +41,7 @@ test('Actuators expose the servo block and supported servo pins', t => {
 
     t.equal(info.id, 'actuators');
     t.equal(info.name, 'Atuadores');
-    t.equal(info.blocks.length, 1);
+    t.equal(info.blocks.length, 3);
 
     const servoBlock = info.blocks[0];
 
@@ -68,6 +68,100 @@ test('Actuators expose the servo block and supported servo pins', t => {
 
     t.same(
         info.menus.servoPins.items,
+        [
+            {text: 'D3', value: '3'},
+            {text: 'D5', value: '5'},
+            {text: 'D6', value: '6'},
+            {text: 'D9', value: '9'},
+            {text: 'D10', value: '10'},
+            {text: 'D11', value: '11'}
+        ]
+    );
+
+    t.end();
+});
+
+test('Actuators expose motor blocks and motor menus', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({})
+    };
+
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+    const info = extension.getInfo();
+
+    const motorWriteBlock = info.blocks[1];
+    const motorStopBlock = info.blocks[2];
+
+    t.equal(motorWriteBlock.opcode, 'motorWrite');
+    t.equal(
+        motorWriteBlock.arguments.SPEED.type,
+        ArgumentType.MOTOR_SPEED
+    );
+    t.equal(
+        motorWriteBlock.arguments.SPEED.defaultValue,
+        100
+    );
+    t.equal(
+        motorWriteBlock.arguments.IN1.defaultValue,
+        2
+    );
+    t.equal(
+        motorWriteBlock.arguments.IN2.defaultValue,
+        4
+    );
+    t.equal(
+        motorWriteBlock.arguments.PWM.defaultValue,
+        3
+    );
+
+    t.equal(motorStopBlock.opcode, 'motorStop');
+    t.equal(
+        motorStopBlock.arguments.STOP_MODE.defaultValue,
+        '0'
+    );
+
+    t.same(
+        info.menus.motorDirections.items,
+        [
+            {text: 'frente', value: '0'},
+            {text: 'trás', value: '1'}
+        ]
+    );
+
+    t.same(
+        info.menus.motorStopModes.items,
+        [
+            {text: 'livre', value: '0'},
+            {text: 'frear', value: '1'}
+        ]
+    );
+
+        t.same(
+        info.menus.motorDigitalPins.items,
+        [
+            {text: 'D2', value: '2'},
+            {text: 'D3', value: '3'},
+            {text: 'D4', value: '4'},
+            {text: 'D5', value: '5'},
+            {text: 'D6', value: '6'},
+            {text: 'D7', value: '7'},
+            {text: 'D8', value: '8'},
+            {text: 'D9', value: '9'},
+            {text: 'D10', value: '10'},
+            {text: 'D11', value: '11'},
+            {text: 'D12', value: '12'},
+            {text: 'D13', value: '13'},
+            {text: 'A0', value: '14'},
+            {text: 'A1', value: '15'},
+            {text: 'A2', value: '16'},
+            {text: 'A3', value: '17'},
+            {text: 'A4', value: '18'},
+            {text: 'A5', value: '19'}
+        ]
+    );
+
+    t.same(
+        info.menus.motorPwmPins.items,
         [
             {text: 'D3', value: '3'},
             {text: 'D5', value: '5'},
@@ -175,6 +269,182 @@ test('Actuators normalize servo angles to integer values from 0 to 180', t => {
             {
                 pin: 6,
                 angle: 91
+            }
+        ]
+    );
+
+    t.end();
+});
+
+test('Actuators normalize motor speed percentage and delegate motor writes', t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        motorWrite: (in1Pin, in2Pin, pwmPin, direction, speed) => {
+            calls.push({
+                in1Pin,
+                in2Pin,
+                pwmPin,
+                direction,
+                speed
+            });
+
+            return 42;
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension: () => sharedPeripheral
+    };
+
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+
+    const lowResult = extension.motorWrite({
+        IN1: '2',
+        IN2: '4',
+        PWM: '3',
+        DIRECTION: '0',
+        SPEED: '0'
+    });
+
+    extension.motorWrite({
+        IN1: '7',
+        IN2: '8',
+        PWM: '5',
+        DIRECTION: '1',
+        SPEED: '50'
+    });
+
+    extension.motorWrite({
+        IN1: '2',
+        IN2: '4',
+        PWM: '3',
+        DIRECTION: '0',
+        SPEED: '100'
+    });
+
+        extension.motorWrite({
+        IN1: '2',
+        IN2: '4',
+        PWM: '3',
+        DIRECTION: '0',
+        SPEED: '-10'
+    });
+
+    extension.motorWrite({
+        IN1: '2',
+        IN2: '4',
+        PWM: '3',
+        DIRECTION: '0',
+        SPEED: '120'
+    });
+
+    t.equal(
+        lowResult,
+        42,
+        'returns the shared peripheral command result'
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3,
+                direction: 0,
+                speed: 0
+            },
+            {
+                in1Pin: 7,
+                in2Pin: 8,
+                pwmPin: 5,
+                direction: 1,
+                speed: 128
+            },
+            {
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3,
+                direction: 0,
+                speed: 255
+            },
+            {
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3,
+                direction: 0,
+                speed: 0
+            },
+            {
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3,
+                direction: 0,
+                speed: 255
+            },
+        ]
+    );
+
+    t.end();
+});
+
+test('Actuators delegate motor stop modes to the shared peripheral', t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        motorStop: (in1Pin, in2Pin, pwmPin, stopMode) => {
+            calls.push({
+                in1Pin,
+                in2Pin,
+                pwmPin,
+                stopMode
+            });
+
+            return 43;
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension: () => sharedPeripheral
+    };
+
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+
+    const coastResult = extension.motorStop({
+        IN1: '2',
+        IN2: '4',
+        PWM: '3',
+        STOP_MODE: '0'
+    });
+
+    extension.motorStop({
+        IN1: '7',
+        IN2: '8',
+        PWM: '5',
+        STOP_MODE: '1'
+    });
+
+    t.equal(
+        coastResult,
+        43,
+        'returns the shared peripheral command result'
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3,
+                stopMode: 0
+            },
+            {
+                in1Pin: 7,
+                in2Pin: 8,
+                pwmPin: 5,
+                stopMode: 1
             }
         ]
     );

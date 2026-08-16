@@ -12,6 +12,8 @@ const ArgumentType = {
 
     PWM_VALUE: 'pwm_value',
 
+    MOTOR_SPEED: 'motor_speed',
+
     /**
      * Boolean value with hexagonal placeholder
      */

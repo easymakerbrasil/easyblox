@@ -661,6 +661,153 @@ tap.test('Arduino UNO rejects invalid SERVO_WRITE requests', t => {
     t.end();
 });
 
+tap.test('Arduino UNO sends MOTOR_WRITE and MOTOR_STOP after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const forwardSequence = peripheral.motorWrite(
+        7,
+        8,
+        5,
+        0,
+        0
+    );
+
+    const reverseSequence = peripheral.motorWrite(
+        7,
+        8,
+        5,
+        1,
+        255
+    );
+
+    const stopSequence = peripheral.motorStop(
+        7,
+        8,
+        5,
+        1
+    );
+
+    t.equal(forwardSequence, 2);
+    t.equal(reverseSequence, 3);
+    t.equal(stopSequence, 4);
+    t.equal(writtenFrames.length, 4);
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            forwardSequence,
+            COMMANDS.MOTOR_WRITE,
+            [7, 8, 5, 0, 0]
+        )
+    );
+
+    t.same(
+        writtenFrames[2],
+        encodeFrame(
+            reverseSequence,
+            COMMANDS.MOTOR_WRITE,
+            [7, 8, 5, 1, 255]
+        )
+    );
+
+    t.same(
+        writtenFrames[3],
+        encodeFrame(
+            stopSequence,
+            COMMANDS.MOTOR_STOP,
+            [7, 8, 5, 1]
+        )
+    );
+});
+
+tap.test('Arduino UNO rejects invalid motor requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.motorWrite(7, 8, 5, 0, 128),
+        null,
+        'does not drive motor before the Stage handshake'
+    );
+
+    t.equal(
+        peripheral.motorStop(7, 8, 5, 0),
+        null,
+        'does not stop motor before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    t.equal(peripheral.motorWrite(1, 8, 5, 0, 128), null);
+    t.equal(peripheral.motorWrite(20, 8, 5, 0, 128), null);
+    t.equal(peripheral.motorWrite(7.5, 8, 5, 0, 128), null);
+
+    t.equal(peripheral.motorWrite(7, 1, 5, 0, 128), null);
+    t.equal(peripheral.motorWrite(7, 20, 5, 0, 128), null);
+    t.equal(peripheral.motorWrite(7, 8.5, 5, 0, 128), null);
+
+    t.equal(peripheral.motorWrite(7, 8, 4, 0, 128), null);
+    t.equal(peripheral.motorWrite(7, 8, 5.5, 0, 128), null);
+
+    t.equal(peripheral.motorWrite(7, 7, 5, 0, 128), null);
+    t.equal(peripheral.motorWrite(5, 8, 5, 0, 128), null);
+    t.equal(peripheral.motorWrite(7, 5, 5, 0, 128), null);
+
+    t.equal(peripheral.motorWrite(7, 8, 5, -1, 128), null);
+    t.equal(peripheral.motorWrite(7, 8, 5, 2, 128), null);
+    t.equal(peripheral.motorWrite(7, 8, 5, 0.5, 128), null);
+
+    t.equal(peripheral.motorWrite(7, 8, 5, 0, -1), null);
+    t.equal(peripheral.motorWrite(7, 8, 5, 0, 256), null);
+    t.equal(peripheral.motorWrite(7, 8, 5, 0, 128.5), null);
+
+    t.equal(peripheral.motorStop(1, 8, 5, 0), null);
+    t.equal(peripheral.motorStop(7, 20, 5, 0), null);
+    t.equal(peripheral.motorStop(7, 8, 4, 0), null);
+
+    t.equal(peripheral.motorStop(7, 7, 5, 0), null);
+    t.equal(peripheral.motorStop(5, 8, 5, 0), null);
+    t.equal(peripheral.motorStop(7, 5, 5, 0), null);
+
+    t.equal(peripheral.motorStop(7, 8, 5, -1), null);
+    t.equal(peripheral.motorStop(7, 8, 5, 2), null);
+    t.equal(peripheral.motorStop(7, 8, 5, 0.5), null);
+
+    t.end();
+});
+
 tap.test('Arduino UNO reads a digital pin after the Stage handshake', async t => {
     let onData = null;
     const writtenFrames = [];

@@ -448,3 +448,56 @@ tap.test('encodes SERVO_WRITE payload', t => {
 
     t.end();
 });
+
+tap.test('encodes MOTOR_WRITE payload', t => {
+    const frame = encodeFrame(
+        0x31,
+        COMMANDS.MOTOR_WRITE,
+        [7, 8, 5, 0x00, 128]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x31);
+    t.equal(frame[4], COMMANDS.MOTOR_WRITE);
+    t.equal(frame[5], 5);
+    t.equal(frame[6], 7);
+    t.equal(frame[7], 8);
+    t.equal(frame[8], 5);
+    t.equal(frame[9], 0x00);
+    t.equal(frame[10], 128);
+
+    t.equal(
+        frame[11],
+        calculateChecksum(frame.subarray(2, 11))
+    );
+
+    t.end();
+});
+
+tap.test('encodes MOTOR_STOP payload', t => {
+    const frame = encodeFrame(
+        0x32,
+        COMMANDS.MOTOR_STOP,
+        [7, 8, 5, 0x01]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x32);
+    t.equal(frame[4], COMMANDS.MOTOR_STOP);
+    t.equal(frame[5], 4);
+    t.equal(frame[6], 7);
+    t.equal(frame[7], 8);
+    t.equal(frame[8], 5);
+    t.equal(frame[9], 0x01);
+
+    t.equal(
+        frame[10],
+        calculateChecksum(frame.subarray(2, 10))
+    );
+
+    t.end();
+});

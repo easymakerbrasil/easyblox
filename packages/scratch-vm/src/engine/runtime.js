@@ -84,6 +84,13 @@ const ArgumentTypeMap = (() => {
         }
     };
 
+    map[ArgumentType.MOTOR_SPEED] = {
+        shadow: {
+            type: 'easyblox_motor_speed',
+            fieldName: 'NUM'
+        }
+    };
+
     map[ArgumentType.COLOR] = {
         shadow: {
             type: 'colour_picker',

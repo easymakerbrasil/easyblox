@@ -17,6 +17,8 @@ constexpr uint8_t COMMAND_PWM_WRITE = 0x13;
 constexpr uint8_t COMMAND_TONE_START = 0x14;
 constexpr uint8_t COMMAND_TONE_STOP = 0x15;
 constexpr uint8_t COMMAND_SERVO_WRITE = 0x16;
+constexpr uint8_t COMMAND_MOTOR_WRITE = 0x17;
+constexpr uint8_t COMMAND_MOTOR_STOP = 0x18;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -442,6 +444,147 @@ void handleServoWrite() {
     );
 }
 
+void handleMotorWrite() {
+    if (payloadLength != 5) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t in1Pin = payload[0];
+    const uint8_t in2Pin = payload[1];
+    const uint8_t pwmPin = payload[2];
+    const uint8_t direction = payload[3];
+    const uint8_t speed = payload[4];
+
+    if (
+        in1Pin < 2 ||
+        in1Pin > 19 ||
+        in2Pin < 2 ||
+        in2Pin > 19 ||
+        !isPwmPin(pwmPin) ||
+        in1Pin == in2Pin ||
+        in1Pin == pwmPin ||
+        in2Pin == pwmPin ||
+        direction > 1 ||
+        isServoAttachedOnPin(in1Pin) ||
+        isServoAttachedOnPin(in2Pin) ||
+        isServoAttachedOnPin(pwmPin) ||
+        activeTonePin == in1Pin ||
+        activeTonePin == in2Pin ||
+        activeTonePin == pwmPin ||
+        (
+            hasAttachedServo() &&
+            (pwmPin == 9 || pwmPin == 10)
+        )
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    pinMode(in1Pin, OUTPUT);
+    pinMode(in2Pin, OUTPUT);
+    pinMode(pwmPin, OUTPUT);
+
+    analogWrite(
+        pwmPin,
+        0
+    );
+
+    if (speed == 0) {
+        digitalWrite(in1Pin, LOW);
+        digitalWrite(in2Pin, LOW);
+    } else if (direction == 0) {
+        digitalWrite(in1Pin, HIGH);
+        digitalWrite(in2Pin, LOW);
+    } else {
+        digitalWrite(in1Pin, LOW);
+        digitalWrite(in2Pin, HIGH);
+    }
+
+    analogWrite(
+        pwmPin,
+        speed
+    );
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
+void handleMotorStop() {
+    if (payloadLength != 4) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t in1Pin = payload[0];
+    const uint8_t in2Pin = payload[1];
+    const uint8_t pwmPin = payload[2];
+    const uint8_t stopMode = payload[3];
+
+    if (
+        in1Pin < 2 ||
+        in1Pin > 19 ||
+        in2Pin < 2 ||
+        in2Pin > 19 ||
+        !isPwmPin(pwmPin) ||
+        in1Pin == in2Pin ||
+        in1Pin == pwmPin ||
+        in2Pin == pwmPin ||
+        stopMode > 1 ||
+        isServoAttachedOnPin(in1Pin) ||
+        isServoAttachedOnPin(in2Pin) ||
+        isServoAttachedOnPin(pwmPin) ||
+        activeTonePin == in1Pin ||
+        activeTonePin == in2Pin ||
+        activeTonePin == pwmPin ||
+        (
+            hasAttachedServo() &&
+            (pwmPin == 9 || pwmPin == 10)
+        )
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    pinMode(in1Pin, OUTPUT);
+    pinMode(in2Pin, OUTPUT);
+    pinMode(pwmPin, OUTPUT);
+
+    analogWrite(
+        pwmPin,
+        0
+    );
+
+    digitalWrite(in1Pin, LOW);
+    digitalWrite(in2Pin, LOW);
+
+    if (stopMode == 1) {
+        analogWrite(
+            pwmPin,
+            255
+        );
+    }
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
 void handleFrame() {
     if (command == COMMAND_PING) {
         sendFrame(
@@ -483,6 +626,16 @@ void handleFrame() {
 
     if (command == COMMAND_SERVO_WRITE) {
         handleServoWrite();
+        return;
+    }
+
+    if (command == COMMAND_MOTOR_WRITE) {
+        handleMotorWrite();
+        return;
+    }
+
+    if (command == COMMAND_MOTOR_STOP) {
+        handleMotorStop();
     }
 }
 

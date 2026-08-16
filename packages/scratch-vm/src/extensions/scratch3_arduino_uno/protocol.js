@@ -11,7 +11,9 @@ const COMMANDS = Object.freeze({
     PWM_WRITE: 0x13,
     TONE_START: 0x14,
     TONE_STOP: 0x15,
-    SERVO_WRITE: 0x16
+    SERVO_WRITE: 0x16,
+    MOTOR_WRITE: 0x17,
+    MOTOR_STOP: 0x18
 });
 
 const RESPONSES = Object.freeze({
