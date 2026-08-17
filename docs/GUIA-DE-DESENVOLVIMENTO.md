@@ -4676,6 +4676,162 @@ Primitives consolidados no Modo Palco:
 7. `MOTOR_WRITE / MOTOR_STOP`;
 8. `RELAY_WRITE`.
 
-O próximo primitive oficial é:
+O checkpoint RELÉ v1 foi fechado oficialmente em:
+
+- branch: `feat/easyblox-arduino-uno-foundation`;
+- commit: `049289c13e1be7a7fd4ef415e9c2ad856a215ce1`;
+- mensagem: `feat: add Arduino UNO Stage relay control`.
+
+A branch local e `origin/feat/easyblox-arduino-uno-foundation` foram confirmadas no mesmo commit.
+
+A alteração local independente:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+permaneceu corretamente fora desse checkpoint.
+
+Antes de iniciar o próximo primitive funcional, foi decidido consolidar o contrato visual das categorias de hardware.
+
+O próximo primitive continua sendo:
 
 `ULTRASSÔNICO`
+
+### 19.98. Contrato visual das categorias de hardware
+
+As categorias de hardware do EasyBlox devem possuir identidades visuais próprias e previsíveis.
+
+Extensões que não declaram cores utilizam atualmente o fallback do Runtime:
+
+- `color1: #0FBD8C`;
+- `color2: #0DA57A`;
+- `color3: #0B8E69`.
+
+Esse comportamento foi identificado em:
+
+`packages/scratch-vm/src/engine/runtime.js`
+
+O Runtime já é responsável por transferir `color1`, `color2` e `color3` declarados pelo `getInfo()` para a categoria apresentada pela interface.
+
+Portanto:
+
+**não implementar regras especiais de cor na Scratch GUI.**
+
+Cada extensão de categoria deve declarar explicitamente sua própria paleta no objeto retornado por:
+
+`getInfo()`
+
+#### Arduino UNO
+
+Paleta:
+
+- `color1: #0FBD8C`;
+- `color2: #0DA57A`;
+- `color3: #0B8E69`.
+
+Identidade visual:
+
+`verde turquesa`
+
+Essa é também a paleta padrão atualmente utilizada pelo Runtime para extensões sem cores explícitas.
+
+#### Atuadores
+
+Paleta oficial:
+
+- `color1: #2E7D32`;
+- `color2: #1B5E20`;
+- `color3: #124116`.
+
+Identidade visual:
+
+`verde escuro`
+
+Implementação:
+
+`packages/scratch-vm/src/extensions/scratch3_actuators/index.js`
+
+O `getInfo()` de Atuadores passou a declarar explicitamente:
+
+- `color1`;
+- `color2`;
+- `color3`.
+
+Teste automatizado:
+
+`packages/scratch-vm/test/unit/actuators.js`
+
+O teste também valida os três valores da paleta.
+
+Resultado após a alteração:
+
+`9 testes / 41 assertions / 41 aprovadas`
+
+Validação visual:
+
+`APROVADA`
+
+Foi confirmado no EasyBlox que:
+
+- Arduino UNO permanece em verde turquesa;
+- Atuadores aparece em verde escuro;
+- blocos, menus e campos mantêm contraste adequado;
+- as duas categorias ficam claramente distinguíveis;
+- a categoria Atuadores também permanece visualmente diferenciada da categoria nativa Operadores.
+
+#### Sensores de hardware EasyBlox
+
+Paleta oficial reservada:
+
+- `color1: #29B6F6`;
+- `color2: #039BE5`;
+- `color3: #0277BD`.
+
+Identidade visual:
+
+`azul claro vivo`
+
+A escolha deve permanecer visualmente distinta da categoria nativa `Sensores` do Scratch/EasyBlox, que utiliza uma tonalidade azul mais suave.
+
+Os sensores físicos específicos das placas deverão utilizar essa categoria.
+
+Consequentemente, o próximo primitive:
+
+`ULTRASSÔNICO`
+
+deverá nascer dentro desse contrato visual.
+
+#### Displays / Matriz
+
+Paleta oficial reservada:
+
+- `color1: #E53935`;
+- `color2: #C62828`;
+- `color3: #8E0000`.
+
+Identidade visual:
+
+`vermelho`
+
+Essa categoria deverá concentrar dispositivos cuja responsabilidade principal seja apresentação visual de informações, incluindo inicialmente:
+
+- matriz 8×8;
+- display de 7 segmentos;
+- LCD 16×2 I2C.
+
+#### Regra para os próximos contratos
+
+A partir deste checkpoint, qualquer novo primitive deve definir primeiro a categoria conceitual à qual pertence.
+
+As famílias visuais oficiais são:
+
+`Arduino UNO → verde turquesa`
+
+`Atuadores → verde escuro`
+
+`Sensores → azul claro vivo`
+
+`Displays / Matriz → vermelho`
+
+Essa decisão faz parte da arquitetura do EasyBlox e não deve ser redefinida individualmente por primitive.
+
+Se uma nova família conceitual surgir no futuro, sua identidade visual deverá ser definida no nível da categoria antes da implementação dos respectivos blocos.

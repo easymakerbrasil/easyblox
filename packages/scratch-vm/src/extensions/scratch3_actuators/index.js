@@ -24,6 +24,9 @@ class Scratch3ActuatorsBlocks {
         return {
             id: EXTENSION_ID,
             name: 'Atuadores',
+            color1: '#2E7D32',
+            color2: '#1B5E20',
+            color3: '#124116',
             blocks: [
                 {
                     opcode: 'servoWrite',

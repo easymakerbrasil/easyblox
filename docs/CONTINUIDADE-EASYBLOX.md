@@ -5254,20 +5254,133 @@ Primitives consolidados no Modo Palco:
 7. `MOTOR_WRITE / MOTOR_STOP`;
 8. `RELAY_WRITE`.
 
-Próximo primitive oficial:
+Checkpoint RELÉ v1 fechado oficialmente:
+
+- branch: `feat/easyblox-arduino-uno-foundation`;
+- commit: `049289c13e1be7a7fd4ef415e9c2ad856a215ce1`;
+- mensagem: `feat: add Arduino UNO Stage relay control`;
+- branch local e remoto sincronizados;
+- `packages/scratch-gui/src/components/action-menu/icon--sprite.svg` permanece como alteração local independente e fora do checkpoint.
+
+Antes de iniciar o próximo primitive, foi decidido consolidar a identidade visual das categorias de hardware do EasyBlox.
+
+O próximo primitive funcional continua sendo:
 
 `ULTRASSÔNICO`
 
-Antes de iniciar ULTRASSÔNICO, fechar o checkpoint RELÉ com:
+### 22.64. Contrato visual das categorias de hardware
 
-1. atualizar `docs/GUIA-DE-DESENVOLVIMENTO.md`;
-2. executar `git diff --check`;
-3. revisar todos os arquivos alterados;
-4. manter `packages/scratch-gui/src/components/action-menu/icon--sprite.svg` fora do staging;
-5. remover `.tap/` caso tenha sido recriada pelos testes;
-6. staging explícito dos arquivos RELÉ e documentação;
-7. executar `git diff --cached --check`;
-8. revisar staged files;
-9. commit;
-10. push;
-11. confirmar sincronização local/remoto.
+Antes da implementação do ULTRASSÔNICO, foi consolidada a arquitetura visual das categorias de hardware do EasyBlox.
+
+A finalidade é evitar que novas categorias sejam criadas utilizando automaticamente a paleta padrão das extensões Scratch:
+
+- `color1: #0FBD8C`;
+- `color2: #0DA57A`;
+- `color3: #0B8E69`.
+
+Essa paleta permanece associada ao Arduino UNO.
+
+Contrato visual aprovado:
+
+#### Arduino UNO
+
+- `color1: #0FBD8C`;
+- `color2: #0DA57A`;
+- `color3: #0B8E69`.
+
+Identidade:
+
+`verde turquesa`
+
+#### Atuadores
+
+- `color1: #2E7D32`;
+- `color2: #1B5E20`;
+- `color3: #124116`.
+
+Identidade:
+
+`verde escuro`
+
+A categoria `Atuadores` passou a declarar explicitamente essas propriedades em:
+
+`packages/scratch-vm/src/extensions/scratch3_actuators/index.js`
+
+A alteração foi validada automaticamente em:
+
+`packages/scratch-vm/test/unit/actuators.js`
+
+Resultado:
+
+`9 testes / 41 assertions / 41 aprovadas`
+
+A validação visual no EasyBlox também foi aprovada.
+
+Os blocos de Atuadores ficaram claramente distintos:
+
+- do verde turquesa do Arduino UNO;
+- da categoria nativa Operadores;
+- das demais categorias Scratch.
+
+#### Sensores de hardware EasyBlox
+
+Paleta reservada:
+
+- `color1: #29B6F6`;
+- `color2: #039BE5`;
+- `color3: #0277BD`.
+
+Identidade:
+
+`azul claro vivo`
+
+Essa paleta foi escolhida deliberadamente para diferenciar os sensores físicos EasyBlox da categoria nativa `Sensores` do Scratch/EasyBlox, que utiliza um azul mais suave.
+
+O próximo primitive:
+
+`ULTRASSÔNICO`
+
+deverá ser implementado dentro dessa identidade visual de Sensores.
+
+#### Displays / Matriz
+
+Paleta reservada:
+
+- `color1: #E53935`;
+- `color2: #C62828`;
+- `color3: #8E0000`.
+
+Identidade:
+
+`vermelho`
+
+Essa identidade deverá ser utilizada posteriormente pelos blocos relacionados a:
+
+- matriz 8×8;
+- display de 7 segmentos;
+- LCD 16×2 I2C;
+- demais dispositivos de visualização que pertençam à mesma família conceitual.
+
+#### Regra arquitetural
+
+Cada categoria de hardware deve declarar sua própria paleta através de:
+
+- `color1`;
+- `color2`;
+- `color3`;
+
+no objeto retornado por `getInfo()` da respectiva extensão.
+
+Não criar lógica específica na GUI apenas para alterar cores.
+
+O `Runtime` já propaga essas propriedades para a interface e deve continuar sendo o mecanismo oficial.
+
+Portanto, os próximos contratos devem respeitar desde sua criação:
+
+`Arduino UNO → verde turquesa`
+
+`Atuadores → verde escuro`
+
+`Sensores → azul claro vivo`
+
+`Displays / Matriz → vermelho`

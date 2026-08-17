@@ -41,6 +41,9 @@ test('Actuators expose the servo block and supported servo pins', t => {
 
     t.equal(info.id, 'actuators');
     t.equal(info.name, 'Atuadores');
+    t.equal(info.color1, '#2E7D32');
+    t.equal(info.color2, '#1B5E20');
+    t.equal(info.color3, '#124116');
     t.equal(info.blocks.length, 4);
 
     const servoBlock = info.blocks[0];
