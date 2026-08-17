@@ -549,3 +549,27 @@ tap.test('encodes ULTRASONIC_READ payload', t => {
 
     t.end();
 });
+
+tap.test('encodes DHT_READ payload', t => {
+    const frame = encodeFrame(
+        0x35,
+        COMMANDS.DHT_READ,
+        [12, 0]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x35);
+    t.equal(frame[4], COMMANDS.DHT_READ);
+    t.equal(frame[5], 2);
+    t.equal(frame[6], 12);
+    t.equal(frame[7], 0);
+
+    t.equal(
+        frame[8],
+        calculateChecksum(frame.subarray(2, 8))
+    );
+
+    t.end();
+});

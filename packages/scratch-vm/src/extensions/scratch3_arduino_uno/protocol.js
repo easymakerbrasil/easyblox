@@ -15,7 +15,8 @@ const COMMANDS = Object.freeze({
     MOTOR_WRITE: 0x17,
     MOTOR_STOP: 0x18,
     RELAY_WRITE: 0x19,
-    ULTRASONIC_READ: 0x1A
+    ULTRASONIC_READ: 0x1A,
+    DHT_READ: 0x1B
 });
 
 const RESPONSES = Object.freeze({
@@ -24,6 +25,7 @@ const RESPONSES = Object.freeze({
     DIGITAL_READ: 0x91,
     ANALOG_READ: 0x92,
     ULTRASONIC_READ: 0x93,
+    DHT_READ: 0x94,
     ERROR: 0xFF
 });
 

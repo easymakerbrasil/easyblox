@@ -21,12 +21,14 @@ constexpr uint8_t COMMAND_MOTOR_WRITE = 0x17;
 constexpr uint8_t COMMAND_MOTOR_STOP = 0x18;
 constexpr uint8_t COMMAND_RELAY_WRITE = 0x19;
 constexpr uint8_t COMMAND_ULTRASONIC_READ = 0x1A;
+constexpr uint8_t COMMAND_DHT_READ = 0x1B;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
 constexpr uint8_t RESPONSE_DIGITAL_READ = 0x91;
 constexpr uint8_t RESPONSE_ANALOG_READ = 0x92;
 constexpr uint8_t RESPONSE_ULTRASONIC_READ = 0x93;
+constexpr uint8_t RESPONSE_DHT_READ = 0x94;
 constexpr uint8_t RESPONSE_ERROR = 0xFF;
 
 enum class ParserState : uint8_t {
@@ -52,6 +54,22 @@ uint8_t checksum = 0;
 
 constexpr uint8_t NO_TONE_PIN = 0xFF;
 uint8_t activeTonePin = NO_TONE_PIN;
+
+constexpr unsigned long DHT_CACHE_INTERVAL_MS = 2000UL;
+
+constexpr uint8_t DHT_FIRST_PIN = 2;
+constexpr uint8_t DHT_LAST_PIN = 13;
+constexpr uint8_t DHT_PIN_COUNT =
+    DHT_LAST_PIN - DHT_FIRST_PIN + 1;
+
+struct DhtCacheEntry {
+    uint8_t humidity;
+    uint8_t temperature;
+    unsigned long timestamp;
+    bool valid;
+};
+
+DhtCacheEntry dhtCache[DHT_PIN_COUNT] = {};
 
 constexpr uint8_t SERVO_PIN_COUNT = 6;
 
@@ -272,6 +290,268 @@ void handleAnalogRead() {
     sendFrame(
         sequence,
         RESPONSE_ANALOG_READ,
+        responsePayload,
+        sizeof(responsePayload)
+    );
+}
+
+uint16_t measureDhtPulse(
+    volatile uint8_t *inputRegister,
+    uint8_t bitMask,
+    bool level
+) {
+    const uint8_t expectedState =
+        level ? bitMask : 0;
+
+    const uint16_t maxCycles =
+        static_cast<uint16_t>(
+            microsecondsToClockCycles(1000)
+        );
+
+    uint16_t cycles = 0;
+
+    while (
+        (*inputRegister & bitMask) ==
+        expectedState
+    ) {
+        cycles++;
+
+        if (cycles >= maxCycles) {
+            return 0;
+        }
+    }
+
+    return cycles;
+}
+
+bool readDht11(
+    uint8_t pin,
+    uint8_t &humidity,
+    uint8_t &temperature
+) {
+    uint8_t data[5] = {
+        0,
+        0,
+        0,
+        0,
+        0
+    };
+
+    const uint8_t port =
+        digitalPinToPort(pin);
+
+    const uint8_t bitMask =
+        digitalPinToBitMask(pin);
+
+    if (port == NOT_A_PIN) {
+        return false;
+    }
+
+    volatile uint8_t *inputRegister =
+        portInputRegister(port);
+
+    // Leave the bus idle before starting communication.
+    pinMode(
+        pin,
+        INPUT_PULLUP
+    );
+
+    delay(1);
+
+    // DHT11 start signal: LOW for at least 18 ms.
+    pinMode(
+        pin,
+        OUTPUT
+    );
+
+    digitalWrite(
+        pin,
+        LOW
+    );
+
+    delay(20);
+
+    // Release the bus and allow the DHT11 to take control.
+    pinMode(
+        pin,
+        INPUT_PULLUP
+    );
+
+    delayMicroseconds(55);
+
+    uint16_t lowCycles[40];
+    uint16_t highCycles[40];
+
+    bool timingValid = true;
+
+    noInterrupts();
+
+    // DHT11 response: ~80 us LOW followed by ~80 us HIGH.
+    if (
+        measureDhtPulse(
+            inputRegister,
+            bitMask,
+            LOW
+        ) == 0
+    ) {
+        timingValid = false;
+    }
+
+    if (
+        timingValid &&
+        measureDhtPulse(
+            inputRegister,
+            bitMask,
+            HIGH
+        ) == 0
+    ) {
+        timingValid = false;
+    }
+
+    // Read 40 data bits.
+    if (timingValid) {
+        for (
+            uint8_t bitIndex = 0;
+            bitIndex < 40;
+            bitIndex++
+        ) {
+            lowCycles[bitIndex] =
+                measureDhtPulse(
+                    inputRegister,
+                    bitMask,
+                    LOW
+                );
+
+            highCycles[bitIndex] =
+                measureDhtPulse(
+                    inputRegister,
+                    bitMask,
+                    HIGH
+                );
+
+            if (
+                lowCycles[bitIndex] == 0 ||
+                highCycles[bitIndex] == 0
+            ) {
+                timingValid = false;
+                break;
+            }
+        }
+    }
+
+    interrupts();
+
+    if (!timingValid) {
+        return false;
+    }
+
+    // A logical 1 has a HIGH period longer than the
+    // approximately 50 us LOW period preceding it.
+    for (
+        uint8_t bitIndex = 0;
+        bitIndex < 40;
+        bitIndex++
+    ) {
+        data[bitIndex / 8] <<= 1;
+
+        if (
+            highCycles[bitIndex] >
+            lowCycles[bitIndex]
+        ) {
+            data[bitIndex / 8] |= 1;
+        }
+    }
+
+    const uint8_t expectedChecksum =
+        static_cast<uint8_t>(
+            data[0] +
+            data[1] +
+            data[2] +
+            data[3]
+        );
+
+    if (expectedChecksum != data[4]) {
+        return false;
+    }
+
+    humidity = data[0];
+    temperature = data[2];
+
+    return true;
+}
+
+void handleDhtRead() {
+    if (payloadLength != 2) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t pin = payload[0];
+    const uint8_t type = payload[1];
+
+    if (
+        pin < DHT_FIRST_PIN ||
+        pin > DHT_LAST_PIN ||
+        type > 1 ||
+        isServoAttachedOnPin(pin) ||
+        activeTonePin == pin
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    uint8_t humidity = 0;
+    uint8_t temperature = 0;
+
+    DhtCacheEntry &cache =
+    dhtCache[pin - DHT_FIRST_PIN];
+
+    if (
+        cache.valid &&
+        millis() - cache.timestamp < DHT_CACHE_INTERVAL_MS
+    ) {
+        humidity = cache.humidity;
+        temperature = cache.temperature;
+    } else {
+        if (!readDht11(pin, humidity, temperature)) {
+            cache.valid = false;
+
+            sendFrame(
+                sequence,
+                RESPONSE_ERROR
+            );
+            return;
+        }
+
+        cache.humidity = humidity;
+        cache.temperature = temperature;
+        cache.timestamp = millis();
+        cache.valid = true;
+    }
+
+    const uint16_t temperatureValue =
+        static_cast<uint16_t>(temperature) * 100;
+
+    const uint16_t humidityValue =
+        static_cast<uint16_t>(humidity) * 100;
+
+    const uint8_t responsePayload[] = {
+        pin,
+        static_cast<uint8_t>((temperatureValue >> 8) & 0xFF),
+        static_cast<uint8_t>(temperatureValue & 0xFF),
+        static_cast<uint8_t>((humidityValue >> 8) & 0xFF),
+        static_cast<uint8_t>(humidityValue & 0xFF)
+    };
+
+    sendFrame(
+        sequence,
+        RESPONSE_DHT_READ,
         responsePayload,
         sizeof(responsePayload)
     );
@@ -768,6 +1048,10 @@ void handleFrame() {
 
     if (command == COMMAND_ULTRASONIC_READ) {
         handleUltrasonicRead();
+    }
+
+    if (command == COMMAND_DHT_READ) {
+        handleDhtRead();
     }
 }
 

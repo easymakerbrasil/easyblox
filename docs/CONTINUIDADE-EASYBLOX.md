@@ -34,7 +34,7 @@ Características planejadas:
 - suporte ao Arduino UNO e ESP32;
 - geração de código Arduino C/C++;
 - compilação e gravação usando Arduino CLI;
-- perfis EasyMaker, EasyDuino e MakerDuino;
+- perfis EasyMaker e EasyDuino;
 - futura comunicação com o aplicativo EasyConect.
 
 ### EasyConect
@@ -449,7 +449,7 @@ Ainda não realizado:
 - correção do comportamento herdado do Action Menu;
 - personalização adicional da tela inicial, quando definida;
 - inclusão das placas Arduino UNO e ESP32;
-- criação dos perfis EasyMaker, EasyDuino e MakerDuino;
+- criação dos perfis EasyMaker e EasyDuino;
 - integração do Arduino CLI;
 - geração de Arduino C/C++;
 - empacotamento desktop;
@@ -611,7 +611,6 @@ As placas da família EasyMaker atendidas inicialmente sobre a arquitetura Ardui
 
 - EasyMaker;
 - EasyDuino;
-- MakerDuino.
 
 ESP32 e EasyMaker Conect ficam explicitamente para uma etapa posterior, somente depois de Arduino UNO, Modo Palco e Upload funcionarem de ponta a ponta na prática.
 
@@ -4299,7 +4298,7 @@ Cada motor é representado por:
 
 `IN1 + IN2 + PWM`
 
-Isso permite que futuras extensões específicas de EasyMaker, EasyDuino e MakerDuino façam o mapeamento lógico dos motores sem alterar o protocolo Stage.
+Isso permite que futuras extensões específicas de EasyMaker e EasyDuino façam o mapeamento lógico dos motores sem alterar o protocolo Stage.
 
 ### 22.42. Contrato MOTOR v1
 
@@ -5384,3 +5383,170 @@ Portanto, os próximos contratos devem respeitar desde sua criação:
 `Sensores Arduino → azul claro vivo`
 
 `Displays / Matriz → vermelho`
+
+### 22.65. DHT v1 — contrato fechado
+
+O DHT foi implementado na categoria:
+
+`Sensores Arduino`
+
+Contrato Stage:
+
+- `COMMAND_DHT_READ = 0x1B`;
+- `RESPONSE_DHT_READ = 0x94`;
+- request `[PIN, TYPE]`;
+- `TYPE=0` temperatura;
+- `TYPE=1` umidade;
+- response `[PIN, TEMP_H, TEMP_L, HUM_H, HUM_L]`;
+- valores transportados em centésimos, `uint16` big-endian.
+
+Pinos:
+
+`D2..D13`
+
+Default EasyDuino:
+
+`D12`
+
+Bloco:
+
+`[temperatura/umidade] do DHT no pino [D12]`
+
+### 22.66. Implementação física DHT11
+
+O firmware Stage realiza a leitura sem biblioteca externa.
+
+A implementação final utiliza acesso direto ao registrador AVR através de:
+
+- `digitalPinToPort()`;
+- `digitalPinToBitMask()`;
+- `portInputRegister()`.
+
+São capturados:
+
+- resposta inicial LOW/HIGH do sensor;
+- 40 bits de dados;
+- períodos LOW/HIGH de cada bit;
+- checksum DHT11.
+
+Essa implementação substituiu tentativas intermediárias com `digitalRead()/micros()` e `pulseIn()` sequencial.
+
+### 22.67. Cache DHT
+
+Intervalo:
+
+`2000 ms`
+
+O cache é independente por pino em:
+
+`D2..D13`
+
+Estrutura lógica:
+
+```text
+DhtCacheEntry
+├─ humidity
+├─ temperature
+├─ timestamp
+└─ valid
+```
+
+A compilação final do firmware apresentou:
+
+Flash: 7734 / 32256 bytes — 23%;
+SRAM global: 382 / 2048 bytes — 18%;
+SRAM restante: 1666 bytes.
+
+### 22.68. Validação automatizada
+
+Resultados finais:
+
+protocolo Arduino UNO: 143 / 143;
+ArduinoUnoPeripheral: 317 / 317;
+Sensores Arduino: 38 / 38.
+
+Total:
+
+498 / 498
+
+git diff --check aprovado.
+
+### 22.69. Validação física final
+
+Bancada:
+
+EasyDuino;
+COM11;
+DHT11 integrado em D12.
+
+Resposta final:
+
+DHT TEMP: FF 55 01 01 94 05 0C 0A 8C 22 60 59
+DHT HUM:  FF 55 01 02 94 05 0C 0A 8C 22 60 5A
+
+Decodificação:
+
+temperatura: 27,00 °C;
+umidade: 88,00 %.
+
+Os checksums foram confirmados.
+
+As duas leituras ocorreram em sequência com intervalo inferior a 2 segundos, validando também o cache.
+
+### 22.70. Validação visual end-to-end
+
+O bloco DHT apareceu corretamente no EasyBlox em:
+
+Sensores Arduino
+
+Foram aprovados fisicamente e visualmente:
+
+temperatura;
+umidade;
+dropdown de tipo;
+pino D12 padrão;
+comunicação Stage;
+leitura real do hardware.
+
+Resultado final:
+
+DHT v1 ✅
+
+### 22.71. Estado após DHT v1
+
+Primitives Stage consolidados:
+
+DIGITAL_WRITE;
+DIGITAL_READ;
+ANALOG_READ;
+PWM_WRITE;
+TONE_START / TONE_STOP;
+SERVO_WRITE;
+MOTOR_WRITE / MOTOR_STOP;
+RELAY_WRITE;
+ULTRASONIC_READ;
+DHT_READ.
+
+Branch:
+
+feat/easyblox-arduino-uno-foundation
+
+A alteração local abaixo continua independente e não pertence ao checkpoint Arduino/DHT:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+### 22.72. Próximo passo exato
+
+Próximo primitive oficial:
+
+MATRIZ DE LED 8×8
+
+Depois:
+
+Display de 7 segmentos;
+Display LCD 16×2 I2C;
+Joystick X/Y.
+
+Manter a disciplina:
+
+protocolo → testes → firmware → compile → peripheral → testes → build → hardware → bloco visual → documentação → commit

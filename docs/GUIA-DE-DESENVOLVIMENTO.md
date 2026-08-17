@@ -9,7 +9,7 @@ O EasyBlox será um software gratuito de programação em blocos desenvolvido pe
 - **EasyBlox:** software desktop para Windows, baseado no Scratch Editor.
 - **EasyConect:** aplicativo Android de controle e monitoramento por Bluetooth.
 - **Placas iniciais:** Arduino UNO e ESP32.
-- **Perfis de hardware:** EasyMaker, EasyDuino e MakerDuino.
+- **Perfis de hardware: EasyMaker e EasyDuino.**
 
 ## 2. Objetivos iniciais
 
@@ -26,7 +26,7 @@ O EasyConect será um controle remoto semelhante em funcionalidade ao Dabble, ma
 
 ## 3. Comunicação Bluetooth
 
-Nas placas EasyMaker e MakerDuino, o módulo HC-06 utiliza:
+Nas placas EasyMaker, o módulo HC-06 utiliza:
 
 | Arduino | Função | HC-06 |
 |---|---|---|
@@ -191,7 +191,7 @@ Resultado: compilação do `scratch-gui` e compilação completa do repositório
 1. Preparar e documentar o ambiente.
 2. Corrigir a compatibilidade da compilação no Windows.
 3. Aplicar a identidade visual EasyMaker.
-4. Criar os perfis EasyMaker, EasyDuino e MakerDuino.
+4. Criar os perfis EasyMaker, EasyDuino.
 5. Adicionar suporte ao Arduino UNO.
 6. Adicionar suporte ao ESP32.
 7. Integrar o Arduino CLI.
@@ -672,7 +672,7 @@ C:\Users\EasyMaker\source\EasyMakerDev\easyblox>node -e "const fs=require('fs');
    3: ## 1. Visão do projeto
    7: ### Produtos
   11: - **Placas iniciais:** Arduino UNO e ESP32.
-  12: - **Perfis de hardware:** EasyMaker, EasyDuino e MakerDuino.
+  12: - **Perfis de hardware:** EasyMaker, EasyDuino.
   14: ## 2. Objetivos iniciais
   19: - geração de código Arduino C/C++;
   20: - compilação e gravação no Arduino UNO e ESP32;
@@ -726,7 +726,7 @@ C:\Users\EasyMaker\source\EasyMakerDev\easyblox>node -e "const fs=require('fs');
    3: ## 1. Visão do projeto
    7: ### Produtos
   11: - **Placas iniciais:** Arduino UNO e ESP32.
-  12: - **Perfis de hardware:** EasyMaker, EasyDuino e MakerDuino.
+  12: - **Perfis de hardware:** EasyMaker e EasyDuino.
   14: ## 2. Objetivos iniciais
   19: - geração de código Arduino C/C++;
   20: - compilação e gravação no Arduino UNO e ESP32;
@@ -797,7 +797,7 @@ Ordem de trabalho atual:
 8. Carregar/Upload;
 9. validação da família EasyMaker.
 
-As placas EasyMaker, EasyDuino e MakerDuino deverão utilizar a base Arduino UNO. ESP32/EasyMaker Conect será tratado somente em ciclo posterior.
+As placas EasyMaker e EasyDuino deverão utilizar a base Arduino UNO. ESP32/EasyMaker Conect será tratado somente em ciclo posterior.
 
 ### 18.1. Arquitetura Serial
 
@@ -3812,7 +3812,7 @@ Um motor é representado genericamente por três pinos:
 
 `IN1 + IN2 + PWM`
 
-Essa decisão permite que EasyMaker, EasyDuino e MakerDuino utilizem futuramente os mesmos primitives e o mesmo protocolo, mesmo possuindo mapeamentos físicos diferentes.
+Essa decisão permite que EasyMaker e EasyDuino utilizem futuramente os mesmos primitives e o mesmo protocolo, mesmo possuindo mapeamentos físicos diferentes.
 
 Camadas:
 
@@ -4841,3 +4841,276 @@ As famílias visuais oficiais são:
 Essa decisão faz parte da arquitetura do EasyBlox e não deve ser redefinida individualmente por primitive.
 
 Se uma nova família conceitual surgir no futuro, sua identidade visual deverá ser definida no nível da categoria antes da implementação dos respectivos blocos.
+
+### 19.99. ULTRASSÔNICO e DHT — estado atual de Sensores Arduino
+
+A categoria `Sensores Arduino` utiliza a paleta oficial:
+
+- `color1: #29B6F6`;
+- `color2: #039BE5`;
+- `color3: #0277BD`.
+
+Os primeiros primitives consolidados nessa categoria são:
+
+1. `ULTRASONIC_READ`;
+2. `DHT_READ`.
+
+O ULTRASSÔNICO utiliza:
+
+- comando `0x1A`;
+- resposta `0x93`;
+- payload de requisição `[TRIG, ECHO]`;
+- resposta `[TRIG, ECHO, DIST_HI, DIST_LO]`;
+- distância transportada em milímetros;
+- conversão para centímetros realizada pela extensão `Sensores Arduino`;
+- pinos genéricos `D2..D13` e `A0..A5`;
+- padrão visual A2 como TRIG e A3 como ECHO.
+
+O DHT utiliza:
+
+- comando `DHT_READ = 0x1B`;
+- resposta `DHT_READ = 0x94`;
+- payload de requisição `[PIN, TYPE]`;
+- `TYPE = 0` para temperatura;
+- `TYPE = 1` para umidade;
+- resposta `[PIN, TEMP_H, TEMP_L, HUM_H, HUM_L]`;
+- temperatura e umidade transportadas como `uint16` big-endian em centésimos.
+
+O bloco visual aprovado é um único reporter:
+
+`[temperatura/umidade] do DHT no pino [D12]`
+
+O menu de pinos do DHT é restrito a:
+
+`D2..D13`
+
+O padrão da EasyDuino é:
+
+`D12`
+
+A extensão JavaScript converte:
+
+- temperatura bruta `/ 100` para graus Celsius;
+- umidade bruta `/ 100` para percentual.
+
+### 19.100. DHT11 — leitura física no firmware Stage
+
+A leitura DHT11 é realizada diretamente pelo firmware:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Não foi adicionada biblioteca externa para o DHT.
+
+Durante o desenvolvimento, abordagens baseadas em `digitalRead() + micros()` e chamadas sequenciais de `pulseIn()` não se mostraram adequadas para a temporização contínua do protocolo DHT11.
+
+A implementação final utiliza:
+
+- `digitalPinToPort()`;
+- `digitalPinToBitMask()`;
+- `portInputRegister()`;
+- leitura direta do registrador AVR;
+- contagem dos períodos LOW e HIGH;
+- interrupções desabilitadas somente durante a janela crítica da captura dos 40 bits;
+- comparação entre a duração HIGH e o período LOW anterior;
+- validação do checksum do DHT11.
+
+O firmware mantém a linha LOW por aproximadamente 20 ms para iniciar a comunicação e libera posteriormente o barramento com `INPUT_PULLUP`.
+
+Falhas de temporização ou checksum resultam em:
+
+`RESPONSE_ERROR`
+
+### 19.101. Cache DHT por pino
+
+Como reporters Scratch podem ser avaliados muitas vezes por segundo, o firmware não deve realizar uma nova transação física DHT a cada consulta.
+
+Foi adotado:
+
+`DHT_CACHE_INTERVAL_MS = 2000`
+
+O cache é independente por pino para todos os pinos suportados:
+
+`D2..D13`
+
+Cada entrada armazena:
+
+- umidade;
+- temperatura;
+- timestamp;
+- estado válido/inválido.
+
+Consequentemente:
+
+```text
+D12 → leitura física → cache D12
+D11 → leitura física → cache D11
+D12 → reutiliza cache D12 quando ainda válido
+```
+
+Um DHT conectado a um pino não invalida o cache de outro pino.
+
+Após a implementação do cache independente por pino, a compilação Arduino UNO apresentou:
+
+Flash: 7734 / 32256 bytes — 23%;
+SRAM global: 382 / 2048 bytes — 18%;
+SRAM restante: 1666 bytes.
+
+### 19.102. Arbitragem de recursos do DHT
+
+O DHT aceita apenas pinos digitais:
+
+D2..D13
+
+Uma requisição é rejeitada quando:
+
+o payload não possui exatamente 2 bytes;
+o pino está fora de D2..D13;
+TYPE não é 0 ou 1;
+existe Servo anexado ao mesmo pino;
+existe Tone ativo no mesmo pino.
+
+Em qualquer uma dessas situações, o firmware responde:
+
+RESPONSE_ERROR
+
+### 19.103. Peripheral DHT
+
+O ArduinoUnoPeripheral mantém leituras pendentes em:
+
+_pendingDhtReads
+
+Cada requisição é associada à sequence do protocolo Stage.
+
+O método:
+
+dhtRead(pin, type)
+
+valida:
+
+conexão Stage ativa;
+pino inteiro em D2..D13;
+TYPE inteiro igual a 0 ou 1.
+
+Quando chega RESPONSE_DHT_READ, o peripheral reconstrói:
+
+temperature = TEMP_H << 8 | TEMP_L
+humidity    = HUM_H  << 8 | HUM_L
+
+e resolve a Promise com:
+
+{
+    temperature,
+    humidity
+}
+
+Em RESPONSE_ERROR ou reset da conexão, a leitura pendente é resolvida com:
+
+null
+
+### 19.104. Validação automatizada do DHT
+
+Após a implementação completa do DHT, foram executadas regressões nas três camadas JavaScript.
+
+Resultados:
+
+Protocolo Arduino UNO
+
+packages/scratch-vm/test/unit/arduino-uno-protocol.js
+
+22 suites;
+143 assertions;
+143 aprovadas;
+0 falhas.
+ArduinoUnoPeripheral
+
+packages/scratch-vm/test/unit/arduino-uno.js
+
+35 suites;
+317 assertions;
+317 aprovadas;
+0 falhas.
+Sensores Arduino
+
+packages/scratch-vm/test/unit/sensors.js
+
+10 suites;
+38 assertions;
+38 aprovadas;
+0 falhas.
+
+Total do checkpoint:
+
+498 assertions / 498 aprovadas
+
+Também foi aprovado:
+
+git diff --check
+
+### 19.105. Validação física e visual do DHT
+
+A validação física foi realizada com:
+
+EasyDuino;
+porta COM11;
+DHT11 integrado;
+sinal no pino D12;
+baud rate 115200.
+
+Uma resposta física validada foi:
+
+FF 55 01 01 94 05 0C 09 60 14 B4 54
+
+correspondendo a:
+
+temperatura: 24,00 °C;
+umidade: 53,00 %.
+
+Após a implementação final do cache por pino, uma nova validação retornou:
+
+DHT TEMP: FF 55 01 01 94 05 0C 0A 8C 22 60 59
+DHT HUM:  FF 55 01 02 94 05 0C 0A 8C 22 60 5A
+
+correspondendo a:
+
+temperatura: 27,00 °C;
+umidade: 88,00 %.
+
+As duas consultas foram realizadas no mesmo pino em intervalo inferior a 2 segundos, validando também o reaproveitamento do cache.
+
+Na interface EasyBlox foi confirmado:
+
+bloco DHT visível em Sensores Arduino;
+dropdown temperatura / umidade;
+pino padrão D12;
+leitura física de temperatura funcionando;
+leitura física de umidade funcionando.
+
+Resultado:
+
+DHT v1 APROVADO END-TO-END
+
+### 19.106. Estado atual dos primitives Stage Arduino UNO
+
+Primitives consolidados:
+
+DIGITAL_WRITE;
+DIGITAL_READ;
+ANALOG_READ;
+PWM_WRITE;
+TONE_START / TONE_STOP;
+SERVO_WRITE;
+MOTOR_WRITE / MOTOR_STOP;
+RELAY_WRITE;
+ULTRASONIC_READ;
+DHT_READ.
+
+A sequência funcional prevista continua com:
+
+Matriz de LED 8×8;
+Display de 7 segmentos;
+Display LCD 16×2 I2C;
+Joystick X/Y.
+
+O próximo primitive oficial é:
+
+MATRIZ DE LED 8×8

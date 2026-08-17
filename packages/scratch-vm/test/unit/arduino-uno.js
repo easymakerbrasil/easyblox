@@ -1286,6 +1286,239 @@ tap.test('Arduino UNO resolves pending ultrasonic read with null on reset', asyn
     );
 });
 
+tap.test('Arduino UNO reads DHT values in Stage mode', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(
+        peripheral.isStageConnected(),
+        true
+    );
+
+    const readPromise = peripheral.dhtRead(
+        12,
+        1
+    );
+
+    t.ok(readPromise instanceof Promise);
+    t.equal(writtenFrames.length, 2);
+
+    const readFrame = writtenFrames[1];
+
+    t.equal(
+        readFrame[4],
+        COMMANDS.DHT_READ
+    );
+
+    t.equal(readFrame[5], 2);
+    t.equal(readFrame[6], 12);
+    t.equal(readFrame[7], 1);
+
+    const readSequence = readFrame[3];
+
+    onData(
+        encodeFrame(
+            readSequence,
+            RESPONSES.DHT_READ,
+            [
+                12,
+                0x09,
+                0x60,
+                0x14,
+                0xB4
+            ]
+        )
+    );
+
+    const result = await readPromise;
+
+    t.equal(
+        result.temperature,
+        2400
+    );
+
+    t.equal(
+        result.humidity,
+        5300
+    );
+
+    t.equal(
+        peripheral._pendingDhtReads.size,
+        0
+    );
+});
+
+tap.test('Arduino UNO rejects invalid DHT_READ requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.dhtRead(12, 0),
+        null,
+        'does not read before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    t.equal(peripheral.dhtRead(1, 0), null);
+    t.equal(peripheral.dhtRead(14, 0), null);
+    t.equal(peripheral.dhtRead(12.5, 0), null);
+
+    t.equal(peripheral.dhtRead(12, -1), null);
+    t.equal(peripheral.dhtRead(12, 2), null);
+    t.equal(peripheral.dhtRead(12, 0.5), null);
+
+    t.end();
+});
+
+tap.test('Arduino UNO resolves DHT read with null on ERROR', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const readPromise = peripheral.dhtRead(
+        12,
+        0
+    );
+
+    const readSequence = writtenFrames[1][3];
+
+    onData(
+        encodeFrame(
+            readSequence,
+            RESPONSES.ERROR
+        )
+    );
+
+    t.equal(
+        await readPromise,
+        null
+    );
+
+    t.equal(
+        peripheral._pendingDhtReads.size,
+        0
+    );
+});
+
+tap.test('Arduino UNO resolves pending DHT read with null on reset', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const readPromise = peripheral.dhtRead(
+        12,
+        0
+    );
+
+    t.equal(
+        peripheral._pendingDhtReads.size,
+        1
+    );
+
+    peripheral._reset();
+
+    t.equal(
+        await readPromise,
+        null
+    );
+
+    t.equal(
+        peripheral._pendingDhtReads.size,
+        0
+    );
+
+    t.equal(
+        peripheral.isStageConnected(),
+        false
+    );
+});
+
 tap.test('Arduino UNO exposes the PWM_WRITE block and delegates numeric values', t => {
     const runtime = new MockRuntime(null);
     const extension = new Scratch3ArduinoUnoBlocks(runtime);

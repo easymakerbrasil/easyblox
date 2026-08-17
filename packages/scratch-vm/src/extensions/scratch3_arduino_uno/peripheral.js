@@ -41,6 +41,7 @@ class ArduinoUnoPeripheral {
         this._pendingDigitalReads = new Map();
         this._pendingAnalogReads = new Map();
         this._pendingUltrasonicReads = new Map();
+        this._pendingDhtReads = new Map();
         this._stageConnected = false;
         this._handshakeTimer = null;
         this._handshakeAttempts = 0;
@@ -493,6 +494,51 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Read temperature and humidity from a DHT11-style sensor in Stage mode.
+     * @param {number} pin Arduino digital pin connected to the DHT sensor.
+     * @param {number} type Requested value type: 0 for temperature, 1 for humidity.
+     * @returns {?Promise<object>} Promise resolved with raw hundredths values, or null when unavailable.
+     */
+    dhtRead (pin, type) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(pin) ||
+            pin < 2 ||
+            pin > 13 ||
+            !Number.isInteger(type) ||
+            (type !== 0 && type !== 1)
+        ) {
+            return null;
+        }
+
+        const sequence = this._sendCommand(
+            COMMANDS.DHT_READ,
+            [
+                pin,
+                type
+            ]
+        );
+
+        if (sequence === null) {
+            return null;
+        }
+
+        return new Promise(resolve => {
+            this._pendingDhtReads.set(
+                sequence,
+                {
+                    pin,
+                    type,
+                    resolve
+                }
+            );
+        });
+    }
+
+    /**
      * Called when the physical serial connection succeeds.
      * Starts the EasyBlox Stage protocol handshake.
      * @returns {void}
@@ -567,12 +613,21 @@ class ArduinoUnoPeripheral {
         }
 
         if (frame.command === RESPONSES.ERROR) {
-            const pendingRead =
+            const pendingUltrasonicRead =
                 this._pendingUltrasonicReads.get(frame.sequence);
 
-            if (pendingRead) {
+            if (pendingUltrasonicRead) {
                 this._pendingUltrasonicReads.delete(frame.sequence);
-                pendingRead.resolve(null);
+                pendingUltrasonicRead.resolve(null);
+                return;
+            }
+
+            const pendingDhtRead =
+                this._pendingDhtReads.get(frame.sequence);
+
+            if (pendingDhtRead) {
+                this._pendingDhtReads.delete(frame.sequence);
+                pendingDhtRead.resolve(null);
             }
 
             return;
@@ -645,6 +700,38 @@ class ArduinoUnoPeripheral {
             this._pendingUltrasonicReads.delete(frame.sequence);
 
             pendingRead.resolve(distanceMm);
+
+            return;
+        }
+
+        if (frame.command === RESPONSES.DHT_READ) {
+            const pendingRead =
+                this._pendingDhtReads.get(frame.sequence);
+
+            if (
+                !pendingRead ||
+                frame.payload.length !== 5 ||
+                frame.payload[0] !== pendingRead.pin
+            ) {
+                return;
+            }
+
+            const temperature =
+                (frame.payload[1] << 8) |
+                frame.payload[2];
+
+            const humidity =
+                (frame.payload[3] << 8) |
+                frame.payload[4];
+
+            this._pendingDhtReads.delete(frame.sequence);
+
+            pendingRead.resolve({
+                temperature,
+                humidity
+            });
+
+            return;
         }
     }
 
@@ -707,6 +794,12 @@ class ArduinoUnoPeripheral {
         }
 
         this._pendingUltrasonicReads.clear();
+
+        for (const pendingRead of this._pendingDhtReads.values()) {
+            pendingRead.resolve(null);
+        }
+
+        this._pendingDhtReads.clear();
 
         this._nextSequence = 1;
         this._pingSequence = null;
