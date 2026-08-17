@@ -5322,7 +5322,7 @@ Os blocos de Atuadores ficaram claramente distintos:
 - da categoria nativa Operadores;
 - das demais categorias Scratch.
 
-#### Sensores de hardware EasyBlox
+#### Sensores Arduino
 
 Paleta reservada:
 
@@ -5334,13 +5334,13 @@ Identidade:
 
 `azul claro vivo`
 
-Essa paleta foi escolhida deliberadamente para diferenciar os sensores físicos EasyBlox da categoria nativa `Sensores` do Scratch/EasyBlox, que utiliza um azul mais suave.
+Essa paleta foi escolhida deliberadamente para diferenciar os sensores Arduino da categoria nativa `Sensores` do Scratch/EasyBlox, que utiliza um azul mais suave.
 
 O próximo primitive:
 
 `ULTRASSÔNICO`
 
-deverá ser implementado dentro dessa identidade visual de Sensores.
+deverá ser implementado dentro dessa identidade visual de Sensores Arduino.
 
 #### Displays / Matriz
 
@@ -5381,6 +5381,6 @@ Portanto, os próximos contratos devem respeitar desde sua criação:
 
 `Atuadores → verde escuro`
 
-`Sensores → azul claro vivo`
+`Sensores Arduino → azul claro vivo`
 
 `Displays / Matriz → vermelho`

@@ -525,3 +525,27 @@ tap.test('encodes RELAY_WRITE payload', t => {
 
     t.end();
 });
+
+tap.test('encodes ULTRASONIC_READ payload', t => {
+    const frame = encodeFrame(
+        0x34,
+        COMMANDS.ULTRASONIC_READ,
+        [16, 17]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x34);
+    t.equal(frame[4], COMMANDS.ULTRASONIC_READ);
+    t.equal(frame[5], 2);
+    t.equal(frame[6], 16);
+    t.equal(frame[7], 17);
+
+    t.equal(
+        frame[8],
+        calculateChecksum(frame.subarray(2, 8))
+    );
+
+    t.end();
+});

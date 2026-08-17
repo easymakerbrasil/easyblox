@@ -15,6 +15,7 @@ const builtinExtensions = {
     // These are the non-core built-in extensions.
     arduinoUno: () => require('../extensions/scratch3_arduino_uno'),
     actuators: () => require('../extensions/scratch3_actuators'),
+    sensors: () => require('../extensions/scratch3_sensors'),
     pen: () => require('../extensions/scratch3_pen'),
     wedo2: () => require('../extensions/scratch3_wedo2'),
     music: () => require('../extensions/scratch3_music'),
@@ -30,11 +31,12 @@ const builtinExtensions = {
 };
 
 const builtinExtensionDependencies = {
-    actuators: ['arduinoUno']
+    actuators: ['arduinoUno'],
+    sensors: ['arduinoUno']
 };
 
 const builtinExtensionCompanions = {
-    arduinoUno: ['actuators']
+    arduinoUno: ['actuators', 'sensors']
 };
 
 /**

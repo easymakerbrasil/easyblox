@@ -1071,6 +1071,221 @@ tap.test('Arduino UNO rejects invalid ANALOG_READ requests', t => {
     t.end();
 });
 
+tap.test('Arduino UNO reads an ultrasonic distance after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const readPromise = peripheral.ultrasonicRead(
+        16,
+        17
+    );
+
+    t.ok(readPromise instanceof Promise);
+    t.equal(writtenFrames.length, 2);
+
+    const readFrame = writtenFrames[1];
+
+    t.equal(
+        readFrame[4],
+        COMMANDS.ULTRASONIC_READ
+    );
+
+    t.equal(readFrame[5], 2);
+    t.equal(readFrame[6], 16);
+    t.equal(readFrame[7], 17);
+
+    const readSequence = readFrame[3];
+
+    onData(
+        encodeFrame(
+            readSequence,
+            RESPONSES.ULTRASONIC_READ,
+            [16, 17, 0x01, 0xF4]
+        )
+    );
+
+    t.equal(
+        await readPromise,
+        500
+    );
+});
+
+tap.test('Arduino UNO rejects invalid ULTRASONIC_READ requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.ultrasonicRead(16, 17),
+        null,
+        'does not read before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    t.equal(peripheral.ultrasonicRead(16, 16), null);
+
+    t.equal(peripheral.ultrasonicRead(1, 17), null);
+    t.equal(peripheral.ultrasonicRead(16, 1), null);
+
+    t.equal(peripheral.ultrasonicRead(20, 17), null);
+    t.equal(peripheral.ultrasonicRead(16, 20), null);
+
+    t.equal(peripheral.ultrasonicRead(16.5, 17), null);
+    t.equal(peripheral.ultrasonicRead(16, 17.5), null);
+
+    t.end();
+});
+
+tap.test('Arduino UNO resolves ultrasonic read with null on ERROR', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const readPromise = peripheral.ultrasonicRead(
+        16,
+        17
+    );
+
+    const readSequence = writtenFrames[1][3];
+
+    onData(
+        encodeFrame(
+            readSequence,
+            RESPONSES.ERROR
+        )
+    );
+
+    t.equal(
+        await readPromise,
+        null
+    );
+
+    t.equal(
+        peripheral._pendingUltrasonicReads.size,
+        0
+    );
+});
+
+tap.test('Arduino UNO resolves pending ultrasonic read with null on reset', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const readPromise = peripheral.ultrasonicRead(
+        16,
+        17
+    );
+
+    t.equal(
+        peripheral._pendingUltrasonicReads.size,
+        1
+    );
+
+    peripheral._reset();
+
+    t.equal(
+        await readPromise,
+        null
+    );
+
+    t.equal(
+        peripheral._pendingUltrasonicReads.size,
+        0
+    );
+
+    t.equal(
+        peripheral.isStageConnected(),
+        false
+    );
+});
+
 tap.test('Arduino UNO exposes the PWM_WRITE block and delegates numeric values', t => {
     const runtime = new MockRuntime(null);
     const extension = new Scratch3ArduinoUnoBlocks(runtime);

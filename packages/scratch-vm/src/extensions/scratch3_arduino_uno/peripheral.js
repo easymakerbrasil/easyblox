@@ -40,6 +40,7 @@ class ArduinoUnoPeripheral {
         this._pingSequence = null;
         this._pendingDigitalReads = new Map();
         this._pendingAnalogReads = new Map();
+        this._pendingUltrasonicReads = new Map();
         this._stageConnected = false;
         this._handshakeTimer = null;
         this._handshakeAttempts = 0;
@@ -445,6 +446,53 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Read an HC-SR04-style ultrasonic distance in Stage mode.
+     * @param {number} trigPin Arduino digital pin for trigger.
+     * @param {number} echoPin Arduino digital pin for echo.
+     * @returns {?Promise<number>} Promise resolved with distance in millimeters, or null when unavailable.
+     */
+    ultrasonicRead (trigPin, echoPin) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(trigPin) ||
+            !Number.isInteger(echoPin) ||
+            trigPin < 2 ||
+            trigPin > 19 ||
+            echoPin < 2 ||
+            echoPin > 19 ||
+            trigPin === echoPin
+        ) {
+            return null;
+        }
+
+        const sequence = this._sendCommand(
+            COMMANDS.ULTRASONIC_READ,
+            [
+                trigPin,
+                echoPin
+            ]
+        );
+
+        if (sequence === null) {
+            return null;
+        }
+
+        return new Promise(resolve => {
+            this._pendingUltrasonicReads.set(
+                sequence,
+                {
+                    trigPin,
+                    echoPin,
+                    resolve
+                }
+            );
+        });
+    }
+
+    /**
      * Called when the physical serial connection succeeds.
      * Starts the EasyBlox Stage protocol handshake.
      * @returns {void}
@@ -518,6 +566,18 @@ class ArduinoUnoPeripheral {
             return;
         }
 
+        if (frame.command === RESPONSES.ERROR) {
+            const pendingRead =
+                this._pendingUltrasonicReads.get(frame.sequence);
+
+            if (pendingRead) {
+                this._pendingUltrasonicReads.delete(frame.sequence);
+                pendingRead.resolve(null);
+            }
+
+            return;
+        }
+
         if (frame.command === RESPONSES.DIGITAL_READ) {
             const pendingRead =
                 this._pendingDigitalReads.get(frame.sequence);
@@ -563,6 +623,28 @@ class ArduinoUnoPeripheral {
             this._pendingAnalogReads.delete(frame.sequence);
 
             pendingRead.resolve(value);
+        }
+
+        if (frame.command === RESPONSES.ULTRASONIC_READ) {
+            const pendingRead =
+                this._pendingUltrasonicReads.get(frame.sequence);
+
+            if (
+                !pendingRead ||
+                frame.payload.length !== 4 ||
+                frame.payload[0] !== pendingRead.trigPin ||
+                frame.payload[1] !== pendingRead.echoPin
+            ) {
+                return;
+            }
+
+            const distanceMm =
+                (frame.payload[2] << 8) |
+                frame.payload[3];
+
+            this._pendingUltrasonicReads.delete(frame.sequence);
+
+            pendingRead.resolve(distanceMm);
         }
     }
 
@@ -619,6 +701,12 @@ class ArduinoUnoPeripheral {
         }
 
         this._pendingAnalogReads.clear();
+
+        for (const pendingRead of this._pendingUltrasonicReads.values()) {
+            pendingRead.resolve(null);
+        }
+
+        this._pendingUltrasonicReads.clear();
 
         this._nextSequence = 1;
         this._pingSequence = null;

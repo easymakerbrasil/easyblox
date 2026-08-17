@@ -4778,7 +4778,7 @@ Foi confirmado no EasyBlox que:
 - as duas categorias ficam claramente distinguíveis;
 - a categoria Atuadores também permanece visualmente diferenciada da categoria nativa Operadores.
 
-#### Sensores de hardware EasyBlox
+#### Sensores Arduino
 
 Paleta oficial reservada:
 
@@ -4792,13 +4792,19 @@ Identidade visual:
 
 A escolha deve permanecer visualmente distinta da categoria nativa `Sensores` do Scratch/EasyBlox, que utiliza uma tonalidade azul mais suave.
 
-Os sensores físicos específicos das placas deverão utilizar essa categoria.
+Nesta fase do projeto, a categoria é denominada:
+
+`Sensores Arduino`
+
+A nomenclatura acompanha a plataforma Arduino UNO e não vincula o software à marca EasyMaker.
+
+A nomenclatura poderá ser reorganizada futuramente com a incorporação das placas EasyMaker e EasyDuino, caso a arquitetura de categorias passe a ser organizada por plataforma ou família de hardware.
 
 Consequentemente, o próximo primitive:
 
 `ULTRASSÔNICO`
 
-deverá nascer dentro desse contrato visual.
+deverá nascer dentro desse contrato visual de Sensores Arduino.
 
 #### Displays / Matriz
 
@@ -4828,7 +4834,7 @@ As famílias visuais oficiais são:
 
 `Atuadores → verde escuro`
 
-`Sensores → azul claro vivo`
+`Sensores Arduino → azul claro vivo`
 
 `Displays / Matriz → vermelho`
 

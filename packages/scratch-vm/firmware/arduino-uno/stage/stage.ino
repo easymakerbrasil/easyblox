@@ -20,11 +20,13 @@ constexpr uint8_t COMMAND_SERVO_WRITE = 0x16;
 constexpr uint8_t COMMAND_MOTOR_WRITE = 0x17;
 constexpr uint8_t COMMAND_MOTOR_STOP = 0x18;
 constexpr uint8_t COMMAND_RELAY_WRITE = 0x19;
+constexpr uint8_t COMMAND_ULTRASONIC_READ = 0x1A;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
 constexpr uint8_t RESPONSE_DIGITAL_READ = 0x91;
 constexpr uint8_t RESPONSE_ANALOG_READ = 0x92;
+constexpr uint8_t RESPONSE_ULTRASONIC_READ = 0x93;
 constexpr uint8_t RESPONSE_ERROR = 0xFF;
 
 enum class ParserState : uint8_t {
@@ -270,6 +272,87 @@ void handleAnalogRead() {
     sendFrame(
         sequence,
         RESPONSE_ANALOG_READ,
+        responsePayload,
+        sizeof(responsePayload)
+    );
+}
+
+void handleUltrasonicRead() {
+    if (payloadLength != 2) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t trigPin = payload[0];
+    const uint8_t echoPin = payload[1];
+
+    if (
+        trigPin < 2 ||
+        trigPin > 19 ||
+        echoPin < 2 ||
+        echoPin > 19 ||
+        trigPin == echoPin ||
+        isServoAttachedOnPin(trigPin) ||
+        isServoAttachedOnPin(echoPin) ||
+        activeTonePin == trigPin ||
+        activeTonePin == echoPin
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    pinMode(trigPin, OUTPUT);
+    pinMode(echoPin, INPUT);
+
+    digitalWrite(
+        trigPin,
+        LOW
+    );
+
+    delayMicroseconds(2);
+
+    digitalWrite(
+        trigPin,
+        HIGH
+    );
+
+    delayMicroseconds(10);
+
+    digitalWrite(
+        trigPin,
+        LOW
+    );
+
+    const unsigned long duration =
+        pulseIn(
+            echoPin,
+            HIGH,
+            30000UL
+        );
+
+    const uint16_t distanceMm =
+        duration == 0 ?
+        0 :
+        static_cast<uint16_t>(
+            (duration * 343UL) / 2000UL
+        );
+
+    const uint8_t responsePayload[] = {
+        trigPin,
+        echoPin,
+        static_cast<uint8_t>((distanceMm >> 8) & 0xFF),
+        static_cast<uint8_t>(distanceMm & 0xFF)
+    };
+
+    sendFrame(
+        sequence,
+        RESPONSE_ULTRASONIC_READ,
         responsePayload,
         sizeof(responsePayload)
     );
@@ -681,6 +764,10 @@ void handleFrame() {
 
     if (command == COMMAND_RELAY_WRITE) {
         handleRelayWrite();
+    }
+
+    if (command == COMMAND_ULTRASONIC_READ) {
+        handleUltrasonicRead();
     }
 }
 
