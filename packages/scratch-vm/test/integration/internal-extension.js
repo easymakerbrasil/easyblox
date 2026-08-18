@@ -126,7 +126,7 @@ test('load sync', t => {
     t.end();
 });
 
-test('Arduino UNO and actuators load as companion extensions', t => {
+test('Arduino UNO and hardware companions load together', t => {
     const vmFromArduino = new VirtualMachine();
 
     vmFromArduino.extensionManager.loadExtensionIdSync('arduinoUno');
@@ -139,6 +139,16 @@ test('Arduino UNO and actuators load as companion extensions', t => {
     t.ok(
         vmFromArduino.extensionManager.isExtensionLoaded('actuators'),
         'actuators are loaded automatically with Arduino UNO'
+    );
+
+    t.ok(
+        vmFromArduino.extensionManager.isExtensionLoaded('sensors'),
+        'sensors are loaded automatically with Arduino UNO'
+    );
+
+    t.ok(
+        vmFromArduino.extensionManager.isExtensionLoaded('displays'),
+        'displays are loaded automatically with Arduino UNO'
     );
 
     const vmFromActuators = new VirtualMachine();
@@ -155,10 +165,44 @@ test('Arduino UNO and actuators load as companion extensions', t => {
         'actuators are loaded'
     );
 
+    t.ok(
+        vmFromActuators.extensionManager.isExtensionLoaded('sensors'),
+        'sensors are loaded as Arduino UNO companions'
+    );
+
+    t.ok(
+        vmFromActuators.extensionManager.isExtensionLoaded('displays'),
+        'displays are loaded as Arduino UNO companions'
+    );
+
+    const vmFromDisplays = new VirtualMachine();
+
+    vmFromDisplays.extensionManager.loadExtensionIdSync('displays');
+
+    t.ok(
+        vmFromDisplays.extensionManager.isExtensionLoaded('arduinoUno'),
+        'Arduino UNO is loaded as a displays dependency'
+    );
+
+    t.ok(
+        vmFromDisplays.extensionManager.isExtensionLoaded('actuators'),
+        'actuators are loaded as Arduino UNO companions'
+    );
+
+    t.ok(
+        vmFromDisplays.extensionManager.isExtensionLoaded('sensors'),
+        'sensors are loaded as Arduino UNO companions'
+    );
+
+    t.ok(
+        vmFromDisplays.extensionManager.isExtensionLoaded('displays'),
+        'displays are loaded without duplication'
+    );
+
     t.end();
 });
 
-test('Arduino UNO and actuators load as companion extensions asynchronously', t => {
+test('Arduino UNO and hardware companions load asynchronously', t => {
     const vmFromArduino = new VirtualMachine();
 
     return vmFromArduino.extensionManager.loadExtensionURL('arduinoUno')
@@ -173,6 +217,16 @@ test('Arduino UNO and actuators load as companion extensions asynchronously', t 
                 'actuators are loaded automatically with Arduino UNO asynchronously'
             );
 
+            t.ok(
+                vmFromArduino.extensionManager.isExtensionLoaded('sensors'),
+                'sensors are loaded automatically with Arduino UNO asynchronously'
+            );
+
+            t.ok(
+                vmFromArduino.extensionManager.isExtensionLoaded('displays'),
+                'displays are loaded automatically with Arduino UNO asynchronously'
+            );
+
             const vmFromActuators = new VirtualMachine();
 
             return vmFromActuators.extensionManager.loadExtensionURL('actuators')
@@ -185,6 +239,16 @@ test('Arduino UNO and actuators load as companion extensions asynchronously', t 
                     t.ok(
                         vmFromActuators.extensionManager.isExtensionLoaded('actuators'),
                         'actuators are loaded asynchronously'
+                    );
+
+                    t.ok(
+                        vmFromActuators.extensionManager.isExtensionLoaded('sensors'),
+                        'sensors are loaded as asynchronous Arduino UNO companions'
+                    );
+
+                    t.ok(
+                        vmFromActuators.extensionManager.isExtensionLoaded('displays'),
+                        'displays are loaded as asynchronous Arduino UNO companions'
                     );
                 });
         });

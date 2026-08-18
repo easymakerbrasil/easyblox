@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Servo.h>
+#include <Wire.h>
 
 namespace EasyBloxStage {
 
@@ -22,6 +23,10 @@ constexpr uint8_t COMMAND_MOTOR_STOP = 0x18;
 constexpr uint8_t COMMAND_RELAY_WRITE = 0x19;
 constexpr uint8_t COMMAND_ULTRASONIC_READ = 0x1A;
 constexpr uint8_t COMMAND_DHT_READ = 0x1B;
+constexpr uint8_t COMMAND_LCD_INIT = 0x1C;
+constexpr uint8_t COMMAND_LCD_WRITE = 0x1D;
+constexpr uint8_t COMMAND_LCD_CLEAR = 0x1E;
+constexpr uint8_t COMMAND_LCD_MODE = 0x1F;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -30,6 +35,17 @@ constexpr uint8_t RESPONSE_ANALOG_READ = 0x92;
 constexpr uint8_t RESPONSE_ULTRASONIC_READ = 0x93;
 constexpr uint8_t RESPONSE_DHT_READ = 0x94;
 constexpr uint8_t RESPONSE_ERROR = 0xFF;
+
+constexpr uint8_t LCD_MODE_BLINK_ON = 0x00;
+constexpr uint8_t LCD_MODE_BLINK_OFF = 0x01;
+constexpr uint8_t LCD_MODE_CURSOR_ON = 0x02;
+constexpr uint8_t LCD_MODE_CURSOR_OFF = 0x03;
+constexpr uint8_t LCD_MODE_DISPLAY_ON = 0x04;
+constexpr uint8_t LCD_MODE_DISPLAY_OFF = 0x05;
+constexpr uint8_t LCD_MODE_AUTOSCROLL_ON = 0x06;
+constexpr uint8_t LCD_MODE_AUTOSCROLL_OFF = 0x07;
+constexpr uint8_t LCD_MODE_SCROLL_LEFT = 0x08;
+constexpr uint8_t LCD_MODE_SCROLL_RIGHT = 0x09;
 
 enum class ParserState : uint8_t {
     WaitStart1,
@@ -54,6 +70,32 @@ uint8_t checksum = 0;
 
 constexpr uint8_t NO_TONE_PIN = 0xFF;
 uint8_t activeTonePin = NO_TONE_PIN;
+
+constexpr uint8_t LCD_NO_ADDRESS = 0x00;
+constexpr uint8_t LCD_ADDRESS_PRIMARY = 0x27;
+constexpr uint8_t LCD_ADDRESS_SECONDARY = 0x3F;
+
+constexpr uint8_t LCD_COLUMN_COUNT = 16;
+constexpr uint8_t LCD_ROW_COUNT = 2;
+
+constexpr uint8_t LCD_RS_MASK = 0x01;
+constexpr uint8_t LCD_ENABLE_MASK = 0x04;
+constexpr uint8_t LCD_BACKLIGHT_MASK = 0x08;
+
+uint8_t lcdAddress = LCD_NO_ADDRESS;
+bool lcdInitialized = false;
+
+bool lcdDisplayEnabled = true;
+bool lcdCursorEnabled = false;
+bool lcdBlinkEnabled = false;
+bool lcdAutoscrollEnabled = false;
+
+bool isLcdI2cPin(uint8_t pin) {
+    return (
+        lcdInitialized &&
+        (pin == 18 || pin == 19)
+    );
+}
 
 constexpr unsigned long DHT_CACHE_INTERVAL_MS = 2000UL;
 
@@ -190,6 +232,7 @@ void handleDigitalWrite() {
         pin < 2 ||
         pin > 19 ||
         value > 1 ||
+        isLcdI2cPin(pin) ||
         isServoAttachedOnPin(pin)
     ) {
         sendFrame(
@@ -226,6 +269,7 @@ void handleDigitalRead() {
     if (
         pin < 2 ||
         pin > 19 ||
+        isLcdI2cPin(pin) ||
         isServoAttachedOnPin(pin)
     ) {
         sendFrame(
@@ -266,7 +310,8 @@ void handleAnalogRead() {
 
     if (
         pin < 14 ||
-        pin > 19
+        pin > 19 ||
+        isLcdI2cPin(pin)
     ) {
         sendFrame(
             sequence,
@@ -575,6 +620,8 @@ void handleUltrasonicRead() {
         echoPin < 2 ||
         echoPin > 19 ||
         trigPin == echoPin ||
+        isLcdI2cPin(trigPin) ||
+        isLcdI2cPin(echoPin) ||
         isServoAttachedOnPin(trigPin) ||
         isServoAttachedOnPin(echoPin) ||
         activeTonePin == trigPin ||
@@ -833,6 +880,8 @@ void handleMotorWrite() {
         in1Pin == pwmPin ||
         in2Pin == pwmPin ||
         direction > 1 ||
+        isLcdI2cPin(in1Pin) ||
+        isLcdI2cPin(in2Pin) ||
         isServoAttachedOnPin(in1Pin) ||
         isServoAttachedOnPin(in2Pin) ||
         isServoAttachedOnPin(pwmPin) ||
@@ -906,6 +955,8 @@ void handleMotorStop() {
         in1Pin == pwmPin ||
         in2Pin == pwmPin ||
         stopMode > 1 ||
+        isLcdI2cPin(in1Pin) ||
+        isLcdI2cPin(in2Pin) ||
         isServoAttachedOnPin(in1Pin) ||
         isServoAttachedOnPin(in2Pin) ||
         isServoAttachedOnPin(pwmPin) ||
@@ -949,6 +1000,454 @@ void handleMotorStop() {
     );
 }
 
+bool lcdProbeAddress(uint8_t address) {
+    Wire.beginTransmission(address);
+
+    return Wire.endTransmission() == 0;
+}
+
+bool lcdDetectAddress() {
+    if (lcdProbeAddress(LCD_ADDRESS_PRIMARY)) {
+        lcdAddress = LCD_ADDRESS_PRIMARY;
+        return true;
+    }
+
+    if (lcdProbeAddress(LCD_ADDRESS_SECONDARY)) {
+        lcdAddress = LCD_ADDRESS_SECONDARY;
+        return true;
+    }
+
+    lcdAddress = LCD_NO_ADDRESS;
+
+    return false;
+}
+
+bool lcdWriteExpander(uint8_t value) {
+    if (lcdAddress == LCD_NO_ADDRESS) {
+        return false;
+    }
+
+    Wire.beginTransmission(lcdAddress);
+
+    Wire.write(
+        static_cast<uint8_t>(
+            value | LCD_BACKLIGHT_MASK
+        )
+    );
+
+    return Wire.endTransmission() == 0;
+}
+
+bool lcdPulseEnable(uint8_t value) {
+    if (
+        !lcdWriteExpander(
+            static_cast<uint8_t>(
+                value | LCD_ENABLE_MASK
+            )
+        )
+    ) {
+        return false;
+    }
+
+    delayMicroseconds(1);
+
+    if (
+        !lcdWriteExpander(
+            static_cast<uint8_t>(
+                value & ~LCD_ENABLE_MASK
+            )
+        )
+    ) {
+        return false;
+    }
+
+    delayMicroseconds(50);
+
+    return true;
+}
+
+bool lcdWrite4Bits(
+    uint8_t nibble,
+    uint8_t mode = 0
+) {
+    const uint8_t value =
+        static_cast<uint8_t>(
+            ((nibble & 0x0F) << 4) |
+            mode
+        );
+
+    return lcdPulseEnable(value);
+}
+
+bool lcdSend(
+    uint8_t value,
+    uint8_t mode
+) {
+    if (
+        !lcdWrite4Bits(
+            static_cast<uint8_t>(
+                value >> 4
+            ),
+            mode
+        )
+    ) {
+        return false;
+    }
+
+    return lcdWrite4Bits(
+        static_cast<uint8_t>(
+            value & 0x0F
+        ),
+        mode
+    );
+}
+
+bool lcdCommand(uint8_t value) {
+    if (!lcdSend(value, 0)) {
+        return false;
+    }
+
+    if (
+        value == 0x01 ||
+        value == 0x02
+    ) {
+        delayMicroseconds(2000);
+    }
+
+    return true;
+}
+
+bool lcdWriteCharacter(uint8_t value) {
+    return lcdSend(
+        value,
+        LCD_RS_MASK
+    );
+}
+
+bool lcdApplyDisplayControl() {
+    uint8_t commandValue = 0x08;
+
+    if (lcdDisplayEnabled) {
+        commandValue |= 0x04;
+    }
+
+    if (lcdCursorEnabled) {
+        commandValue |= 0x02;
+    }
+
+    if (lcdBlinkEnabled) {
+        commandValue |= 0x01;
+    }
+
+    return lcdCommand(commandValue);
+}
+
+bool lcdApplyEntryMode() {
+    uint8_t commandValue = 0x06;
+
+    if (lcdAutoscrollEnabled) {
+        commandValue |= 0x01;
+    }
+
+    return lcdCommand(commandValue);
+}
+
+bool lcdSetCursor(
+    uint8_t row,
+    uint8_t column
+) {
+    if (
+        row >= LCD_ROW_COUNT ||
+        column >= LCD_COLUMN_COUNT
+    ) {
+        return false;
+    }
+
+    const uint8_t rowOffset =
+        row == 0 ? 0x00 : 0x40;
+
+    return lcdCommand(
+        static_cast<uint8_t>(
+            0x80 |
+            (rowOffset + column)
+        )
+    );
+}
+
+bool lcdInitializeController() {
+    lcdDisplayEnabled = true;
+    lcdCursorEnabled = false;
+    lcdBlinkEnabled = false;
+    lcdAutoscrollEnabled = false;
+
+    delay(50);
+
+    if (!lcdWriteExpander(0x00)) {
+        return false;
+    }
+
+    delay(5);
+
+    if (!lcdWrite4Bits(0x03)) {
+        return false;
+    }
+
+    delayMicroseconds(4500);
+
+    if (!lcdWrite4Bits(0x03)) {
+        return false;
+    }
+
+    delayMicroseconds(4500);
+
+    if (!lcdWrite4Bits(0x03)) {
+        return false;
+    }
+
+    delayMicroseconds(150);
+
+    if (!lcdWrite4Bits(0x02)) {
+        return false;
+    }
+
+    // 4-bit mode, 2 lines, 5x8 font.
+    if (!lcdCommand(0x28)) {
+        return false;
+    }
+
+    // Display on, cursor off, blink off.
+    if (!lcdApplyDisplayControl()) {
+        return false;
+    }
+
+    // Clear display.
+    if (!lcdCommand(0x01)) {
+        return false;
+    }
+
+    // Left-to-right text, autoscroll off.
+    if (!lcdApplyEntryMode()) {
+        return false;
+    }
+
+    return true;
+}
+
+void handleLcdInit() {
+    if (payloadLength != 0) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    lcdInitialized = false;
+    lcdAddress = LCD_NO_ADDRESS;
+
+    Wire.begin();
+
+    if (!lcdDetectAddress()) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    if (!lcdInitializeController()) {
+        lcdAddress = LCD_NO_ADDRESS;
+
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    lcdInitialized = true;
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
+void handleLcdWrite() {
+    if (
+        !lcdInitialized ||
+        payloadLength < 2
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t row = payload[0];
+    const uint8_t column = payload[1];
+
+    if (
+        row >= LCD_ROW_COUNT ||
+        column >= LCD_COLUMN_COUNT
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    if (!lcdSetCursor(row, column)) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t textLength =
+        payloadLength - 2;
+
+    const uint8_t availableColumns =
+        LCD_COLUMN_COUNT - column;
+
+    const uint8_t writeLength =
+        textLength < availableColumns ?
+            textLength :
+            availableColumns;
+
+    for (
+        uint8_t index = 0;
+        index < writeLength;
+        index++
+    ) {
+        if (
+            !lcdWriteCharacter(
+                payload[index + 2]
+            )
+        ) {
+            sendFrame(
+                sequence,
+                RESPONSE_ERROR
+            );
+            return;
+        }
+    }
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
+void handleLcdClear() {
+    if (
+        !lcdInitialized ||
+        payloadLength != 0
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    if (!lcdCommand(0x01)) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
+void handleLcdMode() {
+    if (
+        !lcdInitialized ||
+        payloadLength != 1
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t mode = payload[0];
+    bool success = false;
+
+    switch (mode) {
+        case LCD_MODE_BLINK_ON:
+            lcdBlinkEnabled = true;
+            success = lcdApplyDisplayControl();
+            break;
+
+        case LCD_MODE_BLINK_OFF:
+            lcdBlinkEnabled = false;
+            success = lcdApplyDisplayControl();
+            break;
+
+        case LCD_MODE_CURSOR_ON:
+            lcdCursorEnabled = true;
+            success = lcdApplyDisplayControl();
+            break;
+
+        case LCD_MODE_CURSOR_OFF:
+            lcdCursorEnabled = false;
+            success = lcdApplyDisplayControl();
+            break;
+
+        case LCD_MODE_DISPLAY_ON:
+            lcdDisplayEnabled = true;
+            success = lcdApplyDisplayControl();
+            break;
+
+        case LCD_MODE_DISPLAY_OFF:
+            lcdDisplayEnabled = false;
+            success = lcdApplyDisplayControl();
+            break;
+
+        case LCD_MODE_AUTOSCROLL_ON:
+            lcdAutoscrollEnabled = true;
+            success = lcdApplyEntryMode();
+            break;
+
+        case LCD_MODE_AUTOSCROLL_OFF:
+            lcdAutoscrollEnabled = false;
+            success = lcdApplyEntryMode();
+            break;
+
+        case LCD_MODE_SCROLL_LEFT:
+            success = lcdCommand(0x18);
+            break;
+
+        case LCD_MODE_SCROLL_RIGHT:
+            success = lcdCommand(0x1C);
+            break;
+
+        default:
+            sendFrame(
+                sequence,
+                RESPONSE_ERROR
+            );
+            return;
+    }
+
+    sendFrame(
+        sequence,
+        success ?
+            RESPONSE_ACK :
+            RESPONSE_ERROR
+    );
+}
+
 void handleRelayWrite() {
     if (payloadLength != 2) {
         sendFrame(
@@ -965,6 +1464,7 @@ void handleRelayWrite() {
         pin < 2 ||
         pin > 19 ||
         state > 1 ||
+        isLcdI2cPin(pin) ||
         isServoAttachedOnPin(pin) ||
         activeTonePin == pin
     ) {
@@ -1052,6 +1552,26 @@ void handleFrame() {
 
     if (command == COMMAND_DHT_READ) {
         handleDhtRead();
+    }
+
+    if (command == COMMAND_LCD_INIT) {
+        handleLcdInit();
+        return;
+    }
+
+    if (command == COMMAND_LCD_WRITE) {
+        handleLcdWrite();
+        return;
+    }
+
+    if (command == COMMAND_LCD_CLEAR) {
+        handleLcdClear();
+        return;
+    }
+
+    if (command == COMMAND_LCD_MODE) {
+        handleLcdMode();
+        return;
     }
 }
 

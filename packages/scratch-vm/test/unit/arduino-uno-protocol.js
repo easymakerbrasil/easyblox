@@ -2,6 +2,7 @@ const tap = require('tap');
 
 const {
     COMMANDS,
+    LCD_MODES,
     PROTOCOL_VERSION,
     RESPONSES,
     StageProtocolParser,
@@ -570,6 +571,130 @@ tap.test('encodes DHT_READ payload', t => {
         frame[8],
         calculateChecksum(frame.subarray(2, 8))
     );
+
+    t.end();
+});
+
+tap.test('encodes LCD_INIT payload', t => {
+    const frame = encodeFrame(
+        0x40,
+        COMMANDS.LCD_INIT
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x40);
+    t.equal(frame[4], COMMANDS.LCD_INIT);
+    t.equal(frame[5], 0);
+
+    t.equal(
+        frame[6],
+        calculateChecksum(frame.subarray(2, 6))
+    );
+
+    t.end();
+});
+
+tap.test('encodes LCD_WRITE payload', t => {
+    const frame = encodeFrame(
+        0x41,
+        COMMANDS.LCD_WRITE,
+        [
+            0x00,
+            0x00,
+            0x45,
+            0x61,
+            0x73,
+            0x79,
+            0x42,
+            0x6C,
+            0x6F,
+            0x78
+        ]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x41);
+    t.equal(frame[4], COMMANDS.LCD_WRITE);
+    t.equal(frame[5], 10);
+
+    t.equal(frame[6], 0x00);
+    t.equal(frame[7], 0x00);
+    t.equal(frame[8], 0x45);
+    t.equal(frame[9], 0x61);
+    t.equal(frame[10], 0x73);
+    t.equal(frame[11], 0x79);
+    t.equal(frame[12], 0x42);
+    t.equal(frame[13], 0x6C);
+    t.equal(frame[14], 0x6F);
+    t.equal(frame[15], 0x78);
+
+    t.equal(
+        frame[16],
+        calculateChecksum(frame.subarray(2, 16))
+    );
+
+    t.end();
+});
+
+tap.test('encodes LCD_CLEAR payload', t => {
+    const frame = encodeFrame(
+        0x42,
+        COMMANDS.LCD_CLEAR
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x42);
+    t.equal(frame[4], COMMANDS.LCD_CLEAR);
+    t.equal(frame[5], 0);
+
+    t.equal(
+        frame[6],
+        calculateChecksum(frame.subarray(2, 6))
+    );
+
+    t.end();
+});
+
+tap.test('encodes LCD_MODE payload', t => {
+    const frame = encodeFrame(
+        0x43,
+        COMMANDS.LCD_MODE,
+        [LCD_MODES.BLINK_ON]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x43);
+    t.equal(frame[4], COMMANDS.LCD_MODE);
+    t.equal(frame[5], 1);
+    t.equal(frame[6], LCD_MODES.BLINK_ON);
+
+    t.equal(
+        frame[7],
+        calculateChecksum(frame.subarray(2, 7))
+    );
+
+    t.end();
+});
+
+tap.test('defines LCD mode values', t => {
+    t.equal(LCD_MODES.BLINK_ON, 0x00);
+    t.equal(LCD_MODES.BLINK_OFF, 0x01);
+    t.equal(LCD_MODES.CURSOR_ON, 0x02);
+    t.equal(LCD_MODES.CURSOR_OFF, 0x03);
+    t.equal(LCD_MODES.DISPLAY_ON, 0x04);
+    t.equal(LCD_MODES.DISPLAY_OFF, 0x05);
+    t.equal(LCD_MODES.AUTOSCROLL_ON, 0x06);
+    t.equal(LCD_MODES.AUTOSCROLL_OFF, 0x07);
+    t.equal(LCD_MODES.SCROLL_LEFT, 0x08);
+    t.equal(LCD_MODES.SCROLL_RIGHT, 0x09);
 
     t.end();
 });

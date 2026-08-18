@@ -2,6 +2,7 @@ const Serial = require('../../io/serial');
 
 const {
     COMMANDS,
+    LCD_MODES,
     RESPONSES,
     StageProtocolParser,
     encodeFrame
@@ -536,6 +537,104 @@ class ArduinoUnoPeripheral {
                 }
             );
         });
+    }
+
+    /**
+     * Initialize a 16x2 I2C LCD in Stage mode.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    lcdInit () {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.LCD_INIT
+        );
+    }
+
+    /**
+     * Write text to a 16x2 I2C LCD in Stage mode.
+     * Row and column use zero-based protocol coordinates.
+     * @param {*} text Value to write.
+     * @param {number} row LCD row: 0 or 1.
+     * @param {number} column LCD column: 0 to 15.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    lcdWrite (text, row, column) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(row) ||
+            !Number.isInteger(column) ||
+            row < 0 ||
+            row > 1 ||
+            column < 0 ||
+            column > 15
+        ) {
+            return null;
+        }
+
+        const availableColumns = 16 - column;
+
+        const normalizedText = String(text)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^\x20-\x7E]/g, '?')
+            .slice(0, availableColumns);
+
+        const textBytes = Array.from(
+            normalizedText,
+            character => character.charCodeAt(0)
+        );
+
+        return this._sendCommand(
+            COMMANDS.LCD_WRITE,
+            [
+                row,
+                column,
+                ...textBytes
+            ]
+        );
+    }
+
+    /**
+     * Clear a 16x2 I2C LCD in Stage mode.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    lcdClear () {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.LCD_CLEAR
+        );
+    }
+
+    /**
+     * Set or execute a 16x2 I2C LCD mode in Stage mode.
+     * @param {number} mode One value from LCD_MODES.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    lcdMode (mode) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(mode) ||
+            !Object.values(LCD_MODES).includes(mode)
+        ) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.LCD_MODE,
+            [mode]
+        );
     }
 
     /**

@@ -16,7 +16,24 @@ const COMMANDS = Object.freeze({
     MOTOR_STOP: 0x18,
     RELAY_WRITE: 0x19,
     ULTRASONIC_READ: 0x1A,
-    DHT_READ: 0x1B
+    DHT_READ: 0x1B,
+    LCD_INIT: 0x1C,
+    LCD_WRITE: 0x1D,
+    LCD_CLEAR: 0x1E,
+    LCD_MODE: 0x1F
+});
+
+const LCD_MODES = Object.freeze({
+    BLINK_ON: 0x00,
+    BLINK_OFF: 0x01,
+    CURSOR_ON: 0x02,
+    CURSOR_OFF: 0x03,
+    DISPLAY_ON: 0x04,
+    DISPLAY_OFF: 0x05,
+    AUTOSCROLL_ON: 0x06,
+    AUTOSCROLL_OFF: 0x07,
+    SCROLL_LEFT: 0x08,
+    SCROLL_RIGHT: 0x09
 });
 
 const RESPONSES = Object.freeze({
@@ -175,6 +192,7 @@ class StageProtocolParser {
 
 module.exports = {
     COMMANDS,
+    LCD_MODES,
     MAX_PAYLOAD_LENGTH,
     PROTOCOL_VERSION,
     RESPONSES,

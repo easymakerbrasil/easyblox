@@ -76,6 +76,14 @@
     box-sizing: content-box;
 }
 
+/*
+    Allow long flyout blocks to temporarily extend over the workspace
+    while hovered, without permanently increasing the flyout width.
+*/
+.blocks :global(.blocklyFlyout):has(:global(.blocklyDraggable):hover) {
+    overflow: visible;
+}
+
 [dir="rtl"] .blocks :global(.blocklyFlyout) {
     border-right: none;
     border-left: 1px solid $ui-black-transparent;

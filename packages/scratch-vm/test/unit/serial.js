@@ -260,3 +260,121 @@ tap.test('Serial reports unexpected connection loss', async t => {
     ]);
     t.equal(runtime.events[1].data.extensionId, 'arduinoUno');
 });
+
+tap.test('Serial serializes consecutive transport writes', async t => {
+    let activeWrites = 0;
+    let maxActiveWrites = 0;
+    const writeOrder = [];
+
+    const transport = {
+        open: async () => {},
+        write: data => {
+            activeWrites++;
+
+            maxActiveWrites = Math.max(
+                maxActiveWrites,
+                activeWrites
+            );
+
+            writeOrder.push(data[0]);
+
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    activeWrites--;
+                    resolve();
+                }, 10);
+            });
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const serial = new Serial(runtime, 'arduinoUno');
+
+    serial.connect('COM3');
+    await new Promise(resolve => setImmediate(resolve));
+
+    await Promise.all([
+        serial.write(new Uint8Array([1])),
+        serial.write(new Uint8Array([2])),
+        serial.write(new Uint8Array([3]))
+    ]);
+
+    t.equal(
+        maxActiveWrites,
+        1,
+        'only one transport write may be active at a time'
+    );
+
+    t.same(
+        writeOrder,
+        [1, 2, 3],
+        'writes preserve their original order'
+    );
+});
+
+tap.test('Serial stops queued writes after a transport write failure', async t => {
+    const writeAttempts = [];
+    let resetCalled = false;
+
+    const transport = {
+        open: async () => {},
+        close: async () => {},
+        write: data => {
+            writeAttempts.push(data[0]);
+
+            if (data[0] === 1) {
+                return Promise.reject(new Error('write failed'));
+            }
+
+            return Promise.resolve();
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const serial = new Serial(
+        runtime,
+        'arduinoUno',
+        {},
+        null,
+        () => {
+            resetCalled = true;
+        }
+    );
+
+    serial.connect('COM3');
+    await new Promise(resolve => setImmediate(resolve));
+
+    runtime.events = [];
+
+    await Promise.all([
+        serial.write(new Uint8Array([1])),
+        serial.write(new Uint8Array([2]))
+    ]);
+
+    t.same(
+        writeAttempts,
+        [1],
+        'queued writes are not sent after the connection is lost'
+    );
+
+    t.equal(
+        serial.isConnected(),
+        false,
+        'serial is disconnected after the transport failure'
+    );
+
+    t.equal(
+        resetCalled,
+        true,
+        'peripheral reset callback is invoked'
+    );
+
+    t.same(
+        runtime.events.map(event => event.event),
+        [
+            MockRuntime.PERIPHERAL_DISCONNECTED,
+            MockRuntime.PERIPHERAL_CONNECTION_LOST_ERROR
+        ],
+        'connection loss events are emitted'
+    );
+});

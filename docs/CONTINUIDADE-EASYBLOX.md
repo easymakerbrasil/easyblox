@@ -5705,3 +5705,708 @@ Não iniciar ESP32 antes da estabilização completa da base Arduino UNO.
 Próximo trabalho:
 
 LCD 16×2 I2C — Modo Palco Arduino UNO
+
+### 22.79. Retomada do ciclo — LCD 16×2 I2C Stage
+
+O trabalho previsto na seção 22.78 foi executado.
+
+Primitive retomado:
+
+`LCD 16×2 I2C — Modo Palco Arduino UNO`
+
+Branch:
+
+`feat/easyblox-arduino-uno-foundation`
+
+A implementação manteve a arquitetura já consolidada:
+
+`Arduino UNO → proprietário da conexão Serial e do peripheral`
+
+`Displays → camada visual reutilizando o ArduinoUnoPeripheral`
+
+Não foi criada segunda conexão Serial, segundo handshake ou firmware independente para Displays.
+
+Foi criada a extensão interna:
+
+`packages/scratch-vm/src/extensions/scratch3_displays/`
+
+ID técnico:
+
+`displays`
+
+A extensão é carregada como companion do Arduino UNO.
+
+### 22.80. Contrato Stage do LCD
+
+Foram reservados e implementados os comandos:
+
+`LCD_INIT = 0x1C`
+
+`LCD_WRITE = 0x1D`
+
+`LCD_CLEAR = 0x1E`
+
+`LCD_MODE = 0x1F`
+
+Blocos visuais implementados:
+
+`iniciar LCD 16x2 I2C`
+
+`escrever [texto] no LCD linha [1] coluna [1]`
+
+`limpar LCD`
+
+`definir LCD [modo]`
+
+Modos disponíveis:
+
+- piscar;
+- sem piscar;
+- cursor;
+- sem cursor;
+- display ligado;
+- display desligado;
+- auto-rolagem;
+- sem auto-rolagem;
+- deslocar display para a esquerda;
+- deslocar display para a direita.
+
+A interface utiliza linha e coluna em base 1.
+
+O protocolo utiliza linha e coluna em base 0.
+
+Exemplo:
+
+`linha 1 / coluna 1`
+
+é enviado como:
+
+`ROW = 0 / COL = 0`
+
+Payload de `LCD_WRITE`:
+
+`[ROW, COL, ...TEXT_BYTES]`
+
+Não existe byte separado de comprimento do texto.
+
+O texto é limitado ao espaço restante da linha e não existe quebra automática para a linha seguinte.
+
+### 22.81. Implementação I2C do LCD
+
+No Arduino UNO:
+
+- SDA = A4;
+- SCL = A5.
+
+Esses pinos não são apresentados ao usuário como configuração do bloco LCD.
+
+O endereço I2C também não é solicitado ao usuário.
+
+O firmware realiza descoberta automática inicialmente nos endereços:
+
+`0x27`
+
+`0x3F`
+
+A implementação atual utiliza:
+
+`Wire.h`
+
+Não foi adicionada dependência externa de:
+
+`LiquidCrystal_I2C`
+
+O firmware controla diretamente módulos comuns baseados em PCF8574 utilizando o mapeamento:
+
+- P0 → RS;
+- P1 → RW;
+- P2 → EN;
+- P3 → backlight;
+- P4 → D4;
+- P5 → D5;
+- P6 → D6;
+- P7 → D7.
+
+O backlight permanece ligado na versão atual.
+
+A ideia de uma camada genérica futura:
+
+`I2C Bus Manager`
+
+continua válida como evolução arquitetural, porém não foi necessária para concluir este primitive.
+
+Neste checkpoint, a descoberta do LCD é executada diretamente pelo firmware.
+
+Após inicialização bem-sucedida do LCD, A4 e A5 são protegidos contra uso conflitante por primitives comuns do Stage.
+
+### 22.82. Normalização de texto
+
+A camada JavaScript normaliza o conteúdo antes de transmiti-lo ao LCD.
+
+A política atual utiliza normalização Unicode NFD e remoção de marcas diacríticas.
+
+Exemplo físico confirmado:
+
+`Olá!`
+
+é exibido como:
+
+`Ola!`
+
+Portanto, o comportamento observado em hardware está de acordo com o contrato implementado.
+
+Caracteres fora da política ASCII imprimível atual podem ser substituídos por:
+
+`?`
+
+Essa estratégia evita assumir que todos os displays compatíveis utilizem exatamente a mesma tabela estendida de caracteres.
+
+### 22.83. Descoberta de falha global em comandos Stage consecutivos
+
+Durante a validação física do LCD foi observado que comandos executados individualmente funcionavam, porém sequências de blocos sem intervalo podiam provocar:
+
+`Scratch perdeu a conexão com Arduino UNO`
+
+Inicialmente a suspeita estava relacionada ao LCD.
+
+Para separar o problema do dispositivo específico, foi montado um teste utilizando somente Relé.
+
+Sequência utilizada:
+
+`RELÉ ON`
+
+`RELÉ OFF`
+
+`RELÉ ON`
+
+`RELÉ OFF`
+
+repetidos várias vezes sem qualquer bloco:
+
+`esperar`
+
+O mesmo problema de desconexão foi reproduzido.
+
+Isso demonstrou que a falha não era específica do LCD.
+
+### 22.84. Diagnóstico da camada Serial
+
+Foi analisado:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+O método:
+
+`_sendCommand()`
+
+gera o frame, executa:
+
+`this._serial.write(frame)`
+
+e retorna imediatamente a sequence do protocolo.
+
+Esse comportamento é intencional e deve ser preservado, pois os primitives dependem do retorno síncrono da sequence.
+
+A investigação então avançou para:
+
+`packages/scratch-vm/src/io/serial.js`
+
+Antes da correção, cada chamada a:
+
+`Serial.write(data)`
+
+encaminhava imediatamente:
+
+`transport.write(data)`
+
+Não existia fila entre chamadas consecutivas.
+
+Um teste de regressão criado especificamente para reproduzir a situação confirmou que três escritas consecutivas podiam resultar em:
+
+`3 transport.write() ativos simultaneamente`
+
+Portanto, foi identificada concorrência de escrita na camada de transporte.
+
+### 22.85. Fila global de transmissão Serial
+
+A correção foi implementada em:
+
+`packages/scratch-vm/src/io/serial.js`
+
+Foi adicionada uma fila baseada em Promise:
+
+`_writeQueue`
+
+Regra atual:
+
+`write 1`
+
+→ aguardar conclusão
+
+→ `write 2`
+
+→ aguardar conclusão
+
+→ `write 3`
+
+Apenas uma chamada física a:
+
+`transport.write()`
+
+pode estar ativa por vez para a mesma instância Serial.
+
+A ordem de transmissão é preservada.
+
+Antes de despachar cada item da fila, a conexão é verificada novamente.
+
+Se uma escrita falhar e a conexão for encerrada, comandos que ainda estavam aguardando não são enviados para um transporte já desconectado.
+
+A mudança é global e não específica do Arduino UNO, LCD ou Relé.
+
+Não foi alterada a API síncrona de:
+
+`ArduinoUnoPeripheral._sendCommand()`
+
+A sequence continua sendo retornada imediatamente.
+
+### 22.86. Testes da nova fila Serial
+
+Foram acrescentados testes em:
+
+`packages/scratch-vm/test/unit/serial.js`
+
+Os novos casos validam:
+
+1. serialização de escritas consecutivas;
+2. no máximo um `transport.write()` ativo simultaneamente;
+3. preservação da ordem original;
+4. interrupção da fila após falha do transporte;
+5. manutenção dos eventos de desconexão;
+6. execução do reset já previsto pela infraestrutura.
+
+Resultado final:
+
+`29 pass`
+
+`0 fail`
+
+Antes da implementação da fila, o teste de concorrência falhou conforme esperado:
+
+`expected 1`
+
+`actual 3`
+
+Após a correção:
+
+`29 / 29`
+
+Essa sequência comprova que o teste realmente reproduzia o comportamento que se pretendia corrigir.
+
+### 22.87. Adaptação dos testes Arduino UNO à fila assíncrona
+
+Com a serialização das escritas, o envio físico ao mock de transporte deixa de ocorrer no mesmo stack síncrono da chamada ao primitive.
+
+Os testes antigos do Arduino UNO assumiam que:
+
+`peripheral.command()`
+
+era imediatamente seguido pela presença do frame em:
+
+`writtenFrames`
+
+A API do peripheral não foi modificada.
+
+Em vez disso, os testes que inspecionam frames enviados passaram a aguardar somente o despacho da fila por meio de uma pequena sincronização do event loop.
+
+Essa espera existe apenas nos testes.
+
+Não existe atraso artificial nos blocos do EasyBlox.
+
+Também não foi adicionada exigência de:
+
+`esperar`
+
+a projetos do usuário.
+
+Resultado final:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+`363 pass`
+
+`0 fail`
+
+### 22.88. Validação física da correção global
+
+Após reiniciar o ambiente com a nova implementação de `serial.js`, foi repetido exatamente o cenário que provocava desconexão.
+
+Teste:
+
+vários blocos consecutivos de Relé no pino D12 alternando:
+
+`ligado`
+
+e:
+
+`desligado`
+
+sem qualquer bloco `esperar`.
+
+Resultado:
+
+- script executado;
+- Arduino UNO permaneceu conectado;
+- nenhuma mensagem de perda de conexão;
+- nenhum atraso artificial necessário.
+
+Portanto:
+
+`FILA SERIAL — VALIDADA EM HARDWARE`
+
+Esse resultado confirma que comandos Stage consecutivos devem ser suportados pela infraestrutura e não tratados através da introdução de delays nos projetos.
+
+### 22.89. Validação física do LCD
+
+Com a fila Serial corrigida, foi realizado o teste físico do LCD com comandos consecutivos.
+
+Fluxo:
+
+`iniciar LCD 16x2 I2C`
+
+→
+
+`escrever [Olá!] no LCD linha [1] coluna [1]`
+
+→
+
+`limpar LCD`
+
+sem blocos `esperar`.
+
+Resultado:
+
+- inicialização funcionando;
+- escrita funcionando;
+- texto exibido como `Ola!`, conforme contrato de normalização;
+- limpeza funcionando;
+- conexão Stage permaneceu ativa durante toda a sequência.
+
+Portanto:
+
+`LCD 16×2 I2C — STAGE MODE VALIDADO EM HARDWARE`
+
+O checkpoint físico valida:
+
+- inicialização;
+- descoberta automática do LCD;
+- comunicação I2C;
+- escrita;
+- posicionamento;
+- normalização textual;
+- limpeza;
+- estabilidade de comandos consecutivos.
+
+### 22.90. Testes automatizados finais do checkpoint
+
+Suíte Serial:
+
+`packages/scratch-vm/test/unit/serial.js`
+
+Resultado:
+
+`29 pass`
+
+`0 fail`
+
+Suíte Arduino UNO:
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+Resultado:
+
+`363 pass`
+
+`0 fail`
+
+Protocolo Arduino UNO:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+Resultado:
+
+`192 pass`
+
+`0 fail`
+
+Extensão Displays:
+
+`packages/scratch-vm/test/unit/displays.js`
+
+Resultado:
+
+`18 pass`
+
+`0 fail`
+
+Execução conjunta de protocolo + Displays:
+
+`210 pass`
+
+`0 fail`
+
+Integração de extensões internas:
+
+`packages/scratch-vm/test/integration/internal-extension.js`
+
+Resultado:
+
+`44 pass`
+
+`0 fail`
+
+Os warnings apresentados pelo `central-dispatch` durante o teste de integração são conhecidos e não produziram falhas na suíte.
+
+### 22.91. Compilação final do firmware
+
+Firmware:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+FQBN:
+
+`arduino:avr:uno`
+
+Compilação final:
+
+- Flash: `10426 bytes (32%)`;
+- SRAM global: `605 bytes (29%)`;
+- memória restante para variáveis locais: `1443 bytes`.
+
+Resultado:
+
+`COMPILAÇÃO APROVADA`
+
+O crescimento em relação ao firmware anterior decorre principalmente da inclusão da implementação do LCD/I2C.
+
+O consumo continua dentro dos limites do ATmega328P e deverá continuar sendo acompanhado nos próximos primitives.
+
+### 22.92. Build final da Scratch GUI
+
+Foi executado:
+
+`npm run build:dev`
+
+em:
+
+`packages/scratch-gui`
+
+Resultado:
+
+`webpack 5.109.2 compiled successfully`
+
+O aviso de base Browserslist/caniuse-lite desatualizada permaneceu apenas informativo e nenhuma dependência foi atualizada neste checkpoint.
+
+Resultado:
+
+`BUILD GUI APROVADO`
+
+### 22.93. UX de blocos longos no flyout
+
+Durante a implementação da categoria Displays foi tratada uma limitação visual da paleta.
+
+Blocos longos permanecem normalmente recortados pela largura do flyout, evitando aumentar permanentemente a largura da categoria.
+
+Quando o usuário posiciona o mouse sobre o bloco, o conteúdo completo pode temporariamente ultrapassar o limite da paleta e permanecer visível sobre a área de scripts.
+
+Arquivo:
+
+`packages/scratch-gui/src/components/blocks/blocks.css`
+
+A solução é global e não específica da categoria Displays.
+
+Resultado visual confirmado:
+
+- flyout mantém largura normal;
+- blocos longos não alteram permanentemente o layout;
+- bloco sob hover fica integralmente visível.
+
+### 22.94. Revisão da decisão anterior sobre MAX7219
+
+As seções 22.72 e 22.73 registram corretamente o estado conhecido no momento em que foram escritas.
+
+Naquele checkpoint, a matriz 8×8 MAX7219 apresentou instabilidade no Stage e seu protótipo Stage foi retirado.
+
+Essa informação deve permanecer no histórico.
+
+Entretanto, a descoberta posterior da concorrência global em:
+
+`Serial.write()`
+
+introduz uma nova variável técnica relevante para interpretar aqueles testes.
+
+Foi comprovado agora que comandos Stage consecutivos de um dispositivo independente, como Relé, eram suficientes para reproduzir perda de conexão.
+
+Após serialização das escritas, o mesmo teste passou a funcionar sem falhas.
+
+Por isso, a decisão:
+
+`MAX7219 = Upload Mode apenas`
+
+não deve mais ser tratada como conclusão técnica definitiva.
+
+Novo status oficial:
+
+`MAX7219 — STAGE MODE PENDENTE DE REVALIDAÇÃO`
+
+Isso não representa aprovação antecipada do Stage.
+
+A matriz deverá ser novamente testada do zero com a infraestrutura Serial atual antes de qualquer decisão.
+
+### 22.95. Relação com a referência PictoBlox
+
+O comportamento do PictoBlox continuará sendo utilizado como referência arquitetural e de produto.
+
+Entretanto:
+
+`PictoBlox não oferecer determinado dispositivo no Stage`
+
+não deve ser interpretado automaticamente como:
+
+`o dispositivo é tecnicamente incapaz de operar no Stage`
+
+O EasyBlox utiliza protocolo próprio, firmware próprio e infraestrutura Serial própria.
+
+Portanto, a decisão final deverá ser baseada na estabilidade técnica efetivamente observada no EasyBlox.
+
+Essa revisão se aplica especificamente à MAX7219 após a descoberta da falha global de escrita Serial.
+
+Não generalizar essa conclusão automaticamente para outros dispositivos sem teste.
+
+### 22.96. Situação do TM1637
+
+A decisão relacionada ao display de 7 segmentos TM1637 não foi reaberta neste checkpoint.
+
+Status atual:
+
+`TM1637 — Upload Mode`
+
+Não iniciar sua implementação Stage como consequência automática da revisão da MAX7219.
+
+Caso exista interesse futuro em Stage para TM1637, deverá ser realizado um checkpoint técnico específico.
+
+### 22.97. Estado funcional do LCD / Displays
+
+Neste checkpoint estão funcionais:
+
+- categoria `Displays`;
+- reutilização do `ArduinoUnoPeripheral`;
+- `LCD_INIT`;
+- `LCD_WRITE`;
+- `LCD_CLEAR`;
+- `LCD_MODE`;
+- descoberta I2C em `0x27` e `0x3F`;
+- barramento A4/A5;
+- proteção de A4/A5 após inicialização;
+- normalização de texto;
+- execução consecutiva sem `esperar`;
+- fila global de transmissão Serial;
+- UX de hover para blocos longos;
+- testes automatizados;
+- build da GUI;
+- compilação do firmware;
+- validação física do LCD.
+
+Status:
+
+`LCD 16×2 I2C Stage — APROVADO`
+
+### 22.98. Arquivos principais deste checkpoint
+
+Implementação LCD / Displays:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+`packages/scratch-vm/src/extension-support/extension-manager.js`
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/protocol.js`
+
+`packages/scratch-vm/src/extensions/scratch3_displays/`
+
+Correção global Serial:
+
+`packages/scratch-vm/src/io/serial.js`
+
+Testes:
+
+`packages/scratch-vm/test/integration/internal-extension.js`
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+`packages/scratch-vm/test/unit/displays.js`
+
+`packages/scratch-vm/test/unit/serial.js`
+
+UX:
+
+`packages/scratch-gui/src/components/blocks/blocks.css`
+
+Documentação:
+
+`docs/GUIA-DE-DESENVOLVIMENTO.md`
+
+`docs/CONTINUIDADE-EASYBLOX.md`
+
+### 22.99. Alteração local independente
+
+Permanece uma modificação local não relacionada ao checkpoint:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+Essa alteração:
+
+`NÃO DEVE SER INCLUÍDA NO COMMIT LCD / DISPLAYS / SERIAL`
+
+O staging deverá continuar sendo explícito e seletivo.
+
+### 22.100. Próximo ponto oficial de retomada
+
+Depois de concluir:
+
+- revisão final do diff;
+- staging explícito;
+- `git diff --cached --check`;
+- revisão do staged diff;
+- commit;
+- push;
+- confirmação de sincronização com o remoto;
+
+o próximo trabalho oficial será:
+
+`REVALIDAÇÃO DA MATRIZ DE LED 8×8 MAX7219 NO MODO PALCO`
+
+A revalidação deverá começar da infraestrutura atualmente consolidada, sem assumir que o protótipo Stage anterior continua correto.
+
+Sequência sugerida:
+
+1. revisar o contrato anterior da matriz;
+2. restaurar somente o mínimo necessário para o Stage;
+3. compilar e testar protocolo;
+4. validar inicialização física;
+5. executar um desenho estático;
+6. validar brilho;
+7. executar múltiplos desenhos consecutivos sem `esperar`;
+8. executar uma pequena animação por frames;
+9. observar estabilidade da conexão;
+10. somente então decidir entre:
+   - Stage + Upload;
+   - Upload apenas.
+
+A decisão anterior deverá permanecer registrada como histórico, mas a conclusão final da MAX7219 será tomada somente após essa nova validação.
+
+Não iniciar TM1637 neste checkpoint.
+
+Não iniciar ESP32 antes de concluir a base Arduino UNO planejada.

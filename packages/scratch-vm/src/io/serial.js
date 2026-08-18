@@ -31,6 +31,7 @@ class Serial {
 
         this._availablePeripherals = {};
         this._connected = false;
+        this._writeQueue = Promise.resolve();
 
         this._transport = runtime.getSerialTransport();
 
@@ -159,10 +160,23 @@ class Serial {
             return null;
         }
 
-        return Promise.resolve(this._transport.write(data))
+        this._writeQueue = this._writeQueue
+            .then(() => {
+                if (
+                    !this._connected ||
+                    !this._transport ||
+                    typeof this._transport.write !== 'function'
+                ) {
+                    return null;
+                }
+
+                return this._transport.write(data);
+            })
             .catch(error => {
                 this.handleDisconnectError(error);
             });
+
+        return this._writeQueue;
     }
 
     /**

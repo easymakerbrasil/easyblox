@@ -6,6 +6,7 @@ const ArduinoUnoPeripheral = require('../../src/extensions/scratch3_arduino_uno/
 const Scratch3ArduinoUnoBlocks = require('../../src/extensions/scratch3_arduino_uno');
 const {
     COMMANDS,
+    LCD_MODES,
     RESPONSES,
     encodeFrame
 } = require('../../src/extensions/scratch3_arduino_uno/protocol');
@@ -37,6 +38,9 @@ MockRuntime.PERIPHERAL_DISCONNECTED = 'PERIPHERAL_DISCONNECTED';
 MockRuntime.PERIPHERAL_REQUEST_ERROR = 'PERIPHERAL_REQUEST_ERROR';
 MockRuntime.PERIPHERAL_SCAN_TIMEOUT = 'PERIPHERAL_SCAN_TIMEOUT';
 MockRuntime.PERIPHERAL_CONNECTION_LOST_ERROR = 'PERIPHERAL_CONNECTION_LOST_ERROR';
+
+const flushPromises = () =>
+    new Promise(resolve => setImmediate(resolve));
 
 tap.test('Arduino UNO registers itself as a peripheral extension', t => {
     const runtime = new MockRuntime(null);
@@ -292,6 +296,8 @@ tap.test('Arduino UNO sends DIGITAL_WRITE after the Stage handshake', async t =>
 
     const sequence = peripheral.digitalWrite(13, 1);
 
+    await flushPromises();
+
     t.equal(sequence, 2);
     t.equal(writtenFrames.length, 2);
 
@@ -364,6 +370,8 @@ tap.test('Arduino UNO sends PWM_WRITE after the Stage handshake', async t => {
 
     const lowSequence = peripheral.pwmWrite(3, 0);
     const highSequence = peripheral.pwmWrite(11, 255);
+
+    await flushPromises();
 
     t.equal(lowSequence, 2);
     t.equal(highSequence, 3);
@@ -471,6 +479,8 @@ tap.test('Arduino UNO sends TONE_START and TONE_STOP after the Stage handshake',
 
     const startSequence = peripheral.toneStart(6, 440);
     const stopSequence = peripheral.toneStop(6);
+
+    await flushPromises();
 
     t.equal(startSequence, 2);
     t.equal(stopSequence, 3);
@@ -591,6 +601,8 @@ tap.test('Arduino UNO sends SERVO_WRITE after the Stage handshake', async t => {
 
     const lowSequence = peripheral.servoWrite(3, 0);
     const highSequence = peripheral.servoWrite(11, 180);
+
+    await flushPromises();
 
     t.equal(lowSequence, 2);
     t.equal(highSequence, 3);
@@ -718,6 +730,8 @@ tap.test('Arduino UNO sends MOTOR_WRITE and MOTOR_STOP after the Stage handshake
         5,
         1
     );
+
+    await flushPromises();
 
     t.equal(forwardSequence, 2);
     t.equal(reverseSequence, 3);
@@ -853,6 +867,8 @@ tap.test('Arduino UNO sends RELAY_WRITE after the Stage handshake', async t => {
         1
     );
 
+    await flushPromises();
+
     t.equal(offSequence, 2);
     t.equal(onSequence, 3);
     t.equal(writtenFrames.length, 3);
@@ -937,6 +953,9 @@ tap.test('Arduino UNO reads a digital pin after the Stage handshake', async t =>
     const readPromise = peripheral.digitalRead(2);
 
     t.ok(readPromise instanceof Promise);
+
+    await flushPromises();
+
     t.equal(writtenFrames.length, 2);
 
     const readFrame = writtenFrames[1];
@@ -1023,6 +1042,9 @@ tap.test('Arduino UNO reads an analog pin after the Stage handshake', async t =>
     const readPromise = peripheral.analogRead(14);
 
     t.ok(readPromise instanceof Promise);
+
+    await flushPromises();
+
     t.equal(writtenFrames.length, 2);
 
     const readFrame = writtenFrames[1];
@@ -1112,6 +1134,9 @@ tap.test('Arduino UNO reads an ultrasonic distance after the Stage handshake', a
     );
 
     t.ok(readPromise instanceof Promise);
+
+    await flushPromises();
+
     t.equal(writtenFrames.length, 2);
 
     const readFrame = writtenFrames[1];
@@ -1204,6 +1229,8 @@ tap.test('Arduino UNO resolves ultrasonic read with null on ERROR', async t => {
         16,
         17
     );
+
+    await flushPromises();
 
     const readSequence = writtenFrames[1][3];
 
@@ -1330,6 +1357,9 @@ tap.test('Arduino UNO reads DHT values in Stage mode', async t => {
     );
 
     t.ok(readPromise instanceof Promise);
+
+    await flushPromises();
+
     t.equal(writtenFrames.length, 2);
 
     const readFrame = writtenFrames[1];
@@ -1437,6 +1467,8 @@ tap.test('Arduino UNO resolves DHT read with null on ERROR', async t => {
         12,
         0
     );
+
+    await flushPromises();
 
     const readSequence = writtenFrames[1][3];
 
@@ -1923,6 +1955,314 @@ tap.test('Arduino UNO exposes the ANALOG_READ reporter block and delegates numer
 
     t.equal(receivedPin, 16);
     t.equal(result, 512);
+
+    t.end();
+});
+
+tap.test('Arduino UNO sends LCD commands after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const initSequence = peripheral.lcdInit();
+
+    const writeSequence = peripheral.lcdWrite(
+        'EasyBlox',
+        0,
+        0
+    );
+
+    const clearSequence = peripheral.lcdClear();
+
+    const modeSequence = peripheral.lcdMode(
+        LCD_MODES.BLINK_ON
+    );
+
+    await flushPromises();
+
+    t.equal(initSequence, 2);
+    t.equal(writeSequence, 3);
+    t.equal(clearSequence, 4);
+    t.equal(modeSequence, 5);
+
+    t.equal(writtenFrames.length, 5);
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            initSequence,
+            COMMANDS.LCD_INIT
+        )
+    );
+
+    t.same(
+        writtenFrames[2],
+        encodeFrame(
+            writeSequence,
+            COMMANDS.LCD_WRITE,
+            [
+                0,
+                0,
+                0x45,
+                0x61,
+                0x73,
+                0x79,
+                0x42,
+                0x6C,
+                0x6F,
+                0x78
+            ]
+        )
+    );
+
+    t.same(
+        writtenFrames[3],
+        encodeFrame(
+            clearSequence,
+            COMMANDS.LCD_CLEAR
+        )
+    );
+
+    t.same(
+        writtenFrames[4],
+        encodeFrame(
+            modeSequence,
+            COMMANDS.LCD_MODE,
+            [LCD_MODES.BLINK_ON]
+        )
+    );
+});
+
+tap.test('Arduino UNO normalizes and clips LCD text', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const normalizedSequence = peripheral.lcdWrite(
+        'Olá, João!',
+        0,
+        0
+    );
+
+    const clippedSequence = peripheral.lcdWrite(
+        'ABCDE',
+        1,
+        13
+    );
+
+    await flushPromises();
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            normalizedSequence,
+            COMMANDS.LCD_WRITE,
+            [
+                0,
+                0,
+                0x4F,
+                0x6C,
+                0x61,
+                0x2C,
+                0x20,
+                0x4A,
+                0x6F,
+                0x61,
+                0x6F,
+                0x21
+            ]
+        )
+    );
+
+    t.same(
+        writtenFrames[2],
+        encodeFrame(
+            clippedSequence,
+            COMMANDS.LCD_WRITE,
+            [
+                1,
+                13,
+                0x41,
+                0x42,
+                0x43
+            ]
+        )
+    );
+});
+
+tap.test('Arduino UNO sends all supported LCD modes', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const modes = [
+        LCD_MODES.BLINK_ON,
+        LCD_MODES.BLINK_OFF,
+        LCD_MODES.CURSOR_ON,
+        LCD_MODES.CURSOR_OFF,
+        LCD_MODES.DISPLAY_ON,
+        LCD_MODES.DISPLAY_OFF,
+        LCD_MODES.AUTOSCROLL_ON,
+        LCD_MODES.AUTOSCROLL_OFF,
+        LCD_MODES.SCROLL_LEFT,
+        LCD_MODES.SCROLL_RIGHT
+    ];
+
+    const sequences = modes.map(mode =>
+        peripheral.lcdMode(mode)
+    );
+
+    await flushPromises();
+
+    sequences.forEach((sequence, index) => {
+        t.equal(
+            sequence,
+            index + 2
+        );
+
+        t.same(
+            writtenFrames[index + 1],
+            encodeFrame(
+                sequence,
+                COMMANDS.LCD_MODE,
+                [modes[index]]
+            )
+        );
+    });
+
+    t.equal(
+        writtenFrames.length,
+        modes.length + 1
+    );
+}),
+
+tap.test('Arduino UNO rejects invalid LCD requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.lcdInit(),
+        null,
+        'does not initialize LCD before the Stage handshake'
+    );
+
+    t.equal(
+        peripheral.lcdWrite('EasyBlox', 0, 0),
+        null,
+        'does not write LCD before the Stage handshake'
+    );
+
+    t.equal(
+        peripheral.lcdClear(),
+        null,
+        'does not clear LCD before the Stage handshake'
+    );
+
+    t.equal(
+        peripheral.lcdMode(LCD_MODES.BLINK_ON),
+        null,
+        'does not set LCD mode before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    t.equal(peripheral.lcdWrite('A', -1, 0), null);
+    t.equal(peripheral.lcdWrite('A', 2, 0), null);
+    t.equal(peripheral.lcdWrite('A', 0.5, 0), null);
+
+    t.equal(peripheral.lcdWrite('A', 0, -1), null);
+    t.equal(peripheral.lcdWrite('A', 0, 16), null);
+    t.equal(peripheral.lcdWrite('A', 0, 1.5), null);
+
+    t.equal(peripheral.lcdMode(-1), null);
+    t.equal(peripheral.lcdMode(10), null);
+    t.equal(peripheral.lcdMode(0.5), null);
 
     t.end();
 });
