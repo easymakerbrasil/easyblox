@@ -14,6 +14,8 @@ const ArgumentType = {
 
     MOTOR_SPEED: 'motor_speed',
 
+    PERCENTAGE: 'percentage',
+
     /**
      * Boolean value with hexagonal placeholder
      */
@@ -38,6 +40,8 @@ const ArgumentType = {
      * String value with matrix field
      */
     MATRIX: 'matrix',
+
+    MATRIX_8X8: 'matrix_8x8',
 
     /**
      * MIDI note number with note picker (piano) field

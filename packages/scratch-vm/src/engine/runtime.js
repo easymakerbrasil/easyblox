@@ -91,6 +91,13 @@ const ArgumentTypeMap = (() => {
         }
     };
 
+    map[ArgumentType.PERCENTAGE] = {
+        shadow: {
+            type: 'easyblox_percentage',
+            fieldName: 'NUM'
+        }
+    };
+
     map[ArgumentType.COLOR] = {
         shadow: {
             type: 'colour_picker',
@@ -115,6 +122,12 @@ const ArgumentTypeMap = (() => {
     map[ArgumentType.MATRIX] = {
         shadow: {
             type: 'matrix',
+            fieldName: 'MATRIX'
+        }
+    };
+    map[ArgumentType.MATRIX_8X8] = {
+        shadow: {
+            type: 'easyblox_matrix_8x8',
             fieldName: 'MATRIX'
         }
     };

@@ -5535,18 +5535,173 @@ A alteração local abaixo continua independente e não pertence ao checkpoint A
 
 packages/scratch-gui/src/components/action-menu/icon--sprite.svg
 
-### 22.72. Próximo passo exato
+### 22.72. Decisão arquitetural — Displays no Stage e no Upload
 
-Próximo primitive oficial:
+Durante a implementação da matriz de LED 8×8 com controlador MAX7219 foi realizada validação prática no Modo Palco.
 
-MATRIZ DE LED 8×8
+Operações isoladas funcionaram, porém a integração completa não apresentou a estabilidade necessária para uso contínuo no Stage.
 
-Depois:
+Por decisão arquitetural, o EasyBlox não manterá suporte Stage ao MAX7219 neste ciclo.
 
-Display de 7 segmentos;
-Display LCD 16×2 I2C;
-Joystick X/Y.
+A divisão funcional passa a ser:
 
-Manter a disciplina:
+Modo Palco:
+
+- LCD 16×2 I2C.
+
+Modo Upload:
+
+- LCD 16×2 I2C;
+- display de 7 segmentos TM1637;
+- matriz de LED 8×8 MAX7219.
+
+O TM1637 também fica reservado ao Modo Upload e não deverá ser implementado como primitive Stage neste ciclo.
+
+Essa decisão não classifica MAX7219 ou TM1637 como incompatíveis com Arduino UNO. Ela define apenas a arquitetura adotada pelo EasyBlox para preservar a previsibilidade e a estabilidade do Modo Palco.
+
+### 22.73. Limpeza do protótipo Stage da matriz 8×8
+
+Todo o código específico da matriz 8×8 que havia sido acrescentado ao protocolo Stage foi removido antes deste checkpoint.
+
+Foram restaurados ao estado anterior ao experimento:
+
+- protocolo Arduino UNO;
+- testes do protocolo;
+- firmware Stage;
+- `ArduinoUnoPeripheral`;
+- extensão Stage de Displays;
+- registro da extensão Stage de Displays;
+- testes relacionados à extensão Stage de Displays.
+
+O firmware Stage voltou exatamente ao estado consolidado após DHT v1.
+
+Compilação Arduino UNO após a limpeza:
+
+- Flash: 7734 bytes;
+- SRAM global: 382 bytes;
+- SRAM livre estimada: 1666 bytes.
+
+### 22.74. Infraestrutura visual da matriz 8×8 preservada
+
+O editor visual desenvolvido para a matriz 8×8 foi mantido porque é independente do protocolo Stage e será reutilizado futuramente no Modo Upload.
+
+Arquivos e contratos preservados:
+
+- `packages/scratch-gui/src/lib/easyblox-matrix-8x8-field.js`;
+- registro do campo em `packages/scratch-gui/src/lib/blocks.js`;
+- `ArgumentType.MATRIX_8X8`;
+- shadow `easyblox_matrix_8x8`;
+- `ArgumentType.PERCENTAGE`;
+- shadow `easyblox_percentage`.
+
+O campo da matriz mantém:
+
+- editor gráfico 8×8;
+- serialização em 8 bytes / 16 caracteres hexadecimais;
+- persistência no projeto;
+- padrão inicial em forma de coração;
+- ações Limpar, Preencher e Inverter;
+- padrões gráficos pré-definidos.
+
+Valor visual inicial aprovado:
+
+`0066FFFF7E3C1800`
+
+Essa infraestrutura está desacoplada de Arduino, Serial, peripheral e protocolo Stage.
+
+### 22.75. Validação técnica após a limpeza
+
+ESLint da GUI:
+
+- 0 erros;
+- apenas warnings já conhecidos de estilo/JSDoc.
+
+ESLint da Scratch VM:
+
+- 0 erros;
+- warnings preexistentes de JSDoc em `runtime.js`.
+
+Regressão consolidada da Scratch VM:
+
+- 571 / 571 asserts aprovados;
+- 5 / 5 suites aprovadas;
+- 0 falhas.
+
+Build da Scratch VM:
+
+`webpack 5.109.2 compiled successfully`
+
+Build da Scratch GUI:
+
+`webpack 5.109.2 compiled with 2 warnings`
+
+Os dois warnings da GUI são referentes ao tamanho de assets/entrypoint e não representam falha de compilação.
+
+### 22.76. Estado do working tree antes do checkpoint
+
+Alterações intencionais deste ciclo:
+
+`packages/scratch-gui/src/lib/blocks.js`
+
+`packages/scratch-gui/src/lib/easyblox-matrix-8x8-field.js`
+
+`packages/scratch-vm/src/engine/runtime.js`
+
+`packages/scratch-vm/src/extension-support/argument-type.js`
+
+Documentação:
+
+`docs/GUIA-DE-DESENVOLVIMENTO.md`
+
+`docs/CONTINUIDADE-EASYBLOX.md`
+
+A alteração local abaixo continua independente e não deve ser incluída neste checkpoint:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+### 22.77. Próximo ponto oficial de retomada
+
+O próximo primitive oficial do Modo Palco Arduino UNO passa a ser:
+
+LCD 16×2 I2C
+
+Diretrizes já definidas:
+
+- utilizar somente comunicação I2C;
+- SDA = A4;
+- SCL = A5;
+- não expor A4/A5 como configuração cotidiana do bloco;
+- não exigir que o usuário informe manualmente endereços como `0x27` ou `0x3F`;
+- preparar descoberta automática do dispositivo;
+- estruturar a solução para reutilização futura por outros dispositivos I2C.
+
+A arquitetura deverá evoluir para uma camada reutilizável de gerenciamento do barramento:
+
+`I2C Bus Manager`
+
+Responsabilidades previstas:
+
+- varrer o barramento I2C;
+- verificar presença de dispositivos;
+- registrar endereços encontrados;
+- disponibilizar a descoberta para outras extensões.
+
+Importante:
+
+a presença de um endereço no barramento não identifica, por si só, de forma inequívoca o tipo do dispositivo.
+
+A revisão da cor visual da categoria Displays / Matriz permanece pendente e deverá ser tratada separadamente da implementação funcional.
+
+### 22.78. Disciplina para o próximo ciclo
+
+Retomar o desenvolvimento mantendo a sequência:
 
 protocolo → testes → firmware → compile → peripheral → testes → build → hardware → bloco visual → documentação → commit
+
+Não iniciar TM1637 ou MAX7219 Stage.
+
+Não iniciar ESP32 antes da estabilização completa da base Arduino UNO.
+
+Próximo trabalho:
+
+LCD 16×2 I2C — Modo Palco Arduino UNO

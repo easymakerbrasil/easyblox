@@ -5104,13 +5104,87 @@ RELAY_WRITE;
 ULTRASONIC_READ;
 DHT_READ.
 
-A sequência funcional prevista continua com:
+### 19.107. Diretriz de Displays — Stage e Upload
 
-Matriz de LED 8×8;
-Display de 7 segmentos;
-Display LCD 16×2 I2C;
-Joystick X/Y.
+Durante a evolução da base Arduino UNO foi avaliado o uso da matriz de LED 8×8 com controlador MAX7219 no Modo Palco.
 
-O próximo primitive oficial é:
+Embora operações isoladas tenham funcionado, a integração completa não atingiu o nível de estabilidade exigido para uso contínuo no Stage. Por decisão arquitetural, o EasyBlox não manterá suporte Stage ao MAX7219 nesta fase.
 
-MATRIZ DE LED 8×8
+A divisão funcional adotada passa a ser:
+
+Modo Palco:
+
+- LCD 16×2 I2C.
+
+Modo Upload:
+
+- LCD 16×2 I2C;
+- display de 7 segmentos TM1637;
+- matriz de LED 8×8 MAX7219.
+
+O TM1637 também fica reservado ao Modo Upload e não deve ser implementado como primitive Stage neste ciclo.
+
+Essa decisão não significa que MAX7219 ou TM1637 sejam incompatíveis com Arduino UNO. Trata-se de uma definição de arquitetura do EasyBlox para manter o Modo Palco previsível e estável.
+
+### 19.108. Editor visual reutilizável da matriz 8×8
+
+A infraestrutura visual desenvolvida para a matriz 8×8 deve ser preservada para o futuro Modo Upload.
+
+Foram mantidos:
+
+- `ArgumentType.MATRIX_8X8`;
+- shadow `easyblox_matrix_8x8`;
+- campo reutilizável `field_easyblox_matrix_8x8`;
+- serialização da matriz em 8 bytes representados por 16 caracteres hexadecimais;
+- editor gráfico 8×8;
+- persistência do valor no projeto;
+- padrão inicial visual em forma de coração;
+- ações Limpar, Preencher e Inverter;
+- padrões visuais pré-definidos.
+
+Também permanece a infraestrutura genérica:
+
+- `ArgumentType.PERCENTAGE`;
+- shadow `easyblox_percentage`.
+
+Esses elementos estão desacoplados do protocolo Stage e poderão ser reutilizados posteriormente pelos blocos do Modo Upload.
+
+### 19.109. Próximo primitive Stage — LCD 16×2 I2C
+
+O próximo primitive oficial do ciclo Arduino UNO passa a ser:
+
+LCD 16×2 I2C
+
+A implementação utilizará exclusivamente a interface I2C.
+
+No Arduino UNO:
+
+- SDA utiliza A4;
+- SCL utiliza A5.
+
+Esses pinos pertencem ao barramento I2C e não devem ser expostos como configuração cotidiana do bloco LCD.
+
+Da mesma forma, endereços comuns como `0x27` e `0x3F` são endereços de dispositivos I2C, e não pinos.
+
+A experiência desejada é permitir ao usuário configurar o LCD sem precisar conhecer previamente o endereço do módulo.
+
+A arquitetura deverá preparar uma camada reutilizável de gerenciamento do barramento I2C, capaz de servir futuramente a outros dispositivos.
+
+Diretriz inicial:
+
+`I2C Bus Manager`
+
+Responsabilidades previstas:
+
+- varrer o barramento I2C;
+- verificar se um endereço responde;
+- registrar dispositivos detectados;
+- permitir que extensões reutilizem o mesmo mecanismo de descoberta.
+
+A detecção de um endereço ocupado não deve ser tratada automaticamente como identificação inequívoca do tipo de dispositivo.
+
+O desenvolvimento do LCD deverá continuar no próximo checkpoint, mantendo a disciplina:
+
+protocolo → testes → firmware → compile → peripheral → testes → build → hardware → bloco visual → documentação → commit.
+
+A revisão da cor visual da categoria Displays / Matriz permanece pendente e deverá ser tratada separadamente desta decisão arquitetural.

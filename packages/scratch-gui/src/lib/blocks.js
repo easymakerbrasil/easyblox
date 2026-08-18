@@ -1,4 +1,5 @@
 import registerEasyBloxRangeNumberField from './easyblox-range-number-field';
+import registerEasyBloxMatrix8x8Field from './easyblox-matrix-8x8-field';
 
 /**
  * Connect scratch blocks with the vm
@@ -7,6 +8,7 @@ import registerEasyBloxRangeNumberField from './easyblox-range-number-field';
  */
 export default function (vm) {
     const ScratchBlocks = require('scratch-blocks');
+    registerEasyBloxMatrix8x8Field(ScratchBlocks);
 
     registerEasyBloxRangeNumberField(ScratchBlocks);
 
@@ -67,6 +69,45 @@ export default function (vm) {
                     }
                 ],
                 output: 'Number',
+                outputShape: ScratchBlocks.OUTPUT_SHAPE_ROUND,
+                extensions: ['colours_textfield']
+            });
+        }
+    };
+
+    ScratchBlocks.Blocks.easyblox_percentage = {
+        init: function () {
+            this.jsonInit({
+                message0: '%1',
+                args0: [
+                    {
+                        type: 'field_easyblox_range_number',
+                        name: 'NUM',
+                        value: 100,
+                        min: 0,
+                        max: 100,
+                        precision: 1
+                    }
+                ],
+                output: 'Number',
+                outputShape: ScratchBlocks.OUTPUT_SHAPE_ROUND,
+                extensions: ['colours_textfield']
+            });
+        }
+    };
+
+    ScratchBlocks.Blocks.easyblox_matrix_8x8 = {
+        init: function () {
+            this.jsonInit({
+                message0: '%1',
+                args0: [
+                    {
+                        type: 'field_easyblox_matrix_8x8',
+                        name: 'MATRIX',
+                        value: '0066FFFF7E3C1800'
+                    }
+                ],
+                output: 'String',
                 outputShape: ScratchBlocks.OUTPUT_SHAPE_ROUND,
                 extensions: ['colours_textfield']
             });
