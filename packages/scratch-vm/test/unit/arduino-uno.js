@@ -2063,6 +2063,531 @@ tap.test('Arduino UNO sends LCD commands after the Stage handshake', async t => 
     );
 });
 
+tap.test('Arduino UNO waits for ACK before completing matrix commands', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const rows = [
+        0x00,
+        0x66,
+        0xFF,
+        0xFF,
+        0x7E,
+        0x3C,
+        0x18,
+        0x00
+    ];
+
+    const writePromise = peripheral.matrixWrite(
+        11,
+        10,
+        13,
+        rows
+    );
+
+    t.ok(
+        writePromise instanceof Promise,
+        'MATRIX_WRITE returns a Promise'
+    );
+
+    await flushPromises();
+
+    t.equal(
+        writtenFrames.length,
+        2,
+        'MATRIX_WRITE is sent after the handshake'
+    );
+
+    const writeSequence = writtenFrames[1][3];
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            writeSequence,
+            COMMANDS.MATRIX_WRITE,
+            [
+                11,
+                10,
+                13,
+                ...rows
+            ]
+        )
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        1,
+        'MATRIX_WRITE remains pending before ACK'
+    );
+
+    onData(
+        encodeFrame(
+            writeSequence,
+            RESPONSES.ACK
+        )
+    );
+
+    t.equal(
+        await writePromise,
+        writeSequence,
+        'MATRIX_WRITE completes after matching ACK'
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        0,
+        'MATRIX_WRITE ACK clears the pending command'
+    );
+
+    const brightnessPromise =
+        peripheral.matrixBrightness(
+            11,
+            10,
+            13,
+            50
+        );
+
+    t.ok(
+        brightnessPromise instanceof Promise,
+        'MATRIX_BRIGHTNESS returns a Promise'
+    );
+
+    await flushPromises();
+
+    t.equal(
+        writtenFrames.length,
+        3,
+        'MATRIX_BRIGHTNESS is sent'
+    );
+
+    const brightnessSequence =
+        writtenFrames[2][3];
+
+    t.same(
+        writtenFrames[2],
+        encodeFrame(
+            brightnessSequence,
+            COMMANDS.MATRIX_BRIGHTNESS,
+            [
+                11,
+                10,
+                13,
+                50
+            ]
+        )
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        1,
+        'MATRIX_BRIGHTNESS remains pending before ACK'
+    );
+
+    onData(
+        encodeFrame(
+            brightnessSequence,
+            RESPONSES.ACK
+        )
+    );
+
+    t.equal(
+        await brightnessPromise,
+        brightnessSequence,
+        'MATRIX_BRIGHTNESS completes after matching ACK'
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        0,
+        'MATRIX_BRIGHTNESS ACK clears the pending command'
+    );
+});
+
+tap.test('Arduino UNO resolves matrix command with null on ERROR', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingSequence = writtenFrames[0][3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const commandPromise = peripheral.matrixWrite(
+        11,
+        10,
+        13,
+        [
+            0x00,
+            0x66,
+            0xFF,
+            0xFF,
+            0x7E,
+            0x3C,
+            0x18,
+            0x00
+        ]
+    );
+
+    await flushPromises();
+
+    const sequence = writtenFrames[1][3];
+
+    onData(
+        encodeFrame(
+            sequence,
+            RESPONSES.ERROR
+        )
+    );
+
+    t.equal(
+        await commandPromise,
+        null
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        0
+    );
+});
+
+tap.test('Arduino UNO resolves pending matrix command with null on reset', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingSequence = writtenFrames[0][3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const commandPromise = peripheral.matrixBrightness(
+        11,
+        10,
+        13,
+        50
+    );
+
+    await flushPromises();
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        1
+    );
+
+    peripheral._reset();
+
+    t.equal(
+        await commandPromise,
+        null
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        0
+    );
+
+    t.equal(
+        peripheral.isStageConnected(),
+        false
+    );
+});
+
+tap.test('Arduino UNO resolves matrix command with null on ACK timeout', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingSequence = writtenFrames[0][3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const commandPromise = peripheral.matrixWrite(
+        11,
+        10,
+        13,
+        [
+            0x00,
+            0x66,
+            0xFF,
+            0xFF,
+            0x7E,
+            0x3C,
+            0x18,
+            0x00
+        ]
+    );
+
+    await flushPromises();
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        1
+    );
+
+    t.equal(
+        await commandPromise,
+        null,
+        'MATRIX_WRITE times out when ACK never arrives'
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        0
+    );
+});
+
+tap.test('Arduino UNO rejects invalid matrix requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    const rows = [
+        0x00,
+        0x66,
+        0xFF,
+        0xFF,
+        0x7E,
+        0x3C,
+        0x18,
+        0x00
+    ];
+
+    t.equal(
+        peripheral.matrixWrite(
+            11,
+            10,
+            13,
+            rows
+        ),
+        null,
+        'does not write matrix before the Stage handshake'
+    );
+
+    t.equal(
+        peripheral.matrixBrightness(
+            11,
+            10,
+            13,
+            50
+        ),
+        null,
+        'does not set matrix brightness before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    t.equal(peripheral.matrixWrite(1, 10, 13, rows), null);
+    t.equal(peripheral.matrixWrite(20, 10, 13, rows), null);
+    t.equal(peripheral.matrixWrite(11.5, 10, 13, rows), null);
+
+    t.equal(peripheral.matrixWrite(11, 1, 13, rows), null);
+    t.equal(peripheral.matrixWrite(11, 20, 13, rows), null);
+    t.equal(peripheral.matrixWrite(11, 10.5, 13, rows), null);
+
+    t.equal(peripheral.matrixWrite(11, 10, 1, rows), null);
+    t.equal(peripheral.matrixWrite(11, 10, 20, rows), null);
+    t.equal(peripheral.matrixWrite(11, 10, 13.5, rows), null);
+
+    t.equal(peripheral.matrixWrite(11, 11, 13, rows), null);
+    t.equal(peripheral.matrixWrite(11, 10, 11, rows), null);
+    t.equal(peripheral.matrixWrite(11, 10, 10, rows), null);
+
+    t.equal(
+        peripheral.matrixWrite(
+            11,
+            10,
+            13,
+            '0066FFFF7E3C1800'
+        ),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixWrite(
+            11,
+            10,
+            13,
+            [0, 1, 2, 3, 4, 5, 6]
+        ),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixWrite(
+            11,
+            10,
+            13,
+            [0, 1, 2, 3, 4, 5, 6, -1]
+        ),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixWrite(
+            11,
+            10,
+            13,
+            [0, 1, 2, 3, 4, 5, 6, 256]
+        ),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixWrite(
+            11,
+            10,
+            13,
+            [0, 1, 2, 3, 4, 5, 6, 7.5]
+        ),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixBrightness(1, 10, 13, 50),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixBrightness(11, 20, 13, 50),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixBrightness(11, 10, 20, 50),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixBrightness(11, 11, 13, 50),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixBrightness(11, 10, 11, 50),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixBrightness(11, 10, 10, 50),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixBrightness(11, 10, 13, -1),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixBrightness(11, 10, 13, 101),
+        null
+    );
+
+    t.equal(
+        peripheral.matrixBrightness(11, 10, 13, 50.5),
+        null
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO normalizes and clips LCD text', async t => {
     let onData = null;
     const writtenFrames = [];

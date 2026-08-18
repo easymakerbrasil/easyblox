@@ -27,6 +27,8 @@ constexpr uint8_t COMMAND_LCD_INIT = 0x1C;
 constexpr uint8_t COMMAND_LCD_WRITE = 0x1D;
 constexpr uint8_t COMMAND_LCD_CLEAR = 0x1E;
 constexpr uint8_t COMMAND_LCD_MODE = 0x1F;
+constexpr uint8_t COMMAND_MATRIX_WRITE = 0x20;
+constexpr uint8_t COMMAND_MATRIX_BRIGHTNESS = 0x21;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -71,6 +73,22 @@ uint8_t checksum = 0;
 constexpr uint8_t NO_TONE_PIN = 0xFF;
 uint8_t activeTonePin = NO_TONE_PIN;
 
+constexpr uint8_t NO_MATRIX_PIN = 0xFF;
+
+constexpr uint8_t MAX7219_REGISTER_DECODE_MODE = 0x09;
+constexpr uint8_t MAX7219_REGISTER_INTENSITY = 0x0A;
+constexpr uint8_t MAX7219_REGISTER_SCAN_LIMIT = 0x0B;
+constexpr uint8_t MAX7219_REGISTER_SHUTDOWN = 0x0C;
+constexpr uint8_t MAX7219_REGISTER_DISPLAY_TEST = 0x0F;
+
+constexpr uint8_t MAX7219_DEFAULT_INTENSITY = 0x0F;
+
+bool matrixInitialized = false;
+uint8_t matrixDinPin = NO_MATRIX_PIN;
+uint8_t matrixCsPin = NO_MATRIX_PIN;
+uint8_t matrixClkPin = NO_MATRIX_PIN;
+uint8_t matrixIntensity = MAX7219_DEFAULT_INTENSITY;
+
 constexpr uint8_t LCD_NO_ADDRESS = 0x00;
 constexpr uint8_t LCD_ADDRESS_PRIMARY = 0x27;
 constexpr uint8_t LCD_ADDRESS_SECONDARY = 0x3F;
@@ -94,6 +112,20 @@ bool isLcdI2cPin(uint8_t pin) {
     return (
         lcdInitialized &&
         (pin == 18 || pin == 19)
+    );
+}
+
+bool isMatrixUsingLcdI2cPins() {
+    return (
+        matrixInitialized &&
+        (
+            matrixDinPin == 18 ||
+            matrixDinPin == 19 ||
+            matrixCsPin == 18 ||
+            matrixCsPin == 19 ||
+            matrixClkPin == 18 ||
+            matrixClkPin == 19
+        )
     );
 }
 
@@ -154,6 +186,115 @@ bool isServoAttachedOnPin(uint8_t pin) {
         slotIndex >= 0 &&
         servoSlots[slotIndex].attached()
     );
+}
+
+void writeMax7219Register(
+    uint8_t dinPin,
+    uint8_t csPin,
+    uint8_t clkPin,
+    uint8_t registerAddress,
+    uint8_t value
+) {
+    digitalWrite(
+        csPin,
+        LOW
+    );
+
+    shiftOut(
+        dinPin,
+        clkPin,
+        MSBFIRST,
+        registerAddress
+    );
+
+    shiftOut(
+        dinPin,
+        clkPin,
+        MSBFIRST,
+        value
+    );
+
+    digitalWrite(
+        csPin,
+        HIGH
+    );
+}
+
+void initializeMatrix(
+    uint8_t dinPin,
+    uint8_t csPin,
+    uint8_t clkPin
+) {
+    pinMode(dinPin, OUTPUT);
+    pinMode(csPin, OUTPUT);
+    pinMode(clkPin, OUTPUT);
+
+    digitalWrite(dinPin, LOW);
+    digitalWrite(clkPin, LOW);
+    digitalWrite(csPin, HIGH);
+
+    writeMax7219Register(
+        dinPin,
+        csPin,
+        clkPin,
+        MAX7219_REGISTER_DISPLAY_TEST,
+        0x00
+    );
+
+    writeMax7219Register(
+        dinPin,
+        csPin,
+        clkPin,
+        MAX7219_REGISTER_SHUTDOWN,
+        0x00
+    );
+
+    writeMax7219Register(
+        dinPin,
+        csPin,
+        clkPin,
+        MAX7219_REGISTER_DECODE_MODE,
+        0x00
+    );
+
+    writeMax7219Register(
+        dinPin,
+        csPin,
+        clkPin,
+        MAX7219_REGISTER_SCAN_LIMIT,
+        0x07
+    );
+
+    writeMax7219Register(
+        dinPin,
+        csPin,
+        clkPin,
+        MAX7219_REGISTER_INTENSITY,
+        matrixIntensity
+    );
+
+    for (uint8_t row = 1; row <= 8; row++) {
+        writeMax7219Register(
+            dinPin,
+            csPin,
+            clkPin,
+            row,
+            0x00
+        );
+    }
+
+    writeMax7219Register(
+        dinPin,
+        csPin,
+        clkPin,
+        MAX7219_REGISTER_SHUTDOWN,
+        0x01
+    );
+
+    matrixDinPin = dinPin;
+    matrixCsPin = csPin;
+    matrixClkPin = clkPin;
+    matrixInitialized = true;
 }
 
 void resetParser() {
@@ -1233,8 +1374,162 @@ bool lcdInitializeController() {
     return true;
 }
 
+void handleMatrixWrite() {
+    if (payloadLength != 11) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t dinPin = payload[0];
+    const uint8_t csPin = payload[1];
+    const uint8_t clkPin = payload[2];
+
+    if (
+        dinPin < 2 ||
+        dinPin > 19 ||
+        csPin < 2 ||
+        csPin > 19 ||
+        clkPin < 2 ||
+        clkPin > 19 ||
+        dinPin == csPin ||
+        dinPin == clkPin ||
+        csPin == clkPin ||
+        isLcdI2cPin(dinPin) ||
+        isLcdI2cPin(csPin) ||
+        isLcdI2cPin(clkPin) ||
+        isServoAttachedOnPin(dinPin) ||
+        isServoAttachedOnPin(csPin) ||
+        isServoAttachedOnPin(clkPin) ||
+        activeTonePin == dinPin ||
+        activeTonePin == csPin ||
+        activeTonePin == clkPin
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    if (
+        !matrixInitialized ||
+        matrixDinPin != dinPin ||
+        matrixCsPin != csPin ||
+        matrixClkPin != clkPin
+    ) {
+        initializeMatrix(
+            dinPin,
+            csPin,
+            clkPin
+        );
+    }
+
+    for (uint8_t row = 0; row < 8; row++) {
+        writeMax7219Register(
+            dinPin,
+            csPin,
+            clkPin,
+            static_cast<uint8_t>(row + 1),
+            payload[row + 3]
+        );
+    }
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
+void handleMatrixBrightness() {
+    if (payloadLength != 4) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t dinPin = payload[0];
+    const uint8_t csPin = payload[1];
+    const uint8_t clkPin = payload[2];
+    const uint8_t brightness = payload[3];
+
+    if (
+        dinPin < 2 ||
+        dinPin > 19 ||
+        csPin < 2 ||
+        csPin > 19 ||
+        clkPin < 2 ||
+        clkPin > 19 ||
+        dinPin == csPin ||
+        dinPin == clkPin ||
+        csPin == clkPin ||
+        brightness > 100 ||
+        isLcdI2cPin(dinPin) ||
+        isLcdI2cPin(csPin) ||
+        isLcdI2cPin(clkPin) ||
+        isServoAttachedOnPin(dinPin) ||
+        isServoAttachedOnPin(csPin) ||
+        isServoAttachedOnPin(clkPin) ||
+        activeTonePin == dinPin ||
+        activeTonePin == csPin ||
+        activeTonePin == clkPin
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    matrixIntensity =
+        static_cast<uint8_t>(
+            (
+                static_cast<uint16_t>(brightness) * 15U +
+                50U
+            ) / 100U
+        );
+
+    if (
+        !matrixInitialized ||
+        matrixDinPin != dinPin ||
+        matrixCsPin != csPin ||
+        matrixClkPin != clkPin
+    ) {
+        initializeMatrix(
+            dinPin,
+            csPin,
+            clkPin
+        );
+    } else {
+        writeMax7219Register(
+            dinPin,
+            csPin,
+            clkPin,
+            MAX7219_REGISTER_INTENSITY,
+            matrixIntensity
+        );
+    }
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
 void handleLcdInit() {
     if (payloadLength != 0) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    if (isMatrixUsingLcdI2cPins()) {
         sendFrame(
             sequence,
             RESPONSE_ERROR
@@ -1571,6 +1866,16 @@ void handleFrame() {
 
     if (command == COMMAND_LCD_MODE) {
         handleLcdMode();
+        return;
+    }
+
+    if (command == COMMAND_MATRIX_WRITE) {
+        handleMatrixWrite();
+        return;
+    }
+
+    if (command == COMMAND_MATRIX_BRIGHTNESS) {
+        handleMatrixBrightness();
         return;
     }
 }

@@ -5583,3 +5583,306 @@ A revalidação deverá ser incremental:
 Não alterar a decisão do TM1637 neste checkpoint.
 
 O display de 7 segmentos TM1637 continua reservado ao Modo Upload até investigação específica futura.
+
+### 19.123. Revalidação da matriz de LED 8×8 MAX7219 no Modo Palco
+
+A revalidação da matriz MAX7219 prevista nas seções 19.121 e 19.122 foi concluída.
+
+O suporte Stage foi restaurado sobre a infraestrutura Serial corrigida e validado novamente desde o protocolo até o hardware real.
+
+Contrato Stage atual:
+
+- `MATRIX_WRITE = 0x20`;
+- `MATRIX_BRIGHTNESS = 0x21`.
+
+Os valores `0x1C` e `0x1D` não foram reutilizados porque atualmente pertencem aos comandos do LCD 16×2 I2C.
+
+`MATRIX_WRITE` utiliza o payload:
+
+`[DIN, CS, CLK, ROW0, ROW1, ROW2, ROW3, ROW4, ROW5, ROW6, ROW7]`
+
+`MATRIX_BRIGHTNESS` utiliza:
+
+`[DIN, CS, CLK, BRIGHTNESS]`
+
+A implementação do firmware utiliza diretamente:
+
+- `shiftOut`;
+- protocolo MAX7219;
+- registradores de decode;
+- intensidade;
+- scan limit;
+- shutdown;
+- display test.
+
+Nenhuma biblioteca externa para MAX7219 é necessária no firmware Stage.
+
+O bloco de configuração continua sendo apenas uma configuração lógica da extensão Displays:
+
+`configurar matriz 8×8 DIN [DIN] CS [CS] CLK [CLK]`
+
+Ele armazena localmente os pinos utilizados pelos comandos seguintes.
+
+Configuração padrão EasyMaker:
+
+- DIN = A4;
+- CS = A5;
+- CLK = D13.
+
+Os blocos Stage atuais são:
+
+- `configurar matriz 8×8 DIN [DIN] CS [CS] CLK [CLK]`;
+- `mostrar na matriz [MATRIX]`;
+- `limpar matriz`;
+- `definir brilho da matriz para [BRIGHTNESS] %`.
+
+O editor visual 8×8 anteriormente desenvolvido foi preservado.
+
+O desenho padrão aprovado continua sendo:
+
+`0066FFFF7E3C1800`
+
+correspondente ao coração utilizado como imagem inicial do campo da matriz.
+
+Status atualizado:
+
+`MAX7219 — STAGE MODE VALIDADO`
+
+A decisão provisória anterior de reservar a MAX7219 exclusivamente ao Modo Upload fica superada por esta revalidação.
+
+O objetivo futuro passa a ser:
+
+`MAX7219 — Stage + Upload`
+
+quando o gerador de código do Modo Upload for implementado para esse dispositivo.
+
+### 19.124. Controle de fluxo por ACK para comandos da MAX7219
+
+A fila global de transmissão Serial resolveu a concorrência de escritas no transporte, porém os testes físicos com grande quantidade de frames consecutivos revelaram uma segunda limitação.
+
+Sem pausas explícitas, sequências maiores de comandos da matriz podiam ultrapassar a capacidade de processamento do firmware, mesmo sem provocar desconexão do Arduino.
+
+Foi adicionada uma camada de pacing baseada em ACK especificamente para:
+
+- `MATRIX_WRITE`;
+- `MATRIX_BRIGHTNESS`.
+
+O `ArduinoUnoPeripheral` mantém:
+
+`_pendingCommandAcks`
+
+e os comandos da matriz utilizam:
+
+`_sendCommandWithAck()`
+
+O fluxo passa a ser:
+
+`bloco → envio do frame → firmware processa → ACK correspondente → Promise resolvida → próximo bloco`
+
+O restante das primitives Stage continua utilizando o comportamento síncrono anterior.
+
+O mecanismo também trata:
+
+- `ERROR`;
+- timeout de 1000 ms;
+- reset/desconexão;
+- limpeza de Promises pendentes.
+
+Validação física de estresse:
+
+- 20 comandos consecutivos sem `esperar`: aprovado;
+- repetição do mesmo teste: aprovado;
+- aproximadamente 100 atualizações consecutivas de matriz, sem esperas explícitas: aprovado;
+- repetição do teste de aproximadamente 100 frames: aprovado;
+- frame final exibido corretamente;
+- conexão Stage permaneceu estável.
+
+Portanto:
+
+`ACK PACING DA MAX7219 — VALIDADO EM HARDWARE`
+
+### 19.125. Arbitragem entre MAX7219 e LCD nos pinos A4/A5
+
+A configuração padrão da matriz utiliza:
+
+- DIN = A4;
+- CS = A5;
+- CLK = D13.
+
+Entretanto, A4 e A5 também formam o barramento I2C padrão do Arduino UNO utilizado pelo LCD.
+
+Foi implementada proteção bidirecional no firmware.
+
+Quando o LCD já está inicializado:
+
+- a matriz não pode ser inicializada utilizando A4 ou A5.
+
+Quando a matriz já está inicializada utilizando A4 ou A5:
+
+- `LCD_INIT` responde `ERROR`;
+- o firmware não inicializa o barramento Wire;
+- a matriz permanece operacional;
+- a conexão Stage permanece estável.
+
+Validação física realizada com:
+
+- MAX7219 ativa em A4/A5/D13;
+- coração exibido;
+- tentativa de `LCD_INIT`;
+- novo frame da matriz;
+- retorno ao coração.
+
+Resultado:
+
+`ARBITRAGEM MAX7219 ↔ LCD — VALIDADA EM HARDWARE`
+
+Essa proteção evita que dois dispositivos tentem assumir simultaneamente recursos incompatíveis do Arduino UNO.
+
+### 19.126. Organização interna da categoria Displays
+
+A categoria `Displays` permanece única, utilizando a identidade visual:
+
+- principal: `#E53935`;
+- secundária: `#C62828`;
+- terciária: `#8E0000`.
+
+Para reduzir erros de seleção entre dispositivos diferentes, foi adicionada infraestrutura genérica de rótulos visuais no flyout.
+
+Novo tipo:
+
+`BlockType.LABEL`
+
+O Runtime converte esse item para o elemento nativo:
+
+`<label>`
+
+Labels não possuem:
+
+- opcode;
+- primitive;
+- execução.
+
+A organização atual da categoria é:
+
+`Matriz de LED 8x8`
+
+seguida pelos quatro blocos da MAX7219.
+
+Depois existe um separador visual real:
+
+`---`
+
+e a subseção:
+
+`Display LCD`
+
+seguida pelos quatro blocos do LCD 16×2.
+
+Essa organização foi validada visualmente na GUI.
+
+O preview/shadow do editor da matriz também utiliza agora o vermelho secundário:
+
+`#C62828`
+
+preservando os pixels ativos em branco.
+
+A infraestrutura de labels deverá ser reutilizada futuramente para:
+
+`Display 7 SEG`
+
+quando os blocos TM1637 forem implementados.
+
+Não exibir uma subseção vazia antes da existência dos respectivos blocos.
+
+### 19.127. Testes finais do checkpoint MAX7219 / ACK / Displays
+
+Resultados finais automatizados:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+- 223 pass;
+- 0 fail.
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+- 413 pass;
+- 0 fail.
+
+`packages/scratch-vm/test/unit/displays.js`
+
+- 45 pass;
+- 0 fail.
+
+Execução conjunta:
+
+- 681 pass;
+- 0 fail.
+
+Infraestrutura de labels e conversão:
+
+`packages/scratch-vm/test/unit/extension_conversion.js`
+
+- 97 pass;
+- 0 fail.
+
+Execução conjunta de `extension_conversion.js` e `displays.js`:
+
+- 142 pass;
+- 0 fail.
+
+Integração de extensões internas:
+
+`packages/scratch-vm/test/integration/internal-extension.js`
+
+- 44 pass;
+- 0 fail.
+
+Fila global Serial:
+
+`packages/scratch-vm/test/unit/serial.js`
+
+- 29 pass;
+- 0 fail.
+
+Compilação final do firmware Arduino UNO:
+
+- Flash: `11348 bytes (35%)`;
+- SRAM global: `610 bytes (29%)`;
+- SRAM restante: `1438 bytes`.
+
+Build final da GUI:
+
+`npm run build:dev`
+
+Resultado:
+
+`SUCESSO`
+
+Status técnico do checkpoint:
+
+- protocolo MAX7219: aprovado;
+- firmware MAX7219: aprovado;
+- ACK pacing: aprovado;
+- testes automatizados: aprovados;
+- build GUI: aprovado;
+- compilação Arduino UNO: aprovada;
+- editor visual: aprovado;
+- organização da categoria Displays: aprovada;
+- arbitragem LCD/MAX7219: aprovada;
+- validação física MAX7219: aprovada.
+
+### 19.128. Situação dos displays após a revalidação
+
+Estado atual:
+
+`LCD 16×2 I2C — Stage aprovado`
+
+`MAX7219 8×8 — Stage aprovado`
+
+`TM1637 / Display 7 segmentos — Upload Mode`
+
+A revalidação bem-sucedida da MAX7219 não altera automaticamente a decisão sobre o TM1637.
+
+Qualquer eventual suporte Stage ao TM1637 deverá ser investigado em checkpoint específico.
+
+O trabalho deverá continuar preservando a prioridade de concluir a base Arduino UNO antes de avançar para ESP32.

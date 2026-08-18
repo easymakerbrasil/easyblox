@@ -14,6 +14,11 @@ const BlockType = {
     BUTTON: 'button',
 
     /**
+     * A label (not an actual block) used to identify a section in a flyout
+     */
+    LABEL: 'label',
+
+    /**
      * Command block
      */
     COMMAND: 'command',

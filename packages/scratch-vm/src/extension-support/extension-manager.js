@@ -425,6 +425,22 @@ class ExtensionManager {
                 log.warn(`Ignoring opcode "${blockInfo.opcode}" for button with text: ${blockInfo.text}`);
             }
             break;
+
+        case BlockType.LABEL:
+            if (!blockInfo.text) {
+                throw new Error('Missing text for label');
+            }
+
+            if (blockInfo.opcode) {
+                log.warn(`Ignoring opcode "${blockInfo.opcode}" for label with text: ${blockInfo.text}`);
+            }
+
+            if (blockInfo.func) {
+                log.warn(`Ignoring function "${blockInfo.func}" for label with text: ${blockInfo.text}`);
+            }
+
+            break;
+
         default: {
             if (!blockInfo.opcode) {
                 throw new Error('Missing opcode for block');

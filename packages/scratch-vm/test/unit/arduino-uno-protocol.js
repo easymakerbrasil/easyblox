@@ -698,3 +698,88 @@ tap.test('defines LCD mode values', t => {
 
     t.end();
 });
+
+tap.test('defines matrix command values', t => {
+    t.equal(COMMANDS.MATRIX_WRITE, 0x20);
+    t.equal(COMMANDS.MATRIX_BRIGHTNESS, 0x21);
+
+    t.end();
+});
+
+tap.test('encodes MATRIX_WRITE payload', t => {
+    const frame = encodeFrame(
+        0x44,
+        COMMANDS.MATRIX_WRITE,
+        [
+            11,
+            10,
+            13,
+            0x00,
+            0x66,
+            0xFF,
+            0xFF,
+            0x7E,
+            0x3C,
+            0x18,
+            0x00
+        ]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x44);
+    t.equal(frame[4], 0x20);
+    t.equal(frame[5], 11);
+
+    t.equal(frame[6], 11);
+    t.equal(frame[7], 10);
+    t.equal(frame[8], 13);
+    t.equal(frame[9], 0x00);
+    t.equal(frame[10], 0x66);
+    t.equal(frame[11], 0xFF);
+    t.equal(frame[12], 0xFF);
+    t.equal(frame[13], 0x7E);
+    t.equal(frame[14], 0x3C);
+    t.equal(frame[15], 0x18);
+    t.equal(frame[16], 0x00);
+
+    t.equal(
+        frame[17],
+        calculateChecksum(frame.subarray(2, 17))
+    );
+
+    t.end();
+});
+
+tap.test('encodes MATRIX_BRIGHTNESS payload', t => {
+    const frame = encodeFrame(
+        0x45,
+        COMMANDS.MATRIX_BRIGHTNESS,
+        [
+            11,
+            10,
+            13,
+            100
+        ]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x45);
+    t.equal(frame[4], 0x21);
+    t.equal(frame[5], 4);
+
+    t.equal(frame[6], 11);
+    t.equal(frame[7], 10);
+    t.equal(frame[8], 13);
+    t.equal(frame[9], 100);
+
+    t.equal(
+        frame[10],
+        calculateChecksum(frame.subarray(2, 10))
+    );
+
+    t.end();
+});

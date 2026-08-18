@@ -1103,6 +1103,10 @@ class Runtime extends EventEmitter {
             return this._convertButtonForScratchBlocks(blockInfo);
         }
 
+        if (blockInfo.blockType === BlockType.LABEL) {
+            return this._convertLabelForScratchBlocks(blockInfo);
+        }
+
         return this._convertBlockForScratchBlocks(blockInfo, categoryInfo);
     }
 
@@ -1291,6 +1295,29 @@ class Runtime extends EventEmitter {
         return {
             info: buttonInfo,
             xml: `<button text="${buttonText}" callbackKey="${buttonInfo.func}"></button>`
+        };
+    }
+
+    /**
+     * Convert a label for scratch-blocks.
+     * A label is a visual flyout item and has no opcode or primitive.
+     * @param {ExtensionBlockMetadata} labelInfo - the label to convert
+     * @returns {ConvertedBlockInfo} - converted label information
+     * @private
+     */
+    _convertLabelForScratchBlocks (labelInfo) {
+        const extensionMessageContext =
+            this.makeMessageContextForTarget();
+
+        const labelText =
+            maybeFormatMessage(
+                labelInfo.text,
+                extensionMessageContext
+            );
+
+        return {
+            info: labelInfo,
+            xml: `<label text="${xmlEscape(labelText)}"></label>`
         };
     }
 

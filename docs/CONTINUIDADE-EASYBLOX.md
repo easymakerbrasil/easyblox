@@ -6410,3 +6410,319 @@ A decisão anterior deverá permanecer registrada como histórico, mas a conclus
 Não iniciar TM1637 neste checkpoint.
 
 Não iniciar ESP32 antes de concluir a base Arduino UNO planejada.
+
+### 22.101. Revalidação concluída da MAX7219 no Stage Mode
+
+A revalidação prevista na seção 22.100 foi concluída com sucesso.
+
+A matriz de LED 8×8 MAX7219 foi restaurada no Stage Mode e validada novamente desde o protocolo até o hardware real.
+
+Status oficial atualizado:
+
+`MAX7219 8×8 — STAGE MODE APROVADO`
+
+A decisão provisória anterior de tratar a MAX7219 como Upload Mode apenas fica superada por esta validação.
+
+Quando o gerador de código do Modo Upload for implementado para a matriz, o objetivo passa a ser:
+
+`MAX7219 8×8 — Stage + Upload`
+
+O TM1637 não foi reaberto neste checkpoint.
+
+Status mantido:
+
+`TM1637 / Display 7 segmentos — Upload Mode`
+
+### 22.102. Contrato Stage atual da MAX7219
+
+Comandos:
+
+- `MATRIX_WRITE = 0x20`;
+- `MATRIX_BRIGHTNESS = 0x21`.
+
+Payload de `MATRIX_WRITE`:
+
+`[DIN, CS, CLK, ROW0, ROW1, ROW2, ROW3, ROW4, ROW5, ROW6, ROW7]`
+
+Payload de `MATRIX_BRIGHTNESS`:
+
+`[DIN, CS, CLK, BRIGHTNESS]`
+
+Configuração visual atual:
+
+`configurar matriz 8×8 DIN [DIN] CS [CS] CLK [CLK]`
+
+Defaults:
+
+- DIN = A4;
+- CS = A5;
+- CLK = D13.
+
+Blocos disponíveis:
+
+- configurar matriz;
+- mostrar desenho;
+- limpar matriz;
+- definir brilho.
+
+O coração padrão do editor permanece:
+
+`0066FFFF7E3C1800`
+
+### 22.103. ACK pacing da MAX7219
+
+A fila global Serial continua responsável por serializar as escritas no transporte.
+
+Além disso, os comandos:
+
+- `MATRIX_WRITE`;
+- `MATRIX_BRIGHTNESS`;
+
+agora aguardam ACK do firmware antes da conclusão da primitive.
+
+Infraestrutura principal:
+
+`ArduinoUnoPeripheral._pendingCommandAcks`
+
+`ArduinoUnoPeripheral._sendCommandWithAck()`
+
+Tratamentos implementados:
+
+- ACK correspondente;
+- ERROR;
+- timeout de 1000 ms;
+- reset/desconexão.
+
+Validação física:
+
+- 20 comandos consecutivos sem `esperar`: aprovado;
+- aproximadamente 100 frames consecutivos sem `esperar`: aprovado;
+- repetição dos testes: aprovada;
+- frame final correto;
+- conexão Stage estável.
+
+Status:
+
+`ACK PACING MAX7219 — VALIDADO EM HARDWARE`
+
+### 22.104. Arbitragem de A4/A5 entre MAX7219 e LCD
+
+A MAX7219 pode utilizar A4/A5 na configuração padrão.
+
+O LCD 16×2 I2C também utiliza A4/A5 como barramento I2C do Arduino UNO.
+
+O firmware agora protege os dois sentidos do conflito:
+
+- LCD ativo → matriz não assume A4/A5;
+- matriz ativa em A4/A5 → `LCD_INIT` responde ERROR.
+
+No segundo caso:
+
+- Wire não é inicializado;
+- a matriz permanece operacional;
+- a conexão Stage permanece estável.
+
+Validação física concluída.
+
+Status:
+
+`ARBITRAGEM MAX7219 ↔ LCD — APROVADA`
+
+### 22.105. Organização atual da categoria Displays
+
+A categoria continua única:
+
+`Displays`
+
+Paleta atual:
+
+- `#E53935`;
+- `#C62828`;
+- `#8E0000`.
+
+Foi adicionada infraestrutura genérica:
+
+`BlockType.LABEL`
+
+Ela é convertida pelo Runtime em:
+
+`<label>`
+
+e permite criar subseções visuais reais no flyout sem criar blocos executáveis falsos.
+
+Organização atual:
+
+`Matriz de LED 8x8`
+
+- configurar matriz;
+- mostrar matriz;
+- limpar matriz;
+- definir brilho.
+
+Separador visual.
+
+`Display LCD`
+
+- iniciar LCD;
+- escrever no LCD;
+- limpar LCD;
+- definir modo do LCD.
+
+O preview/shadow da matriz utiliza agora:
+
+`#C62828`
+
+com os pixels ativos em branco.
+
+A subseção:
+
+`Display 7 SEG`
+
+deverá ser adicionada quando os blocos TM1637 existirem.
+
+Não criar uma subseção vazia antes disso.
+
+### 22.106. Validações finais deste checkpoint
+
+Testes principais:
+
+`arduino-uno-protocol.js`
+
+- 223 pass;
+- 0 fail.
+
+`arduino-uno.js`
+
+- 413 pass;
+- 0 fail.
+
+`displays.js`
+
+- 45 pass;
+- 0 fail.
+
+Execução conjunta:
+
+- 681 pass;
+- 0 fail.
+
+`extension_conversion.js + displays.js`
+
+- 142 pass;
+- 0 fail.
+
+`internal-extension.js`
+
+- 44 pass;
+- 0 fail.
+
+`serial.js`
+
+- 29 pass;
+- 0 fail.
+
+Firmware Arduino UNO:
+
+- Flash: `11348 bytes (35%)`;
+- SRAM global: `610 bytes (29%)`;
+- SRAM livre: `1438 bytes`.
+
+Build GUI:
+
+`npm run build:dev`
+
+Resultado:
+
+`SUCESSO`
+
+Validação física:
+
+- MAX7219 Stage: aprovada;
+- brilho: aprovado;
+- múltiplos frames: aprovados;
+- stress sem waits: aprovado;
+- ACK pacing: aprovado;
+- arbitragem LCD/MAX7219: aprovada.
+
+### 22.107. Arquivos principais do checkpoint MAX7219 / ACK / Displays
+
+Firmware:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Protocolo e peripheral:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/protocol.js`
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+Displays:
+
+`packages/scratch-vm/src/extensions/scratch3_displays/index.js`
+
+Infraestrutura de flyout:
+
+`packages/scratch-vm/src/extension-support/block-type.js`
+
+`packages/scratch-vm/src/extension-support/extension-manager.js`
+
+`packages/scratch-vm/src/engine/runtime.js`
+
+GUI:
+
+`packages/scratch-gui/src/lib/blocks.js`
+
+Testes:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+`packages/scratch-vm/test/unit/displays.js`
+
+`packages/scratch-vm/test/unit/extension_conversion.js`
+
+Documentação:
+
+`docs/GUIA-DE-DESENVOLVIMENTO.md`
+
+`docs/CONTINUIDADE-EASYBLOX.md`
+
+### 22.108. Alteração local independente
+
+Permanece fora deste checkpoint:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+Essa modificação é independente e:
+
+`NÃO DEVE SER INCLUÍDA NO COMMIT MAX7219 / ACK / DISPLAYS`
+
+O staging deverá ser explícito.
+
+### 22.109. Próximo ponto oficial de retomada
+
+Depois de concluir:
+
+- revisão final do diff;
+- `git diff --check`;
+- staging explícito;
+- `git diff --cached --check`;
+- revisão do staged diff;
+- commit;
+- push;
+- confirmação de sincronização com o remoto;
+
+o checkpoint MAX7219 / ACK / Displays estará encerrado.
+
+Estado dos displays após este checkpoint:
+
+`LCD 16×2 I2C — Stage aprovado`
+
+`MAX7219 8×8 — Stage aprovado`
+
+`TM1637 / Display 7 segmentos — Upload Mode`
+
+Não iniciar TM1637 Stage automaticamente.
+
+Não iniciar ESP32 antes de concluir a base Arduino UNO planejada.

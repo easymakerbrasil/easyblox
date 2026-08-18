@@ -111,6 +111,8 @@ export default function (vm) {
                 outputShape: ScratchBlocks.OUTPUT_SHAPE_ROUND,
                 extensions: ['colours_textfield']
             });
+
+            this.setColour('#C62828');
         }
     };
 

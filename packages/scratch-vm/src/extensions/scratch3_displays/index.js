@@ -3,6 +3,13 @@ const BlockType = require('../../extension-support/block-type');
 
 const EXTENSION_ID = 'displays';
 
+const MATRIX_SIZE = 8;
+const DEFAULT_MATRIX = '0066FFFF7E3C1800';
+
+const DEFAULT_MATRIX_DIN_PIN = 18;
+const DEFAULT_MATRIX_CS_PIN = 19;
+const DEFAULT_MATRIX_CLK_PIN = 13;
+
 /**
  * Hardware display blocks for supported EasyBlox boards.
  */
@@ -13,6 +20,10 @@ class Scratch3DisplaysBlocks {
     constructor (runtime) {
         this.runtime = runtime;
         this._peripheral = runtime.getPeripheralExtension('arduinoUno');
+
+        this._matrixDinPin = DEFAULT_MATRIX_DIN_PIN;
+        this._matrixCsPin = DEFAULT_MATRIX_CS_PIN;
+        this._matrixClkPin = DEFAULT_MATRIX_CLK_PIN;
     }
 
     /**
@@ -27,6 +38,64 @@ class Scratch3DisplaysBlocks {
             color2: '#C62828',
             color3: '#8E0000',
             blocks: [
+                {
+                    blockType: BlockType.LABEL,
+                    text: 'Matriz de LED 8x8'
+                },
+                {
+                    opcode: 'configureMatrix',
+                    blockType: BlockType.COMMAND,
+                    text: 'configurar matriz 8×8 DIN [DIN] CS [CS] CLK [CLK]',
+                    arguments: {
+                        DIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'matrixPins',
+                            defaultValue: DEFAULT_MATRIX_DIN_PIN
+                        },
+                        CS: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'matrixPins',
+                            defaultValue: DEFAULT_MATRIX_CS_PIN
+                        },
+                        CLK: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'matrixPins',
+                            defaultValue: DEFAULT_MATRIX_CLK_PIN
+                        }
+                    }
+                },
+                {
+                    opcode: 'matrixWrite',
+                    blockType: BlockType.COMMAND,
+                    text: 'mostrar na matriz [MATRIX]',
+                    arguments: {
+                        MATRIX: {
+                            type: ArgumentType.MATRIX_8X8,
+                            defaultValue: DEFAULT_MATRIX
+                        }
+                    }
+                },
+                {
+                    opcode: 'matrixClear',
+                    blockType: BlockType.COMMAND,
+                    text: 'limpar matriz'
+                },
+                {
+                    opcode: 'matrixBrightness',
+                    blockType: BlockType.COMMAND,
+                    text: 'definir brilho da matriz para [BRIGHTNESS] %',
+                    arguments: {
+                        BRIGHTNESS: {
+                            type: ArgumentType.PERCENTAGE,
+                            defaultValue: 100
+                        }
+                    }
+                },
+                '---',
+                {
+                    blockType: BlockType.LABEL,
+                    text: 'Display LCD'
+                },
                 {
                     opcode: 'lcdInit',
                     blockType: BlockType.COMMAND,
@@ -72,6 +141,29 @@ class Scratch3DisplaysBlocks {
                 }
             ],
             menus: {
+                matrixPins: {
+                    acceptReporters: true,
+                    items: [
+                        {text: 'D2', value: '2'},
+                        {text: 'D3', value: '3'},
+                        {text: 'D4', value: '4'},
+                        {text: 'D5', value: '5'},
+                        {text: 'D6', value: '6'},
+                        {text: 'D7', value: '7'},
+                        {text: 'D8', value: '8'},
+                        {text: 'D9', value: '9'},
+                        {text: 'D10', value: '10'},
+                        {text: 'D11', value: '11'},
+                        {text: 'D12', value: '12'},
+                        {text: 'D13', value: '13'},
+                        {text: 'A0', value: '14'},
+                        {text: 'A1', value: '15'},
+                        {text: 'A2', value: '16'},
+                        {text: 'A3', value: '17'},
+                        {text: 'A4', value: '18'},
+                        {text: 'A5', value: '19'}
+                    ]
+                },
                 lcdRows: {
                     acceptReporters: true,
                     items: [
@@ -123,6 +215,130 @@ class Scratch3DisplaysBlocks {
                 }
             }
         };
+    }
+
+    /**
+     * Check whether a pin can be used by the MAX7219 matrix.
+     * @param {number} pin Arduino pin number.
+     * @returns {boolean} True when valid.
+     */
+    _isValidMatrixPin (pin) {
+        return (
+            Number.isInteger(pin) &&
+            pin >= 2 &&
+            pin <= 19
+        );
+    }
+
+    /**
+     * Configure the pins used by subsequent matrix blocks.
+     * @param {object} args Scratch block arguments.
+     * @returns {null} No transport command is sent.
+     */
+    configureMatrix (args) {
+        const dinPin = Number(args.DIN);
+        const csPin = Number(args.CS);
+        const clkPin = Number(args.CLK);
+
+        if (!this._isValidMatrixPin(dinPin) ||
+            !this._isValidMatrixPin(csPin) ||
+            !this._isValidMatrixPin(clkPin)) {
+            return null;
+        }
+
+        if (dinPin === csPin ||
+            dinPin === clkPin ||
+            csPin === clkPin) {
+            return null;
+        }
+
+        this._matrixDinPin = dinPin;
+        this._matrixCsPin = csPin;
+        this._matrixClkPin = clkPin;
+
+        return null;
+    }
+
+    /**
+     * Convert the serialized 8x8 matrix value to eight row bytes.
+     * @param {unknown} matrix Serialized matrix value.
+     * @returns {number[]} Eight bytes, one per matrix row.
+     */
+    _matrixValueToRows (matrix) {
+        const normalized =
+            String(matrix || '')
+                .replace(/[^0-9a-f]/gi, '')
+                .toUpperCase()
+                .slice(0, MATRIX_SIZE * 2)
+                .padEnd(MATRIX_SIZE * 2, '0');
+
+        const rows = [];
+
+        for (let row = 0; row < MATRIX_SIZE; row++) {
+            rows.push(
+                parseInt(
+                    normalized.slice(
+                        row * 2,
+                        (row + 1) * 2
+                    ),
+                    16
+                )
+            );
+        }
+
+        return rows;
+    }
+
+    /**
+     * Display an 8x8 bitmap on the configured MAX7219 matrix.
+     * @param {object} args Scratch block arguments.
+     * @returns {?Promise<number>} Promise resolved after ACK, or null when unavailable.
+     */
+    matrixWrite (args) {
+        return this._peripheral.matrixWrite(
+            this._matrixDinPin,
+            this._matrixCsPin,
+            this._matrixClkPin,
+            this._matrixValueToRows(args.MATRIX)
+        );
+    }
+
+    /**
+     * Clear the configured MAX7219 matrix.
+     * @returns {?Promise<number>} Promise resolved after ACK, or null when unavailable.
+     */
+    matrixClear () {
+        return this._peripheral.matrixWrite(
+            this._matrixDinPin,
+            this._matrixCsPin,
+            this._matrixClkPin,
+            new Array(MATRIX_SIZE).fill(0)
+        );
+    }
+
+    /**
+     * Set the MAX7219 intensity using a percentage from 0 to 100.
+     * @param {object} args Scratch block arguments.
+     * @returns {?Promise<number>} Promise resolved after ACK, or null when unavailable.
+     */
+    matrixBrightness (args) {
+        const brightness =
+            Math.max(
+                0,
+                Math.min(
+                    100,
+                    Math.round(
+                        Number(args.BRIGHTNESS)
+                    )
+                )
+            );
+
+        return this._peripheral.matrixBrightness(
+            this._matrixDinPin,
+            this._matrixCsPin,
+            this._matrixClkPin,
+            brightness
+        );
     }
 
     /**

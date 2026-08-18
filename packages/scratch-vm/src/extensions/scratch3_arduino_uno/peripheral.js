@@ -43,6 +43,7 @@ class ArduinoUnoPeripheral {
         this._pendingAnalogReads = new Map();
         this._pendingUltrasonicReads = new Map();
         this._pendingDhtReads = new Map();
+        this._pendingCommandAcks = new Map();
         this._stageConnected = false;
         this._handshakeTimer = null;
         this._handshakeAttempts = 0;
@@ -554,6 +555,108 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Write an 8x8 frame to a MAX7219 matrix in Stage mode.
+     * @param {number} dinPin MAX7219 DIN pin.
+     * @param {number} csPin MAX7219 CS pin.
+     * @param {number} clkPin MAX7219 CLK pin.
+     * @param {Array<number>} rows Eight matrix row bytes.
+     * @returns {?Promise<number>} Promise resolved after ACK, or null when unavailable.
+     */
+    matrixWrite (dinPin, csPin, clkPin, rows) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(dinPin) ||
+            !Number.isInteger(csPin) ||
+            !Number.isInteger(clkPin) ||
+            dinPin < 2 ||
+            dinPin > 19 ||
+            csPin < 2 ||
+            csPin > 19 ||
+            clkPin < 2 ||
+            clkPin > 19 ||
+            dinPin === csPin ||
+            dinPin === clkPin ||
+            csPin === clkPin
+        ) {
+            return null;
+        }
+
+        if (
+            !Array.isArray(rows) ||
+            rows.length !== 8 ||
+            Array.from(rows).some(row =>
+                !Number.isInteger(row) ||
+                row < 0 ||
+                row > 255
+            )
+        ) {
+            return null;
+        }
+
+        return this._sendCommandWithAck(
+            COMMANDS.MATRIX_WRITE,
+            [
+                dinPin,
+                csPin,
+                clkPin,
+                ...rows
+            ]
+        );
+    }
+
+    /**
+     * Set MAX7219 matrix brightness in Stage mode.
+     * @param {number} dinPin MAX7219 DIN pin.
+     * @param {number} csPin MAX7219 CS pin.
+     * @param {number} clkPin MAX7219 CLK pin.
+     * @param {number} brightness Brightness from 0 to 100 percent.
+     * @returns {?Promise<number>} Promise resolved after ACK, or null when unavailable.
+     */
+    matrixBrightness (
+        dinPin,
+        csPin,
+        clkPin,
+        brightness
+    ) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(dinPin) ||
+            !Number.isInteger(csPin) ||
+            !Number.isInteger(clkPin) ||
+            !Number.isInteger(brightness) ||
+            dinPin < 2 ||
+            dinPin > 19 ||
+            csPin < 2 ||
+            csPin > 19 ||
+            clkPin < 2 ||
+            clkPin > 19 ||
+            dinPin === csPin ||
+            dinPin === clkPin ||
+            csPin === clkPin ||
+            brightness < 0 ||
+            brightness > 100
+        ) {
+            return null;
+        }
+
+        return this._sendCommandWithAck(
+            COMMANDS.MATRIX_BRIGHTNESS,
+            [
+                dinPin,
+                csPin,
+                clkPin,
+                brightness
+            ]
+        );
+    }
+
+    /**
      * Write text to a 16x2 I2C LCD in Stage mode.
      * Row and column use zero-based protocol coordinates.
      * @param {*} text Value to write.
@@ -711,7 +814,41 @@ class ArduinoUnoPeripheral {
             return;
         }
 
+        if (frame.command === RESPONSES.ACK) {
+            const pendingCommand =
+                this._pendingCommandAcks.get(frame.sequence);
+
+            if (!pendingCommand) {
+                return;
+            }
+
+            clearTimeout(pendingCommand.timeout);
+
+            this._pendingCommandAcks.delete(
+                frame.sequence
+            );
+
+            pendingCommand.resolve(
+                frame.sequence
+            );
+
+            return;
+        }
+
         if (frame.command === RESPONSES.ERROR) {
+            const pendingCommand =
+                this._pendingCommandAcks.get(frame.sequence);
+
+            if (pendingCommand) {
+                clearTimeout(pendingCommand.timeout);
+
+                this._pendingCommandAcks.delete(
+                    frame.sequence
+                );
+
+                pendingCommand.resolve(null);
+                return;
+            }
             const pendingUltrasonicRead =
                 this._pendingUltrasonicReads.get(frame.sequence);
 
@@ -865,6 +1002,61 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Send a Stage protocol command and wait for its ACK.
+     * Used by commands which require firmware processing backpressure.
+     * @param {number} command Protocol command.
+     * @param {Uint8Array|Array<number>} payload Command payload.
+     * @returns {?Promise<number>} Promise resolved with the sequence number
+     * when acknowledged, or null on failure/timeout.
+     */
+    _sendCommandWithAck (command, payload = []) {
+        if (!this._serial || !this._serial.isConnected()) {
+            return null;
+        }
+
+        const sequence = this._nextSequence;
+
+        this._nextSequence++;
+
+        if (this._nextSequence > 0xFF) {
+            this._nextSequence = 1;
+        }
+
+        const frame = encodeFrame(
+            sequence,
+            command,
+            payload
+        );
+
+        return new Promise(resolve => {
+            const timeout = setTimeout(() => {
+                const pendingCommand =
+                    this._pendingCommandAcks.get(sequence);
+
+                if (!pendingCommand) {
+                    return;
+                }
+
+                this._pendingCommandAcks.delete(
+                    sequence
+                );
+
+                resolve(null);
+            }, 1000);
+
+            this._pendingCommandAcks.set(
+                sequence,
+                {
+                    resolve,
+                    timeout
+                }
+            );
+
+            this._serial.write(frame);
+        });
+    }
+
+    /**
      * Reset board-specific Stage protocol state.
      * @returns {void}
      */
@@ -893,6 +1085,16 @@ class ArduinoUnoPeripheral {
         }
 
         this._pendingUltrasonicReads.clear();
+
+        for (
+            const pendingCommand
+            of this._pendingCommandAcks.values()
+        ) {
+            clearTimeout(pendingCommand.timeout);
+            pendingCommand.resolve(null);
+        }
+
+        this._pendingCommandAcks.clear();
 
         for (const pendingRead of this._pendingDhtReads.values()) {
             pendingRead.resolve(null);

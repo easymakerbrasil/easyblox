@@ -21,6 +21,10 @@ const testExtensionInfo = {
             text: 'this is a button'
         },
         {
+            blockType: BlockType.LABEL,
+            text: 'this is a label'
+        },
+        {
             opcode: 'reporter',
             blockType: BlockType.REPORTER,
             text: 'simple text',
@@ -132,6 +136,14 @@ const testCategoryInfo = function (t, block) {
 const testButton = function (t, button) {
     t.same(button.json, null); // should be null or undefined
     t.equal(button.xml, '<button text="this is a button" callbackKey="MAKE_A_VARIABLE"></button>');
+};
+
+const testLabel = function (t, label) {
+    t.same(label.json, null); // should be null or undefined
+    t.equal(
+        label.xml,
+        '<label text="this is a label"></label>'
+    );
 };
 
 const testReporter = function (t, reporter) {
@@ -280,9 +292,19 @@ test('registerExtensionPrimitives', t => {
         });
 
         // Note that this also implicitly tests that block order is preserved
-        const [button, reporter, inlineImage, separator, command, conditional, loop] = blocksInfo;
+        const [
+            button,
+            label,
+            reporter,
+            inlineImage,
+            separator,
+            command,
+            conditional,
+            loop
+        ] = blocksInfo;
 
         testButton(t, button);
+        testLabel(t, label);
         testReporter(t, reporter);
         testInlineImage(t, inlineImage);
         testSeparator(t, separator);
