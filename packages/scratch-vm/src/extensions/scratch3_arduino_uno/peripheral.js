@@ -41,6 +41,7 @@ class ArduinoUnoPeripheral {
         this._pingSequence = null;
         this._pendingDigitalReads = new Map();
         this._pendingAnalogReads = new Map();
+        this._pendingJoystickReads = new Map();
         this._pendingUltrasonicReads = new Map();
         this._pendingDhtReads = new Map();
         this._pendingCommandAcks = new Map();
@@ -442,6 +443,59 @@ class ArduinoUnoPeripheral {
                 sequence,
                 {
                     pin,
+                    resolve
+                }
+            );
+        });
+    }
+
+    /**
+     * Read an Arduino joystick in Stage mode.
+     * @param {number} xPin Arduino analog pin for the X axis, from A0 to A5.
+     * @param {number} yPin Arduino analog pin for the Y axis, from A0 to A5.
+     * @param {number} clickPin Arduino digital pin for the joystick click, from D2 to D13.
+     * @returns {?Promise<object>} Promise resolved with X, Y and click state, or null when unavailable.
+     */
+    joystickRead (xPin, yPin, clickPin) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(xPin) ||
+            !Number.isInteger(yPin) ||
+            !Number.isInteger(clickPin) ||
+            xPin < 14 ||
+            xPin > 19 ||
+            yPin < 14 ||
+            yPin > 19 ||
+            clickPin < 2 ||
+            clickPin > 13 ||
+            xPin === yPin
+        ) {
+            return null;
+        }
+
+        const sequence = this._sendCommand(
+            COMMANDS.JOYSTICK_READ,
+            [
+                xPin,
+                yPin,
+                clickPin
+            ]
+        );
+
+        if (sequence === null) {
+            return null;
+        }
+
+        return new Promise(resolve => {
+            this._pendingJoystickReads.set(
+                sequence,
+                {
+                    xPin,
+                    yPin,
+                    clickPin,
                     resolve
                 }
             );
@@ -904,6 +958,15 @@ class ArduinoUnoPeripheral {
                 return;
             }
 
+            const pendingJoystickRead =
+                this._pendingJoystickReads.get(frame.sequence);
+
+            if (pendingJoystickRead) {
+                this._pendingJoystickReads.delete(frame.sequence);
+                pendingJoystickRead.resolve(null);
+                return;
+            }
+
             const pendingDhtRead =
                 this._pendingDhtReads.get(frame.sequence);
 
@@ -960,6 +1023,47 @@ class ArduinoUnoPeripheral {
             this._pendingAnalogReads.delete(frame.sequence);
 
             pendingRead.resolve(value);
+        }
+
+        if (frame.command === RESPONSES.JOYSTICK_READ) {
+            const pendingRead =
+                this._pendingJoystickReads.get(frame.sequence);
+
+            if (
+                !pendingRead ||
+                frame.payload.length !== 8 ||
+                frame.payload[0] !== pendingRead.xPin ||
+                frame.payload[1] !== pendingRead.yPin ||
+                frame.payload[2] !== pendingRead.clickPin ||
+                (frame.payload[7] !== 0 && frame.payload[7] !== 1)
+            ) {
+                return;
+            }
+
+            const x =
+                (frame.payload[3] << 8) |
+                frame.payload[4];
+
+            const y =
+                (frame.payload[5] << 8) |
+                frame.payload[6];
+
+            if (
+                x > 1023 ||
+                y > 1023
+            ) {
+                return;
+            }
+
+            this._pendingJoystickReads.delete(frame.sequence);
+
+            pendingRead.resolve({
+                x,
+                y,
+                clicked: frame.payload[7] === 1
+            });
+
+            return;
         }
 
         if (frame.command === RESPONSES.ULTRASONIC_READ) {
@@ -1129,6 +1233,12 @@ class ArduinoUnoPeripheral {
         for (const pendingRead of this._pendingUltrasonicReads.values()) {
             pendingRead.resolve(null);
         }
+
+        for (const pendingRead of this._pendingJoystickReads.values()) {
+            pendingRead.resolve(null);
+        }
+
+        this._pendingJoystickReads.clear();
 
         this._pendingUltrasonicReads.clear();
 

@@ -6195,3 +6195,162 @@ O próximo desenvolvimento planejado da base Arduino UNO é:
 `Joystick`
 
 Manter a prioridade de concluir a base Arduino UNO antes de avançar para ESP32.
+
+### 19.138. Joystick Stage v1
+
+O módulo Joystick do Arduino UNO deve ser tratado como um periférico de três sinais:
+
+- eixo X;
+- eixo Y;
+- Click.
+
+Defaults EasyMaker:
+
+- X = A4 / 18;
+- Y = A5 / 19;
+- Click = D13 / 13.
+
+Esse mapeamento corresponde ao mesmo conector físico utilizado pela matriz MAX7219.
+
+### 19.139. Protocolo Joystick
+
+Comando:
+
+`JOYSTICK_READ = 0x23`
+
+Resposta:
+
+`JOYSTICK_READ = 0x95`
+
+Requisição:
+
+`[X_PIN, Y_PIN, CLICK_PIN]`
+
+Resposta:
+
+`[X_PIN, Y_PIN, CLICK_PIN, X_H, X_L, Y_H, Y_L, CLICK]`
+
+X e Y devem permanecer na faixa:
+
+`0..1023`
+
+O Click deve ser entregue ao cliente já normalizado:
+
+`0 = solto`
+
+`1 = pressionado`
+
+### 19.140. Click do Joystick
+
+O firmware deve configurar o sinal Click com:
+
+`INPUT_PULLUP`
+
+A interpretação elétrica é:
+
+`LOW = pressionado`
+
+O usuário e os blocos Scratch não devem precisar conhecer essa inversão.
+
+Não alterar o comportamento genérico de `DIGITAL_READ` para atender ao Joystick.
+
+A configuração pull-up pertence exclusivamente ao primitive do Joystick.
+
+### 19.141. Blocos Sensores Arduino
+
+O Joystick utiliza três blocos:
+
+`inicializar joystick X [X] Y [Y] CLICK [CLICK]`
+
+`valor do joystick [X/Y]`
+
+`joystick clicado?`
+
+O bloco de configuração apenas armazena estado local e deve encerrar silenciosamente com `undefined`.
+
+O bloco de Click deve utilizar:
+
+`BlockType.BOOLEAN`
+
+### 19.142. Peripheral Joystick
+
+O peripheral deve utilizar:
+
+`_pendingJoystickReads`
+
+e expor:
+
+`joystickRead(xPin, yPin, clickPin)`
+
+A resposta validada deve ser convertida para:
+
+`{x, y, clicked}`
+
+Frames inválidos não devem resolver uma leitura como válida.
+
+`RESPONSE_ERROR` e reset/desconexão devem resolver leituras pendentes com:
+
+`null`
+
+### 19.143. Arbitragem
+
+O Joystick é um dispositivo de leitura instantânea.
+
+Ele não deve manter reserva persistente de A4/A5/D13 depois de uma leitura.
+
+Antes de ler, o firmware deve rejeitar conflitos com periféricos Stage stateful já utilizando os mesmos recursos.
+
+Essa regra é particularmente importante para:
+
+- MAX7219;
+- LCD I2C;
+- TM1637.
+
+### 19.144. Validação
+
+Validação física aprovada em:
+
+`COM11`
+
+com:
+
+`X=A4`
+
+`Y=A5`
+
+`Click=D13`
+
+Os eixos alcançaram praticamente toda a faixa:
+
+`0..1023`
+
+O Click alternou corretamente entre:
+
+`false / true`
+
+A integração pelos próprios blocos também foi aprovada controlando o ator Whiz.
+
+Testes finais:
+
+- protocolo: 241 pass;
+- Arduino UNO: 449 pass;
+- Sensores: 73 pass;
+- conjunto: 763 pass / 0 fail.
+
+Firmware:
+
+- Flash: `12374 bytes (38%)`;
+- SRAM: `613 bytes (29%)`;
+- livre: `1435 bytes`.
+
+Build GUI:
+
+`SUCESSO`
+
+### 19.145. Estado aprovado
+
+`Joystick Arduino UNO — Stage aprovado`
+
+A interface oficial inclui X, Y e Click.
+
+O texto completo do bloco de configuração pode ser preservado mesmo quando exceder visualmente o flyout, pois o comportamento global de hover do EasyBlox permite sua visualização integral.

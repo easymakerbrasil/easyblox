@@ -45,7 +45,7 @@ test('Sensors expose the ultrasonic block, colors and pins', t => {
     t.equal(info.color1, '#29B6F6');
     t.equal(info.color2, '#039BE5');
     t.equal(info.color3, '#0277BD');
-    t.equal(info.blocks.length, 2);
+    t.equal(info.blocks.length, 5);
 
     const ultrasonicBlock = info.blocks[0];
 
@@ -393,6 +393,262 @@ test('Sensors return null when DHT reading is unavailable', t => {
             TYPE: '0',
             PIN: '12'
         }),
+        null
+    );
+
+    t.end();
+});
+
+test('Sensors expose the joystick blocks and menus', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({})
+    };
+
+    const extension = new Scratch3SensorsBlocks(runtime);
+    const info = extension.getInfo();
+
+    const initBlock = info.blocks.find(
+        block => block.opcode === 'joystickInit'
+    );
+
+    const valueBlock = info.blocks.find(
+        block => block.opcode === 'joystickValue'
+    );
+
+    const clickedBlock = info.blocks.find(
+        block => block.opcode === 'joystickClicked'
+    );
+
+    t.ok(initBlock);
+    t.ok(valueBlock);
+    t.ok(clickedBlock);
+
+    t.equal(initBlock.blockType, BlockType.COMMAND);
+    t.equal(
+        initBlock.text,
+        'inicializar joystick X [X] Y [Y] CLICK [CLICK]'
+    );
+
+    t.equal(initBlock.arguments.X.defaultValue, 18);
+    t.equal(initBlock.arguments.Y.defaultValue, 19);
+    t.equal(initBlock.arguments.CLICK.defaultValue, 13);
+
+    t.equal(
+        initBlock.arguments.X.menu,
+        'joystickAnalogPins'
+    );
+
+    t.equal(
+        initBlock.arguments.Y.menu,
+        'joystickAnalogPins'
+    );
+
+    t.equal(
+        initBlock.arguments.CLICK.menu,
+        'joystickClickPins'
+    );
+
+    t.equal(valueBlock.blockType, BlockType.REPORTER);
+    t.equal(valueBlock.text, 'valor do joystick [AXIS]');
+    t.equal(valueBlock.arguments.AXIS.defaultValue, 'X');
+    t.equal(valueBlock.arguments.AXIS.menu, 'joystickAxes');
+
+    t.equal(clickedBlock.blockType, BlockType.BOOLEAN);
+    t.equal(clickedBlock.text, 'joystick clicado?');
+
+    t.same(
+        info.menus.joystickAnalogPins.items,
+        [
+            {text: 'A0', value: '14'},
+            {text: 'A1', value: '15'},
+            {text: 'A2', value: '16'},
+            {text: 'A3', value: '17'},
+            {text: 'A4', value: '18'},
+            {text: 'A5', value: '19'}
+        ]
+    );
+
+    t.same(
+        info.menus.joystickAxes.items,
+        [
+            {text: 'X', value: 'X'},
+            {text: 'Y', value: 'Y'}
+        ]
+    );
+
+    t.end();
+});
+
+test('Sensors configure joystick pins locally', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({})
+    };
+
+    const extension = new Scratch3SensorsBlocks(runtime);
+
+    const result = extension.joystickInit({
+        X: '14',
+        Y: '15',
+        CLICK: '12'
+    });
+
+    t.equal(
+        result,
+        undefined,
+        'joystick configuration does not report a value'
+    );
+
+    t.equal(extension._joystickXPin, 14);
+    t.equal(extension._joystickYPin, 15);
+    t.equal(extension._joystickClickPin, 12);
+
+    t.end();
+});
+
+test('Sensors reject invalid joystick pin configurations', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({})
+    };
+
+    const extension = new Scratch3SensorsBlocks(runtime);
+
+    extension.joystickInit({
+        X: '14',
+        Y: '15',
+        CLICK: '12'
+    });
+
+    extension.joystickInit({
+        X: '13',
+        Y: '15',
+        CLICK: '12'
+    });
+
+    t.equal(extension._joystickXPin, 14);
+    t.equal(extension._joystickYPin, 15);
+    t.equal(extension._joystickClickPin, 12);
+
+    extension.joystickInit({
+        X: '14',
+        Y: '14',
+        CLICK: '12'
+    });
+
+    t.equal(extension._joystickXPin, 14);
+    t.equal(extension._joystickYPin, 15);
+
+    extension.joystickInit({
+        X: '14',
+        Y: '15',
+        CLICK: '14'
+    });
+
+    t.equal(extension._joystickClickPin, 12);
+
+    t.end();
+});
+
+test('Sensors read joystick X and Y axes', async t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        joystickRead: (xPin, yPin, clickPin) => {
+            calls.push({
+                xPin,
+                yPin,
+                clickPin
+            });
+
+            return Promise.resolve({
+                x: 538,
+                y: 508,
+                clicked: false
+            });
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension: () => sharedPeripheral
+    };
+
+    const extension = new Scratch3SensorsBlocks(runtime);
+
+    t.equal(
+        await extension.joystickValue({
+            AXIS: 'X'
+        }),
+        538
+    );
+
+    t.equal(
+        await extension.joystickValue({
+            AXIS: 'Y'
+        }),
+        508
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                xPin: 18,
+                yPin: 19,
+                clickPin: 13
+            },
+            {
+                xPin: 18,
+                yPin: 19,
+                clickPin: 13
+            }
+        ]
+    );
+
+    t.end();
+});
+
+test('Sensors report joystick click as a boolean', async t => {
+    const sharedPeripheral = {
+        joystickRead: () => Promise.resolve({
+            x: 538,
+            y: 508,
+            clicked: true
+        })
+    };
+
+    const runtime = {
+        getPeripheralExtension: () => sharedPeripheral
+    };
+
+    const extension = new Scratch3SensorsBlocks(runtime);
+
+    t.equal(
+        await extension.joystickClicked(),
+        true
+    );
+
+    t.end();
+});
+
+test('Sensors propagate unavailable joystick readings as null', async t => {
+    const sharedPeripheral = {
+        joystickRead: () => Promise.resolve(null)
+    };
+
+    const runtime = {
+        getPeripheralExtension: () => sharedPeripheral
+    };
+
+    const extension = new Scratch3SensorsBlocks(runtime);
+
+    t.equal(
+        await extension.joystickValue({
+            AXIS: 'X'
+        }),
+        null
+    );
+
+    t.equal(
+        await extension.joystickClicked(),
         null
     );
 

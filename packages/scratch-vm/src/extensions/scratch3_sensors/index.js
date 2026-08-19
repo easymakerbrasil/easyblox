@@ -13,6 +13,10 @@ class Scratch3SensorsBlocks {
     constructor (runtime) {
         this.runtime = runtime;
         this._peripheral = runtime.getPeripheralExtension('arduinoUno');
+
+        this._joystickXPin = 18;
+        this._joystickYPin = 19;
+        this._joystickClickPin = 13;
     }
 
     /**
@@ -60,6 +64,45 @@ class Scratch3SensorsBlocks {
                             defaultValue: 12
                         }
                     }
+                },
+                {
+                    opcode: 'joystickInit',
+                    blockType: BlockType.COMMAND,
+                    text: 'inicializar joystick X [X] Y [Y] CLICK [CLICK]',
+                    arguments: {
+                        X: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'joystickAnalogPins',
+                            defaultValue: 18
+                        },
+                        Y: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'joystickAnalogPins',
+                            defaultValue: 19
+                        },
+                        CLICK: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'joystickClickPins',
+                            defaultValue: 13
+                        }
+                    }
+                },
+                {
+                    opcode: 'joystickValue',
+                    blockType: BlockType.REPORTER,
+                    text: 'valor do joystick [AXIS]',
+                    arguments: {
+                        AXIS: {
+                            type: ArgumentType.STRING,
+                            menu: 'joystickAxes',
+                            defaultValue: 'X'
+                        }
+                    }
+                },
+                {
+                    opcode: 'joystickClicked',
+                    blockType: BlockType.BOOLEAN,
+                    text: 'joystick clicado?'
                 }
             ],
             menus: {
@@ -109,6 +152,44 @@ class Scratch3SensorsBlocks {
                         {text: 'D11', value: '11'},
                         {text: 'D12', value: '12'},
                         {text: 'D13', value: '13'}
+                    ]
+                },
+
+                joystickAnalogPins: {
+                    acceptReporters: true,
+                    items: [
+                        {text: 'A0', value: '14'},
+                        {text: 'A1', value: '15'},
+                        {text: 'A2', value: '16'},
+                        {text: 'A3', value: '17'},
+                        {text: 'A4', value: '18'},
+                        {text: 'A5', value: '19'}
+                    ]
+                },
+
+                joystickClickPins: {
+                    acceptReporters: true,
+                    items: [
+                        {text: 'D2', value: '2'},
+                        {text: 'D3', value: '3'},
+                        {text: 'D4', value: '4'},
+                        {text: 'D5', value: '5'},
+                        {text: 'D6', value: '6'},
+                        {text: 'D7', value: '7'},
+                        {text: 'D8', value: '8'},
+                        {text: 'D9', value: '9'},
+                        {text: 'D10', value: '10'},
+                        {text: 'D11', value: '11'},
+                        {text: 'D12', value: '12'},
+                        {text: 'D13', value: '13'}
+                    ]
+                },
+
+                joystickAxes: {
+                    acceptReporters: true,
+                    items: [
+                        {text: 'X', value: 'X'},
+                        {text: 'Y', value: 'Y'}
                     ]
                 }
             }
@@ -167,6 +248,97 @@ class Scratch3SensorsBlocks {
 
             return values.humidity / 100;
         });
+    }
+
+    /**
+     * Configure the local Arduino joystick pins.
+     * @param {object} args Scratch block arguments.
+     * @returns {void}
+     */
+    joystickInit (args) {
+        const xPin = Number(args.X);
+        const yPin = Number(args.Y);
+        const clickPin = Number(args.CLICK);
+
+        if (
+            !Number.isInteger(xPin) ||
+            !Number.isInteger(yPin) ||
+            !Number.isInteger(clickPin) ||
+            xPin < 14 ||
+            xPin > 19 ||
+            yPin < 14 ||
+            yPin > 19 ||
+            clickPin < 2 ||
+            clickPin > 13 ||
+            xPin === yPin
+        ) {
+            return;
+        }
+
+        this._joystickXPin = xPin;
+        this._joystickYPin = yPin;
+        this._joystickClickPin = clickPin;
+    }
+
+    /**
+     * Read one Arduino joystick axis.
+     * @param {object} args Scratch block arguments.
+     * @returns {?Promise<number>} Promise resolved with the selected axis value, or null when unavailable.
+     */
+    joystickValue (args) {
+        const axis = String(args.AXIS);
+
+        if (
+            axis !== 'X' &&
+            axis !== 'Y'
+        ) {
+            return null;
+        }
+
+        const result = this._peripheral.joystickRead(
+            this._joystickXPin,
+            this._joystickYPin,
+            this._joystickClickPin
+        );
+
+        if (!result) {
+            return result;
+        }
+
+        return result.then(values => {
+            if (values === null) {
+                return null;
+            }
+
+            return axis === 'X' ?
+                values.x :
+                values.y;
+        });
+    }
+
+    /**
+     * Read the Arduino joystick click state.
+     * @returns {?Promise<boolean>} Promise resolved with true when clicked, or null when unavailable.
+     */
+    joystickClicked () {
+        const result = this._peripheral.joystickRead(
+            this._joystickXPin,
+            this._joystickYPin,
+            this._joystickClickPin
+        );
+
+        if (!result) {
+            return result;
+        }
+
+        return result.then(values => {
+            if (values === null) {
+                return null;
+            }
+
+            return values.clicked;
+        });
+
     }
 }
 

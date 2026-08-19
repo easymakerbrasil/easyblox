@@ -7075,3 +7075,297 @@ Após revisão final, commit e push deste checkpoint, o próximo desenvolvimento
 `Joystick`
 
 Manter a prioridade de concluir a base Arduino UNO antes de avançar para ESP32.
+
+### 22.121. Checkpoint Joystick Stage v1
+
+Após o fechamento do TM1637 no commit:
+
+`60bad78fa4`
+
+foi iniciado o checkpoint específico do módulo Joystick para Arduino UNO.
+
+O escopo inicial registrado anteriormente como:
+
+`JOYSTICK X/Y`
+
+foi ampliado por decisão de produto para representar corretamente o módulo físico completo:
+
+- eixo X;
+- eixo Y;
+- Click.
+
+Para a EasyMaker, o conector utiliza os mesmos três sinais empregados pela matriz MAX7219:
+
+- X = A4;
+- Y = A5;
+- Click = D13.
+
+Resultado final:
+
+`JOYSTICK STAGE v1 — APROVADO`
+
+### 22.122. Contrato Stage do Joystick
+
+Foi criado um único comando:
+
+`JOYSTICK_READ = 0x23`
+
+Resposta:
+
+`JOYSTICK_READ = 0x95`
+
+Payload da requisição:
+
+`[X_PIN, Y_PIN, CLICK_PIN]`
+
+Payload da resposta:
+
+`[X_PIN, Y_PIN, CLICK_PIN, X_H, X_L, Y_H, Y_L, CLICK]`
+
+Os eixos X e Y utilizam valores de:
+
+`0..1023`
+
+O Click é normalizado pelo firmware:
+
+`0 = solto`
+
+`1 = pressionado`
+
+O firmware utiliza:
+
+`INPUT_PULLUP`
+
+exclusivamente para o sinal Click.
+
+A lógica elétrica:
+
+`LOW = pressionado`
+
+não é exposta ao usuário.
+
+### 22.123. Blocos Joystick em Sensores Arduino
+
+A categoria:
+
+`Sensores Arduino`
+
+passa a incluir três blocos do Joystick:
+
+`inicializar joystick X [A4] Y [A5] CLICK [D13]`
+
+`valor do joystick [X/Y]`
+
+`joystick clicado?`
+
+O primeiro bloco é um comando de configuração local.
+
+Ele apenas armazena os pinos na extensão e não produz valor visual.
+
+Regra preservada:
+
+`bloco de configuração local → undefined`
+
+O bloco:
+
+`joystick clicado?`
+
+utiliza `BlockType.BOOLEAN`, permitindo seu uso diretamente em condições Scratch.
+
+Defaults EasyMaker:
+
+- X = A4 / 18;
+- Y = A5 / 19;
+- Click = D13 / 13.
+
+### 22.124. Arquitetura da leitura
+
+O `ArduinoUnoPeripheral` implementa:
+
+`joystickRead(xPin, yPin, clickPin)`
+
+A leitura cria uma Promise associada à sequência Stage em:
+
+`_pendingJoystickReads`
+
+Ao receber `RESPONSE_JOYSTICK_READ`, o peripheral valida:
+
+- sequência;
+- os três pinos;
+- payload de 8 bytes;
+- X entre 0 e 1023;
+- Y entre 0 e 1023;
+- Click igual a 0 ou 1.
+
+A extensão recebe:
+
+`{x, y, clicked}`
+
+O estado Click já é convertido para boolean JavaScript.
+
+Leituras pendentes também são resolvidas como `null` em caso de:
+
+`RESPONSE_ERROR`
+
+ou reset/desconexão.
+
+### 22.125. Arbitragem de recursos
+
+O Joystick da EasyMaker utiliza:
+
+`A4 / A5 / D13`
+
+Esses mesmos sinais são utilizados pelo conector da matriz MAX7219.
+
+Além disso, A4 e A5 podem ser utilizados pelo:
+
+- LCD I2C;
+- TM1637;
+- MAX7219.
+
+O Joystick foi tratado como dispositivo de leitura instantânea.
+
+Ele não mantém reserva persistente dos pinos no firmware após uma leitura.
+
+Antes de executar `JOYSTICK_READ`, o firmware verifica conflitos com periféricos Stage stateful já ativos.
+
+Dessa forma, uma leitura de Joystick não cria uma reserva fantasma que impediria posteriormente o uso de outro módulo no mesmo conector.
+
+### 22.126. Validação física
+
+Firmware testado no Arduino UNO/EasyMaker utilizando:
+
+`COM11`
+
+Mapeamento:
+
+- X = A4;
+- Y = A5;
+- Click = D13.
+
+Leitura central observada aproximadamente:
+
+`X = 538`
+
+`Y = 508`
+
+`CLICK = 0`
+
+Durante movimentação física foram observados extremos:
+
+`X = 0`
+
+`X = 1023`
+
+`Y ≈ 0`
+
+`Y = 1022`
+
+O Click alternou corretamente:
+
+`0 → solto`
+
+`1 → pressionado`
+
+Uma amostra do script PowerShell de teste bruto foi exibida como:
+
+`Resposta invalida`
+
+durante 50 leituras.
+
+O teste utilizava drenagem simplificada da porta Serial e não o parser por estados do EasyBlox.
+
+As demais leituras foram corretas e a validação end-to-end posterior pelos próprios blocos funcionou normalmente.
+
+### 22.127. Validação end-to-end no EasyBlox
+
+Os blocos foram testados em bancada controlando o ator Whiz.
+
+O programa utilizou:
+
+`valor do joystick X`
+
+para decidir direção e movimento.
+
+O bloco booleano:
+
+`joystick clicado?`
+
+foi utilizado diretamente dentro de uma condição:
+
+`se <joystick clicado?> então`
+
+Resultado:
+
+- leitura X funcional;
+- leitura Y funcional;
+- Click funcional;
+- condição booleana funcional;
+- comunicação Stage estável;
+- bloco de configuração sem bolha `null`.
+
+O bloco de inicialização permanece com o texto completo.
+
+Não é necessário encurtá-lo devido ao recorte normal do flyout, pois o EasyBlox já possui comportamento global de hover que faz o bloco sobressair e ficar integralmente visível.
+
+### 22.128. Validações finais do checkpoint Joystick
+
+Resultados automatizados:
+
+`arduino-uno-protocol.js`
+
+- 241 pass;
+- 0 fail.
+
+`arduino-uno.js`
+
+- 449 pass;
+- 0 fail.
+
+`sensors.js`
+
+- 73 pass;
+- 0 fail.
+
+Execução conjunta:
+
+- 763 pass;
+- 0 fail;
+- 3 suites aprovadas.
+
+Cobertura conjunta:
+
+- statements: 95,27%;
+- branches: 89,65%;
+- functions: 96,87%;
+- lines: 95,27%.
+
+Firmware Arduino UNO:
+
+- Flash: `12374 bytes (38%)`;
+- SRAM global: `613 bytes (29%)`;
+- SRAM livre: `1435 bytes`.
+
+Build final da GUI:
+
+`npm --prefix packages\scratch-gui run build:dev`
+
+Resultado:
+
+`SUCESSO`
+
+### 22.129. Próximo ponto oficial de retomada
+
+O checkpoint:
+
+`Joystick Stage v1`
+
+está funcionalmente aprovado.
+
+Permanece fora deste checkpoint a alteração local independente:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+O staging deverá continuar explícito.
+
+Após documentação, revisão, commit e push, prosseguir com o próximo item da base Arduino UNO, sem iniciar ESP32 antes da conclusão da fundação planejada.

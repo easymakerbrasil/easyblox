@@ -30,6 +30,7 @@ constexpr uint8_t COMMAND_LCD_MODE = 0x1F;
 constexpr uint8_t COMMAND_MATRIX_WRITE = 0x20;
 constexpr uint8_t COMMAND_MATRIX_BRIGHTNESS = 0x21;
 constexpr uint8_t COMMAND_TM1637_WRITE = 0x22;
+constexpr uint8_t COMMAND_JOYSTICK_READ = 0x23;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -37,6 +38,7 @@ constexpr uint8_t RESPONSE_DIGITAL_READ = 0x91;
 constexpr uint8_t RESPONSE_ANALOG_READ = 0x92;
 constexpr uint8_t RESPONSE_ULTRASONIC_READ = 0x93;
 constexpr uint8_t RESPONSE_DHT_READ = 0x94;
+constexpr uint8_t RESPONSE_JOYSTICK_READ = 0x95;
 constexpr uint8_t RESPONSE_ERROR = 0xFF;
 
 constexpr uint8_t LCD_MODE_BLINK_ON = 0x00;
@@ -150,6 +152,27 @@ bool isTm1637UsingLcdI2cPins() {
             tm1637ClkPin == 19 ||
             tm1637DioPin == 18 ||
             tm1637DioPin == 19
+        )
+    );
+}
+
+bool isMatrixUsingPin(uint8_t pin) {
+    return (
+        matrixInitialized &&
+        (
+            matrixDinPin == pin ||
+            matrixCsPin == pin ||
+            matrixClkPin == pin
+        )
+    );
+}
+
+bool isTm1637UsingPin(uint8_t pin) {
+    return (
+        tm1637Initialized &&
+        (
+            tm1637ClkPin == pin ||
+            tm1637DioPin == pin
         )
     );
 }
@@ -690,6 +713,81 @@ void handleAnalogRead() {
     sendFrame(
         sequence,
         RESPONSE_ANALOG_READ,
+        responsePayload,
+        sizeof(responsePayload)
+    );
+}
+
+void handleJoystickRead() {
+    if (payloadLength != 3) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t xPin = payload[0];
+    const uint8_t yPin = payload[1];
+    const uint8_t clickPin = payload[2];
+
+    if (
+        xPin < 14 ||
+        xPin > 19 ||
+        yPin < 14 ||
+        yPin > 19 ||
+        clickPin < 2 ||
+        clickPin > 13 ||
+        xPin == yPin ||
+        isLcdI2cPin(xPin) ||
+        isLcdI2cPin(yPin) ||
+        isMatrixUsingPin(xPin) ||
+        isMatrixUsingPin(yPin) ||
+        isMatrixUsingPin(clickPin) ||
+        isTm1637UsingPin(xPin) ||
+        isTm1637UsingPin(yPin) ||
+        isTm1637UsingPin(clickPin) ||
+        isServoAttachedOnPin(clickPin) ||
+        activeTonePin == clickPin
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    pinMode(xPin, INPUT);
+    digitalWrite(xPin, LOW);
+
+    pinMode(yPin, INPUT);
+    digitalWrite(yPin, LOW);
+
+    pinMode(clickPin, INPUT_PULLUP);
+
+    const uint16_t xValue =
+        static_cast<uint16_t>(analogRead(xPin));
+
+    const uint16_t yValue =
+        static_cast<uint16_t>(analogRead(yPin));
+
+    const uint8_t clicked =
+        digitalRead(clickPin) == LOW ? 1 : 0;
+
+    const uint8_t responsePayload[] = {
+        xPin,
+        yPin,
+        clickPin,
+        static_cast<uint8_t>((xValue >> 8) & 0xFF),
+        static_cast<uint8_t>(xValue & 0xFF),
+        static_cast<uint8_t>((yValue >> 8) & 0xFF),
+        static_cast<uint8_t>(yValue & 0xFF),
+        clicked
+    };
+
+    sendFrame(
+        sequence,
+        RESPONSE_JOYSTICK_READ,
         responsePayload,
         sizeof(responsePayload)
     );
@@ -2073,6 +2171,11 @@ void handleFrame() {
 
     if (command == COMMAND_ANALOG_READ) {
         handleAnalogRead();
+        return;
+    }
+
+    if (command == COMMAND_JOYSTICK_READ) {
+        handleJoystickRead();
         return;
     }
 

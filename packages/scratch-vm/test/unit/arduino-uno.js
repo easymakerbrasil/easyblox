@@ -1093,6 +1093,184 @@ tap.test('Arduino UNO rejects invalid ANALOG_READ requests', t => {
     t.end();
 });
 
+tap.test('Arduino UNO reads joystick axes and click after the Stage handshake', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(peripheral.isStageConnected(), true);
+
+    const readPromise = peripheral.joystickRead(
+        18,
+        19,
+        13
+    );
+
+    t.ok(readPromise instanceof Promise);
+
+    await flushPromises();
+
+    t.equal(writtenFrames.length, 2);
+
+    const readFrame = writtenFrames[1];
+
+    t.equal(
+        readFrame[4],
+        COMMANDS.JOYSTICK_READ
+    );
+
+    t.equal(readFrame[5], 3);
+    t.equal(readFrame[6], 18);
+    t.equal(readFrame[7], 19);
+    t.equal(readFrame[8], 13);
+    t.equal(readFrame[3], 2);
+
+    const readSequence = readFrame[3];
+
+    onData(
+        encodeFrame(
+            readSequence,
+            RESPONSES.JOYSTICK_READ,
+            [
+                18,
+                19,
+                13,
+                0x02,
+                0x00,
+                0x01,
+                0xFF,
+                1
+            ]
+        )
+    );
+
+    t.same(
+        await readPromise,
+        {
+            x: 512,
+            y: 511,
+            clicked: true
+        }
+    );
+});
+
+tap.test('Arduino UNO rejects invalid JOYSTICK_READ requests', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.joystickRead(18, 19, 13),
+        null,
+        'does not read before the Stage handshake'
+    );
+
+    peripheral._stageConnected = true;
+
+    t.equal(peripheral.joystickRead(13, 19, 13), null);
+    t.equal(peripheral.joystickRead(20, 19, 13), null);
+    t.equal(peripheral.joystickRead(18.5, 19, 13), null);
+
+    t.equal(peripheral.joystickRead(18, 13, 13), null);
+    t.equal(peripheral.joystickRead(18, 20, 13), null);
+    t.equal(peripheral.joystickRead(18, 19.5, 13), null);
+
+    t.equal(peripheral.joystickRead(18, 18, 13), null);
+
+    t.equal(peripheral.joystickRead(18, 19, 1), null);
+    t.equal(peripheral.joystickRead(18, 19, 14), null);
+    t.equal(peripheral.joystickRead(18, 19, 13.5), null);
+
+    t.end();
+});
+
+tap.test('Arduino UNO resolves JOYSTICK_READ errors as null', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+
+    onData(
+        encodeFrame(
+            pingFrame[3],
+            RESPONSES.PONG
+        )
+    );
+
+    const readPromise = peripheral.joystickRead(
+        18,
+        19,
+        13
+    );
+
+    await flushPromises();
+
+    const readSequence = writtenFrames[1][3];
+
+    onData(
+        encodeFrame(
+            readSequence,
+            RESPONSES.ERROR
+        )
+    );
+
+    t.equal(
+        await readPromise,
+        null
+    );
+
+    t.equal(
+        peripheral._pendingJoystickReads.size,
+        0
+    );
+});
+
 tap.test('Arduino UNO reads an ultrasonic distance after the Stage handshake', async t => {
     let onData = null;
     const writtenFrames = [];

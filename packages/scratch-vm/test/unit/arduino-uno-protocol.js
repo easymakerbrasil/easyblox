@@ -712,6 +712,13 @@ tap.test('defines TM1637 command value', t => {
     t.end();
 });
 
+tap.test('defines joystick protocol values', t => {
+    t.equal(COMMANDS.JOYSTICK_READ, 0x23);
+    t.equal(RESPONSES.JOYSTICK_READ, 0x95);
+
+    t.end();
+});
+
 tap.test('encodes MATRIX_WRITE payload', t => {
     const frame = encodeFrame(
         0x44,
@@ -821,6 +828,41 @@ tap.test('encodes TM1637_WRITE payload', t => {
     t.equal(
         frame[12],
         calculateChecksum(frame.subarray(2, 12))
+    );
+
+    t.end();
+});
+
+tap.test('encodes JOYSTICK_READ payload', t => {
+    const frame = encodeFrame(
+        0x47,
+        COMMANDS.JOYSTICK_READ,
+        [
+            18,
+            19,
+            13
+        ]
+    );
+
+    t.same(
+        Array.from(frame),
+        [
+            0xFF,
+            0x55,
+            PROTOCOL_VERSION,
+            0x47,
+            COMMANDS.JOYSTICK_READ,
+            0x03,
+            18,
+            19,
+            13,
+            0x6A
+        ]
+    );
+
+    t.equal(
+        frame[9],
+        calculateChecksum(frame.subarray(2, 9))
     );
 
     t.end();
