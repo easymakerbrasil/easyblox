@@ -7369,3 +7369,378 @@ Permanece fora deste checkpoint a alteração local independente:
 O staging deverá continuar explícito.
 
 Após documentação, revisão, commit e push, prosseguir com o próximo item da base Arduino UNO, sem iniciar ESP32 antes da conclusão da fundação planejada.
+
+### 22.130. Correção do contrato de Motor e organização visual
+
+Após o fechamento do Joystick Stage v1, foi realizada uma revisão do contrato visual da categoria:
+
+`Atuadores`
+
+O contrato anterior exigia informar:
+
+`IN1 / IN2 / PWM`
+
+em cada comando de movimentação e parada.
+
+Essa abordagem foi substituída por uma abstração baseada em motores lógicos:
+
+`Motor 1`
+
+`Motor 2`
+
+O novo contrato visual é:
+
+`configurar motor [1/2] IN1 [...] IN2 [...] PWM [...]`
+
+`girar motor [1/2] sentido [frente/trás] velocidade [0..100] %`
+
+`parar motor [1/2]`
+
+Os perfis padrão definidos são:
+
+`Motor 1`
+
+- IN1 = D2;
+- IN2 = D4;
+- PWM = D3.
+
+`Motor 2`
+
+- IN1 = D7;
+- IN2 = D8;
+- PWM = D5.
+
+O bloco de configuração mantém estado local na extensão `Atuadores`.
+
+Configurações inválidas não devem sobrescrever um perfil anteriormente válido.
+
+O bloco de configuração retorna:
+
+`undefined`
+
+evitando bolha visual `null`.
+
+Os comandos existentes do protocolo foram preservados:
+
+`MOTOR_WRITE = 0x17`
+
+`MOTOR_STOP = 0x18`
+
+Não foi necessária alteração no contrato do firmware ou do peripheral para a nova abstração.
+
+A parada simplificada utiliza internamente:
+
+`COAST = 0`
+
+A categoria `Atuadores` passa a seguir a ordem oficial:
+
+`Motor → Servo → Relé`
+
+### 22.131. Separadores visuais entre grupos de hardware
+
+Foi aprovado um padrão visual de agrupamento por pequenos espaços verticais, sem texto e sem marcadores.
+
+O mecanismo utilizado no `getInfo()` é:
+
+`'---'`
+
+Na categoria `Atuadores`, a organização passa a ser:
+
+- configurar motor;
+- girar motor;
+- parar motor;
+- separador;
+- mover servo;
+- separador;
+- definir relé.
+
+Na categoria `Sensores Arduino`, foi inserido um separador entre:
+
+`DHT`
+
+e:
+
+`Joystick`
+
+A organização passa a ser:
+
+- Ultrassônico;
+- DHT;
+- separador;
+- inicializar Joystick;
+- valor do Joystick;
+- Joystick clicado?.
+
+Esse padrão poderá ser reutilizado em outras categorias quando houver grupos funcionais distintos.
+
+### 22.132. Reorganização da categoria Arduino UNO
+
+A categoria:
+
+`Arduino UNO`
+
+foi reorganizada para melhorar a sequência pedagógica dos blocos.
+
+A ordem oficial passa a ser:
+
+- definir pino digital;
+- ler pino digital;
+- ler pino analógico;
+- definir PWM;
+- separador;
+- tocar tom;
+- parar tom;
+- separador;
+- obter temporizador;
+- zerar temporizador.
+
+As leituras digital e analógica passam, portanto, a aparecer antes dos blocos de Tom.
+
+Os separadores utilizam o mesmo mecanismo:
+
+`'---'`
+
+já validado em `Atuadores` e `Sensores Arduino`.
+
+### 22.133. Temporizador Arduino UNO — contrato Stage v1
+
+Foram adicionados ao protocolo Stage:
+
+`TIMER_READ = 0x24`
+
+`TIMER_RESET = 0x25`
+
+e a resposta:
+
+`RESPONSE_TIMER_READ = 0x96`
+
+`TIMER_RESET` utiliza a resposta genérica:
+
+`ACK = 0x80`
+
+`TIMER_READ` não possui payload de requisição.
+
+A resposta contém quatro bytes:
+
+`[MS3, MS2, MS1, MS0]`
+
+representando um valor:
+
+`uint32_t`
+
+de milissegundos em ordem big-endian.
+
+No firmware, o estado do temporizador é mantido em:
+
+`uint32_t timerResetAt`
+
+A leitura utiliza:
+
+`millis() - timerResetAt`
+
+e o reset utiliza:
+
+`timerResetAt = millis()`
+
+A subtração em `uint32_t` preserva o comportamento correto mesmo no overflow natural de `millis()`.
+
+Antes do primeiro reset explícito, o temporizador representa aproximadamente o tempo decorrido desde a inicialização do firmware.
+
+### 22.134. Peripheral e primitive do Temporizador
+
+O peripheral Arduino UNO passa a manter:
+
+`_pendingTimerReads`
+
+e expõe:
+
+`timerRead()`
+
+`timerReset()`
+
+`timerRead()`:
+
+- exige conexão Stage;
+- envia `TIMER_READ`;
+- aguarda `RESPONSE_TIMER_READ`;
+- valida payload de quatro bytes;
+- reconstrói o valor sem operadores bitwise assinados do JavaScript;
+- resolve a Promise com milissegundos;
+- resolve `null` em `RESPONSE_ERROR`;
+- resolve `null` em reset/desconexão.
+
+`timerReset()` utiliza o mecanismo genérico:
+
+`_sendCommandWithAck()`
+
+e aguarda `ACK`.
+
+Na extensão visual Arduino UNO:
+
+`obter temporizador`
+
+é um bloco `REPORTER`.
+
+O peripheral trabalha em milissegundos, mas o bloco retorna:
+
+`segundos`
+
+por meio da conversão:
+
+`milliseconds / 1000`
+
+Valores `null` são preservados e não devem ser convertidos falsamente para zero.
+
+O bloco:
+
+`zerar temporizador`
+
+é um bloco `COMMAND`.
+
+### 22.135. Validação física do Temporizador
+
+Firmware Arduino UNO compilado com sucesso:
+
+- Flash: `12532 bytes (38%)`;
+- SRAM global: `617 bytes (30%)`;
+- SRAM livre: `1431 bytes`.
+
+O firmware foi gravado e validado fisicamente em:
+
+`COM11`
+
+Sequência de teste:
+
+`PING → PONG`
+
+`TIMER_RESET → ACK`
+
+espera aproximada de:
+
+`2 segundos`
+
+seguida de:
+
+`TIMER_READ`
+
+Resultado real:
+
+`2020 ms`
+
+equivalente a:
+
+`2.02 s`
+
+Portanto, foram aprovados fisicamente:
+
+- handshake;
+- reset;
+- ACK;
+- contagem de tempo;
+- resposta de 32 bits;
+- conversão para segundos.
+
+Os testes físicos realizados posteriormente pelos próprios blocos do EasyBlox também foram aprovados.
+
+### 22.136. Validações automatizadas e integração
+
+Resultados finais individuais:
+
+`arduino-uno-protocol.js`
+
+- 246 pass;
+- 0 fail.
+
+`arduino-uno.js`
+
+- 490 pass;
+- 0 fail.
+
+Execução conjunta:
+
+- `arduino-uno-protocol.js`;
+- `arduino-uno.js`;
+- `actuators.js`;
+- `sensors.js`.
+
+Resultado:
+
+- 865 pass;
+- 0 fail;
+- 4 suites aprovadas.
+
+Cobertura conjunta:
+
+- statements: 95,94%;
+- branches: 90,14%;
+- functions: 97,33%;
+- lines: 95,94%.
+
+Extensão Arduino UNO:
+
+- statements: 96,86%;
+- branches: 91,17%;
+- functions: 100%;
+- lines: 96,86%.
+
+Build final da GUI:
+
+`npm --prefix packages\scratch-gui run build:dev`
+
+Resultado:
+
+`SUCESSO`
+
+Validação física final dos novos blocos de Motor e Temporizador:
+
+`APROVADA`
+
+### 22.137. Estado aprovado e próximo marco
+
+Estão aprovados neste checkpoint:
+
+- nova abstração Motor 1/2;
+- ordem `Motor → Servo → Relé`;
+- separadores visuais em Atuadores;
+- separador DHT → Joystick em Sensores Arduino;
+- reorganização da categoria Arduino UNO;
+- Temporizador Stage v1;
+- blocos `obter temporizador` e `zerar temporizador`;
+- protocolo, peripheral, firmware e hardware real;
+- regressão automatizada e build da GUI.
+
+Permanece fora deste checkpoint a alteração local independente:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+Ela não deverá ser adicionada ao staging deste checkpoint.
+
+O próximo marco oficial, antes da implementação profunda do Modo Carregar do Arduino UNO, será uma auditoria técnica dirigida do ecossistema OpenBlock.
+
+O EasyBlox continuará sendo a plataforma principal e autônoma.
+
+O OpenBlock será estudado como fonte de soluções que poderão ser:
+
+`REUTILIZADAS`
+
+`ADAPTADAS`
+
+`USADAS COMO REFERÊNCIA`
+
+ou:
+
+`DESCARTADAS`
+
+O objetivo será validar e complementar a arquitetura existente do EasyBlox, especialmente em:
+
+- geração de código;
+- definição de placas;
+- compilação;
+- Arduino CLI;
+- upload;
+- toolchain;
+- futura expansão para ESP32.
+
+A diretriz é:
+
+`trazer para o EasyBlox, não migrar o EasyBlox para o OpenBlock`.

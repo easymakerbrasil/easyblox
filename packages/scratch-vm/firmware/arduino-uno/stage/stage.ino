@@ -31,6 +31,8 @@ constexpr uint8_t COMMAND_MATRIX_WRITE = 0x20;
 constexpr uint8_t COMMAND_MATRIX_BRIGHTNESS = 0x21;
 constexpr uint8_t COMMAND_TM1637_WRITE = 0x22;
 constexpr uint8_t COMMAND_JOYSTICK_READ = 0x23;
+constexpr uint8_t COMMAND_TIMER_READ = 0x24;
+constexpr uint8_t COMMAND_TIMER_RESET = 0x25;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -39,6 +41,7 @@ constexpr uint8_t RESPONSE_ANALOG_READ = 0x92;
 constexpr uint8_t RESPONSE_ULTRASONIC_READ = 0x93;
 constexpr uint8_t RESPONSE_DHT_READ = 0x94;
 constexpr uint8_t RESPONSE_JOYSTICK_READ = 0x95;
+constexpr uint8_t RESPONSE_TIMER_READ = 0x96;
 constexpr uint8_t RESPONSE_ERROR = 0xFF;
 
 constexpr uint8_t LCD_MODE_BLINK_ON = 0x00;
@@ -72,6 +75,7 @@ uint8_t payloadLength = 0;
 uint8_t payloadIndex = 0;
 uint8_t payload[MAX_PAYLOAD_LENGTH];
 uint8_t checksum = 0;
+uint32_t timerResetAt = 0;
 
 constexpr uint8_t NO_TONE_PIN = 0xFF;
 uint8_t activeTonePin = NO_TONE_PIN;
@@ -790,6 +794,58 @@ void handleJoystickRead() {
         RESPONSE_JOYSTICK_READ,
         responsePayload,
         sizeof(responsePayload)
+    );
+}
+
+void handleTimerRead() {
+    if (payloadLength != 0) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint32_t elapsed =
+        millis() - timerResetAt;
+
+    const uint8_t responsePayload[] = {
+        static_cast<uint8_t>(
+            (elapsed >> 24) & 0xFF
+        ),
+        static_cast<uint8_t>(
+            (elapsed >> 16) & 0xFF
+        ),
+        static_cast<uint8_t>(
+            (elapsed >> 8) & 0xFF
+        ),
+        static_cast<uint8_t>(
+            elapsed & 0xFF
+        )
+    };
+
+    sendFrame(
+        sequence,
+        RESPONSE_TIMER_READ,
+        responsePayload,
+        sizeof(responsePayload)
+    );
+}
+
+void handleTimerReset() {
+    if (payloadLength != 0) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    timerResetAt = millis();
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
     );
 }
 
@@ -2176,6 +2232,16 @@ void handleFrame() {
 
     if (command == COMMAND_JOYSTICK_READ) {
         handleJoystickRead();
+        return;
+    }
+
+    if (command == COMMAND_TIMER_READ) {
+    handleTimerRead();
+    return;
+    }
+
+    if (command == COMMAND_TIMER_RESET) {
+        handleTimerReset();
         return;
     }
 

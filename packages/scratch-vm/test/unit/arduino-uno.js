@@ -1271,6 +1271,443 @@ tap.test('Arduino UNO resolves JOYSTICK_READ errors as null', async t => {
     );
 });
 
+tap.test('Arduino UNO reads the Stage timer as unsigned 32-bit milliseconds', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(
+        peripheral.isStageConnected(),
+        true
+    );
+
+    const readPromise = peripheral.timerRead();
+
+    t.ok(
+        readPromise instanceof Promise,
+        'TIMER_READ returns a Promise'
+    );
+
+    await flushPromises();
+
+    t.equal(
+        writtenFrames.length,
+        2,
+        'TIMER_READ is sent after the handshake'
+    );
+
+    const readSequence = writtenFrames[1][3];
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            readSequence,
+            COMMANDS.TIMER_READ
+        ),
+        'TIMER_READ sends no payload'
+    );
+
+    t.equal(
+        peripheral._pendingTimerReads.size,
+        1,
+        'TIMER_READ remains pending before its response'
+    );
+
+    onData(
+        encodeFrame(
+            readSequence,
+            RESPONSES.TIMER_READ,
+            [
+                0xFE,
+                0xDC,
+                0xBA,
+                0x98
+            ]
+        )
+    );
+
+    t.equal(
+        await readPromise,
+        0xFEDCBA98,
+        'TIMER_READ preserves the full unsigned 32-bit value'
+    );
+
+    t.equal(
+        peripheral._pendingTimerReads.size,
+        0,
+        'TIMER_READ response clears the pending read'
+    );
+});
+
+tap.test('Arduino UNO waits for ACK before completing TIMER_RESET', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const resetPromise = peripheral.timerReset();
+
+    t.ok(
+        resetPromise instanceof Promise,
+        'TIMER_RESET returns a Promise'
+    );
+
+    await flushPromises();
+
+    t.equal(
+        writtenFrames.length,
+        2,
+        'TIMER_RESET is sent after the handshake'
+    );
+
+    const resetSequence = writtenFrames[1][3];
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            resetSequence,
+            COMMANDS.TIMER_RESET
+        ),
+        'TIMER_RESET sends no payload'
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        1,
+        'TIMER_RESET remains pending before ACK'
+    );
+
+    onData(
+        encodeFrame(
+            resetSequence,
+            RESPONSES.ACK
+        )
+    );
+
+    t.equal(
+        await resetPromise,
+        resetSequence,
+        'TIMER_RESET completes after matching ACK'
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        0,
+        'TIMER_RESET ACK clears the pending command'
+    );
+});
+
+tap.test('Arduino UNO resolves TIMER_READ with null on firmware error', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const readPromise = peripheral.timerRead();
+
+    await flushPromises();
+
+    const readSequence = writtenFrames[1][3];
+
+    t.equal(
+        peripheral._pendingTimerReads.size,
+        1
+    );
+
+    onData(
+        encodeFrame(
+            readSequence,
+            RESPONSES.ERROR
+        )
+    );
+
+    t.equal(
+        await readPromise,
+        null,
+        'firmware ERROR resolves TIMER_READ with null'
+    );
+
+    t.equal(
+        peripheral._pendingTimerReads.size,
+        0,
+        'firmware ERROR clears the pending timer read'
+    );
+});
+
+tap.test('Arduino UNO clears pending TIMER_READ when peripheral state resets', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    const readPromise = peripheral.timerRead();
+
+    await flushPromises();
+
+    t.equal(
+        peripheral._pendingTimerReads.size,
+        1
+    );
+
+    peripheral._reset();
+
+    t.equal(
+        await readPromise,
+        null,
+        'reset resolves pending TIMER_READ with null'
+    );
+
+    t.equal(
+        peripheral._pendingTimerReads.size,
+        0,
+        'reset clears pending timer reads'
+    );
+
+    t.equal(
+        peripheral.isStageConnected(),
+        false
+    );
+});
+
+tap.test('Arduino UNO timer operations require an active Stage connection', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.timerRead(),
+        null
+    );
+
+    t.equal(
+        peripheral.timerReset(),
+        null
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO exposes reordered blocks and timer blocks', t => {
+    const runtime = new MockRuntime(null);
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+    const info = extension.getInfo();
+
+    t.equal(
+        info.blocks.length,
+        10,
+        'Arduino UNO exposes eight blocks and two visual separators'
+    );
+
+    t.equal(info.blocks[0].opcode, 'digitalWrite');
+    t.equal(info.blocks[1].opcode, 'digitalRead');
+    t.equal(info.blocks[2].opcode, 'analogRead');
+    t.equal(info.blocks[3].opcode, 'pwmWrite');
+
+    t.equal(
+        info.blocks[4],
+        '---',
+        'I/O and tone groups are visually separated'
+    );
+
+    t.equal(info.blocks[5].opcode, 'toneStart');
+    t.equal(info.blocks[6].opcode, 'toneStop');
+
+    t.equal(
+        info.blocks[7],
+        '---',
+        'tone and timer groups are visually separated'
+    );
+
+    const timerReadBlock = info.blocks[8];
+    const timerResetBlock = info.blocks[9];
+
+    t.equal(
+        timerReadBlock.opcode,
+        'timerRead'
+    );
+
+    t.equal(
+        timerReadBlock.blockType,
+        BlockType.REPORTER
+    );
+
+    t.equal(
+        timerReadBlock.text,
+        'obter temporizador'
+    );
+
+    t.equal(
+        timerResetBlock.opcode,
+        'timerReset'
+    );
+
+    t.equal(
+        timerResetBlock.blockType,
+        BlockType.COMMAND
+    );
+
+    t.equal(
+        timerResetBlock.text,
+        'zerar temporizador'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO timer reporter converts milliseconds to seconds', async t => {
+    const runtime = new MockRuntime(null);
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+
+    extension._peripheral = {
+        timerRead: () => Promise.resolve(2020)
+    };
+
+    t.equal(
+        await extension.timerRead(),
+        2.02,
+        '2020 milliseconds are reported as 2.02 seconds'
+    );
+});
+
+tap.test('Arduino UNO timer blocks propagate unavailable state and delegate reset', async t => {
+    const runtime = new MockRuntime(null);
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+
+    extension._peripheral = {
+        timerRead: () => null,
+        timerReset: () => 37
+    };
+
+    t.equal(
+        extension.timerRead(),
+        null,
+        'timer reporter preserves unavailable peripheral state'
+    );
+
+    t.equal(
+        extension.timerReset(),
+        37,
+        'timer reset delegates to the peripheral'
+    );
+
+    extension._peripheral.timerRead =
+        () => Promise.resolve(null);
+
+    t.equal(
+        await extension.timerRead(),
+        null,
+        'firmware error remains null instead of becoming zero seconds'
+    );
+});
+
 tap.test('Arduino UNO reads an ultrasonic distance after the Stage handshake', async t => {
     let onData = null;
     const writtenFrames = [];

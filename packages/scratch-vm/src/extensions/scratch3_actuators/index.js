@@ -13,6 +13,18 @@ class Scratch3ActuatorsBlocks {
     constructor (runtime) {
         this.runtime = runtime;
         this._peripheral = runtime.getPeripheralExtension('arduinoUno');
+        this._motors = {
+            1: {
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3
+            },
+            2: {
+                in1Pin: 7,
+                in2Pin: 8,
+                pwmPin: 5
+            }
+        };
     }
 
     /**
@@ -29,26 +41,15 @@ class Scratch3ActuatorsBlocks {
             color3: '#124116',
             blocks: [
                 {
-                    opcode: 'servoWrite',
+                    opcode: 'motorConfigure',
                     blockType: BlockType.COMMAND,
-                    text: 'mover servo no pino [PIN] para [ANGLE] graus',
+                    text: 'configurar motor [MOTOR] IN1 [IN1] IN2 [IN2] PWM [PWM]',
                     arguments: {
-                        PIN: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'servoPins',
-                            defaultValue: 5
+                        MOTOR: {
+                            type: ArgumentType.STRING,
+                            menu: 'motorNumbers',
+                            defaultValue: '1'
                         },
-                        ANGLE: {
-                            type: ArgumentType.SERVO_ANGLE,
-                            defaultValue: 90
-                        }
-                    }
-                },
-                {
-                    opcode: 'motorWrite',
-                    blockType: BlockType.COMMAND,
-                    text: 'girar motor IN1 [IN1] IN2 [IN2] PWM [PWM] direção [DIRECTION] velocidade [SPEED] %',
-                    arguments: {
                         IN1: {
                             type: ArgumentType.NUMBER,
                             menu: 'motorDigitalPins',
@@ -63,6 +64,18 @@ class Scratch3ActuatorsBlocks {
                             type: ArgumentType.NUMBER,
                             menu: 'motorPwmPins',
                             defaultValue: 3
+                        }
+                    }
+                },
+                {
+                    opcode: 'motorWrite',
+                    blockType: BlockType.COMMAND,
+                    text: 'girar motor [MOTOR] sentido [DIRECTION] velocidade [SPEED] %',
+                    arguments: {
+                        MOTOR: {
+                            type: ArgumentType.STRING,
+                            menu: 'motorNumbers',
+                            defaultValue: '1'
                         },
                         DIRECTION: {
                             type: ArgumentType.STRING,
@@ -78,30 +91,33 @@ class Scratch3ActuatorsBlocks {
                 {
                     opcode: 'motorStop',
                     blockType: BlockType.COMMAND,
-                    text: 'parar motor IN1 [IN1] IN2 [IN2] PWM [PWM] modo [STOP_MODE]',
+                    text: 'parar motor [MOTOR]',
                     arguments: {
-                        IN1: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'motorDigitalPins',
-                            defaultValue: 2
-                        },
-                        IN2: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'motorDigitalPins',
-                            defaultValue: 4
-                        },
-                        PWM: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'motorPwmPins',
-                            defaultValue: 3
-                        },
-                        STOP_MODE: {
+                        MOTOR: {
                             type: ArgumentType.STRING,
-                            menu: 'motorStopModes',
-                            defaultValue: '0'
+                            menu: 'motorNumbers',
+                            defaultValue: '1'
                         }
                     }
                 },
+                '---',
+                {
+                    opcode: 'servoWrite',
+                    blockType: BlockType.COMMAND,
+                    text: 'mover servo no pino [PIN] para [ANGLE] graus',
+                    arguments: {
+                        PIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'servoPins',
+                            defaultValue: 5
+                        },
+                        ANGLE: {
+                            type: ArgumentType.SERVO_ANGLE,
+                            defaultValue: 90
+                        }
+                    }
+                },
+                '---',
                 {
                     opcode: 'relayWrite',
                     blockType: BlockType.COMMAND,
@@ -130,6 +146,13 @@ class Scratch3ActuatorsBlocks {
                         {text: 'D9', value: '9'},
                         {text: 'D10', value: '10'},
                         {text: 'D11', value: '11'}
+                    ]
+                },
+                motorNumbers: {
+                    acceptReporters: true,
+                    items: [
+                        {text: '1', value: '1'},
+                        {text: '2', value: '2'}
                     ]
                 },
                 motorDigitalPins: {
@@ -171,13 +194,6 @@ class Scratch3ActuatorsBlocks {
                     items: [
                         {text: 'frente', value: '0'},
                         {text: 'trás', value: '1'}
-                    ]
-                },
-                motorStopModes: {
-                    acceptReporters: true,
-                    items: [
-                        {text: 'livre', value: '0'},
-                        {text: 'frear', value: '1'}
                     ]
                 },
                 relayPins: {
@@ -235,15 +251,60 @@ class Scratch3ActuatorsBlocks {
     }
 
     /**
-     * Drive one DC motor using the active board peripheral.
+     * Configure one local DC motor profile.
+     * @param {object} args Scratch block arguments.
+     * @returns {void}
+     */
+    motorConfigure (args) {
+        const motor = Number(args.MOTOR);
+        const in1Pin = Number(args.IN1);
+        const in2Pin = Number(args.IN2);
+        const pwmPin = Number(args.PWM);
+
+        if (
+            !Number.isInteger(motor) ||
+            (motor !== 1 && motor !== 2) ||
+            !Number.isInteger(in1Pin) ||
+            !Number.isInteger(in2Pin) ||
+            !Number.isInteger(pwmPin) ||
+            in1Pin < 2 ||
+            in1Pin > 19 ||
+            in2Pin < 2 ||
+            in2Pin > 19 ||
+            ![3, 5, 6, 9, 10, 11].includes(pwmPin) ||
+            in1Pin === in2Pin ||
+            in1Pin === pwmPin ||
+            in2Pin === pwmPin
+        ) {
+            return;
+        }
+
+        this._motors[motor] = {
+            in1Pin,
+            in2Pin,
+            pwmPin
+        };
+    }
+
+    /**
+     * Drive one configured DC motor using the active board peripheral.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */
     motorWrite (args) {
-        const in1Pin = Number(args.IN1);
-        const in2Pin = Number(args.IN2);
-        const pwmPin = Number(args.PWM);
+        const motor = Number(args.MOTOR);
         const direction = Number(args.DIRECTION);
+
+        if (
+            !Number.isInteger(motor) ||
+            (motor !== 1 && motor !== 2) ||
+            !Number.isInteger(direction) ||
+            (direction !== 0 && direction !== 1)
+        ) {
+            return null;
+        }
+
+        const configuration = this._motors[motor];
 
         const speedPercent = Math.max(
             0,
@@ -258,30 +319,36 @@ class Scratch3ActuatorsBlocks {
         );
 
         return this._peripheral.motorWrite(
-            in1Pin,
-            in2Pin,
-            pwmPin,
+            configuration.in1Pin,
+            configuration.in2Pin,
+            configuration.pwmPin,
             direction,
             speed
         );
     }
 
     /**
-     * Stop one DC motor using the active board peripheral.
+     * Stop one configured DC motor using the active board peripheral.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */
     motorStop (args) {
-        const in1Pin = Number(args.IN1);
-        const in2Pin = Number(args.IN2);
-        const pwmPin = Number(args.PWM);
-        const stopMode = Number(args.STOP_MODE);
+        const motor = Number(args.MOTOR);
+
+        if (
+            !Number.isInteger(motor) ||
+            (motor !== 1 && motor !== 2)
+        ) {
+            return null;
+        }
+
+        const configuration = this._motors[motor];
 
         return this._peripheral.motorStop(
-            in1Pin,
-            in2Pin,
-            pwmPin,
-            stopMode
+            configuration.in1Pin,
+            configuration.in2Pin,
+            configuration.pwmPin,
+            0
         );
     }
 

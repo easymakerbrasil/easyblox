@@ -65,6 +65,7 @@ class Scratch3SensorsBlocks {
                         }
                     }
                 },
+                '---',
                 {
                     opcode: 'joystickInit',
                     blockType: BlockType.COMMAND,

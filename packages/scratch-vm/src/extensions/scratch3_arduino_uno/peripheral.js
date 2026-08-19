@@ -42,6 +42,7 @@ class ArduinoUnoPeripheral {
         this._pendingDigitalReads = new Map();
         this._pendingAnalogReads = new Map();
         this._pendingJoystickReads = new Map();
+        this._pendingTimerReads = new Map();
         this._pendingUltrasonicReads = new Map();
         this._pendingDhtReads = new Map();
         this._pendingCommandAcks = new Map();
@@ -500,6 +501,50 @@ class ArduinoUnoPeripheral {
                 }
             );
         });
+    }
+
+    /**
+     * Read the Arduino UNO Stage timer in milliseconds.
+     * @returns {?Promise<number>} Promise resolved with elapsed milliseconds,
+     * or null when unavailable.
+     */
+    timerRead () {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        const sequence = this._sendCommand(
+            COMMANDS.TIMER_READ,
+            []
+        );
+
+        if (sequence === null) {
+            return null;
+        }
+
+        return new Promise(resolve => {
+            this._pendingTimerReads.set(
+                sequence,
+                {
+                    resolve
+                }
+            );
+        });
+    }
+
+    /**
+     * Reset the Arduino UNO Stage timer.
+     * @returns {?Promise<number>} Promise resolved after ACK,
+     * or null when unavailable.
+     */
+    timerReset () {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        return this._sendCommandWithAck(
+            COMMANDS.TIMER_RESET
+        );
     }
 
     /**
@@ -967,6 +1012,15 @@ class ArduinoUnoPeripheral {
                 return;
             }
 
+            const pendingTimerRead =
+                this._pendingTimerReads.get(frame.sequence);
+
+            if (pendingTimerRead) {
+                this._pendingTimerReads.delete(frame.sequence);
+                pendingTimerRead.resolve(null);
+                return;
+            }
+
             const pendingDhtRead =
                 this._pendingDhtReads.get(frame.sequence);
 
@@ -1062,6 +1116,30 @@ class ArduinoUnoPeripheral {
                 y,
                 clicked: frame.payload[7] === 1
             });
+
+            return;
+        }
+
+        if (frame.command === RESPONSES.TIMER_READ) {
+            const pendingRead =
+                this._pendingTimerReads.get(frame.sequence);
+
+            if (
+                !pendingRead ||
+                frame.payload.length !== 4
+            ) {
+                return;
+            }
+
+            const milliseconds =
+                (frame.payload[0] * 0x1000000) +
+                (frame.payload[1] * 0x10000) +
+                (frame.payload[2] * 0x100) +
+                frame.payload[3];
+
+            this._pendingTimerReads.delete(frame.sequence);
+
+            pendingRead.resolve(milliseconds);
 
             return;
         }
@@ -1242,6 +1320,12 @@ class ArduinoUnoPeripheral {
 
         this._pendingUltrasonicReads.clear();
 
+        for (const pendingRead of this._pendingTimerReads.values()) {
+            pendingRead.resolve(null);
+        }
+
+        this._pendingTimerReads.clear();
+
         for (
             const pendingCommand
             of this._pendingCommandAcks.values()
@@ -1262,6 +1346,7 @@ class ArduinoUnoPeripheral {
         this._pingSequence = null;
         this._stageConnected = false;
         this._handshakeAttempts = 0;
+
     }
 }
 

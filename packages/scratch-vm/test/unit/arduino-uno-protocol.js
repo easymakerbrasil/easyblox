@@ -716,6 +716,10 @@ tap.test('defines joystick protocol values', t => {
     t.equal(COMMANDS.JOYSTICK_READ, 0x23);
     t.equal(RESPONSES.JOYSTICK_READ, 0x95);
 
+    t.equal(COMMANDS.TIMER_READ, 0x24);
+    t.equal(COMMANDS.TIMER_RESET, 0x25);
+    t.equal(RESPONSES.TIMER_READ, 0x96);
+
     t.end();
 });
 
@@ -760,6 +764,50 @@ tap.test('encodes MATRIX_WRITE payload', t => {
     t.equal(
         frame[17],
         calculateChecksum(frame.subarray(2, 17))
+    );
+
+    t.end();
+});
+
+tap.test('encodes TIMER_READ without payload', t => {
+    const frame = encodeFrame(
+        0x48,
+        COMMANDS.TIMER_READ
+    );
+
+    t.same(
+        Array.from(frame),
+        [
+            0xFF,
+            0x55,
+            0x01,
+            0x48,
+            0x24,
+            0x00,
+            0x6D
+        ]
+    );
+
+    t.end();
+});
+
+tap.test('encodes TIMER_RESET without payload', t => {
+    const frame = encodeFrame(
+        0x49,
+        COMMANDS.TIMER_RESET
+    );
+
+    t.same(
+        Array.from(frame),
+        [
+            0xFF,
+            0x55,
+            0x01,
+            0x49,
+            0x25,
+            0x00,
+            0x6D
+        ]
     );
 
     t.end();

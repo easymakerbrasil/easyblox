@@ -44,9 +44,9 @@ test('Actuators expose the servo block and supported servo pins', t => {
     t.equal(info.color1, '#2E7D32');
     t.equal(info.color2, '#1B5E20');
     t.equal(info.color3, '#124116');
-    t.equal(info.blocks.length, 4);
+    t.equal(info.blocks.length, 7);
 
-    const servoBlock = info.blocks[0];
+    const servoBlock = info.blocks[4];
 
     t.equal(servoBlock.opcode, 'servoWrite');
     t.equal(
@@ -84,7 +84,7 @@ test('Actuators expose the servo block and supported servo pins', t => {
     t.end();
 });
 
-test('Actuators expose motor blocks and motor menus', t => {
+test('Actuators expose configured motor blocks and motor menus', t => {
     const runtime = {
         getPeripheralExtension: () => ({})
     };
@@ -92,35 +92,86 @@ test('Actuators expose motor blocks and motor menus', t => {
     const extension = new Scratch3ActuatorsBlocks(runtime);
     const info = extension.getInfo();
 
+    const motorConfigureBlock = info.blocks[0];
     const motorWriteBlock = info.blocks[1];
     const motorStopBlock = info.blocks[2];
 
-    t.equal(motorWriteBlock.opcode, 'motorWrite');
+    t.equal(
+        motorConfigureBlock.opcode,
+        'motorConfigure'
+    );
+
+    t.equal(
+        motorConfigureBlock.text,
+        'configurar motor [MOTOR] IN1 [IN1] IN2 [IN2] PWM [PWM]'
+    );
+
+    t.equal(
+        motorConfigureBlock.arguments.MOTOR.defaultValue,
+        '1'
+    );
+
+    t.equal(
+        motorConfigureBlock.arguments.IN1.defaultValue,
+        2
+    );
+
+    t.equal(
+        motorConfigureBlock.arguments.IN2.defaultValue,
+        4
+    );
+
+    t.equal(
+        motorConfigureBlock.arguments.PWM.defaultValue,
+        3
+    );
+
+    t.equal(
+        motorWriteBlock.opcode,
+        'motorWrite'
+    );
+
+    t.equal(
+        motorWriteBlock.text,
+        'girar motor [MOTOR] sentido [DIRECTION] velocidade [SPEED] %'
+    );
+
+    t.equal(
+        motorWriteBlock.arguments.MOTOR.defaultValue,
+        '1'
+    );
+
     t.equal(
         motorWriteBlock.arguments.SPEED.type,
         ArgumentType.MOTOR_SPEED
     );
+
     t.equal(
         motorWriteBlock.arguments.SPEED.defaultValue,
         100
     );
+
     t.equal(
-        motorWriteBlock.arguments.IN1.defaultValue,
-        2
-    );
-    t.equal(
-        motorWriteBlock.arguments.IN2.defaultValue,
-        4
-    );
-    t.equal(
-        motorWriteBlock.arguments.PWM.defaultValue,
-        3
+        motorStopBlock.opcode,
+        'motorStop'
     );
 
-    t.equal(motorStopBlock.opcode, 'motorStop');
     t.equal(
-        motorStopBlock.arguments.STOP_MODE.defaultValue,
-        '0'
+        motorStopBlock.text,
+        'parar motor [MOTOR]'
+    );
+
+    t.equal(
+        motorStopBlock.arguments.MOTOR.defaultValue,
+        '1'
+    );
+
+    t.same(
+        info.menus.motorNumbers.items,
+        [
+            {text: '1', value: '1'},
+            {text: '2', value: '2'}
+        ]
     );
 
     t.same(
@@ -128,14 +179,6 @@ test('Actuators expose motor blocks and motor menus', t => {
         [
             {text: 'frente', value: '0'},
             {text: 'trás', value: '1'}
-        ]
-    );
-
-    t.same(
-        info.menus.motorStopModes.items,
-        [
-            {text: 'livre', value: '0'},
-            {text: 'frear', value: '1'}
         ]
     );
 
@@ -175,6 +218,11 @@ test('Actuators expose motor blocks and motor menus', t => {
         ]
     );
 
+    t.notOk(
+        info.menus.motorStopModes,
+        'stop mode menu is no longer exposed'
+    );
+
     t.end();
 });
 
@@ -186,7 +234,7 @@ test('Actuators expose relay block and relay menus', t => {
     const extension = new Scratch3ActuatorsBlocks(runtime);
     const info = extension.getInfo();
 
-    const relayBlock = info.blocks[3];
+    const relayBlock = info.blocks[6];
 
     t.equal(relayBlock.opcode, 'relayWrite');
 
@@ -341,7 +389,82 @@ test('Actuators normalize servo angles to integer values from 0 to 180', t => {
     t.end();
 });
 
-test('Actuators normalize motor speed percentage and delegate motor writes', t => {
+test('Actuators initialize the two motor profiles with EasyMaker defaults', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({})
+    };
+
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+
+    t.same(
+        extension._motors,
+        {
+            1: {
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3
+            },
+            2: {
+                in1Pin: 7,
+                in2Pin: 8,
+                pwmPin: 5
+            }
+        }
+    );
+
+    t.end();
+});
+
+test('Actuators configure one motor locally and preserve configuration on invalid input', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({})
+    };
+
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+
+    const result = extension.motorConfigure({
+        MOTOR: '2',
+        IN1: '9',
+        IN2: '10',
+        PWM: '11'
+    });
+
+    t.equal(
+        result,
+        undefined,
+        'configuration block returns undefined'
+    );
+
+    t.same(
+        extension._motors[2],
+        {
+            in1Pin: 9,
+            in2Pin: 10,
+            pwmPin: 11
+        }
+    );
+
+    extension.motorConfigure({
+        MOTOR: '2',
+        IN1: '9',
+        IN2: '9',
+        PWM: '11'
+    });
+
+    t.same(
+        extension._motors[2],
+        {
+            in1Pin: 9,
+            in2Pin: 10,
+            pwmPin: 11
+        },
+        'invalid configuration does not overwrite the previous profile'
+    );
+
+    t.end();
+});
+
+test('Actuators normalize motor speed percentage and use configured motor profiles', t => {
     const calls = [];
 
     const sharedPeripheral = {
@@ -364,48 +487,32 @@ test('Actuators normalize motor speed percentage and delegate motor writes', t =
 
     const extension = new Scratch3ActuatorsBlocks(runtime);
 
-    const lowResult = extension.motorWrite({
-        IN1: '2',
-        IN2: '4',
-        PWM: '3',
-        DIRECTION: '0',
-        SPEED: '0'
-    });
-
-    extension.motorWrite({
-        IN1: '7',
-        IN2: '8',
-        PWM: '5',
-        DIRECTION: '1',
-        SPEED: '50'
-    });
-
-    extension.motorWrite({
-        IN1: '2',
-        IN2: '4',
-        PWM: '3',
+    const motor1Result = extension.motorWrite({
+        MOTOR: '1',
         DIRECTION: '0',
         SPEED: '100'
     });
 
     extension.motorWrite({
-        IN1: '2',
-        IN2: '4',
-        PWM: '3',
+        MOTOR: '2',
+        DIRECTION: '1',
+        SPEED: '50'
+    });
+
+    extension.motorWrite({
+        MOTOR: '1',
         DIRECTION: '0',
         SPEED: '-10'
     });
 
     extension.motorWrite({
-        IN1: '2',
-        IN2: '4',
-        PWM: '3',
+        MOTOR: '1',
         DIRECTION: '0',
         SPEED: '120'
     });
 
     t.equal(
-        lowResult,
+        motor1Result,
         42,
         'returns the shared peripheral command result'
     );
@@ -418,7 +525,7 @@ test('Actuators normalize motor speed percentage and delegate motor writes', t =
                 in2Pin: 4,
                 pwmPin: 3,
                 direction: 0,
-                speed: 0
+                speed: 255
             },
             {
                 in1Pin: 7,
@@ -432,13 +539,6 @@ test('Actuators normalize motor speed percentage and delegate motor writes', t =
                 in2Pin: 4,
                 pwmPin: 3,
                 direction: 0,
-                speed: 255
-            },
-            {
-                in1Pin: 2,
-                in2Pin: 4,
-                pwmPin: 3,
-                direction: 0,
                 speed: 0
             },
             {
@@ -447,14 +547,14 @@ test('Actuators normalize motor speed percentage and delegate motor writes', t =
                 pwmPin: 3,
                 direction: 0,
                 speed: 255
-            },
+            }
         ]
     );
 
     t.end();
 });
 
-test('Actuators delegate motor stop modes to the shared peripheral', t => {
+test('Actuators stop configured motors using coast mode', t => {
     const calls = [];
 
     const sharedPeripheral = {
@@ -476,22 +576,16 @@ test('Actuators delegate motor stop modes to the shared peripheral', t => {
 
     const extension = new Scratch3ActuatorsBlocks(runtime);
 
-    const coastResult = extension.motorStop({
-        IN1: '2',
-        IN2: '4',
-        PWM: '3',
-        STOP_MODE: '0'
+    const motor1Result = extension.motorStop({
+        MOTOR: '1'
     });
 
     extension.motorStop({
-        IN1: '7',
-        IN2: '8',
-        PWM: '5',
-        STOP_MODE: '1'
+        MOTOR: '2'
     });
 
     t.equal(
-        coastResult,
+        motor1Result,
         43,
         'returns the shared peripheral command result'
     );
@@ -509,9 +603,69 @@ test('Actuators delegate motor stop modes to the shared peripheral', t => {
                 in1Pin: 7,
                 in2Pin: 8,
                 pwmPin: 5,
-                stopMode: 1
+                stopMode: 0
             }
         ]
+    );
+
+    t.end();
+});
+
+test('Actuators reject invalid motor numbers for write and stop', t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        motorWrite: (...args) => {
+            calls.push({
+                method: 'write',
+                args
+            });
+            return 42;
+        },
+        motorStop: (...args) => {
+            calls.push({
+                method: 'stop',
+                args
+            });
+            return 43;
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension: () => sharedPeripheral
+    };
+
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+
+    t.equal(
+        extension.motorWrite({
+            MOTOR: '3',
+            DIRECTION: '0',
+            SPEED: '100'
+        }),
+        null
+    );
+
+    t.equal(
+        extension.motorWrite({
+            MOTOR: '1',
+            DIRECTION: '2',
+            SPEED: '100'
+        }),
+        null
+    );
+
+    t.equal(
+        extension.motorStop({
+            MOTOR: '0'
+        }),
+        null
+    );
+
+    t.same(
+        calls,
+        [],
+        'invalid motor commands never reach the peripheral'
     );
 
     t.end();

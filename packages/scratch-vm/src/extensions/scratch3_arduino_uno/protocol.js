@@ -24,7 +24,9 @@ const COMMANDS = Object.freeze({
     MATRIX_WRITE: 0x20,
     MATRIX_BRIGHTNESS: 0x21,
     TM1637_WRITE: 0x22,
-    JOYSTICK_READ: 0x23
+    JOYSTICK_READ: 0x23,
+    TIMER_READ: 0x24,
+    TIMER_RESET: 0x25
 });
 
 const LCD_MODES = Object.freeze({
@@ -48,6 +50,7 @@ const RESPONSES = Object.freeze({
     ULTRASONIC_READ: 0x93,
     DHT_READ: 0x94,
     JOYSTICK_READ: 0x95,
+    TIMER_READ: 0x96,
     ERROR: 0xFF
 });
 

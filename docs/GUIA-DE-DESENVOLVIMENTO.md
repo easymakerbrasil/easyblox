@@ -6354,3 +6354,234 @@ Build GUI:
 A interface oficial inclui X, Y e Click.
 
 O texto completo do bloco de configuração pode ser preservado mesmo quando exceder visualmente o flyout, pois o comportamento global de hover do EasyBlox permite sua visualização integral.
+
+### 19.146. Contrato oficial de Motor por instância lógica
+
+A categoria `Atuadores` deve utilizar motores lógicos:
+
+`Motor 1`
+
+`Motor 2`
+
+O usuário configura os pinos uma vez por meio de:
+
+`configurar motor [MOTOR] IN1 [IN1] IN2 [IN2] PWM [PWM]`
+
+e utiliza posteriormente:
+
+`girar motor [MOTOR] sentido [DIRECTION] velocidade [SPEED] %`
+
+`parar motor [MOTOR]`
+
+Defaults oficiais:
+
+`Motor 1`
+
+- IN1 D2;
+- IN2 D4;
+- PWM D3.
+
+`Motor 2`
+
+- IN1 D7;
+- IN2 D8;
+- PWM D5.
+
+A configuração deve permanecer local à extensão.
+
+Configurações inválidas não devem destruir uma configuração válida anterior.
+
+O bloco de configuração deve retornar:
+
+`undefined`
+
+O protocolo Stage continua utilizando:
+
+`MOTOR_WRITE = 0x17`
+
+`MOTOR_STOP = 0x18`
+
+A parada simplificada utiliza:
+
+`COAST = 0`
+
+### 19.147. Ordem e separação visual de Atuadores
+
+A ordem oficial da categoria é:
+
+`Motor → Servo → Relé`
+
+A sequência deve ser:
+
+- configurar motor;
+- girar motor;
+- parar motor;
+- `'---'`;
+- mover servo;
+- `'---'`;
+- definir relé.
+
+O separador `'---'` deve ser utilizado como espaço visual sem texto quando houver grupos funcionalmente distintos.
+
+### 19.148. Separação visual em Sensores Arduino
+
+Entre os blocos DHT e Joystick deve existir um separador:
+
+`'---'`
+
+A ordem é:
+
+- Ultrassônico;
+- DHT;
+- separador;
+- Joystick.
+
+Não criar rótulo textual apenas para produzir espaçamento.
+
+### 19.149. Ordem oficial dos blocos Arduino UNO
+
+A categoria `Arduino UNO` deve seguir a ordem:
+
+- definir pino digital;
+- ler pino digital;
+- ler pino analógico;
+- definir PWM;
+- `'---'`;
+- tocar tom;
+- parar tom;
+- `'---'`;
+- obter temporizador;
+- zerar temporizador.
+
+As operações básicas de leitura devem aparecer antes do grupo de Tom.
+
+### 19.150. Protocolo oficial do Temporizador Stage
+
+Comandos:
+
+`TIMER_READ = 0x24`
+
+`TIMER_RESET = 0x25`
+
+Resposta:
+
+`TIMER_READ = 0x96`
+
+Reset:
+
+`ACK = 0x80`
+
+`TIMER_READ` deve possuir payload de requisição vazio.
+
+Sua resposta deve possuir quatro bytes:
+
+`[MS3, MS2, MS1, MS0]`
+
+em ordem big-endian, representando milissegundos em:
+
+`uint32_t`
+
+O peripheral não deve reconstruir o byte mais significativo usando operadores bitwise assinados do JavaScript.
+
+Utilizar aritmética numérica para preservar todo o intervalo unsigned de 32 bits.
+
+### 19.151. Semântica oficial do Temporizador
+
+Firmware:
+
+`elapsed = millis() - timerResetAt`
+
+Reset:
+
+`timerResetAt = millis()`
+
+O bloco:
+
+`obter temporizador`
+
+é `REPORTER` e deve expor o resultado em:
+
+`segundos`
+
+O bloco:
+
+`zerar temporizador`
+
+é `COMMAND`.
+
+Falhas, desconexões e respostas `ERROR` devem preservar:
+
+`null`
+
+e nunca transformar uma falha em:
+
+`0 segundos`
+
+### 19.152. Estado validado do Temporizador
+
+Validação física aprovada em Arduino UNO real.
+
+Firmware:
+
+- Flash: `12532 bytes (38%)`;
+- SRAM: `617 bytes (30%)`;
+- livre: `1431 bytes`.
+
+Teste físico:
+
+- PING/PONG aprovado;
+- TIMER_RESET/ACK aprovado;
+- espera aproximada de 2 segundos;
+- TIMER_READ retornou `2020 ms`;
+- resultado convertido: `2.02 s`.
+
+Testes automatizados finais:
+
+- protocolo: 246 pass;
+- Arduino UNO: 490 pass;
+- conjunto com Atuadores e Sensores: 865 pass / 0 fail;
+- 4 suites aprovadas.
+
+Build GUI:
+
+`SUCESSO`
+
+Testes físicos dos novos blocos de Motor e Temporizador:
+
+`APROVADOS`
+
+### 19.153. Diretriz arquitetural para Modo Carregar e OpenBlock
+
+Antes da implementação profunda do Modo Carregar, deve ser realizada auditoria técnica do ecossistema OpenBlock.
+
+O EasyBlox não deverá migrar para OpenBlock.
+
+O EasyBlox permanece:
+
+`plataforma principal e autônoma`
+
+Componentes ou soluções do OpenBlock poderão ser trazidos seletivamente para o EasyBlox quando oferecerem vantagem técnica.
+
+Cada elemento analisado deverá ser classificado como:
+
+`REUTILIZAR`
+
+`ADAPTAR`
+
+`USAR COMO REFERÊNCIA`
+
+`DESCARTAR`
+
+A auditoria deve priorizar:
+
+- geração de código;
+- compilação;
+- Arduino CLI;
+- upload;
+- definição de placas;
+- toolchain;
+- arquitetura extensível para Arduino UNO e futura ESP32.
+
+A regra arquitetural é:
+
+`trazer, adaptar e integrar — não migrar`.

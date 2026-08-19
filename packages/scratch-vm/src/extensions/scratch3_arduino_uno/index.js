@@ -45,52 +45,6 @@ class Scratch3ArduinoUnoBlocks {
                     }
                 },
                 {
-                    opcode: 'pwmWrite',
-                    blockType: BlockType.COMMAND,
-                    text: 'definir PWM no pino [PIN] como [VALUE]',
-                    arguments: {
-                        PIN: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'pwmPins',
-                            defaultValue: 3
-                        },
-                        VALUE: {
-                            type: ArgumentType.PWM_VALUE,
-                            defaultValue: 255
-                        }
-                    }
-                },
-                {
-                    opcode: 'toneStart',
-                    blockType: BlockType.COMMAND,
-                    text: 'tocar tom no pino [PIN] com frequência [FREQUENCY] Hz',
-                    arguments: {
-                        PIN: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'pwmPins',
-                            defaultValue: 6
-                        },
-                        FREQUENCY: {
-                            type: ArgumentType.NUMBER,
-                            defaultValue: 440
-                        }
-                    }
-                },
-
-                {
-                    opcode: 'toneStop',
-                    blockType: BlockType.COMMAND,
-                    text: 'parar tom no pino [PIN]',
-                    arguments: {
-                        PIN: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'pwmPins',
-                            defaultValue: 6
-                        }
-                    }
-                },
-
-                {
                     opcode: 'digitalRead',
                     blockType: BlockType.BOOLEAN,
                     text: 'ler pino digital [PIN]',
@@ -113,6 +67,62 @@ class Scratch3ArduinoUnoBlocks {
                             defaultValue: 14
                         }
                     }
+                },
+                {
+                    opcode: 'pwmWrite',
+                    blockType: BlockType.COMMAND,
+                    text: 'definir PWM no pino [PIN] como [VALUE]',
+                    arguments: {
+                        PIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'pwmPins',
+                            defaultValue: 3
+                        },
+                        VALUE: {
+                            type: ArgumentType.PWM_VALUE,
+                            defaultValue: 255
+                        }
+                    }
+                },
+                '---',
+                {
+                    opcode: 'toneStart',
+                    blockType: BlockType.COMMAND,
+                    text: 'tocar tom no pino [PIN] com frequência [FREQUENCY] Hz',
+                    arguments: {
+                        PIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'pwmPins',
+                            defaultValue: 6
+                        },
+                        FREQUENCY: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 440
+                        }
+                    }
+                },
+                {
+                    opcode: 'toneStop',
+                    blockType: BlockType.COMMAND,
+                    text: 'parar tom no pino [PIN]',
+                    arguments: {
+                        PIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'pwmPins',
+                            defaultValue: 6
+                        }
+                    }
+                },
+                '---',
+                {
+                    opcode: 'timerRead',
+                    blockType: BlockType.REPORTER,
+                    text: 'obter temporizador'
+                },
+                {
+                    opcode: 'timerReset',
+                    blockType: BlockType.COMMAND,
+                    text: 'zerar temporizador'
                 }
             ],
             menus: {
@@ -269,6 +279,36 @@ class Scratch3ArduinoUnoBlocks {
         return this._peripheral.analogRead(
             Number(args.PIN)
         );
+    }
+
+    /**
+     * Read the Arduino UNO Stage timer in seconds.
+     * @returns {?Promise<number>} Promise resolved with elapsed seconds,
+     * or null when unavailable.
+     */
+    timerRead () {
+        const result = this._peripheral.timerRead();
+
+        if (!result) {
+            return result;
+        }
+
+        return result.then(milliseconds => {
+            if (milliseconds === null) {
+                return null;
+            }
+
+            return milliseconds / 1000;
+        });
+    }
+
+    /**
+     * Reset the Arduino UNO Stage timer.
+     * @returns {?Promise<number>} Promise resolved after ACK,
+     * or null when unavailable.
+     */
+    timerReset () {
+        return this._peripheral.timerReset();
     }
 }
 module.exports = Scratch3ArduinoUnoBlocks;

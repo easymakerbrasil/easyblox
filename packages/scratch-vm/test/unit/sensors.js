@@ -45,7 +45,7 @@ test('Sensors expose the ultrasonic block, colors and pins', t => {
     t.equal(info.color1, '#29B6F6');
     t.equal(info.color2, '#039BE5');
     t.equal(info.color3, '#0277BD');
-    t.equal(info.blocks.length, 5);
+    t.equal(info.blocks.length, 6);
 
     const ultrasonicBlock = info.blocks[0];
 
