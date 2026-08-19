@@ -31,7 +31,7 @@ test('Displays reuse the registered Arduino UNO peripheral', t => {
     t.end();
 });
 
-test('Displays expose matrix and LCD blocks and menus', t => {
+test('Displays expose matrix, LCD and TM1637 blocks and menus', t => {
     const runtime = {
         getPeripheralExtension: () => ({})
     };
@@ -74,6 +74,23 @@ t.equal(
     'Display LCD'
 );
 
+t.equal(
+    info.blocks[11],
+    '---',
+    'LCD and 7 segment sections are separated'
+);
+
+t.equal(
+    info.blocks[12].blockType,
+    BlockType.LABEL,
+    '7 segment section starts with a flyout label'
+);
+
+t.equal(
+    info.blocks[12].text,
+    'Display 7 SEG'
+);
+
 const executableBlocks =
     info.blocks.filter(block =>
         block &&
@@ -91,7 +108,10 @@ t.same(
         'lcdInit',
         'lcdWrite',
         'lcdClear',
-        'lcdMode'
+        'lcdMode',
+        'tm1637Init',
+        'tm1637Show',
+        'tm1637Clear'
     ]
 );
 
@@ -113,6 +133,21 @@ const clearBlock =
 const brightnessBlock =
     executableBlocks.find(
         block => block.opcode === 'matrixBrightness'
+    );
+
+const tm1637InitBlock =
+    executableBlocks.find(
+        block => block.opcode === 'tm1637Init'
+    );
+
+const tm1637ShowBlock =
+    executableBlocks.find(
+        block => block.opcode === 'tm1637Show'
+    );
+
+const tm1637ClearBlock =
+    executableBlocks.find(
+        block => block.opcode === 'tm1637Clear'
     );
 
     t.equal(
@@ -162,6 +197,58 @@ const brightnessBlock =
     t.equal(
         brightnessBlock.arguments.BRIGHTNESS.defaultValue,
         100
+    );
+
+    t.equal(
+        tm1637InitBlock.text,
+        'inicializar display 7 segmentos CLK [CLK] DIO [DIO]'
+    );
+
+    t.equal(
+        tm1637InitBlock.arguments.CLK.defaultValue,
+        19,
+        'TM1637 CLK defaults to A5'
+    );
+
+    t.equal(
+        tm1637InitBlock.arguments.DIO.defaultValue,
+        18,
+        'TM1637 DIO defaults to A4'
+    );
+
+    t.equal(
+        tm1637ShowBlock.text,
+        'mostrar [VALUE] com [LENGTH] dígitos na posição [POSITION] [POINT] e [LEADING_ZEROS]'
+    );
+
+    t.equal(
+        tm1637ShowBlock.arguments.VALUE.defaultValue,
+        50
+    );
+
+    t.equal(
+        tm1637ShowBlock.arguments.LENGTH.defaultValue,
+        4
+    );
+
+    t.equal(
+        tm1637ShowBlock.arguments.POSITION.defaultValue,
+        1
+    );
+
+    t.equal(
+        tm1637ShowBlock.arguments.POINT.defaultValue,
+        '0'
+    );
+
+    t.equal(
+        tm1637ShowBlock.arguments.LEADING_ZEROS.defaultValue,
+        '0'
+    );
+
+    t.equal(
+        tm1637ClearBlock.text,
+        'limpar display 7 segmentos'
     );
 
     t.same(
@@ -231,6 +318,26 @@ const brightnessBlock =
         ]
     );
 
+    t.same(
+        info.menus.tm1637Lengths.items.map(item => item.value),
+        ['1', '2', '3', '4']
+    );
+
+    t.same(
+        info.menus.tm1637Positions.items.map(item => item.value),
+        ['1', '2', '3', '4']
+    );
+
+    t.same(
+        info.menus.tm1637Point.items.map(item => item.value),
+        ['0', '1']
+    );
+
+    t.same(
+        info.menus.tm1637LeadingZeros.items.map(item => item.value),
+        ['0', '1']
+    );
+
     t.end();
 });
 
@@ -247,7 +354,11 @@ test('Displays configure matrix pins locally', t => {
         CLK: '12'
     });
 
-    t.equal(result, null);
+    t.equal(
+        result,
+        undefined,
+        'matrix configuration does not report a value'
+    );
 
     t.equal(
         extension._matrixDinPin,
@@ -453,6 +564,273 @@ test('Displays propagate asynchronous matrix commands from the shared peripheral
                 4,
                 12,
                 50
+            ]
+        ]
+    );
+
+    t.end();
+});
+
+test('Displays configure TM1637 pins locally', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({})
+    };
+
+    const extension = new Scratch3DisplaysBlocks(runtime);
+
+    const result = extension.tm1637Init({
+        CLK: '12',
+        DIO: '11'
+    });
+
+    t.equal(
+        result,
+        undefined,
+        'TM1637 configuration does not report a value'
+    );
+
+    t.equal(
+        extension._tm1637ClkPin,
+        12
+    );
+
+    t.equal(
+        extension._tm1637DioPin,
+        11
+    );
+
+    t.end();
+});
+
+test('Displays reject invalid TM1637 pin configurations', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({})
+    };
+
+    const extension = new Scratch3DisplaysBlocks(runtime);
+
+    extension.tm1637Init({
+        CLK: '12',
+        DIO: '11'
+    });
+
+    extension.tm1637Init({
+        CLK: '1',
+        DIO: '11'
+    });
+
+    t.same(
+        [
+            extension._tm1637ClkPin,
+            extension._tm1637DioPin
+        ],
+        [12, 11],
+        'rejects D1'
+    );
+
+    extension.tm1637Init({
+        CLK: '12',
+        DIO: '20'
+    });
+
+    t.same(
+        [
+            extension._tm1637ClkPin,
+            extension._tm1637DioPin
+        ],
+        [12, 11],
+        'rejects pins above A5'
+    );
+
+    extension.tm1637Init({
+        CLK: '12.5',
+        DIO: '11'
+    });
+
+    t.same(
+        [
+            extension._tm1637ClkPin,
+            extension._tm1637DioPin
+        ],
+        [12, 11],
+        'rejects non-integer pins'
+    );
+
+    extension.tm1637Init({
+        CLK: '12',
+        DIO: '12'
+    });
+
+    t.same(
+        [
+            extension._tm1637ClkPin,
+            extension._tm1637DioPin
+        ],
+        [12, 11],
+        'rejects equal CLK and DIO pins'
+    );
+
+    t.end();
+});
+
+test('Displays convert TM1637 numbers to segment frames', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({})
+    };
+
+    const extension = new Scratch3DisplaysBlocks(runtime);
+
+    t.same(
+        extension._tm1637ValueToSegments({
+            VALUE: 1234,
+            LENGTH: 4,
+            POSITION: 1,
+            POINT: '0',
+            LEADING_ZEROS: '0'
+        }),
+        [
+            0x06,
+            0x5B,
+            0x4F,
+            0x66
+        ],
+        '1234 uses the physically validated segment frame'
+    );
+
+    t.same(
+        extension._tm1637ValueToSegments({
+            VALUE: 50,
+            LENGTH: 4,
+            POSITION: 1,
+            POINT: '0',
+            LEADING_ZEROS: '0'
+        }),
+        [
+            0x00,
+            0x00,
+            0x6D,
+            0x3F
+        ],
+        '50 is right aligned without leading zeros'
+    );
+
+    t.same(
+        extension._tm1637ValueToSegments({
+            VALUE: 50,
+            LENGTH: 4,
+            POSITION: 1,
+            POINT: '0',
+            LEADING_ZEROS: '1'
+        }),
+        [
+            0x3F,
+            0x3F,
+            0x6D,
+            0x3F
+        ],
+        '50 uses leading zeros when requested'
+    );
+
+    t.same(
+        extension._tm1637ValueToSegments({
+            VALUE: 12,
+            LENGTH: 2,
+            POSITION: 3,
+            POINT: '0',
+            LEADING_ZEROS: '0'
+        }),
+        [
+            0x00,
+            0x00,
+            0x06,
+            0x5B
+        ],
+        'position selects the starting display digit'
+    );
+
+    t.same(
+        extension._tm1637ValueToSegments({
+            VALUE: 1234,
+            LENGTH: 4,
+            POSITION: 1,
+            POINT: '1',
+            LEADING_ZEROS: '0'
+        }),
+        [
+            0x06,
+            0xDB,
+            0x4F,
+            0x66
+        ],
+        'point enables the TM1637 separator bit'
+    );
+
+    t.end();
+});
+
+test('Displays propagate asynchronous TM1637 commands from the shared peripheral', async t => {
+    const calls = [];
+
+    const peripheral = {
+        tm1637Write: (
+            clkPin,
+            dioPin,
+            segments
+        ) => {
+            calls.push([
+                clkPin,
+                dioPin,
+                segments
+            ]);
+
+            return Promise.resolve(calls.length);
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension: () => peripheral
+    };
+
+    const extension = new Scratch3DisplaysBlocks(runtime);
+
+    t.equal(
+        await extension.tm1637Show({
+            VALUE: 1234,
+            LENGTH: 4,
+            POSITION: 1,
+            POINT: '0',
+            LEADING_ZEROS: '0'
+        }),
+        1
+    );
+
+    t.equal(
+        await extension.tm1637Clear(),
+        2
+    );
+
+    t.same(
+        calls,
+        [
+            [
+                19,
+                18,
+                [
+                    0x06,
+                    0x5B,
+                    0x4F,
+                    0x66
+                ]
+            ],
+            [
+                19,
+                18,
+                [
+                    0,
+                    0,
+                    0,
+                    0
+                ]
             ]
         ]
     );

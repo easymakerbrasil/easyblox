@@ -22,7 +22,8 @@ const COMMANDS = Object.freeze({
     LCD_CLEAR: 0x1E,
     LCD_MODE: 0x1F,
     MATRIX_WRITE: 0x20,
-    MATRIX_BRIGHTNESS: 0x21
+    MATRIX_BRIGHTNESS: 0x21,
+    TM1637_WRITE: 0x22
 });
 
 const LCD_MODES = Object.freeze({

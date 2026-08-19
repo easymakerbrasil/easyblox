@@ -10,6 +10,26 @@ const DEFAULT_MATRIX_DIN_PIN = 18;
 const DEFAULT_MATRIX_CS_PIN = 19;
 const DEFAULT_MATRIX_CLK_PIN = 13;
 
+const TM1637_DIGIT_COUNT = 4;
+
+const TM1637_DIGIT_SEGMENTS = Object.freeze([
+    0x3F,
+    0x06,
+    0x5B,
+    0x4F,
+    0x66,
+    0x6D,
+    0x7D,
+    0x07,
+    0x7F,
+    0x6F
+]);
+
+const TM1637_POINT_MASK = 0x80;
+
+const DEFAULT_TM1637_CLK_PIN = 19;
+const DEFAULT_TM1637_DIO_PIN = 18;
+
 /**
  * Hardware display blocks for supported EasyBlox boards.
  */
@@ -24,6 +44,9 @@ class Scratch3DisplaysBlocks {
         this._matrixDinPin = DEFAULT_MATRIX_DIN_PIN;
         this._matrixCsPin = DEFAULT_MATRIX_CS_PIN;
         this._matrixClkPin = DEFAULT_MATRIX_CLK_PIN;
+
+        this._tm1637ClkPin = DEFAULT_TM1637_CLK_PIN;
+        this._tm1637DioPin = DEFAULT_TM1637_DIO_PIN;
     }
 
     /**
@@ -138,7 +161,65 @@ class Scratch3DisplaysBlocks {
                             defaultValue: '0'
                         }
                     }
-                }
+                },
+                '---',
+                {
+                    blockType: BlockType.LABEL,
+                    text: 'Display 7 SEG'
+                },
+                {
+                    opcode: 'tm1637Init',
+                    blockType: BlockType.COMMAND,
+                    text: 'inicializar display 7 segmentos CLK [CLK] DIO [DIO]',
+                    arguments: {
+                        CLK: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'matrixPins',
+                            defaultValue: DEFAULT_TM1637_CLK_PIN
+                        },
+                        DIO: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'matrixPins',
+                            defaultValue: DEFAULT_TM1637_DIO_PIN
+                        }
+                    }
+                },
+                {
+                    opcode: 'tm1637Show',
+                    blockType: BlockType.COMMAND,
+                    text: 'mostrar [VALUE] com [LENGTH] dígitos na posição [POSITION] [POINT] e [LEADING_ZEROS]',
+                    arguments: {
+                        VALUE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 50
+                        },
+                        LENGTH: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'tm1637Lengths',
+                            defaultValue: 4
+                        },
+                        POSITION: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'tm1637Positions',
+                            defaultValue: 1
+                        },
+                        POINT: {
+                            type: ArgumentType.STRING,
+                            menu: 'tm1637Point',
+                            defaultValue: '0'
+                        },
+                        LEADING_ZEROS: {
+                            type: ArgumentType.STRING,
+                            menu: 'tm1637LeadingZeros',
+                            defaultValue: '0'
+                        }
+                    }
+                },
+                {
+                    opcode: 'tm1637Clear',
+                    blockType: BlockType.COMMAND,
+                    text: 'limpar display 7 segmentos'
+                },
             ],
             menus: {
                 matrixPins: {
@@ -162,6 +243,44 @@ class Scratch3DisplaysBlocks {
                         {text: 'A3', value: '17'},
                         {text: 'A4', value: '18'},
                         {text: 'A5', value: '19'}
+                    ]
+                },
+                tm1637Lengths: {
+                    acceptReporters: true,
+                    items: [
+                        {text: '1', value: '1'},
+                        {text: '2', value: '2'},
+                        {text: '3', value: '3'},
+                        {text: '4', value: '4'}
+                    ]
+                },
+                tm1637Positions: {
+                    acceptReporters: true,
+                    items: [
+                        {text: '1', value: '1'},
+                        {text: '2', value: '2'},
+                        {text: '3', value: '3'},
+                        {text: '4', value: '4'}
+                    ]
+                },
+                tm1637Point: {
+                    acceptReporters: true,
+                    items: [
+                        {text: 'sem ponto', value: '0'},
+                        {text: 'com ponto', value: '1'}
+                    ]
+                },
+                tm1637LeadingZeros: {
+                    acceptReporters: true,
+                    items: [
+                        {
+                            text: 'sem zeros à esquerda',
+                            value: '0'
+                        },
+                        {
+                            text: 'com zeros à esquerda',
+                            value: '1'
+                        }
                     ]
                 },
                 lcdRows: {
@@ -233,7 +352,7 @@ class Scratch3DisplaysBlocks {
     /**
      * Configure the pins used by subsequent matrix blocks.
      * @param {object} args Scratch block arguments.
-     * @returns {null} No transport command is sent.
+     * @returns {void} No transport command is sent.
      */
     configureMatrix (args) {
         const dinPin = Number(args.DIN);
@@ -243,20 +362,18 @@ class Scratch3DisplaysBlocks {
         if (!this._isValidMatrixPin(dinPin) ||
             !this._isValidMatrixPin(csPin) ||
             !this._isValidMatrixPin(clkPin)) {
-            return null;
+            return;
         }
 
         if (dinPin === csPin ||
             dinPin === clkPin ||
             csPin === clkPin) {
-            return null;
+            return;
         }
 
         this._matrixDinPin = dinPin;
         this._matrixCsPin = csPin;
         this._matrixClkPin = clkPin;
-
-        return null;
     }
 
     /**
@@ -338,6 +455,164 @@ class Scratch3DisplaysBlocks {
             this._matrixCsPin,
             this._matrixClkPin,
             brightness
+        );
+    }
+
+        /**
+     * Check whether a pin can be used by the TM1637 display.
+     * @param {number} pin Arduino pin number.
+     * @returns {boolean} True when valid.
+     */
+    _isValidTm1637Pin (pin) {
+        return (
+            Number.isInteger(pin) &&
+            pin >= 2 &&
+            pin <= 19
+        );
+    }
+
+    /**
+     * Configure the pins used by subsequent TM1637 blocks.
+     * @param {object} args Scratch block arguments.
+     * @returns {null} No transport command is sent.
+     */
+    tm1637Init (args) {
+        const clkPin = Number(args.CLK);
+        const dioPin = Number(args.DIO);
+
+        if (
+            !this._isValidTm1637Pin(clkPin) ||
+            !this._isValidTm1637Pin(dioPin) ||
+            clkPin === dioPin
+        ) {
+            return;
+        }
+
+        this._tm1637ClkPin = clkPin;
+        this._tm1637DioPin = dioPin;
+
+    }
+
+    /**
+     * Convert TM1637 block arguments to a complete four-digit frame.
+     * @param {object} args Scratch block arguments.
+     * @returns {number[]} Four raw segment bytes.
+     */
+    _tm1637ValueToSegments (args) {
+        const rawValue = Number(args.VALUE);
+
+        const value =
+            Number.isFinite(rawValue) ?
+                Math.max(0, Math.trunc(rawValue)) :
+                0;
+
+        const rawLength = Number(args.LENGTH);
+        const rawPosition = Number(args.POSITION);
+
+        const requestedLength =
+            Number.isFinite(rawLength) ?
+                Math.max(
+                    1,
+                    Math.min(
+                        TM1637_DIGIT_COUNT,
+                        Math.round(rawLength)
+                    )
+                ) :
+                TM1637_DIGIT_COUNT;
+
+        const position =
+            Number.isFinite(rawPosition) ?
+                Math.max(
+                    1,
+                    Math.min(
+                        TM1637_DIGIT_COUNT,
+                        Math.round(rawPosition)
+                    )
+                ) :
+                1;
+
+        const start = position - 1;
+
+        const length = Math.min(
+            requestedLength,
+            TM1637_DIGIT_COUNT - start
+        );
+
+        const leadingZeros =
+            String(args.LEADING_ZEROS) === '1';
+
+        const segments =
+            new Array(TM1637_DIGIT_COUNT).fill(0);
+
+        const digitSegments =
+            new Array(length).fill(0);
+
+        let remaining = value;
+
+        if (remaining === 0) {
+            if (leadingZeros) {
+                digitSegments.fill(
+                    TM1637_DIGIT_SEGMENTS[0]
+                );
+            } else {
+                digitSegments[length - 1] =
+                    TM1637_DIGIT_SEGMENTS[0];
+            }
+        } else {
+            for (
+                let index = length - 1;
+                index >= 0;
+                index--
+            ) {
+                if (remaining > 0) {
+                    const digit = remaining % 10;
+
+                    digitSegments[index] =
+                        TM1637_DIGIT_SEGMENTS[digit];
+
+                    remaining =
+                        Math.floor(remaining / 10);
+                } else if (leadingZeros) {
+                    digitSegments[index] =
+                        TM1637_DIGIT_SEGMENTS[0];
+                }
+            }
+        }
+
+        for (let index = 0; index < length; index++) {
+            segments[start + index] =
+                digitSegments[index];
+        }
+
+        if (String(args.POINT) === '1') {
+            segments[1] |= TM1637_POINT_MASK;
+        }
+
+        return segments;
+    }
+
+    /**
+     * Show a number on the configured TM1637 display.
+     * @param {object} args Scratch block arguments.
+     * @returns {?Promise<number>} Promise resolved after ACK, or null when unavailable.
+     */
+    tm1637Show (args) {
+        return this._peripheral.tm1637Write(
+            this._tm1637ClkPin,
+            this._tm1637DioPin,
+            this._tm1637ValueToSegments(args)
+        );
+    }
+
+    /**
+     * Clear the configured TM1637 display.
+     * @returns {?Promise<number>} Promise resolved after ACK, or null when unavailable.
+     */
+    tm1637Clear () {
+        return this._peripheral.tm1637Write(
+            this._tm1637ClkPin,
+            this._tm1637DioPin,
+            new Array(TM1637_DIGIT_COUNT).fill(0)
         );
     }
 

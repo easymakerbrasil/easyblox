@@ -6726,3 +6726,352 @@ Estado dos displays após este checkpoint:
 Não iniciar TM1637 Stage automaticamente.
 
 Não iniciar ESP32 antes de concluir a base Arduino UNO planejada.
+
+### 22.110. Revalidação específica do TM1637 para Modo Palco
+
+Após o fechamento do checkpoint MAX7219 no commit:
+
+`46212de015`
+
+foi iniciado um checkpoint técnico específico para reavaliar o display de 7 segmentos TM1637 no Modo Palco.
+
+A investigação foi realizada separadamente da MAX7219, conforme previsto anteriormente na documentação.
+
+A conclusão anterior:
+
+`TM1637 — Upload Mode`
+
+não foi simplesmente revertida por analogia com a MAX7219.
+
+O TM1637 passou por:
+
+- definição de contrato próprio;
+- implementação de protocolo;
+- testes automatizados;
+- implementação de firmware;
+- compilação para Arduino UNO;
+- validação elétrica do ACK do controlador;
+- validação física;
+- validação pelos blocos do EasyBlox.
+
+Resultado:
+
+`TM1637 / Display 7 segmentos — Stage aprovado`
+
+### 22.111. Contrato Stage TM1637 v1
+
+Foi aprovado um contrato deliberadamente enxuto.
+
+Novo comando:
+
+`TM1637_WRITE = 0x22`
+
+Payload:
+
+`[CLK, DIO, SEG0, SEG1, SEG2, SEG3]`
+
+Cada `SEGx` corresponde ao byte bruto dos segmentos de uma das quatro posições do display.
+
+O firmware não interpreta:
+
+- número;
+- quantidade de dígitos;
+- posição;
+- zeros à esquerda;
+- ponto/separador.
+
+Essa transformação é realizada pela extensão `Displays` antes do envio ao Arduino UNO.
+
+Toda escrita utiliza o mecanismo:
+
+`_sendCommandWithAck()`
+
+preservando o backpressure já validado no Modo Palco.
+
+Não foram criados comandos separados para:
+
+- inicialização;
+- limpeza;
+- brilho.
+
+A limpeza reutiliza:
+
+`TM1637_WRITE`
+
+com:
+
+`[0x00, 0x00, 0x00, 0x00]`
+
+Não existe controle de brilho exposto ao usuário no contrato TM1637 v1.
+
+### 22.112. Blocos TM1637 aprovados
+
+A subseção:
+
+`Display 7 SEG`
+
+foi adicionada à categoria única:
+
+`Displays`
+
+Ordem visual da categoria:
+
+1. `Matriz de LED 8x8`;
+2. `Display LCD`;
+3. `Display 7 SEG`.
+
+Foram implementados somente três blocos TM1637:
+
+`inicializar display 7 segmentos CLK [CLK] DIO [DIO]`
+
+`mostrar [VALUE] com [LENGTH] dígitos na posição [POSITION] [POINT] e [LEADING_ZEROS]`
+
+`limpar display 7 segmentos`
+
+Não existe bloco de brilho.
+
+O bloco de inicialização/configuração apenas armazena os pinos localmente na extensão.
+
+Ele não envia comando Serial.
+
+Defaults validados:
+
+- CLK = `A5` / pino lógico `19`;
+- DIO = `A4` / pino lógico `18`.
+
+O bloco de exibição suporta:
+
+- valor numérico;
+- 1 a 4 dígitos;
+- posição inicial de 1 a 4;
+- ponto/separador;
+- zeros à esquerda.
+
+### 22.113. Driver firmware TM1637
+
+O firmware Stage implementa diretamente a comunicação com o TM1637.
+
+Não foi adicionada biblioteca externa.
+
+Foram implementados internamente:
+
+- START;
+- STOP;
+- escrita LSB-first;
+- leitura do ACK elétrico do TM1637;
+- comando de dados;
+- endereço inicial;
+- escrita dos quatro segmentos;
+- controle interno do display.
+
+Sequência utilizada:
+
+`0x40`
+
+seguida por:
+
+`0xC0 + SEG0 + SEG1 + SEG2 + SEG3`
+
+e controle interno do display.
+
+O EasyBlox somente responde:
+
+`RESPONSE_ACK`
+
+depois que a transação física com o TM1637 foi concluída com sucesso.
+
+Falha no ACK elétrico do TM1637 resulta em:
+
+`RESPONSE_ERROR`
+
+### 22.114. Arbitragem TM1637 e LCD em A4/A5
+
+O mapeamento fisicamente validado do TM1637 utiliza:
+
+- CLK = A5;
+- DIO = A4.
+
+Esses pinos também formam o barramento I2C padrão utilizado pelo LCD 16x2.
+
+Foi implementada proteção bidirecional.
+
+Quando o LCD já está inicializado:
+
+- TM1637 não pode assumir A4/A5.
+
+Quando o TM1637 já está utilizando A4/A5:
+
+- `LCD_INIT` responde `ERROR`.
+
+O estado interno do TM1637 é usado apenas para arbitragem de recursos e não cria um comando adicional de inicialização no protocolo.
+
+### 22.115. Validação física TM1637
+
+Teste físico realizado com Arduino UNO/EasyDuino na:
+
+`COM11`
+
+Mapeamento validado:
+
+- CLK = `A5` / `19`;
+- DIO = `A4` / `18`.
+
+Primeiro teste:
+
+`1234`
+
+Frame de segmentos:
+
+`06 5B 4F 66`
+
+Resultado físico:
+
+`1234`
+
+exibido corretamente no display.
+
+Resposta Stage:
+
+`RESPONSE_ACK`
+
+Um teste inicial com CLK/DIO invertidos retornou:
+
+`RESPONSE_ERROR`
+
+confirmando também a validação do ACK elétrico do TM1637.
+
+Teste de limpeza:
+
+`00 00 00 00`
+
+Resultado:
+
+- display apagado;
+- `RESPONSE_ACK`.
+
+A escrita e a limpeza foram posteriormente exercitadas também pelos próprios blocos do EasyBlox.
+
+Resultado:
+
+`TM1637 STAGE — VALIDADO EM HARDWARE`
+
+### 22.116. Correção de UX em blocos de configuração
+
+Durante a validação visual foi identificado que blocos de configuração local que retornavam explicitamente:
+
+`null`
+
+produziam uma bolha visual:
+
+`null`
+
+quando clicados diretamente.
+
+A correção foi aplicada a:
+
+- `configurar matriz 8x8`;
+- `inicializar display 7 segmentos`.
+
+Esses blocos agora encerram silenciosamente com retorno JavaScript:
+
+`undefined`
+
+quando não há valor a reportar.
+
+Regra adotada:
+
+blocos de comando usados apenas para armazenar configuração local não devem produzir valores visuais na interface.
+
+### 22.117. Validações automatizadas TM1637
+
+Resultados finais:
+
+`arduino-uno-protocol.js`
+
+- 237 pass;
+- 0 fail.
+
+`arduino-uno.js`
+
+- 426 pass;
+- 0 fail.
+
+`displays.js`
+
+- 77 pass;
+- 0 fail.
+
+Execução conjunta:
+
+- 740 pass;
+- 0 fail;
+- 3 suites aprovadas.
+
+Cobertura conjunta principal:
+
+- statements: 95,89%;
+- branches: 89,77%;
+- functions: 97,26%;
+- lines: 95,89%.
+
+Compilação do firmware Arduino UNO:
+
+- Flash: `12014 bytes (37%)`;
+- SRAM global: `613 bytes (29%)`;
+- SRAM livre: `1435 bytes`.
+
+### 22.118. Arquivos principais do checkpoint TM1637
+
+Firmware:
+
+`packages/scratch-vm/firmware/arduino-uno/stage/stage.ino`
+
+Protocolo e peripheral:
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/protocol.js`
+
+`packages/scratch-vm/src/extensions/scratch3_arduino_uno/peripheral.js`
+
+Displays:
+
+`packages/scratch-vm/src/extensions/scratch3_displays/index.js`
+
+Testes:
+
+`packages/scratch-vm/test/unit/arduino-uno-protocol.js`
+
+`packages/scratch-vm/test/unit/arduino-uno.js`
+
+`packages/scratch-vm/test/unit/displays.js`
+
+Documentação:
+
+`docs/GUIA-DE-DESENVOLVIMENTO.md`
+
+`docs/CONTINUIDADE-EASYBLOX.md`
+
+### 22.119. Alteração local independente
+
+Permanece fora deste checkpoint:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+Essa alteração continua independente e não deverá ser incluída no commit TM1637.
+
+O staging deverá permanecer explícito.
+
+### 22.120. Próximo ponto oficial de retomada
+
+Estado dos displays após a revalidação:
+
+`LCD 16x2 I2C — Stage aprovado`
+
+`MAX7219 8x8 — Stage aprovado`
+
+`TM1637 / Display 7 segmentos — Stage aprovado`
+
+Após revisão final, commit e push deste checkpoint, o próximo desenvolvimento planejado é:
+
+`Joystick`
+
+Manter a prioridade de concluir a base Arduino UNO antes de avançar para ESP32.

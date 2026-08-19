@@ -2588,6 +2588,167 @@ tap.test('Arduino UNO rejects invalid matrix requests', t => {
     t.end();
 });
 
+tap.test('Arduino UNO waits for ACK before completing TM1637 writes', async t => {
+    let onData = null;
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const pingFrame = writtenFrames[0];
+    const pingSequence = pingFrame[3];
+
+    onData(
+        encodeFrame(
+            pingSequence,
+            RESPONSES.PONG
+        )
+    );
+
+    t.equal(
+        peripheral.isStageConnected(),
+        true
+    );
+
+    const segments = [
+        0x06,
+        0x5B,
+        0x4F,
+        0x66
+    ];
+
+    const writePromise = peripheral.tm1637Write(
+        3,
+        5,
+        segments
+    );
+
+    t.ok(
+        writePromise instanceof Promise,
+        'TM1637_WRITE returns a Promise'
+    );
+
+    await flushPromises();
+
+    t.equal(
+        writtenFrames.length,
+        2,
+        'TM1637_WRITE is sent after the handshake'
+    );
+
+    const writeSequence = writtenFrames[1][3];
+
+    t.same(
+        writtenFrames[1],
+        encodeFrame(
+            writeSequence,
+            COMMANDS.TM1637_WRITE,
+            [
+                3,
+                5,
+                ...segments
+            ]
+        )
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        1,
+        'TM1637_WRITE remains pending before ACK'
+    );
+
+    onData(
+        encodeFrame(
+            writeSequence,
+            RESPONSES.ACK
+        )
+    );
+
+    t.equal(
+        await writePromise,
+        writeSequence,
+        'TM1637_WRITE completes after matching ACK'
+    );
+
+    t.equal(
+        peripheral._pendingCommandAcks.size,
+        0,
+        'TM1637_WRITE ACK clears the pending command'
+    );
+
+    t.equal(
+        peripheral.tm1637Write(
+            3,
+            3,
+            segments
+        ),
+        null,
+        'TM1637_WRITE rejects equal CLK and DIO pins'
+    );
+
+    t.equal(
+        peripheral.tm1637Write(
+            1,
+            5,
+            segments
+        ),
+        null,
+        'TM1637_WRITE rejects CLK below D2'
+    );
+
+    t.equal(
+        peripheral.tm1637Write(
+            3,
+            20,
+            segments
+        ),
+        null,
+        'TM1637_WRITE rejects DIO above A5'
+    );
+
+    t.equal(
+        peripheral.tm1637Write(
+            3,
+            5,
+            [0x06, 0x5B, 0x4F]
+        ),
+        null,
+        'TM1637_WRITE requires exactly four segment bytes'
+    );
+
+    t.equal(
+        peripheral.tm1637Write(
+            3,
+            5,
+            [0x06, 0x5B, 0x4F, 256]
+        ),
+        null,
+        'TM1637_WRITE rejects segment bytes above 255'
+    );
+
+    t.equal(
+        writtenFrames.length,
+        2,
+        'invalid TM1637 writes do not reach the transport'
+    );
+});
+
 tap.test('Arduino UNO normalizes and clips LCD text', async t => {
     let onData = null;
     const writtenFrames = [];

@@ -706,6 +706,12 @@ tap.test('defines matrix command values', t => {
     t.end();
 });
 
+tap.test('defines TM1637 command value', t => {
+    t.equal(COMMANDS.TM1637_WRITE, 0x22);
+
+    t.end();
+});
+
 tap.test('encodes MATRIX_WRITE payload', t => {
     const frame = encodeFrame(
         0x44,
@@ -779,6 +785,42 @@ tap.test('encodes MATRIX_BRIGHTNESS payload', t => {
     t.equal(
         frame[10],
         calculateChecksum(frame.subarray(2, 10))
+    );
+
+    t.end();
+});
+
+tap.test('encodes TM1637_WRITE payload', t => {
+    const frame = encodeFrame(
+        0x46,
+        COMMANDS.TM1637_WRITE,
+        [
+            3,
+            5,
+            0x06,
+            0x5B,
+            0x4F,
+            0x66
+        ]
+    );
+
+    t.equal(frame[0], 0xFF);
+    t.equal(frame[1], 0x55);
+    t.equal(frame[2], PROTOCOL_VERSION);
+    t.equal(frame[3], 0x46);
+    t.equal(frame[4], 0x22);
+    t.equal(frame[5], 6);
+
+    t.equal(frame[6], 3);
+    t.equal(frame[7], 5);
+    t.equal(frame[8], 0x06);
+    t.equal(frame[9], 0x5B);
+    t.equal(frame[10], 0x4F);
+    t.equal(frame[11], 0x66);
+
+    t.equal(
+        frame[12],
+        calculateChecksum(frame.subarray(2, 12))
     );
 
     t.end();

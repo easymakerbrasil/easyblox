@@ -657,6 +657,52 @@ class ArduinoUnoPeripheral {
     }
 
     /**
+     * Write four segment bytes to a TM1637 display in Stage mode.
+     * @param {number} clkPin TM1637 CLK pin.
+     * @param {number} dioPin TM1637 DIO pin.
+     * @param {Array<number>} segments Four TM1637 segment bytes.
+     * @returns {?Promise<number>} Promise resolved after ACK, or null when unavailable.
+     */
+    tm1637Write (clkPin, dioPin, segments) {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        if (
+            !Number.isInteger(clkPin) ||
+            !Number.isInteger(dioPin) ||
+            clkPin < 2 ||
+            clkPin > 19 ||
+            dioPin < 2 ||
+            dioPin > 19 ||
+            clkPin === dioPin
+        ) {
+            return null;
+        }
+
+        if (
+            !Array.isArray(segments) ||
+            segments.length !== 4 ||
+            Array.from(segments).some(segment =>
+                !Number.isInteger(segment) ||
+                segment < 0 ||
+                segment > 255
+            )
+        ) {
+            return null;
+        }
+
+        return this._sendCommandWithAck(
+            COMMANDS.TM1637_WRITE,
+            [
+                clkPin,
+                dioPin,
+                ...segments
+            ]
+        );
+    }
+
+    /**
      * Write text to a 16x2 I2C LCD in Stage mode.
      * Row and column use zero-based protocol coordinates.
      * @param {*} text Value to write.

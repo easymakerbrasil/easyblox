@@ -29,6 +29,7 @@ constexpr uint8_t COMMAND_LCD_CLEAR = 0x1E;
 constexpr uint8_t COMMAND_LCD_MODE = 0x1F;
 constexpr uint8_t COMMAND_MATRIX_WRITE = 0x20;
 constexpr uint8_t COMMAND_MATRIX_BRIGHTNESS = 0x21;
+constexpr uint8_t COMMAND_TM1637_WRITE = 0x22;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -83,6 +84,18 @@ constexpr uint8_t MAX7219_REGISTER_DISPLAY_TEST = 0x0F;
 
 constexpr uint8_t MAX7219_DEFAULT_INTENSITY = 0x0F;
 
+constexpr uint8_t NO_TM1637_PIN = 0xFF;
+
+constexpr uint8_t TM1637_DATA_COMMAND = 0x40;
+constexpr uint8_t TM1637_ADDRESS_COMMAND = 0xC0;
+constexpr uint8_t TM1637_DISPLAY_CONTROL = 0x8F;
+
+constexpr unsigned int TM1637_BIT_DELAY_US = 5;
+
+bool tm1637Initialized = false;
+uint8_t tm1637ClkPin = NO_TM1637_PIN;
+uint8_t tm1637DioPin = NO_TM1637_PIN;
+
 bool matrixInitialized = false;
 uint8_t matrixDinPin = NO_MATRIX_PIN;
 uint8_t matrixCsPin = NO_MATRIX_PIN;
@@ -125,6 +138,18 @@ bool isMatrixUsingLcdI2cPins() {
             matrixCsPin == 19 ||
             matrixClkPin == 18 ||
             matrixClkPin == 19
+        )
+    );
+}
+
+bool isTm1637UsingLcdI2cPins() {
+    return (
+        tm1637Initialized &&
+        (
+            tm1637ClkPin == 18 ||
+            tm1637ClkPin == 19 ||
+            tm1637DioPin == 18 ||
+            tm1637DioPin == 19
         )
     );
 }
@@ -295,6 +320,195 @@ void initializeMatrix(
     matrixCsPin = csPin;
     matrixClkPin = clkPin;
     matrixInitialized = true;
+}
+
+void tm1637Start(
+    uint8_t clkPin,
+    uint8_t dioPin
+) {
+    pinMode(clkPin, OUTPUT);
+    pinMode(dioPin, OUTPUT);
+
+    digitalWrite(clkPin, HIGH);
+    digitalWrite(dioPin, HIGH);
+
+    delayMicroseconds(TM1637_BIT_DELAY_US);
+
+    digitalWrite(dioPin, LOW);
+
+    delayMicroseconds(TM1637_BIT_DELAY_US);
+
+    digitalWrite(clkPin, LOW);
+
+    delayMicroseconds(TM1637_BIT_DELAY_US);
+}
+
+void tm1637Stop(
+    uint8_t clkPin,
+    uint8_t dioPin
+) {
+    pinMode(dioPin, OUTPUT);
+
+    digitalWrite(clkPin, LOW);
+    digitalWrite(dioPin, LOW);
+
+    delayMicroseconds(TM1637_BIT_DELAY_US);
+
+    digitalWrite(clkPin, HIGH);
+
+    delayMicroseconds(TM1637_BIT_DELAY_US);
+
+    digitalWrite(dioPin, HIGH);
+
+    delayMicroseconds(TM1637_BIT_DELAY_US);
+}
+
+bool tm1637WriteByte(
+    uint8_t clkPin,
+    uint8_t dioPin,
+    uint8_t value
+) {
+    pinMode(dioPin, OUTPUT);
+
+    for (uint8_t bit = 0; bit < 8; bit++) {
+        digitalWrite(clkPin, LOW);
+
+        delayMicroseconds(TM1637_BIT_DELAY_US);
+
+        digitalWrite(
+            dioPin,
+            (value & 0x01) ? HIGH : LOW
+        );
+
+        delayMicroseconds(TM1637_BIT_DELAY_US);
+
+        digitalWrite(clkPin, HIGH);
+
+        delayMicroseconds(TM1637_BIT_DELAY_US);
+
+        value >>= 1;
+    }
+
+    digitalWrite(clkPin, LOW);
+
+    pinMode(dioPin, INPUT_PULLUP);
+
+    delayMicroseconds(TM1637_BIT_DELAY_US);
+
+    digitalWrite(clkPin, HIGH);
+
+    delayMicroseconds(TM1637_BIT_DELAY_US);
+
+    const bool acknowledged =
+        digitalRead(dioPin) == LOW;
+
+    digitalWrite(clkPin, LOW);
+
+    delayMicroseconds(TM1637_BIT_DELAY_US);
+
+    pinMode(dioPin, OUTPUT);
+    digitalWrite(dioPin, HIGH);
+
+    return acknowledged;
+}
+
+bool tm1637WriteCommand(
+    uint8_t clkPin,
+    uint8_t dioPin,
+    uint8_t value
+) {
+    tm1637Start(
+        clkPin,
+        dioPin
+    );
+
+    const bool acknowledged =
+        tm1637WriteByte(
+            clkPin,
+            dioPin,
+            value
+        );
+
+    tm1637Stop(
+        clkPin,
+        dioPin
+    );
+
+    return acknowledged;
+}
+
+bool writeTm1637Display(
+    uint8_t clkPin,
+    uint8_t dioPin,
+    const uint8_t *segments
+) {
+    if (
+        !tm1637WriteCommand(
+            clkPin,
+            dioPin,
+            TM1637_DATA_COMMAND
+        )
+    ) {
+        return false;
+    }
+
+    tm1637Start(
+        clkPin,
+        dioPin
+    );
+
+    if (
+        !tm1637WriteByte(
+            clkPin,
+            dioPin,
+            TM1637_ADDRESS_COMMAND
+        )
+    ) {
+        tm1637Stop(
+            clkPin,
+            dioPin
+        );
+
+        return false;
+    }
+
+    for (uint8_t digit = 0; digit < 4; digit++) {
+        if (
+            !tm1637WriteByte(
+                clkPin,
+                dioPin,
+                segments[digit]
+            )
+        ) {
+            tm1637Stop(
+                clkPin,
+                dioPin
+            );
+
+            return false;
+        }
+    }
+
+    tm1637Stop(
+        clkPin,
+        dioPin
+    );
+
+    if (
+        !tm1637WriteCommand(
+            clkPin,
+            dioPin,
+            TM1637_DISPLAY_CONTROL
+        )
+    ) {
+        return false;
+    }
+
+    tm1637ClkPin = clkPin;
+    tm1637DioPin = dioPin;
+    tm1637Initialized = true;
+
+    return true;
 }
 
 void resetParser() {
@@ -1520,6 +1734,58 @@ void handleMatrixBrightness() {
     );
 }
 
+void handleTm1637Write() {
+    if (payloadLength != 6) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    const uint8_t clkPin = payload[0];
+    const uint8_t dioPin = payload[1];
+
+    if (
+        clkPin < 2 ||
+        clkPin > 19 ||
+        dioPin < 2 ||
+        dioPin > 19 ||
+        clkPin == dioPin ||
+        isLcdI2cPin(clkPin) ||
+        isLcdI2cPin(dioPin) ||
+        isServoAttachedOnPin(clkPin) ||
+        isServoAttachedOnPin(dioPin) ||
+        activeTonePin == clkPin ||
+        activeTonePin == dioPin
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    if (
+        !writeTm1637Display(
+            clkPin,
+            dioPin,
+            &payload[2]
+        )
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
 void handleLcdInit() {
     if (payloadLength != 0) {
         sendFrame(
@@ -1529,7 +1795,10 @@ void handleLcdInit() {
         return;
     }
 
-    if (isMatrixUsingLcdI2cPins()) {
+    if (
+        isMatrixUsingLcdI2cPins() ||
+        isTm1637UsingLcdI2cPins()
+    ) {
         sendFrame(
             sequence,
             RESPONSE_ERROR
@@ -1876,6 +2145,11 @@ void handleFrame() {
 
     if (command == COMMAND_MATRIX_BRIGHTNESS) {
         handleMatrixBrightness();
+        return;
+    }
+
+    if (command == COMMAND_TM1637_WRITE) {
+        handleTm1637Write();
         return;
     }
 }
