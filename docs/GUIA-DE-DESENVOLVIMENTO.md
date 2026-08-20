@@ -6858,3 +6858,14 @@ Stage + Upload:
 531 pass
 0 fail
 2 suites
+
+### 19.157. Primeiro vertical slice do Arduino UNO Modo Carregar — concluído
+
+Em 20/08/2026 foi concluído formalmente o primeiro vertical slice definido pelo contrato técnico e pedagógico do Arduino UNO Modo Carregar v1.
+
+Checkpoint técnico consolidado:
+
+```text
+A1 — 034f250b79 feat: add Arduino UNO Upload core
+A2 — 99887d2ae5 feat: add Arduino UNO Upload loop context validation
+A3 — 1b6af7735d feat: add Arduino UNO Upload repeat support

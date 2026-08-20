@@ -7938,3 +7938,45 @@ packages/scratch-gui/src/components/action-menu/icon--sprite.svg
 continua independente e não deve ser incluída no staging.
 
 O A3 resolve a pendência do allocator prevista no checklist inicial, mas ainda não deve ser usado sozinho para declarar todo o contrato de Upload v1 concluído. Controle adicional, operadores, tipagem, classificação formal de compatibilidade por opcode e demais fases permanecem incrementais.
+
+### 23.5. Marco oficial — primeiro vertical slice concluído
+
+Em 20/08/2026, após o checkpoint A3, foi feita a conferência integral do checklist oficial do primeiro vertical slice do Arduino UNO Modo Carregar v1.
+
+Resultado:
+
+`13 de 13 critérios atendidos`
+
+Commits que compõem o marco:
+
+```text
+034f250b79 — Upload core
+99887d2ae5 — loop/context validation
+1b6af7735d — repeat support + allocator seguro
+
+Validação final:
+
+Stage + Upload
+531 pass
+0 fail
+2 suites
+
+A alteração independente:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+permanece fora dos commits.
+
+O primeiro vertical slice:
+
+quando Arduino Uno iniciar + digitalWrite → sketch.ino determinístico
+
+está oficialmente concluído.
+
+Isso não fecha o Modo Carregar v1 completo.
+
+Próxima fase contratual:
+
+controle / operadores / tipagem
+
+antes de Arduino CLI, BuildService, UploadService ou upload físico.
