@@ -136,9 +136,13 @@ class ArduinoUnoGenerator {
                     'easyblox_repeat_index'
                 );
 
+                const timesExpression = this._generateExpression(
+                    statement.times
+                );
+
                 lines.push(
                     `${indent}for (int ${identifier} = 0; ` +
-                    `${identifier} < ${statement.times}; ` +
+                    `${identifier} < ${timesExpression}; ` +
                     `++${identifier}) {`
                 );
 
@@ -162,6 +166,86 @@ class ArduinoUnoGenerator {
                     }`
                 );
             }
+        }
+    }
+
+    /**
+     * Generate Arduino C++ for an EasyBlox expression.
+     *
+     * Numeric values are temporarily supported for compatibility with
+     * the A3 Repeat IR. Structured expressions are generated recursively.
+     *
+     * @param {number|object} expression EasyBlox expression IR.
+     * @returns {string} Arduino C++ expression.
+     * @private
+     */
+    _generateExpression (expression) {
+        /*
+        * Preserve compatibility with the A3 IR while direct Repeat
+        * literals are still represented as raw numbers.
+        */
+        if (typeof expression === 'number') {
+            if (!Number.isFinite(expression)) {
+                throw new Error(
+                    'Invalid Arduino UNO numeric expression'
+                );
+            }
+
+            return String(expression);
+        }
+
+        if (!expression || typeof expression !== 'object') {
+            throw new Error(
+                'Invalid Arduino UNO Upload expression'
+            );
+        }
+
+        switch (expression.type) {
+        case 'IntegerLiteral':
+        case 'DecimalLiteral':
+            if (!Number.isFinite(expression.value)) {
+                throw new Error(
+                    'Invalid Arduino UNO numeric literal'
+                );
+            }
+
+            return String(expression.value);
+
+        case 'BinaryExpression': {
+            const left = this._generateExpression(expression.left);
+            const right = this._generateExpression(expression.right);
+
+            switch (expression.operator) {
+            case 'Add':
+                return `(${left} + ${right})`;
+
+            case 'Subtract':
+                return `(${left} - ${right})`;
+
+            case 'Multiply':
+                return `(${left} * ${right})`;
+
+            case 'Divide':
+                return `(` +
+                    `static_cast<double>(${left}) / ` +
+                    `static_cast<double>(${right})` +
+                    `)`;
+
+            default:
+                throw new Error(
+                    `Unsupported Arduino UNO Upload binary operator: ${
+                        expression.operator
+                    }`
+                );
+            }
+        }
+
+        default:
+            throw new Error(
+                `Unsupported Arduino UNO Upload expression type: ${
+                    expression.type
+                }`
+            );
         }
     }
 }

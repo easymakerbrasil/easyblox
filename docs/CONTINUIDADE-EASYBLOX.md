@@ -7980,3 +7980,154 @@ Próxima fase contratual:
 controle / operadores / tipagem
 
 antes de Arduino CLI, BuildService, UploadService ou upload físico.
+
+### 23.6. A4 — expressões e tipagem aritmética
+
+Em 20/08/2026 foi concluído o A4 do Arduino UNO Modo Carregar v1.
+
+O objetivo desta etapa foi introduzir expressões aritméticas tipadas sem romper a separação arquitetural já consolidada.
+
+Pipeline mantido:
+
+```text
+Scratch VM
+→ UploadProgramExtractor
+→ EasyBlox IR
+→ UploadContextValidator
+→ UploadTypeValidator
+→ ArduinoUnoGenerator
+→ C++
+
+Foi criada a primeira Expression IR:
+
+IntegerLiteral
+DecimalLiteral
+BinaryExpression
+
+Operadores incorporados:
+
+operator_add       → Add
+operator_subtract  → Subtract
+operator_multiply  → Multiply
+operator_divide    → Divide
+
+O extractor passou a percorrer expressões recursivamente.
+
+Exemplo:
+
+repita (1 + 2) vezes
+
+passa a produzir:
+
+Repeat
+└── times
+    └── BinaryExpression
+        ├── Add
+        ├── IntegerLiteral(1)
+        └── IntegerLiteral(2)
+
+Foi criado:
+
+packages/scratch-vm/src/upload/upload-type-validator.js
+
+Tipos pedagógicos formalizados:
+
+INTEGER
+DECIMAL
+TEXT
+BOOLEAN
+
+No A4, a validação efetiva utiliza inicialmente INTEGER e DECIMAL.
+
+Promoção para Add, Subtract e Multiply:
+
+INTEGER + INTEGER → INTEGER
+INTEGER + DECIMAL → DECIMAL
+DECIMAL + INTEGER → DECIMAL
+DECIMAL + DECIMAL → DECIMAL
+
+A mesma regra de promoção aplica-se a subtração e multiplicação.
+
+Não ocorre conversão silenciosa de DECIMAL para INTEGER.
+
+Repeat.times exige:
+
+INTEGER
+
+Assim:
+
+repita (1 + 2) vezes
+
+é válido.
+
+repita (1 + 2.5) vezes
+
+é inválido.
+
+A divisão possui semântica especial:
+
+Divide → DECIMAL
+
+sempre que os operandos forem numéricos.
+
+Portanto:
+
+5 / 2
+
+é semanticamente decimal e não pode assumir a divisão inteira nativa do C++.
+
+O generator preserva essa regra por promoção explícita:
+
+(static_cast<double>(5) / static_cast<double>(2))
+
+A proteção também foi validada com expressões compostas nos operandos.
+
+Exemplo:
+
+(1 + 4) / (1 + 1)
+
+não pode degenerar em divisão inteira.
+
+O UploadTypeValidator mantém compatibilidade transitória com os valores numéricos diretos de Repeat.times introduzidos no A3.
+
+Estado automatizado ao fechamento:
+
+Upload
+55 pass
+0 fail
+
+
+Stage + Upload
+552 pass
+0 fail
+2 suites
+
+Arquivos principais:
+
+packages/scratch-vm/src/upload/upload-program-extractor.js
+packages/scratch-vm/src/upload/upload-type-validator.js
+packages/scratch-vm/src/upload/arduino-uno-generator.js
+packages/scratch-vm/test/unit/arduino-uno-upload.js
+
+A alteração local independente:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+continua fora do staging.
+
+O A4 fecha a primeira fase de expressões e tipagem aritmética.
+
+O Arduino UNO Modo Carregar v1 como um todo continua em implementação incremental.
+
+Próximo checkpoint previsto:
+
+A5 — comparações e booleanos
+
+com base inicial em:
+
+operator_lt
+operator_equals
+operator_gt
+operator_and
+operator_or
+operator_not

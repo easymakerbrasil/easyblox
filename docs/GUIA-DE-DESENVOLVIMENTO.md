@@ -6869,3 +6869,288 @@ Checkpoint técnico consolidado:
 A1 — 034f250b79 feat: add Arduino UNO Upload core
 A2 — 99887d2ae5 feat: add Arduino UNO Upload loop context validation
 A3 — 1b6af7735d feat: add Arduino UNO Upload repeat support
+
+### 19.158. A4 — expressões e tipagem aritmética no Arduino UNO Modo Carregar
+
+Em 20/08/2026 foi concluído o A4 da implementação incremental do Arduino UNO Modo Carregar v1.
+
+Esta etapa introduziu a primeira camada semântica de expressões aritméticas da EasyBlox IR e o primeiro validador dedicado aos tipos pedagógicos do Modo Carregar.
+
+O A4 não altera a arquitetura consolidada anteriormente.
+
+O fluxo permanece:
+
+```text
+Scratch VM
+    ↓
+UploadProgramExtractor
+    ↓
+EasyBlox IR
+    ↓
+UploadContextValidator
+    ↓
+UploadTypeValidator
+    ↓
+ArduinoUnoGenerator
+    ↓
+C++
+
+O UploadProgramExtractor continua sendo a única camada deste fluxo que conhece diretamente os opcodes e a estrutura dos blocos Scratch.
+
+O UploadTypeValidator e o ArduinoUnoGenerator operam sobre EasyBlox IR e não dependem da estrutura interna dos blocos Scratch.
+
+Expression IR
+
+Foram introduzidas as representações:
+
+IntegerLiteral
+DecimalLiteral
+BinaryExpression
+
+Exemplos:
+
+1
+↓
+IntegerLiteral(1)
+
+
+2.5
+↓
+DecimalLiteral(2.5)
+
+
+1 + 2
+↓
+BinaryExpression
+├── operator: Add
+├── left: IntegerLiteral(1)
+└── right: IntegerLiteral(2)
+
+Os operadores aritméticos suportados nesta etapa são:
+
+operator_add       → Add
+operator_subtract  → Subtract
+operator_multiply  → Multiply
+operator_divide    → Divide
+
+O extractor percorre os inputs das expressões recursivamente e produz a IR antes de qualquer geração de C++.
+
+Exemplo Scratch:
+
+repita (1 + 2) vezes
+
+Representação semântica:
+
+Repeat
+├── times
+│   └── BinaryExpression
+│       ├── operator: Add
+│       ├── left: IntegerLiteral(1)
+│       └── right: IntegerLiteral(2)
+└── body[]
+UploadTypeValidator
+
+Foi criado:
+
+packages/scratch-vm/src/upload/upload-type-validator.js
+
+A camada introduz os tipos pedagógicos previstos pelo contrato:
+
+INTEGER
+DECIMAL
+TEXT
+BOOLEAN
+
+Nesta etapa, INTEGER e DECIMAL já participam efetivamente da validação aritmética.
+
+TEXT e BOOLEAN ficam formalmente definidos para as próximas fases de expressões e tipagem.
+
+A promoção numérica para:
+
+Add
+Subtract
+Multiply
+
+segue:
+
+INTEGER op INTEGER
+→ INTEGER
+
+
+INTEGER op DECIMAL
+→ DECIMAL
+
+
+DECIMAL op INTEGER
+→ DECIMAL
+
+
+DECIMAL op DECIMAL
+→ DECIMAL
+
+Não há conversão silenciosa de DECIMAL para INTEGER.
+
+Tipagem de Repeat
+
+O campo times de:
+
+Repeat
+
+continua exigindo semanticamente:
+
+Número inteiro
+
+Portanto:
+
+repita (1 + 2) vezes
+
+é válido porque:
+
+INTEGER + INTEGER
+→ INTEGER
+
+Por outro lado:
+
+repita (1 + 2.5) vezes
+
+é rejeitado porque:
+
+INTEGER + DECIMAL
+→ DECIMAL
+
+O mesmo princípio vale para outras expressões aritméticas.
+
+Essa validação substitui qualquer tentativa de corrigir, truncar ou arredondar silenciosamente o valor.
+
+Semântica de divisão
+
+Divide possui regra própria.
+
+Independentemente dos tipos numéricos dos operandos:
+
+INTEGER / INTEGER
+INTEGER / DECIMAL
+DECIMAL / INTEGER
+DECIMAL / DECIMAL
+
+o resultado semântico é sempre:
+
+DECIMAL
+
+Portanto:
+
+5 / 2
+
+deve representar semanticamente:
+
+2.5
+
+e nunca a divisão inteira do C++:
+
+2
+
+Por consequência:
+
+repita (5 / 2) vezes
+
+é inválido no Modo Carregar porque o resultado da expressão é DECIMAL e Repeat.times exige INTEGER.
+
+Preservação da divisão decimal no C++
+
+O ArduinoUnoGenerator foi adaptado para preservar explicitamente a semântica decimal da EasyBlox IR.
+
+A geração não utiliza:
+
+(5 / 2)
+
+porque essa expressão realizaria divisão inteira em C++.
+
+A geração utiliza promoção explícita:
+
+(static_cast<double>(5) / static_cast<double>(2))
+
+A mesma estratégia é aplicada quando os operandos são expressões compostas.
+
+Exemplo:
+
+(1 + 4) / (1 + 1)
+
+gera semanticamente uma divisão equivalente a:
+
+(static_cast<double>((1 + 4)) / static_cast<double>((1 + 1)))
+
+evitando divisão inteira acidental.
+
+A geração das expressões continua recursiva e parentizada de forma determinística.
+
+Compatibilidade com A3
+
+A representação numérica direta usada pelo A3 para Repeat.times permanece temporariamente aceita pelo UploadTypeValidator.
+
+Isso preserva compatibilidade incremental enquanto a camada de expressões é incorporada ao restante do Modo Carregar.
+
+Não se trata de um segundo modelo semântico definitivo.
+
+A tendência arquitetural permanece concentrar valores e expressões na EasyBlox IR tipada.
+
+Estado automatizado ao fechamento do A4
+
+Testes específicos do Upload:
+
+55 pass
+0 fail
+1 suite
+
+Regressão Arduino UNO Stage + Upload:
+
+552 pass
+0 fail
+2 suites
+
+Foram validados, entre outros:
+
+IntegerLiteral
+DecimalLiteral
+Add
+Subtract
+Multiply
+Divide
+expressões aninhadas
+promoção INTEGER/DECIMAL
+Repeat com expressão INTEGER
+rejeição de Repeat com expressão DECIMAL
+divisão INTEGER/INTEGER como DECIMAL
+divisão decimal em C++ com operandos literais
+divisão decimal em C++ com expressões compostas
+
+Arquivos principais alterados no A4:
+
+packages/scratch-vm/src/upload/upload-program-extractor.js
+packages/scratch-vm/src/upload/upload-type-validator.js
+packages/scratch-vm/src/upload/arduino-uno-generator.js
+packages/scratch-vm/test/unit/arduino-uno-upload.js
+
+O arquivo local independente:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+permanece fora deste checkpoint.
+
+O A4 fecha o núcleo aritmético inicial da camada de expressões e tipagem.
+
+Isso não representa a conclusão integral do Arduino UNO Modo Carregar v1.
+
+Próxima etapa incremental prevista:
+
+A5 — comparações e operadores booleanos
+
+incluindo inicialmente:
+
+<
+=
+>
+e
+ou
+não
+
+sobre a infraestrutura de Expression IR e UploadTypeValidator consolidada no A4.

@@ -12,6 +12,9 @@ const UploadContextValidator =
 const InternalIdentifierAllocator =
     require('../../src/upload/internal-identifier-allocator');
 
+const UploadTypeValidator =
+    require('../../src/upload/upload-type-validator');
+
 const createRuntimeWithBlocks = blockDefinitions => {
     const runtime = new Runtime();
     const blocks = new Blocks(runtime);
@@ -1181,6 +1184,947 @@ tap.test('Arduino UNO Upload supports REPEAT inside main FOREVER loop', t => {
         '}',
         ''
     ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts INTEGER addition as REPEAT count', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.doesNotThrow(() => validator.validate(ir));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects DECIMAL expression as REPEAT count', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'DecimalLiteral',
+                    value: 2.5
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Repeat count must be Número inteiro/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts operator_add as typed expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'add',
+                    shadow: 'repeat_times_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'add',
+            opcode: 'operator_add',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                NUM1: {
+                    name: 'NUM1',
+                    block: 'left',
+                    shadow: 'left'
+                },
+                NUM2: {
+                    name: 'NUM2',
+                    block: 'right',
+                    shadow: 'right'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left', 'add', 1),
+        createNumberShadow('right', 'add', 2),
+        createNumberShadow(
+            'repeat_times_shadow',
+            'repeat',
+            10
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload accepts extracted INTEGER addition as REPEAT count', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'add',
+                    shadow: 'repeat_times_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'add',
+            opcode: 'operator_add',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                NUM1: {
+                    name: 'NUM1',
+                    block: 'left',
+                    shadow: 'left'
+                },
+                NUM2: {
+                    name: 'NUM2',
+                    block: 'right',
+                    shadow: 'right'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left', 'add', 1),
+        createNumberShadow('right', 'add', 2),
+        createNumberShadow(
+            'repeat_times_shadow',
+            'repeat',
+            10
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+
+    const ir = extractor.extract();
+
+    t.doesNotThrow(() => validator.validate(ir));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects extracted DECIMAL addition as REPEAT count', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'add',
+                    shadow: 'repeat_times_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'add',
+            opcode: 'operator_add',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                NUM1: {
+                    name: 'NUM1',
+                    block: 'left',
+                    shadow: 'left'
+                },
+                NUM2: {
+                    name: 'NUM2',
+                    block: 'right',
+                    shadow: 'right'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left', 'add', 1),
+        createNumberShadow('right', 'add', 2.5),
+        createNumberShadow(
+            'repeat_times_shadow',
+            'repeat',
+            10
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+
+    const ir = extractor.extract();
+
+    t.throws(
+        () => validator.validate(ir),
+        /Repeat count must be Número inteiro/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits INTEGER addition expression in REPEAT count', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: [{
+                type: 'DigitalWrite',
+                pin: 13,
+                value: true
+            }]
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    pinMode(13, OUTPUT);',
+        '    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < (1 + 2); ++easyblox_repeat_index_0) {',
+        '        digitalWrite(13, HIGH);',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates REPEAT from extracted INTEGER addition end to end', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'add',
+                    shadow: 'repeat_times_shadow'
+                },
+                SUBSTACK: {
+                    name: 'SUBSTACK',
+                    block: 'write',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'add',
+            opcode: 'operator_add',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                NUM1: {
+                    name: 'NUM1',
+                    block: 'left',
+                    shadow: 'left'
+                },
+                NUM2: {
+                    name: 'NUM2',
+                    block: 'right',
+                    shadow: 'right'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left', 'add', 1),
+        createNumberShadow('right', 'add', 2),
+        createNumberShadow(
+            'repeat_times_shadow',
+            'repeat',
+            10
+        ),
+        {
+            id: 'write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'pin',
+                    shadow: 'pin'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'value',
+                    shadow: 'value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('pin', 'write', 13),
+        createNumberShadow('value', 'write', 1)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    validator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    pinMode(13, OUTPUT);',
+        '    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < (1 + 2); ++easyblox_repeat_index_0) {',
+        '        digitalWrite(13, HIGH);',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts operator_subtract as expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'subtract',
+                    shadow: 'repeat_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'subtract',
+            opcode: 'operator_subtract',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                NUM1: {
+                    name: 'NUM1',
+                    block: 'left',
+                    shadow: 'left'
+                },
+                NUM2: {
+                    name: 'NUM2',
+                    block: 'right',
+                    shadow: 'right'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left', 'subtract', 5),
+        createNumberShadow('right', 'subtract', 2),
+        createNumberShadow('repeat_shadow', 'repeat', 10)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Subtract',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 5
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts operator_multiply as expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'multiply',
+                    shadow: 'repeat_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'multiply',
+            opcode: 'operator_multiply',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                NUM1: {
+                    name: 'NUM1',
+                    block: 'left',
+                    shadow: 'left'
+                },
+                NUM2: {
+                    name: 'NUM2',
+                    block: 'right',
+                    shadow: 'right'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left', 'multiply', 2),
+        createNumberShadow('right', 'multiply', 3),
+        createNumberShadow('repeat_shadow', 'repeat', 10)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Multiply',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts INTEGER subtraction as REPEAT count', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Subtract',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 5
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.doesNotThrow(() => validator.validate(ir));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects DECIMAL subtraction as REPEAT count', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Subtract',
+                left: {
+                    type: 'DecimalLiteral',
+                    value: 5.5
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Repeat count must be Número inteiro/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts INTEGER multiplication as REPEAT count', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Multiply',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.doesNotThrow(() => validator.validate(ir));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects DECIMAL multiplication as REPEAT count', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Multiply',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'DecimalLiteral',
+                    value: 3.5
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Repeat count must be Número inteiro/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits subtraction expression', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Subtract',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 5
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /easyblox_repeat_index_0 < \(5 - 2\)/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits multiplication expression', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Multiply',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /easyblox_repeat_index_0 < \(2 \* 3\)/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts operator_divide as expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'divide',
+                    shadow: 'repeat_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'divide',
+            opcode: 'operator_divide',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                NUM1: {
+                    name: 'NUM1',
+                    block: 'left',
+                    shadow: 'left'
+                },
+                NUM2: {
+                    name: 'NUM2',
+                    block: 'right',
+                    shadow: 'right'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left', 'divide', 5),
+        createNumberShadow('right', 'divide', 2),
+        createNumberShadow('repeat_shadow', 'repeat', 10)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Divide',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 5
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects INTEGER division as REPEAT count', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Divide',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 6
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Repeat count must be Número inteiro/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects mixed division as REPEAT count', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Divide',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 5
+                },
+                right: {
+                    type: 'DecimalLiteral',
+                    value: 2.5
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Repeat count must be Número inteiro/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects DECIMAL division as REPEAT count', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Divide',
+                left: {
+                    type: 'DecimalLiteral',
+                    value: 5.5
+                },
+                right: {
+                    type: 'DecimalLiteral',
+                    value: 2.5
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Repeat count must be Número inteiro/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator preserves decimal semantics for INTEGER division', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Divide',
+            left: {
+                type: 'IntegerLiteral',
+                value: 5
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 2
+            }
+        }),
+        '(static_cast<double>(5) / static_cast<double>(2))'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator preserves decimal semantics when both division operands are INTEGER expressions', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Divide',
+            left: {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 4
+                }
+            },
+            right: {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                }
+            }
+        }),
+        '(static_cast<double>((1 + 4)) / static_cast<double>((1 + 1)))'
+    );
 
     t.end();
 });

@@ -2,6 +2,10 @@ const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
 const FOREVER_OPCODE = 'control_forever';
 const REPEAT_OPCODE = 'control_repeat';
+const ADD_OPCODE = 'operator_add';
+const SUBTRACT_OPCODE = 'operator_subtract';
+const MULTIPLY_OPCODE = 'operator_multiply';
+const DIVIDE_OPCODE = 'operator_divide';
 
 /**
  * Extract an EasyBlox Upload program from the canonical Scratch VM state.
@@ -199,24 +203,195 @@ class UploadProgramExtractor {
     }
 
     /**
-     * Read and validate a literal repeat count.
-     * Upload Mode must not silently round fractional or negative values.
+     * Read a repeat count.
+     *
+     * Literal math_number inputs retain the legacy A3 numeric IR shape.
+     * Reporter expressions are converted into typed Expression IR and
+     * validated later by UploadTypeValidator.
+     *
      * @param {Blocks} blocks Scratch Blocks storage.
      * @param {object} block Parent block.
      * @param {string} inputName Scratch input name.
-     * @returns {number} Non-negative integer repeat count.
+     * @returns {number|object} Literal count or Expression IR.
      * @private
      */
     _readRepeatTimes (blocks, block, inputName) {
-        const value = this._readNumberInput(blocks, block, inputName);
+        const inputs = blocks.getInputs(block);
+        const input = inputs && inputs[inputName];
 
-        if (!Number.isInteger(value) || value < 0) {
+        if (!input || !input.block) {
             throw new Error(
-                `Invalid repeat count ${inputName} in ${block.opcode}`
+                `Missing repeat count ${inputName} in ${block.opcode}`
             );
         }
 
-        return value;
+        const inputBlock = blocks.getBlock(input.block);
+
+        if (!inputBlock) {
+            throw new Error(
+                `Repeat count block not found: ${input.block}`
+            );
+        }
+
+        /*
+        * Preserve the A3 IR shape for direct numeric literals.
+        */
+        if (inputBlock.opcode === 'math_number') {
+            const value = this._readNumberInput(
+                blocks,
+                block,
+                inputName
+            );
+
+            if (!Number.isInteger(value) || value < 0) {
+                throw new Error(
+                    `Invalid repeat count ${inputName} in ${block.opcode}`
+                );
+            }
+
+            return value;
+        }
+
+        return this._extractExpression(
+            blocks,
+            input.block
+        );
+    }
+
+    /**
+     * Extract a Scratch reporter into EasyBlox Expression IR.
+     * @param {Blocks} blocks Scratch Blocks storage.
+     * @param {string} blockId Reporter block ID.
+     * @returns {object} Expression IR.
+     * @private
+     */
+    _extractExpression (blocks, blockId) {
+        const block = blocks.getBlock(blockId);
+
+        if (!block) {
+            throw new Error(
+                `Arduino UNO Upload expression block not found: ${blockId}`
+            );
+        }
+
+        switch (block.opcode) {
+        case 'math_number': {
+            const fields = blocks.getFields(block);
+            const numberField = fields && fields.NUM;
+            const value = numberField && Number(numberField.value);
+
+            if (!Number.isFinite(value)) {
+                throw new Error(
+                    'Invalid Arduino UNO Upload numeric literal'
+                );
+            }
+
+            return Number.isInteger(value) ?
+                {
+                    type: 'IntegerLiteral',
+                    value
+                } :
+                {
+                    type: 'DecimalLiteral',
+                    value
+                };
+        }
+
+        case ADD_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM2'
+                )
+            };
+
+        case SUBTRACT_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'Subtract',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM2'
+                )
+            };
+
+        case MULTIPLY_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'Multiply',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM2'
+                )
+            };
+
+        case DIVIDE_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'Divide',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM2'
+                )
+            };
+
+        default:
+            throw new Error(
+                `Unsupported Arduino UNO Upload expression opcode: ${
+                    block.opcode
+                }`
+            );
+        }
+    }
+
+    /**
+     * Extract one reporter input as Expression IR.
+     * @param {Blocks} blocks Scratch Blocks storage.
+     * @param {object} block Parent reporter block.
+     * @param {string} inputName Scratch input name.
+     * @returns {object} Expression IR.
+     * @private
+     */
+    _extractExpressionInput (blocks, block, inputName) {
+        const inputs = blocks.getInputs(block);
+        const input = inputs && inputs[inputName];
+
+        if (!input || !input.block) {
+            throw new Error(
+                `Missing expression input ${inputName} in ${block.opcode}`
+            );
+        }
+
+        return this._extractExpression(
+            blocks,
+            input.block
+        );
     }
 
     /**
