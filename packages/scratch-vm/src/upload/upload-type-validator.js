@@ -97,10 +97,43 @@ class UploadTypeValidator {
         case 'BinaryExpression':
             return this._inferBinaryExpressionType(expression);
 
+        case 'UnaryExpression':
+            return this._inferUnaryExpressionType(expression);
+
         default:
             throw new Error(
                 `Unsupported Arduino UNO Upload expression type: ${
                     expression.type
+                }`
+            );
+        }
+    }
+
+    /**
+     * Infer the result type of a unary expression.
+     * @param {object} expression UnaryExpression IR.
+     * @returns {string} VALUE_TYPES member.
+     * @private
+     */
+    _inferUnaryExpressionType (expression) {
+        const operandType = this._inferExpressionType(
+            expression.operand
+        );
+
+        switch (expression.operator) {
+        case 'Not':
+            if (operandType !== VALUE_TYPES.BOOLEAN) {
+                throw new Error(
+                    'Not operand must be boolean'
+                );
+            }
+
+            return VALUE_TYPES.BOOLEAN;
+
+        default:
+            throw new Error(
+                `Unsupported Arduino UNO Upload unary operator: ${
+                    expression.operator
                 }`
             );
         }
@@ -134,11 +167,69 @@ class UploadTypeValidator {
             );
             return VALUE_TYPES.DECIMAL;
 
+        case 'LessThan':
+            this._validateNumericTypes(
+                leftType,
+                rightType,
+                expression.operator
+            );
+            return VALUE_TYPES.BOOLEAN;
+
+        case 'Equals':
+            this._validateNumericTypes(
+                leftType,
+                rightType,
+                expression.operator
+            );
+            return VALUE_TYPES.BOOLEAN;
+
+        case 'GreaterThan':
+            this._validateNumericTypes(
+                leftType,
+                rightType,
+                expression.operator
+            );
+            return VALUE_TYPES.BOOLEAN;
+
+        case 'And':
+            this._validateBooleanTypes(
+                leftType,
+                rightType,
+                expression.operator
+            );
+            return VALUE_TYPES.BOOLEAN;
+
+        case 'Or':
+            this._validateBooleanTypes(
+                leftType,
+                rightType,
+                expression.operator
+            );
+            return VALUE_TYPES.BOOLEAN;
+
         default:
             throw new Error(
                 `Unsupported Arduino UNO Upload binary operator: ${
                     expression.operator
                 }`
+            );
+        }
+    }
+
+    /**
+     * Validate that both operand types are boolean.
+     * @param {string} leftType Left operand type.
+     * @param {string} rightType Right operand type.
+     * @param {string} operator Operator name for diagnostics.
+     * @private
+     */
+    _validateBooleanTypes (leftType, rightType, operator) {
+        if (
+            leftType !== VALUE_TYPES.BOOLEAN ||
+            rightType !== VALUE_TYPES.BOOLEAN
+        ) {
+            throw new Error(
+                `${operator} operands must be boolean`
             );
         }
     }

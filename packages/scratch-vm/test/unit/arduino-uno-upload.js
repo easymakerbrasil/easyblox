@@ -2128,3 +2128,1240 @@ tap.test('Arduino UNO generator preserves decimal semantics when both division o
 
     t.end();
 });
+
+tap.test('Arduino UNO Upload extracts operator_lt as expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'less_than',
+            opcode: 'operator_lt',
+            next: null,
+            parent: null,
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'less_than_left',
+                    shadow: 'less_than_left'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'less_than_right',
+                    shadow: 'less_than_right'
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        createNumberShadow(
+            'less_than_left',
+            'less_than',
+            1
+        ),
+        createNumberShadow(
+            'less_than_right',
+            'less_than',
+            2
+        )
+    ]);
+
+    const blocks = runtime.targets[0].blocks;
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'less_than'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'LessThan',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 2
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for INTEGER LessThan INTEGER', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'LessThan',
+        left: {
+            type: 'IntegerLiteral',
+            value: 1
+        },
+        right: {
+            type: 'IntegerLiteral',
+            value: 2
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for INTEGER LessThan DECIMAL', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'LessThan',
+        left: {
+            type: 'IntegerLiteral',
+            value: 1
+        },
+        right: {
+            type: 'DecimalLiteral',
+            value: 2.5
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for DECIMAL LessThan INTEGER', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'LessThan',
+        left: {
+            type: 'DecimalLiteral',
+            value: 1.5
+        },
+        right: {
+            type: 'IntegerLiteral',
+            value: 2
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for DECIMAL LessThan DECIMAL', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'LessThan',
+        left: {
+            type: 'DecimalLiteral',
+            value: 1.5
+        },
+        right: {
+            type: 'DecimalLiteral',
+            value: 2.5
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits LessThan expression', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'LessThan',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 2
+            }
+        }),
+        '(1 < 2)'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts operator_equals as expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'equals',
+            opcode: 'operator_equals',
+            next: null,
+            parent: null,
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'equals_left',
+                    shadow: 'equals_left'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'equals_right',
+                    shadow: 'equals_right'
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        createNumberShadow(
+            'equals_left',
+            'equals',
+            1
+        ),
+        createNumberShadow(
+            'equals_right',
+            'equals',
+            1
+        )
+    ]);
+
+    const blocks = runtime.targets[0].blocks;
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'equals'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'Equals',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 1
+            }
+        }
+    );
+
+    t.end();
+});
+
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for INTEGER Equals INTEGER', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'Equals',
+        left: {
+            type: 'IntegerLiteral',
+            value: 1
+        },
+        right: {
+            type: 'IntegerLiteral',
+            value: 1
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for INTEGER Equals DECIMAL', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'Equals',
+        left: {
+            type: 'IntegerLiteral',
+            value: 1
+        },
+        right: {
+            type: 'DecimalLiteral',
+            value: 1.0
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for DECIMAL Equals INTEGER', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'Equals',
+        left: {
+            type: 'DecimalLiteral',
+            value: 1.5
+        },
+        right: {
+            type: 'IntegerLiteral',
+            value: 1
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for DECIMAL Equals DECIMAL', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'Equals',
+        left: {
+            type: 'DecimalLiteral',
+            value: 1.5
+        },
+        right: {
+            type: 'DecimalLiteral',
+            value: 1.5
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Equals expression', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Equals',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 1
+            }
+        }),
+        '(1 == 1)'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts operator_gt as expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'greater_than',
+            opcode: 'operator_gt',
+            next: null,
+            parent: null,
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'greater_than_left',
+                    shadow: 'greater_than_left'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'greater_than_right',
+                    shadow: 'greater_than_right'
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        createNumberShadow(
+            'greater_than_left',
+            'greater_than',
+            2
+        ),
+        createNumberShadow(
+            'greater_than_right',
+            'greater_than',
+            1
+        )
+    ]);
+
+    const blocks = runtime.targets[0].blocks;
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'greater_than'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'GreaterThan',
+            left: {
+                type: 'IntegerLiteral',
+                value: 2
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 1
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for INTEGER GreaterThan INTEGER', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'GreaterThan',
+        left: {
+            type: 'IntegerLiteral',
+            value: 2
+        },
+        right: {
+            type: 'IntegerLiteral',
+            value: 1
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for INTEGER GreaterThan DECIMAL', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'GreaterThan',
+        left: {
+            type: 'IntegerLiteral',
+            value: 2
+        },
+        right: {
+            type: 'DecimalLiteral',
+            value: 1.5
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for DECIMAL GreaterThan INTEGER', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'GreaterThan',
+        left: {
+            type: 'DecimalLiteral',
+            value: 2.5
+        },
+        right: {
+            type: 'IntegerLiteral',
+            value: 1
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for DECIMAL GreaterThan DECIMAL', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'GreaterThan',
+        left: {
+            type: 'DecimalLiteral',
+            value: 2.5
+        },
+        right: {
+            type: 'DecimalLiteral',
+            value: 1.5
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits GreaterThan expression', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'GreaterThan',
+            left: {
+                type: 'IntegerLiteral',
+                value: 2
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 1
+            }
+        }),
+        '(2 > 1)'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts operator_and as expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'and_expression',
+            opcode: 'operator_and',
+            next: null,
+            parent: null,
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'and_left',
+                    shadow: null
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'and_right',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'and_left',
+            opcode: 'operator_lt',
+            next: null,
+            parent: 'and_expression',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'and_left_1',
+                    shadow: 'and_left_1'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'and_left_2',
+                    shadow: 'and_left_2'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'and_left_1',
+            'and_left',
+            1
+        ),
+        createNumberShadow(
+            'and_left_2',
+            'and_left',
+            2
+        ),
+        {
+            id: 'and_right',
+            opcode: 'operator_gt',
+            next: null,
+            parent: 'and_expression',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'and_right_1',
+                    shadow: 'and_right_1'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'and_right_2',
+                    shadow: 'and_right_2'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'and_right_1',
+            'and_right',
+            3
+        ),
+        createNumberShadow(
+            'and_right_2',
+            'and_right',
+            2
+        )
+    ]);
+
+    const blocks = runtime.targets[0].blocks;
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'and_expression'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'And',
+            left: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            right: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for BOOLEAN And BOOLEAN', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'And',
+        left: {
+            type: 'BinaryExpression',
+            operator: 'LessThan',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 2
+            }
+        },
+        right: {
+            type: 'BinaryExpression',
+            operator: 'GreaterThan',
+            left: {
+                type: 'IntegerLiteral',
+                value: 3
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 2
+            }
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects INTEGER left operand for And', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator._inferExpressionType({
+            type: 'BinaryExpression',
+            operator: 'And',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }),
+        /And operands must be boolean/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects INTEGER right operand for And', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator._inferExpressionType({
+            type: 'BinaryExpression',
+            operator: 'And',
+            left: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 1
+            }
+        }),
+        /And operands must be boolean/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits And expression', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'And',
+            left: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            right: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }),
+        '((1 < 2) && (3 > 2))'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts operator_or as expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'or_expression',
+            opcode: 'operator_or',
+            next: null,
+            parent: null,
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'or_left',
+                    shadow: null
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'or_right',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'or_left',
+            opcode: 'operator_lt',
+            next: null,
+            parent: 'or_expression',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'or_left_1',
+                    shadow: 'or_left_1'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'or_left_2',
+                    shadow: 'or_left_2'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'or_left_1',
+            'or_left',
+            1
+        ),
+        createNumberShadow(
+            'or_left_2',
+            'or_left',
+            2
+        ),
+        {
+            id: 'or_right',
+            opcode: 'operator_gt',
+            next: null,
+            parent: 'or_expression',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'or_right_1',
+                    shadow: 'or_right_1'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'or_right_2',
+                    shadow: 'or_right_2'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'or_right_1',
+            'or_right',
+            3
+        ),
+        createNumberShadow(
+            'or_right_2',
+            'or_right',
+            2
+        )
+    ]);
+
+    const blocks = runtime.targets[0].blocks;
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'or_expression'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'Or',
+            left: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            right: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for BOOLEAN Or BOOLEAN', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'Or',
+        left: {
+            type: 'BinaryExpression',
+            operator: 'LessThan',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 2
+            }
+        },
+        right: {
+            type: 'BinaryExpression',
+            operator: 'GreaterThan',
+            left: {
+                type: 'IntegerLiteral',
+                value: 3
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 2
+            }
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects INTEGER left operand for Or', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator._inferExpressionType({
+            type: 'BinaryExpression',
+            operator: 'Or',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }),
+        /Or operands must be boolean/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects INTEGER right operand for Or', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator._inferExpressionType({
+            type: 'BinaryExpression',
+            operator: 'Or',
+            left: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 1
+            }
+        }),
+        /Or operands must be boolean/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Or expression', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Or',
+            left: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            right: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }),
+        '((1 < 2) || (3 > 2))'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts operator_not as unary expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'not_expression',
+            opcode: 'operator_not',
+            next: null,
+            parent: null,
+            inputs: {
+                OPERAND: {
+                    name: 'OPERAND',
+                    block: 'not_operand',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'not_operand',
+            opcode: 'operator_lt',
+            next: null,
+            parent: 'not_expression',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'not_left',
+                    shadow: 'not_left'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'not_right',
+                    shadow: 'not_right'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'not_left',
+            'not_operand',
+            1
+        ),
+        createNumberShadow(
+            'not_right',
+            'not_operand',
+            2
+        )
+    ]);
+
+    const blocks = runtime.targets[0].blocks;
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'not_expression'
+        ),
+        {
+            type: 'UnaryExpression',
+            operator: 'Not',
+            operand: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for Not BOOLEAN', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'UnaryExpression',
+        operator: 'Not',
+        operand: {
+            type: 'BinaryExpression',
+            operator: 'LessThan',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 2
+            }
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects INTEGER operand for Not', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator._inferExpressionType({
+            type: 'UnaryExpression',
+            operator: 'Not',
+            operand: {
+                type: 'IntegerLiteral',
+                value: 1
+            }
+        }),
+        /Not operand must be boolean/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects DECIMAL operand for Not', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator._inferExpressionType({
+            type: 'UnaryExpression',
+            operator: 'Not',
+            operand: {
+                type: 'DecimalLiteral',
+                value: 1.5
+            }
+        }),
+        /Not operand must be boolean/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Not expression', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'UnaryExpression',
+            operator: 'Not',
+            operand: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }),
+        '(!(1 < 2))'
+    );
+
+    t.end();
+});

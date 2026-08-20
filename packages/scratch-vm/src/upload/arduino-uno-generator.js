@@ -231,6 +231,21 @@ class ArduinoUnoGenerator {
                     `static_cast<double>(${right})` +
                     `)`;
 
+            case 'LessThan':
+                return `(${left} < ${right})`;
+
+            case 'Equals':
+                return `(${left} == ${right})`;
+
+            case 'GreaterThan':
+                return `(${left} > ${right})`;
+
+            case 'And':
+                return `(${left} && ${right})`;
+
+            case 'Or':
+                return `(${left} || ${right})`;
+
             default:
                 throw new Error(
                     `Unsupported Arduino UNO Upload binary operator: ${
@@ -240,10 +255,36 @@ class ArduinoUnoGenerator {
             }
         }
 
+        case 'UnaryExpression':
+            return this._generateUnaryExpression(expression);
+
         default:
             throw new Error(
                 `Unsupported Arduino UNO Upload expression type: ${
                     expression.type
+                }`
+            );
+        }
+    }
+    /**
+     * Generate a C++ unary expression.
+     * @param {object} expression UnaryExpression IR.
+     * @returns {string} Generated C++ expression.
+     * @private
+     */
+    _generateUnaryExpression (expression) {
+        const operand = this._generateExpression(
+            expression.operand
+        );
+
+        switch (expression.operator) {
+        case 'Not':
+            return `(!${operand})`;
+
+        default:
+            throw new Error(
+                `Unsupported Arduino UNO Upload unary operator: ${
+                    expression.operator
                 }`
             );
         }

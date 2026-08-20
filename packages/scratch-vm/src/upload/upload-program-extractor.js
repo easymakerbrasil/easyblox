@@ -6,6 +6,12 @@ const ADD_OPCODE = 'operator_add';
 const SUBTRACT_OPCODE = 'operator_subtract';
 const MULTIPLY_OPCODE = 'operator_multiply';
 const DIVIDE_OPCODE = 'operator_divide';
+const LESS_THAN_OPCODE = 'operator_lt';
+const EQUALS_OPCODE = 'operator_equals';
+const GREATER_THAN_OPCODE = 'operator_gt';
+const AND_OPCODE = 'operator_and';
+const OR_OPCODE = 'operator_or';
+const NOT_OPCODE = 'operator_not';
 
 /**
  * Extract an EasyBlox Upload program from the canonical Scratch VM state.
@@ -358,6 +364,97 @@ class UploadProgramExtractor {
                     blocks,
                     block,
                     'NUM2'
+                )
+            };
+
+        case LESS_THAN_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND2'
+                )
+            };
+
+        case EQUALS_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'Equals',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND2'
+                )
+            };
+
+        case GREATER_THAN_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND2'
+                )
+            };
+
+        case AND_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'And',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND2'
+                )
+            };
+
+        case OR_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'Or',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND2'
+                )
+            };
+
+        case NOT_OPCODE:
+            return {
+                type: 'UnaryExpression',
+                operator: 'Not',
+                operand: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'OPERAND'
                 )
             };
 

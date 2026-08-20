@@ -7154,3 +7154,268 @@ ou
 não
 
 sobre a infraestrutura de Expression IR e UploadTypeValidator consolidada no A4.
+
+### 19.159. A5 — comparações e operadores booleanos no Arduino UNO Modo Carregar
+
+Em 20/08/2026 foi concluído o A5 da implementação incremental do Arduino UNO Modo Carregar v1.
+
+Esta etapa amplia a Expression IR introduzida no A4 e adiciona comparações numéricas, operadores booleanos e a primeira expressão unária do Modo Carregar.
+
+A arquitetura permanece:
+
+```text
+Scratch VM
+    ↓
+UploadProgramExtractor
+    ↓
+EasyBlox IR
+    ↓
+UploadContextValidator
+    ↓
+UploadTypeValidator
+    ↓
+ArduinoUnoGenerator
+    ↓
+C++
+
+O UploadProgramExtractor continua sendo a camada responsável por conhecer os opcodes Scratch e convertê-los para EasyBlox IR.
+
+O UploadTypeValidator valida a semântica pedagógica dos tipos.
+
+O ArduinoUnoGenerator recebe IR já estruturada e gera C++ determinístico.
+
+Comparações
+
+Foram adicionados:
+
+operator_lt      → LessThan
+operator_equals  → Equals
+operator_gt      → GreaterThan
+
+Representação:
+
+BinaryExpression
+├── operator
+├── left
+└── right
+
+Exemplo:
+
+1 < 2
+
+é representado como:
+
+BinaryExpression
+├── operator: LessThan
+├── left: IntegerLiteral(1)
+└── right: IntegerLiteral(2)
+
+As comparações numéricas retornam:
+
+BOOLEAN
+
+Para LessThan e GreaterThan, são aceitas todas as combinações numéricas:
+
+INTEGER / INTEGER
+INTEGER / DECIMAL
+DECIMAL / INTEGER
+DECIMAL / DECIMAL
+
+sempre produzindo:
+
+BOOLEAN
+
+Não ocorre coerção de tipos não numéricos.
+
+Igualdade
+
+Nesta etapa, Equals está implementado para operandos numéricos.
+
+São válidas:
+
+INTEGER == INTEGER
+INTEGER == DECIMAL
+DECIMAL == INTEGER
+DECIMAL == DECIMAL
+
+com resultado:
+
+BOOLEAN
+
+A ampliação futura de Equals para:
+
+TEXT == TEXT
+BOOLEAN == BOOLEAN
+
+permanece deliberadamente pendente até a incorporação efetiva de TextLiteral e BooleanLiteral à Expression IR.
+
+O Modo Carregar não deve reproduzir coerções permissivas entre categorias diferentes.
+
+Por exemplo, não deve assumir silenciosamente equivalência entre:
+
+Número
+Texto
+Verdadeiro/Falso
+Geração C++ das comparações
+
+O generator produz:
+
+LessThan    → <
+Equals      → ==
+GreaterThan → >
+
+Exemplos:
+
+(1 < 2)
+(1 == 1)
+(2 > 1)
+
+As expressões permanecem parentizadas para preservar a estrutura semântica da IR e a precedência de forma determinística.
+
+Operadores booleanos binários
+
+Foram incorporados:
+
+operator_and → And
+operator_or  → Or
+
+Ambos usam:
+
+BinaryExpression
+
+A regra pedagógica é estrita:
+
+BOOLEAN AND BOOLEAN → BOOLEAN
+BOOLEAN OR BOOLEAN  → BOOLEAN
+
+Operandos INTEGER ou DECIMAL não são convertidos silenciosamente para booleanos.
+
+O UploadTypeValidator introduziu validação específica para operandos booleanos.
+
+Exemplos semânticos:
+
+(1 < 2) e (3 > 2)
+(1 < 2) ou (3 > 2)
+
+Geração C++:
+
+((1 < 2) && (3 > 2))
+((1 < 2) || (3 > 2))
+
+Mapeamento:
+
+And → &&
+Or  → ||
+UnaryExpression
+
+O A5 introduziu a primeira expressão unária da EasyBlox IR:
+
+UnaryExpression
+├── operator
+└── operand
+
+Primeiro operador:
+
+operator_not → Not
+
+Exemplo:
+
+não (1 < 2)
+
+é representado como:
+
+UnaryExpression
+├── operator: Not
+└── operand
+    └── BinaryExpression
+        ├── operator: LessThan
+        ├── left: IntegerLiteral(1)
+        └── right: IntegerLiteral(2)
+
+A regra de tipo é:
+
+NOT BOOLEAN → BOOLEAN
+
+Valores INTEGER ou DECIMAL como operando direto de Not são rejeitados.
+
+Não ocorre conversão implícita para verdadeiro/falso.
+
+Geração C++ de Not
+
+O generator reconhece UnaryExpression.
+
+Mapeamento:
+
+Not → !
+
+Exemplo:
+
+não (1 < 2)
+
+gera:
+
+(!(1 < 2))
+Operadores fechados no A5
+
+Ao final desta etapa, estão implementados nas três camadas — extractor, Type Validator e generator:
+
+operator_lt      → LessThan    → BOOLEAN → <
+operator_equals  → Equals      → BOOLEAN → ==
+operator_gt      → GreaterThan → BOOLEAN → >
+operator_and     → And         → BOOLEAN → &&
+operator_or      → Or          → BOOLEAN → ||
+operator_not     → Not         → BOOLEAN → !
+
+A Expression IR passa a suportar:
+
+IntegerLiteral
+DecimalLiteral
+BinaryExpression
+UnaryExpression
+Estado automatizado ao fechamento do A5
+
+Testes específicos do Upload:
+
+88 pass
+0 fail
+1 suite
+
+Regressão Arduino UNO Stage + Upload:
+
+585 pass
+0 fail
+2 suites
+
+Foram validados, entre outros:
+
+LessThan com INTEGER e DECIMAL
+GreaterThan com INTEGER e DECIMAL
+Equals numérico
+And com operandos BOOLEAN
+rejeição de operandos numéricos em And
+Or com operandos BOOLEAN
+rejeição de operandos numéricos em Or
+UnaryExpression
+Not com operando BOOLEAN
+rejeição de INTEGER em Not
+rejeição de DECIMAL em Not
+geração C++ de <, ==, >, &&, || e !
+
+Arquivos principais alterados no A5:
+
+packages/scratch-vm/src/upload/upload-program-extractor.js
+packages/scratch-vm/src/upload/upload-type-validator.js
+packages/scratch-vm/src/upload/arduino-uno-generator.js
+packages/scratch-vm/test/unit/arduino-uno-upload.js
+
+A alteração local independente:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+permanece fora deste checkpoint.
+
+O A5 fecha o núcleo inicial de comparações e operadores booleanos previsto para esta fase.
+
+Isso não representa a conclusão integral do Arduino UNO Modo Carregar v1.
+
+As próximas fases continuam incrementais e devem preservar a tipagem pedagógica explícita e a regra de ausência de coerções silenciosas.

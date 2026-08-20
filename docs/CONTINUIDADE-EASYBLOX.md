@@ -8131,3 +8131,127 @@ operator_gt
 operator_and
 operator_or
 operator_not
+
+### 23.7. A5 — comparações e operadores booleanos
+
+Em 20/08/2026 foi concluído o A5 do Arduino UNO Modo Carregar v1.
+
+A etapa expandiu a Expression IR e o sistema de tipos implementados no A4.
+
+Foram incorporadas as comparações:
+
+```text
+operator_lt      → LessThan
+operator_equals  → Equals
+operator_gt      → GreaterThan
+
+Todas produzem:
+
+BOOLEAN
+
+LessThan e GreaterThan aceitam operandos numéricos INTEGER e DECIMAL.
+
+Equals, nesta etapa, está implementado para igualdade numérica:
+
+INTEGER == INTEGER
+INTEGER == DECIMAL
+DECIMAL == INTEGER
+DECIMAL == DECIMAL
+
+A igualdade entre TEXT ou entre BOOLEAN permanece para uma fase posterior, quando esses tipos possuírem representação literal efetiva na Expression IR.
+
+Não deve existir coerção silenciosa entre categorias pedagógicas diferentes.
+
+Também foram implementados:
+
+operator_and → And
+operator_or  → Or
+
+com regras:
+
+BOOLEAN AND BOOLEAN → BOOLEAN
+BOOLEAN OR BOOLEAN  → BOOLEAN
+
+Operandos numéricos são rejeitados nesses operadores.
+
+Geração C++:
+
+And → &&
+Or  → ||
+
+O A5 também introduziu:
+
+UnaryExpression
+
+Primeiro uso:
+
+operator_not → Not
+
+Representação:
+
+UnaryExpression
+├── operator: Not
+└── operand
+
+Regra de tipo:
+
+NOT BOOLEAN → BOOLEAN
+
+INTEGER e DECIMAL não são convertidos implicitamente para booleanos.
+
+Geração:
+
+Not → !
+
+Exemplo:
+
+não (1 < 2)
+
+gera:
+
+(!(1 < 2))
+
+Conjunto concluído no A5:
+
+operator_lt      → LessThan    → BOOLEAN → <
+operator_equals  → Equals      → BOOLEAN → ==
+operator_gt      → GreaterThan → BOOLEAN → >
+operator_and     → And         → BOOLEAN → &&
+operator_or      → Or          → BOOLEAN → ||
+operator_not     → Not         → BOOLEAN → !
+
+Expression IR atual:
+
+IntegerLiteral
+DecimalLiteral
+BinaryExpression
+UnaryExpression
+
+Estado automatizado:
+
+Upload
+88 pass
+0 fail
+
+
+Stage + Upload
+585 pass
+0 fail
+2 suites
+
+Arquivos principais:
+
+packages/scratch-vm/src/upload/upload-program-extractor.js
+packages/scratch-vm/src/upload/upload-type-validator.js
+packages/scratch-vm/src/upload/arduino-uno-generator.js
+packages/scratch-vm/test/unit/arduino-uno-upload.js
+
+A alteração independente:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+continua fora do staging.
+
+O A5 fecha o núcleo básico de comparações e operadores booleanos do Modo Carregar.
+
+O Arduino UNO Upload v1 completo continua em implementação incremental.
