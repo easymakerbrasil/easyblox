@@ -7860,3 +7860,81 @@ criar allocator seguro de identificadores internos quando surgir o primeiro recu
 não iniciar Arduino CLI, Hardware Service ou upload físico antes de consolidar o núcleo de IR/controle/validação previsto para esta fase.
 
 O checklist integral do primeiro vertical slice permanece vigente; o commit A1 foi deliberadamente um checkpoint intermediário e não uma declaração de conclusão integral desse checklist.
+
+### 23.4. A3 — `repita N vezes` e identificadores internos seguros
+
+O A3 implementou o primeiro controle estruturado aninhável além do `sempre` principal.
+
+Opcode Scratch suportado nesta etapa:
+
+`control_repeat`
+
+Representação na EasyBlox IR:
+
+```text
+Repeat
+├── times
+└── body[]
+O corpo é extraído a partir de SUBSTACK e pode conter statements estruturados recursivamente.
+
+A semântica inicial de TIMES aceita somente literal inteiro não negativo.
+
+Não ocorre Math.round() ou outra correção silenciosa no Modo Carregar.
+
+Foram validados:
+
+0    → válido
+1    → válido
+3    → válido
+2.5  → inválido
+-1   → inválido
+
+O ArduinoUnoGenerator passou a:
+
+gerar Repeat como for;
+gerar statements recursivamente;
+preservar indentação determinística;
+descobrir recursos dentro de estruturas aninhadas;
+deduplicar pinMode mesmo quando o recurso só aparece dentro de Repeat.
+
+Foi criado:
+
+packages/scratch-vm/src/upload/internal-identifier-allocator.js
+
+Primeiro uso real:
+
+easyblox_repeat_index_0
+easyblox_repeat_index_1
+
+O allocator:
+
+é determinístico;
+evita colisões com nomes previamente reservados;
+impede bases de identificador iniciadas por _;
+aceita futuramente nomes derivados de variáveis e Meus Blocos como conjunto reservado.
+
+Com isso, a pendência registrada anteriormente de criar um allocator seguro somente quando surgisse uso real foi atendida pelo A3.
+
+Também foi validado Repeat aninhado e Repeat dentro do loop() criado pelo primeiro control_forever.
+
+Estado automatizado:
+
+Stage + Upload
+531 pass
+0 fail
+2 suites
+
+Arquivos principais do A3:
+
+packages/scratch-vm/src/upload/internal-identifier-allocator.js
+packages/scratch-vm/src/upload/arduino-uno-generator.js
+packages/scratch-vm/src/upload/upload-program-extractor.js
+packages/scratch-vm/test/unit/arduino-uno-upload.js
+
+A alteração local:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+continua independente e não deve ser incluída no staging.
+
+O A3 resolve a pendência do allocator prevista no checklist inicial, mas ainda não deve ser usado sozinho para declarar todo o contrato de Upload v1 concluído. Controle adicional, operadores, tipagem, classificação formal de compatibilidade por opcode e demais fases permanecem incrementais.

@@ -1,3 +1,6 @@
+const InternalIdentifierAllocator =
+    require('./internal-identifier-allocator');
+
 /**
  * Generate deterministic Arduino UNO C++ from EasyBlox semantic IR.
  */
@@ -16,6 +19,12 @@ class ArduinoUnoGenerator {
             loopStatements
         );
 
+        /*
+         * A fresh allocator per generation guarantees deterministic output.
+         * Future user-defined identifiers can be supplied as reserved names.
+         */
+        const identifiers = new InternalIdentifierAllocator();
+
         const lines = [
             'void setup() {'
         ];
@@ -24,9 +33,12 @@ class ArduinoUnoGenerator {
             lines.push(`    pinMode(${pin}, OUTPUT);`);
         }
 
-        for (const statement of setupStatements) {
-            lines.push(`    ${this._generateStatement(statement)}`);
-        }
+        this._generateStatements(
+            setupStatements,
+            1,
+            identifiers,
+            lines
+        );
 
         lines.push(
             '}',
@@ -34,9 +46,12 @@ class ArduinoUnoGenerator {
             'void loop() {'
         );
 
-        for (const statement of loopStatements) {
-            lines.push(`    ${this._generateStatement(statement)}`);
-        }
+        this._generateStatements(
+            loopStatements,
+            1,
+            identifiers,
+            lines
+        );
 
         lines.push(
             '}',
@@ -48,6 +63,7 @@ class ArduinoUnoGenerator {
 
     /**
      * Infer digital OUTPUT resources required by executable statements.
+     * Resources inside structured statements must also be discovered.
      * @param {Array<object>} setupStatements Setup IR statements.
      * @param {Array<object>} loopStatements Loop IR statements.
      * @returns {Array<number>} Unique pins in deterministic order.
@@ -56,31 +72,96 @@ class ArduinoUnoGenerator {
     _collectOutputPins (setupStatements, loopStatements) {
         const pins = new Set();
 
-        for (const statement of setupStatements.concat(loopStatements)) {
-            if (statement.type === 'DigitalWrite') {
-                pins.add(statement.pin);
-            }
-        }
+        this._collectOutputPinsFromStatements(
+            setupStatements,
+            pins
+        );
+
+        this._collectOutputPinsFromStatements(
+            loopStatements,
+            pins
+        );
 
         return Array.from(pins).sort((a, b) => a - b);
     }
 
     /**
-     * Generate one Arduino C++ statement.
-     * @param {object} statement Semantic IR statement.
-     * @returns {string} Arduino C++ statement.
+     * Recursively collect output resources from structured IR.
+     * @param {Array<object>} statements Semantic IR statements.
+     * @param {Set<number>} pins Destination pin set.
      * @private
      */
-    _generateStatement (statement) {
-        switch (statement.type) {
-        case 'DigitalWrite':
-            return `digitalWrite(${statement.pin}, ${
-                statement.value ? 'HIGH' : 'LOW'
-            });`;
-        default:
-            throw new Error(
-                `Unsupported Arduino UNO IR statement: ${statement.type}`
-            );
+    _collectOutputPinsFromStatements (statements, pins) {
+        for (const statement of statements) {
+            if (statement.type === 'DigitalWrite') {
+                pins.add(statement.pin);
+            } else if (statement.type === 'Repeat') {
+                const body = Array.isArray(statement.body) ?
+                    statement.body :
+                    [];
+
+                this._collectOutputPinsFromStatements(body, pins);
+            }
+        }
+    }
+
+    /**
+     * Generate structured Arduino C++ statements recursively.
+     * @param {Array<object>} statements Semantic IR statements.
+     * @param {number} indentLevel Current indentation depth.
+     * @param {InternalIdentifierAllocator} identifiers Identifier allocator.
+     * @param {Array<string>} lines Destination source lines.
+     * @private
+     */
+    _generateStatements (
+        statements,
+        indentLevel,
+        identifiers,
+        lines
+    ) {
+        const indent = '    '.repeat(indentLevel);
+
+        for (const statement of statements) {
+            switch (statement.type) {
+            case 'DigitalWrite':
+                lines.push(
+                    `${indent}digitalWrite(${statement.pin}, ${
+                        statement.value ? 'HIGH' : 'LOW'
+                    });`
+                );
+                break;
+
+            case 'Repeat': {
+                const identifier = identifiers.allocate(
+                    'easyblox_repeat_index'
+                );
+
+                lines.push(
+                    `${indent}for (int ${identifier} = 0; ` +
+                    `${identifier} < ${statement.times}; ` +
+                    `++${identifier}) {`
+                );
+
+                this._generateStatements(
+                    Array.isArray(statement.body) ?
+                        statement.body :
+                        [],
+                    indentLevel + 1,
+                    identifiers,
+                    lines
+                );
+
+                lines.push(`${indent}}`);
+                break;
+            }
+
+            default:
+                throw new Error(
+                    `Unsupported Arduino UNO IR statement: ${
+                        statement.type
+                    }`
+                );
+            }
         }
     }
 }

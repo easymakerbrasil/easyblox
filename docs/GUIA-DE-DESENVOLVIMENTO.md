@@ -6715,3 +6715,146 @@ arduino-uno.js + arduino-uno-upload.js
 519 pass
 0 fail
 2 suites
+
+### 19.156. Arduino UNO Upload — `repita N vezes` e allocator de identificadores internos
+
+O A3 do Arduino UNO Modo Carregar introduziu suporte estrutural inicial ao bloco Scratch:
+
+`control_repeat`
+
+No EasyBlox IR, o bloco é representado semanticamente como:
+
+```text
+Repeat
+├── times
+└── body
+
+Exemplo:
+
+quando Arduino Uno iniciar
+    repita 3 vezes
+        definir D13 ALTO
+
+é extraído como:
+
+{
+    setup: [{
+        type: 'Repeat',
+        times: 3,
+        body: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: true
+        }]
+    }],
+    loop: []
+}
+
+A implementação mantém a separação entre Scratch VM, IR e C++.
+
+O UploadProgramExtractor conhece control_repeat, TIMES e SUBSTACK, mas não produz C++.
+
+O ArduinoUnoGenerator passou a gerar statements estruturados recursivamente.
+
+Exemplo gerado:
+
+void setup() {
+    pinMode(13, OUTPUT);
+    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < 3; ++easyblox_repeat_index_0) {
+        digitalWrite(13, HIGH);
+    }
+}
+
+
+void loop() {
+}
+
+A inferência de recursos também passou a percorrer a IR recursivamente.
+
+Portanto, um DigitalWrite localizado dentro de um ou mais Repeat continua fazendo com que o respectivo:
+
+pinMode(..., OUTPUT);
+
+seja emitido uma única vez em setup().
+
+Semântica inicial de TIMES
+
+Na fase atual, TIMES aceita literal numérico inteiro não negativo.
+
+Casos válidos:
+
+repita 0 vezes
+repita 1 vez
+repita 3 vezes
+
+Casos inválidos:
+
+repita 2.5 vezes
+repita -1 vez
+
+O Modo Carregar não reproduz silenciosamente o Math.round() usado pelo runtime Scratch em Stage.
+
+Não deve haver correção ou arredondamento silencioso de valores inválidos.
+
+Expressões, variáveis e operadores em TIMES serão incorporados posteriormente pela camada de expressões e tipagem prevista no contrato.
+
+InternalIdentifierAllocator
+
+O A3 introduziu:
+
+packages/scratch-vm/src/upload/internal-identifier-allocator.js
+
+Essa implementação resolve a primeira necessidade real de geração de identificadores internos do C++.
+
+Características atuais:
+
+geração determinística;
+controle de nomes já utilizados;
+contador independente por nome-base;
+prevenção de colisão com identificadores previamente reservados;
+identificadores internos não podem começar com _;
+nomes internos utilizam apenas letras, números e _;
+uma nova instância é criada para cada geração completa do sketch.
+
+Exemplo:
+
+easyblox_repeat_index_0
+easyblox_repeat_index_1
+
+Em Repeat aninhado, cada laço recebe identificador distinto.
+
+O allocator foi projetado para futuramente receber como reservados os identificadores derivados de variáveis, Meus Blocos e outros símbolos do programa.
+
+Não usar prefixos C/C++ reservados como:
+
+__
+_identificador
+Estruturas aninhadas
+
+O gerador já percorre recursivamente:
+
+Repeat
+└── Repeat
+    └── DigitalWrite
+
+produzindo identificadores distintos e mantendo a deduplicação de recursos.
+
+Também foi validado:
+
+quando Arduino Uno iniciar
+    sempre
+        repita 2 vezes
+            definir D13 ALTO
+
+Nesse caso:
+
+Repeat pertence ao loop();
+pinMode(13, OUTPUT) permanece em setup();
+o for é emitido dentro de loop().
+
+Validação automatizada ao fechamento técnico do A3:
+
+Stage + Upload:
+531 pass
+0 fail
+2 suites

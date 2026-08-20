@@ -1,6 +1,7 @@
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
 const FOREVER_OPCODE = 'control_forever';
+const REPEAT_OPCODE = 'control_repeat';
 
 /**
  * Extract an EasyBlox Upload program from the canonical Scratch VM state.
@@ -155,6 +156,21 @@ class UploadProgramExtractor {
                 pin: this._readNumberInput(blocks, block, 'PIN'),
                 value: this._readDigitalValue(blocks, block, 'VALUE')
             };
+        case REPEAT_OPCODE: {
+            const body = [];
+
+            this._extractBranchStatements(
+                blocks,
+                blocks.getBranch(block.id, 1),
+                body
+            );
+
+            return {
+                type: 'Repeat',
+                times: this._readRepeatTimes(blocks, block, 'TIMES'),
+                body
+            };
+        }
         default:
             throw new Error(
                 `Unsupported Arduino UNO Upload opcode: ${block.opcode}`
@@ -180,6 +196,27 @@ class UploadProgramExtractor {
         }
 
         return value === 1;
+    }
+
+    /**
+     * Read and validate a literal repeat count.
+     * Upload Mode must not silently round fractional or negative values.
+     * @param {Blocks} blocks Scratch Blocks storage.
+     * @param {object} block Parent block.
+     * @param {string} inputName Scratch input name.
+     * @returns {number} Non-negative integer repeat count.
+     * @private
+     */
+    _readRepeatTimes (blocks, block, inputName) {
+        const value = this._readNumberInput(blocks, block, inputName);
+
+        if (!Number.isInteger(value) || value < 0) {
+            throw new Error(
+                `Invalid repeat count ${inputName} in ${block.opcode}`
+            );
+        }
+
+        return value;
     }
 
     /**

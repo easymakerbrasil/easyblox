@@ -9,6 +9,9 @@ const ArduinoUnoGenerator = require('../../src/upload/arduino-uno-generator');
 const UploadContextValidator =
     require('../../src/upload/upload-context-validator');
 
+const InternalIdentifierAllocator =
+    require('../../src/upload/internal-identifier-allocator');
+
 const createRuntimeWithBlocks = blockDefinitions => {
     const runtime = new Runtime();
     const blocks = new Blocks(runtime);
@@ -811,6 +814,373 @@ tap.test('Arduino UNO Upload rejects extracted code after main-chain FOREVER thr
         () => validator.validate(ir),
         /Arduino UNO Upload contains unreachable code after infinite loop/
     );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts REPEAT into structured IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'repeat_times',
+                    shadow: 'repeat_times'
+                },
+                SUBSTACK: {
+                    name: 'SUBSTACK',
+                    block: 'repeat_write',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('repeat_times', 'repeat', 3),
+        {
+            id: 'repeat_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'repeat_pin',
+                    shadow: 'repeat_pin'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'repeat_value',
+                    shadow: 'repeat_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('repeat_pin', 'repeat_write', 13),
+        createNumberShadow('repeat_value', 'repeat_write', 1)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'Repeat',
+            times: 3,
+            body: [{
+                type: 'DigitalWrite',
+                pin: 13,
+                value: true
+            }]
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload accepts zero REPEAT iterations', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'repeat_times',
+                    shadow: 'repeat_times'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('repeat_times', 'repeat', 0)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'Repeat',
+            times: 0,
+            body: []
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects fractional REPEAT iterations', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'repeat_times',
+                    shadow: 'repeat_times'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('repeat_times', 'repeat', 2.5)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.throws(
+        () => extractor.extract(),
+        /Invalid repeat count TIMES/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects negative REPEAT iterations', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'repeat_times',
+                    shadow: 'repeat_times'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('repeat_times', 'repeat', -1)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.throws(
+        () => extractor.extract(),
+        /Invalid repeat count TIMES/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits REPEAT with an internal loop identifier', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: 3,
+            body: [{
+                type: 'DigitalWrite',
+                pin: 13,
+                value: true
+            }]
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    pinMode(13, OUTPUT);',
+        '    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < 3; ++easyblox_repeat_index_0) {',
+        '        digitalWrite(13, HIGH);',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO internal identifier allocator avoids reserved names', t => {
+    const allocator = new InternalIdentifierAllocator([
+        'easyblox_repeat_index_0'
+    ]);
+
+    t.equal(
+        allocator.allocate('easyblox_repeat_index'),
+        'easyblox_repeat_index_1'
+    );
+
+    t.equal(
+        allocator.allocate('easyblox_repeat_index'),
+        'easyblox_repeat_index_2'
+    );
+
+    t.throws(
+        () => allocator.allocate('_reserved'),
+        /Invalid internal identifier base/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits nested REPEAT with unique internal identifiers', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: 2,
+            body: [{
+                type: 'Repeat',
+                times: 3,
+                body: [{
+                    type: 'DigitalWrite',
+                    pin: 13,
+                    value: true
+                }]
+            }]
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    pinMode(13, OUTPUT);',
+        '    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < 2; ++easyblox_repeat_index_0) {',
+        '        for (int easyblox_repeat_index_1 = 0; easyblox_repeat_index_1 < 3; ++easyblox_repeat_index_1) {',
+        '            digitalWrite(13, HIGH);',
+        '        }',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.equal(
+        code.match(/pinMode\(13, OUTPUT\);/g).length,
+        1,
+        'nested repeat resources should be initialized exactly once'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload supports REPEAT inside main FOREVER loop', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('forever'),
+        {
+            id: 'forever',
+            opcode: 'control_forever',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                SUBSTACK: {
+                    name: 'SUBSTACK',
+                    block: 'repeat',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'forever',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'repeat_times',
+                    shadow: 'repeat_times'
+                },
+                SUBSTACK: {
+                    name: 'SUBSTACK',
+                    block: 'loop_write',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('repeat_times', 'repeat', 2),
+        {
+            id: 'loop_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'loop_pin',
+                    shadow: 'loop_pin'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'loop_value',
+                    shadow: 'loop_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('loop_pin', 'loop_write', 13),
+        createNumberShadow('loop_value', 'loop_write', 1)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [],
+        loop: [{
+            type: 'Repeat',
+            times: 2,
+            body: [{
+                type: 'DigitalWrite',
+                pin: 13,
+                value: true
+            }]
+        }]
+    });
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    pinMode(13, OUTPUT);',
+        '}',
+        '',
+        'void loop() {',
+        '    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < 2; ++easyblox_repeat_index_0) {',
+        '        digitalWrite(13, HIGH);',
+        '    }',
+        '}',
+        ''
+    ].join('\n'));
 
     t.end();
 });
