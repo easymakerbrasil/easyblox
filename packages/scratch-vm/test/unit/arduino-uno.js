@@ -1602,32 +1602,33 @@ tap.test('Arduino UNO exposes reordered blocks and timer blocks', t => {
 
     t.equal(
         info.blocks.length,
-        10,
-        'Arduino UNO exposes eight blocks and two visual separators'
+        11,
+        'Arduino UNO exposes nine blocks and two visual separators'
     );
 
-    t.equal(info.blocks[0].opcode, 'digitalWrite');
-    t.equal(info.blocks[1].opcode, 'digitalRead');
-    t.equal(info.blocks[2].opcode, 'analogRead');
-    t.equal(info.blocks[3].opcode, 'pwmWrite');
+    t.equal(info.blocks[0].opcode, 'whenArduinoUnoStart');
+    t.equal(info.blocks[1].opcode, 'digitalWrite');
+    t.equal(info.blocks[2].opcode, 'digitalRead');
+    t.equal(info.blocks[3].opcode, 'analogRead');
+    t.equal(info.blocks[4].opcode, 'pwmWrite');
 
     t.equal(
-        info.blocks[4],
+        info.blocks[5],
         '---',
-        'I/O and tone groups are visually separated'
+        'entry/I/O and tone groups are visually separated'
     );
 
-    t.equal(info.blocks[5].opcode, 'toneStart');
-    t.equal(info.blocks[6].opcode, 'toneStop');
+    t.equal(info.blocks[6].opcode, 'toneStart');
+    t.equal(info.blocks[7].opcode, 'toneStop');
 
     t.equal(
-        info.blocks[7],
+        info.blocks[8],
         '---',
         'tone and timer groups are visually separated'
     );
 
-    const timerReadBlock = info.blocks[8];
-    const timerResetBlock = info.blocks[9];
+    const timerReadBlock = info.blocks[9];
+    const timerResetBlock = info.blocks[10];
 
     t.equal(
         timerReadBlock.opcode,
@@ -2451,6 +2452,30 @@ tap.test('Arduino UNO exposes the DIGITAL_WRITE block and delegates numeric valu
     t.equal(receivedPin, 13);
     t.equal(receivedValue, 1);
     t.equal(result, 42);
+
+    t.end();
+});
+
+tap.test('Arduino UNO exposes an inert Upload entry point hat', t => {
+    const runtime = new MockRuntime(null);
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+
+    const info = extension.getInfo();
+    const startBlock = info.blocks.find(
+        block => block && block.opcode === 'whenArduinoUnoStart'
+    );
+
+    t.ok(startBlock);
+    t.equal(startBlock.blockType, BlockType.HAT);
+    t.equal(startBlock.text, 'quando Arduino Uno iniciar');
+    t.equal(startBlock.isEdgeActivated, false);
+    t.equal(startBlock.shouldRestartExistingThreads, false);
+
+    t.equal(
+        extension.whenArduinoUnoStart(),
+        false,
+        'Upload entry point must remain inert in Stage mode'
+    );
 
     t.end();
 });

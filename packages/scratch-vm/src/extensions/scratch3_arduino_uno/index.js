@@ -28,6 +28,13 @@ class Scratch3ArduinoUnoBlocks {
             name: 'Arduino UNO',
             blocks: [
                 {
+                    opcode: 'whenArduinoUnoStart',
+                    blockType: BlockType.HAT,
+                    text: 'quando Arduino Uno iniciar',
+                    isEdgeActivated: false,
+                    shouldRestartExistingThreads: false
+                },
+                {
                     opcode: 'digitalWrite',
                     blockType: BlockType.COMMAND,
                     text: 'definir pino [PIN] como [VALUE]',
@@ -186,6 +193,15 @@ class Scratch3ArduinoUnoBlocks {
                 }
             }
         };
+    }
+
+    /**
+     * Upload-only Arduino UNO firmware entry point.
+     * This hat must never start execution in Stage mode.
+     * @returns {boolean} Always false in Stage mode.
+     */
+    whenArduinoUnoStart () {
+        return false;
     }
 
     /**
