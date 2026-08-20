@@ -7717,6 +7717,18 @@ Ela não deverá ser adicionada ao staging deste checkpoint.
 
 O próximo marco oficial, antes da implementação profunda do Modo Carregar do Arduino UNO, será uma auditoria técnica dirigida do ecossistema OpenBlock.
 
+**Atualização — 20/08/2026:** esse próximo marco foi concluído. A auditoria de OpenBlock, Arduino CLI, Scratch VM, Blockly, arquitetura de validação, recursos, toolchain e UX Palco/Carregar foi realizada, e o contrato técnico e pedagógico do Arduino UNO Modo Carregar v1 foi fechado em 19/08/2026.
+
+A implementação já foi iniciada na branch:
+
+`feat/easyblox-arduino-uno-upload-mode`
+
+Checkpoint A1 publicado:
+
+`034f250b79 feat: add Arduino UNO Upload core`
+
+Não repetir essa auditoria salvo se surgir evidência técnica concreta que obrigue revisão do contrato.
+
 O EasyBlox continuará sendo a plataforma principal e autônoma.
 
 O OpenBlock será estudado como fonte de soluções que poderão ser:
@@ -7744,3 +7756,107 @@ O objetivo será validar e complementar a arquitetura existente do EasyBlox, esp
 A diretriz é:
 
 `trazer para o EasyBlox, não migrar o EasyBlox para o OpenBlock`.
+
+## 23. Arduino UNO — implementação do Modo Carregar v1
+
+### 23.1. Estado da implementação em 20/08/2026
+
+Branch:
+
+`feat/easyblox-arduino-uno-upload-mode`
+
+Checkpoint A1 publicado e sincronizado:
+
+`034f250b79 feat: add Arduino UNO Upload core`
+
+O A1 implementou:
+
+- `quando Arduino Uno iniciar`;
+- comportamento inerte desse hat no Stage;
+- `UploadProgramExtractor`;
+- EasyBlox IR inicial;
+- `DigitalWrite`;
+- `ArduinoUnoGenerator`;
+- `pinMode OUTPUT` automático e deduplicado;
+- geração determinística;
+- regras iniciais de grafo alcançável;
+- testes de entry point, scripts soltos, scripts Stage independentes e clones.
+
+A alteração local independente continua fora de qualquer commit Arduino UNO:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+### 23.2. A2 — primeiro `sempre` e Context Validator
+
+Foi implementada a semântica do primeiro `control_forever` da cadeia principal:
+
+```text
+quando Arduino Uno iniciar
+    comandos A/B
+    sempre
+        comandos C/D
+        →
+
+setup = A/B
+loop  = C/D
+
+Um sempre vazio é válido.
+
+A infraestrutura necessária por comandos presentes em loop() continua sendo inferida e inicializada em setup().
+
+Código conectado após o primeiro loop infinito é preservado semanticamente na IR através de:
+
+UnreachableCode
+AfterInfiniteLoop
+
+Foi criado:
+
+packages/scratch-vm/src/upload/upload-context-validator.js
+
+Responsabilidade atual:
+
+IR alcançável
+→ aceita
+
+
+IR com AfterInfiniteLoop
+→ erro de contexto
+→ Upload deve ser bloqueado
+
+O gerador não repete essa validação. A arquitetura continua obedecendo:
+
+Scratch VM
+↓
+UploadProgramExtractor
+↓
+EasyBlox IR
+↓
+UploadContextValidator
+↓
+ArduinoUnoGenerator
+
+Validação automatizada atual:
+
+Upload:
+22 pass
+0 fail
+
+
+Stage + Upload:
+519 pass
+0 fail
+2 suites
+
+O A2 encontra-se tecnicamente validado e pronto para revisão final, staging explícito, commit e push.
+
+### 23.3. Próxima retomada
+
+Após fechar o checkpoint A2:
+
+continuar a implementação incremental de Controle;
+preservar a separação Extractor → IR → Validators → Generator;
+introduzir operadores e tipagem conforme o contrato fechado;
+criar allocator seguro de identificadores internos quando surgir o primeiro recurso que realmente gere nomes internos, como repita N vezes;
+não iniciar Arduino CLI, Hardware Service ou upload físico antes de consolidar o núcleo de IR/controle/validação previsto para esta fase.
+
+O checklist integral do primeiro vertical slice permanece vigente; o commit A1 foi deliberadamente um checkpoint intermediário e não uma declaração de conclusão integral desse checklist.

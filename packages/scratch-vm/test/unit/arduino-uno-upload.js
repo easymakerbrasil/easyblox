@@ -6,6 +6,9 @@ const Runtime = require('../../src/engine/runtime');
 const UploadProgramExtractor = require('../../src/upload/upload-program-extractor');
 const ArduinoUnoGenerator = require('../../src/upload/arduino-uno-generator');
 
+const UploadContextValidator =
+    require('../../src/upload/upload-context-validator');
+
 const createRuntimeWithBlocks = blockDefinitions => {
     const runtime = new Runtime();
     const blocks = new Blocks(runtime);
@@ -433,6 +436,380 @@ tap.test('Arduino UNO Upload rejects invalid DIGITAL_WRITE literal values', t =>
     t.throws(
         () => extractor.extract(),
         /Invalid digital value VALUE/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload maps main-chain FOREVER body to loop', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('setup_write'),
+        {
+            id: 'setup_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: 'forever',
+            parent: 'upload_hat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'setup_pin',
+                    shadow: 'setup_pin'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'setup_value',
+                    shadow: 'setup_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('setup_pin', 'setup_write', 13),
+        createNumberShadow('setup_value', 'setup_write', 1),
+        {
+            id: 'forever',
+            opcode: 'control_forever',
+            next: null,
+            parent: 'setup_write',
+            inputs: {
+                SUBSTACK: {
+                    name: 'SUBSTACK',
+                    block: 'loop_write',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'loop_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'forever',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'loop_pin',
+                    shadow: 'loop_pin'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'loop_value',
+                    shadow: 'loop_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('loop_pin', 'loop_write', 13),
+        createNumberShadow('loop_value', 'loop_write', 0)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: true
+        }],
+        loop: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: false
+        }]
+    });
+
+    t.end();
+});
+tap.test('Arduino UNO generator keeps loop code separate and initializes its resources in setup', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = {
+        setup: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: true
+        }],
+        loop: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: false
+        }]
+    };
+
+    const code = generator.generate(ir);
+
+    t.equal(code, [
+        'void setup() {',
+        '    pinMode(13, OUTPUT);',
+        '    digitalWrite(13, HIGH);',
+        '}',
+        '',
+        'void loop() {',
+        '    digitalWrite(13, LOW);',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.equal(
+        code.match(/pinMode\(13, OUTPUT\);/g).length,
+        1,
+        'loop resources should be initialized exactly once in setup'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload accepts an empty main-chain FOREVER', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('forever'),
+        {
+            id: 'forever',
+            opcode: 'control_forever',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload marks code after main-chain FOREVER as unreachable', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('forever'),
+        {
+            id: 'forever',
+            opcode: 'control_forever',
+            next: 'unreachable_write',
+            parent: 'upload_hat',
+            inputs: {
+                SUBSTACK: {
+                    name: 'SUBSTACK',
+                    block: 'loop_write',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'loop_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'forever',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'loop_pin',
+                    shadow: 'loop_pin'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'loop_value',
+                    shadow: 'loop_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('loop_pin', 'loop_write', 13),
+        createNumberShadow('loop_value', 'loop_write', 1),
+        {
+            id: 'unreachable_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'forever',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'unreachable_pin',
+                    shadow: 'unreachable_pin'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'unreachable_value',
+                    shadow: 'unreachable_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'unreachable_pin',
+            'unreachable_write',
+            12
+        ),
+        createNumberShadow(
+            'unreachable_value',
+            'unreachable_write',
+            1
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [],
+        loop: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: true
+        }],
+        unreachable: [{
+            type: 'UnreachableCode',
+            reason: 'AfterInfiniteLoop'
+        }]
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator accepts reachable IR', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: true
+        }],
+        loop: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: false
+        }]
+    };
+
+    t.doesNotThrow(() => validator.validate(ir));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects code after FOREVER', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [],
+        loop: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: true
+        }],
+        unreachable: [{
+            type: 'UnreachableCode',
+            reason: 'AfterInfiniteLoop'
+        }]
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Arduino UNO Upload contains unreachable code after infinite loop/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects extracted code after main-chain FOREVER through context validation', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('forever'),
+        {
+            id: 'forever',
+            opcode: 'control_forever',
+            next: 'unreachable_write',
+            parent: 'upload_hat',
+            inputs: {
+                SUBSTACK: {
+                    name: 'SUBSTACK',
+                    block: 'loop_write',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'loop_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'forever',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'loop_pin',
+                    shadow: 'loop_pin'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'loop_value',
+                    shadow: 'loop_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('loop_pin', 'loop_write', 13),
+        createNumberShadow('loop_value', 'loop_write', 1),
+        {
+            id: 'unreachable_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'forever',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'unreachable_pin',
+                    shadow: 'unreachable_pin'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'unreachable_value',
+                    shadow: 'unreachable_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'unreachable_pin',
+            'unreachable_write',
+            12
+        ),
+        createNumberShadow(
+            'unreachable_value',
+            'unreachable_write',
+            1
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadContextValidator();
+
+    const ir = extractor.extract();
+
+    t.throws(
+        () => validator.validate(ir),
+        /Arduino UNO Upload contains unreachable code after infinite loop/
     );
 
     t.end();

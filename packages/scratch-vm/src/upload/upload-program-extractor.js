@@ -1,5 +1,6 @@
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
+const FOREVER_OPCODE = 'control_forever';
 
 /**
  * Extract an EasyBlox Upload program from the canonical Scratch VM state.
@@ -32,6 +33,8 @@ class UploadProgramExtractor {
 
         const entryPoint = entryPoints[0];
         const setup = [];
+        const loop = [];
+        const unreachable = [];
 
         let blockId = entryPoint.blocks.getNextBlock(entryPoint.blockId);
 
@@ -42,14 +45,39 @@ class UploadProgramExtractor {
                 throw new Error(`Arduino UNO Upload block not found: ${blockId}`);
             }
 
+            if (block.opcode === FOREVER_OPCODE) {
+    this._extractBranchStatements(
+        entryPoint.blocks,
+        entryPoint.blocks.getBranch(blockId, 1),
+        loop
+    );
+
+    const nextBlockId = entryPoint.blocks.getNextBlock(blockId);
+
+            if (nextBlockId) {
+                unreachable.push({
+                    type: 'UnreachableCode',
+                    reason: 'AfterInfiniteLoop'
+                });
+            }
+
+            break;
+        }
+
             setup.push(this._extractStatement(entryPoint.blocks, block));
             blockId = entryPoint.blocks.getNextBlock(blockId);
         }
 
-        return {
+        const ir = {
             setup,
-            loop: []
+            loop
         };
+
+        if (unreachable.length > 0) {
+            ir.unreachable = unreachable;
+        }
+
+        return ir;
     }
 
     /**
@@ -86,6 +114,30 @@ class UploadProgramExtractor {
         }
 
         return entryPoints;
+    }
+
+    /**
+     * Extract a linear reachable branch into semantic IR statements.
+     * @param {Blocks} blocks Scratch Blocks storage for the current target.
+     * @param {?string} blockId First block ID in the branch.
+     * @param {Array<object>} statements Destination IR statement list.
+     * @private
+     */
+    _extractBranchStatements (blocks, blockId, statements) {
+        let currentBlockId = blockId;
+
+        while (currentBlockId) {
+            const block = blocks.getBlock(currentBlockId);
+
+            if (!block) {
+                throw new Error(
+                    `Arduino UNO Upload block not found: ${currentBlockId}`
+                );
+            }
+
+            statements.push(this._extractStatement(blocks, block));
+            currentBlockId = blocks.getNextBlock(currentBlockId);
+        }
     }
 
     /**

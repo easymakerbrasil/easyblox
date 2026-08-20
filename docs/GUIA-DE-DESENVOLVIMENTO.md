@@ -6585,3 +6585,133 @@ A auditoria deve priorizar:
 A regra arquitetural é:
 
 `trazer, adaptar e integrar — não migrar`.
+
+### 19.154. Arduino UNO Modo Carregar — início da implementação
+
+A auditoria arquitetural prevista na seção anterior foi concluída em 19/08/2026 e o contrato técnico e pedagógico do Arduino UNO Modo Carregar v1 foi oficialmente fechado.
+
+A implementação prática é realizada na branch:
+
+`feat/easyblox-arduino-uno-upload-mode`
+
+Primeiro commit estrutural:
+
+`034f250b79 feat: add Arduino UNO Upload core`
+
+A fonte canônica do programa permanece a Scratch VM.
+
+Pipeline implementado até este ponto:
+
+```text
+Scratch VM
+↓
+UploadProgramExtractor
+↓
+EasyBlox IR
+↓
+UploadContextValidator
+↓
+ArduinoUnoGenerator
+
+O UploadProgramExtractor é a única camada deste núcleo que conhece diretamente targets, IDs de blocos, Blocks e opcodes Scratch.
+
+A IR e o gerador não devem depender do workspace Blockly/ScratchBlocks.
+
+O primeiro núcleo implementado cobre:
+
+quando Arduino Uno iniciar como entry point estrutural do firmware;
+hat inerte no Modo Palco;
+exatamente um entry point Upload por projeto;
+entry point vazio válido;
+arduinoUno_digitalWrite;
+leitura de literais numéricos da VM;
+estado digital aceito apenas como 0 ou 1, sem coerção silenciosa;
+geração determinística de setup() e loop();
+inferência automática de pinMode(..., OUTPUT);
+deduplicação de pinMode;
+scripts Upload soltos fora do grafo alcançável ignorados;
+scripts Stage independentes ignorados;
+blocos Stage/Upload não suportados dentro do grafo alcançável rejeitados;
+clones não considerados entry points independentes.
+
+O commit 034f250b79 corresponde ao checkpoint intermediário A1 — núcleo estrutural do Upload.
+
+Esse checkpoint não deve ser confundido com o aceite completo do primeiro vertical slice definido no contrato, pois itens posteriores do checklist, incluindo o allocator seguro de identificadores internos quando houver uso real para ele, ainda serão implementados.
+
+### 19.155. Arduino UNO Upload — semântica do primeiro sempre
+
+O primeiro control_forever encontrado na cadeia principal do entry point possui semântica especial no Modo Carregar.
+
+Exemplo:
+
+quando Arduino Uno iniciar
+    definir D13 ALTO
+    sempre
+        definir D13 BAIXO
+
+produz semanticamente:
+
+setup:
+    DigitalWrite(D13, HIGH)
+
+
+loop:
+    DigitalWrite(D13, LOW)
+
+e o gerador produz:
+
+void setup() {
+    pinMode(13, OUTPUT);
+    digitalWrite(13, HIGH);
+}
+
+
+void loop() {
+    digitalWrite(13, LOW);
+}
+
+Recursos utilizados dentro de loop() continuam tendo sua infraestrutura global deduzida e inicializada uma única vez em setup().
+
+Um sempre vazio é válido e resulta em loop() vazio.
+
+Código conectado na cadeia principal depois do primeiro sempre não pode desaparecer silenciosamente.
+
+O extractor preserva essa condição semanticamente na IR como:
+
+UnreachableCode
+reason: AfterInfiniteLoop
+
+A decisão de validade não pertence ao gerador.
+
+Foi introduzido:
+
+packages/scratch-vm/src/upload/upload-context-validator.js
+
+O UploadContextValidator rejeita IR contendo código inalcançável após loop infinito.
+
+A separação de responsabilidades permanece:
+
+UploadProgramExtractor
+→ traduz Scratch VM para IR
+
+
+UploadContextValidator
+→ valida regras de contexto
+
+
+ArduinoUnoGenerator
+→ gera C++ a partir de IR previamente validada
+
+Não duplicar regras do Context Validator dentro do gerador.
+
+Estado automatizado validado em 20/08/2026:
+
+arduino-uno-upload.js
+22 pass
+0 fail
+
+
+arduino-uno.js + arduino-uno-upload.js
+519 pass
+0 fail
+2 suites
