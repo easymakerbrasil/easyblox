@@ -8255,3 +8255,111 @@ continua fora do staging.
 O A5 fecha o núcleo básico de comparações e operadores booleanos do Modo Carregar.
 
 O Arduino UNO Upload v1 completo continua em implementação incremental.
+
+### 23.8. A6.1 — `control_if`
+
+Em 20/08/2026 foi concluído o A6.1 do Arduino UNO Modo Carregar v1.
+
+O checkpoint introduz o primeiro statement condicional estruturado na EasyBlox IR:
+
+```text
+control_if
+→ If
+
+Representação:
+
+If
+├── condition: Expression
+└── body: Statement[]
+
+O UploadProgramExtractor permanece como única camada que conhece diretamente o opcode Scratch control_if.
+
+A condição reutiliza a Expression IR já consolidada:
+
+IntegerLiteral
+DecimalLiteral
+BinaryExpression
+UnaryExpression
+
+O corpo é extraído recursivamente.
+
+Regra de tipo:
+
+If.condition → BOOLEAN
+
+Não existe coerção numérica implícita para booleano.
+
+Assim:
+
+BOOLEAN → válido
+INTEGER → rejeitado
+DECIMAL → rejeitado
+
+O UploadTypeValidator também percorre If.body recursivamente.
+
+O ArduinoUnoGenerator passa a gerar:
+
+if (<condition>) {
+    ...
+}
+
+com indentação determinística e geração recursiva dos statements internos.
+
+A inferência de recursos também passa a atravessar If.body.
+
+Exemplo:
+
+If
+└── DigitalWrite D13
+
+faz com que o sketch contenha:
+
+pinMode(13, OUTPUT);
+
+mesmo que o DigitalWrite exista somente dentro da condição.
+
+A coleta recursiva de recursos reconhece atualmente:
+
+Repeat.body
+If.body
+
+Estado automatizado:
+
+Upload
+92 pass
+0 fail
+1 suite
+
+
+Stage + Upload
+589 pass
+0 fail
+2 suites
+
+Testes adicionados no A6.1:
+
+Arduino UNO Upload extracts control_if into If semantic IR
+Arduino UNO Upload rejects INTEGER used directly as If condition
+Arduino UNO generator emits If statement from semantic IR
+Arduino UNO generator infers OUTPUT pinMode inside If body
+
+Arquivos principais:
+
+packages/scratch-vm/src/upload/upload-program-extractor.js
+packages/scratch-vm/src/upload/upload-type-validator.js
+packages/scratch-vm/src/upload/arduino-uno-generator.js
+packages/scratch-vm/test/unit/arduino-uno-upload.js
+
+A alteração independente:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+continua fora do staging.
+
+O A6.1 está funcionalmente concluído.
+
+Próximo incremento:
+
+A6.2 — control_if_else
+
+O A6.2 deverá reutilizar as mesmas regras de condição BOOLEAN, validação recursiva, inferência de recursos e geração determinística estabelecidas no A6.1.

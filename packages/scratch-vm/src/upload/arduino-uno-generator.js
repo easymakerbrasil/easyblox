@@ -95,7 +95,10 @@ class ArduinoUnoGenerator {
         for (const statement of statements) {
             if (statement.type === 'DigitalWrite') {
                 pins.add(statement.pin);
-            } else if (statement.type === 'Repeat') {
+            } else if (
+                statement.type === 'Repeat' ||
+                statement.type === 'If'
+            ) {
                 const body = Array.isArray(statement.body) ?
                     statement.body :
                     [];
@@ -144,6 +147,28 @@ class ArduinoUnoGenerator {
                     `${indent}for (int ${identifier} = 0; ` +
                     `${identifier} < ${timesExpression}; ` +
                     `++${identifier}) {`
+                );
+
+                this._generateStatements(
+                    Array.isArray(statement.body) ?
+                        statement.body :
+                        [],
+                    indentLevel + 1,
+                    identifiers,
+                    lines
+                );
+
+                lines.push(`${indent}}`);
+                break;
+            }
+
+            case 'If': {
+                const conditionExpression = this._generateExpression(
+                    statement.condition
+                );
+
+                lines.push(
+                    `${indent}if (${conditionExpression}) {`
                 );
 
                 this._generateStatements(

@@ -2,6 +2,7 @@ const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
 const FOREVER_OPCODE = 'control_forever';
 const REPEAT_OPCODE = 'control_repeat';
+const IF_OPCODE = 'control_if';
 const ADD_OPCODE = 'operator_add';
 const SUBTRACT_OPCODE = 'operator_subtract';
 const MULTIPLY_OPCODE = 'operator_multiply';
@@ -166,6 +167,7 @@ class UploadProgramExtractor {
                 pin: this._readNumberInput(blocks, block, 'PIN'),
                 value: this._readDigitalValue(blocks, block, 'VALUE')
             };
+
         case REPEAT_OPCODE: {
             const body = [];
 
@@ -181,6 +183,27 @@ class UploadProgramExtractor {
                 body
             };
         }
+
+        case IF_OPCODE: {
+            const body = [];
+
+            this._extractBranchStatements(
+                blocks,
+                blocks.getBranch(block.id, 1),
+                body
+            );
+
+            return {
+                type: 'If',
+                condition: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'CONDITION'
+                ),
+                body
+            };
+        }
+
         default:
             throw new Error(
                 `Unsupported Arduino UNO Upload opcode: ${block.opcode}`

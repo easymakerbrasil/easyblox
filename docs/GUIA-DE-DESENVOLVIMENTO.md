@@ -7419,3 +7419,166 @@ O A5 fecha o núcleo inicial de comparações e operadores booleanos previsto pa
 Isso não representa a conclusão integral do Arduino UNO Modo Carregar v1.
 
 As próximas fases continuam incrementais e devem preservar a tipagem pedagógica explícita e a regra de ausência de coerções silenciosas.
+
+### 19.160. A6.1 — controle condicional `control_if` no Arduino UNO Modo Carregar
+
+Em 20/08/2026 foi concluído o A6.1 da implementação incremental do Arduino UNO Modo Carregar v1.
+
+Esta etapa introduz o primeiro controle condicional estruturado no EasyBlox IR para o Arduino UNO Upload:
+
+```text
+control_if
+    ↓
+If
+├── condition: Expression
+└── body: Statement[]
+O UploadProgramExtractor converte o opcode Scratch:
+
+control_if
+
+para o statement semântico:
+
+If
+
+A condição é extraída pela mesma infraestrutura de Expression IR já consolidada nos checkpoints A4 e A5.
+
+O corpo do If é extraído recursivamente por meio da infraestrutura existente de branches e statements.
+
+Exemplo conceitual:
+
+quando Arduino Uno iniciar
+    se <(1 < 2)> então
+        definir pino D13 ALTO
+
+é representado semanticamente como:
+
+If
+├── condition
+│   └── BinaryExpression
+│       ├── operator: LessThan
+│       ├── left: IntegerLiteral(1)
+│       └── right: IntegerLiteral(2)
+└── body
+    └── DigitalWrite
+        ├── pin: 13
+        └── value: true
+Tipagem da condição
+
+O UploadTypeValidator exige que:
+
+If.condition → BOOLEAN
+
+Não existe coerção booleana implícita.
+
+Portanto:
+
+BOOLEAN → válido
+INTEGER → inválido
+DECIMAL → inválido
+
+Valores numéricos não são convertidos silenciosamente para true ou false.
+
+Essa regra preserva o contrato pedagógico de tipagem explícita do Modo Carregar.
+
+O corpo do If também é validado recursivamente pelo UploadTypeValidator.
+
+Geração C++
+
+O ArduinoUnoGenerator gera estruturas condicionais determinísticas.
+
+Exemplo:
+
+If
+├── condition: LessThan(1, 2)
+└── body
+    └── DigitalWrite(13, true)
+
+gera:
+
+void setup() {
+    pinMode(13, OUTPUT);
+    if ((1 < 2)) {
+        digitalWrite(13, HIGH);
+    }
+}
+
+
+void loop() {
+}
+
+A indentação de statements internos é gerada recursivamente.
+
+Inferência de recursos em estruturas condicionais
+
+Recursos utilizados dentro de If.body também participam da análise estrutural anterior à geração do sketch.
+
+Assim, um:
+
+DigitalWrite D13
+
+existente somente dentro de um If ainda resulta em:
+
+pinMode(13, OUTPUT);
+
+no setup().
+
+A coleta recursiva de recursos passa a reconhecer atualmente:
+
+Repeat.body
+If.body
+
+Isso preserva a separação entre:
+
+análise/inferência de recursos
+
+e:
+
+geração dos statements executáveis
+Estado automatizado ao fechamento do A6.1
+
+Testes específicos do Upload:
+
+92 pass
+0 fail
+1 suite
+
+Regressão Arduino UNO Stage + Upload:
+
+589 pass
+0 fail
+2 suites
+
+Foram validados especificamente no A6.1:
+
+extração de control_if para If semantic IR
+rejeição de INTEGER usado diretamente como condição de If
+geração estrutural de if (...) { ... }
+inferência de pinMode para DigitalWrite existente dentro de If.body
+
+Arquivos principais alterados no A6.1:
+
+packages/scratch-vm/src/upload/upload-program-extractor.js
+packages/scratch-vm/src/upload/upload-type-validator.js
+packages/scratch-vm/src/upload/arduino-uno-generator.js
+packages/scratch-vm/test/unit/arduino-uno-upload.js
+
+A alteração local independente:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+permanece fora deste checkpoint e não deve ser adicionada ao staging.
+
+O A6.1 fecha o primeiro controle condicional simples do Arduino UNO Modo Carregar.
+
+Próxima etapa incremental prevista:
+
+A6.2 — control_if_else
+
+A implementação deverá preservar o mesmo contrato semântico estabelecido no A6.1:
+
+condição obrigatoriamente BOOLEAN;
+ausência de coerção booleana silenciosa;
+branches extraídos e validados recursivamente;
+recursos inferidos em todos os branches;
+geração C++ determinística;
+nenhuma regressão no Modo Palco.

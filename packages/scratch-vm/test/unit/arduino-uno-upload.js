@@ -3365,3 +3365,210 @@ tap.test('Arduino UNO generator emits Not expression', t => {
 
     t.end();
 });
+
+tap.test('Arduino UNO Upload extracts control_if into If semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_block'),
+        {
+            id: 'if_block',
+            opcode: 'control_if',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'condition_lt',
+                    shadow: null
+                },
+                SUBSTACK: {
+                    name: 'SUBSTACK',
+                    block: 'digital_write',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'condition_lt',
+            opcode: 'operator_lt',
+            next: null,
+            parent: 'if_block',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'left_1',
+                    shadow: 'left_1'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'right_2',
+                    shadow: 'right_2'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left_1', 'condition_lt', 1),
+        createNumberShadow('right_2', 'condition_lt', 2),
+        {
+            id: 'digital_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'if_block',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'pin_13',
+                    shadow: 'pin_13'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'value_high',
+                    shadow: 'value_high'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('pin_13', 'digital_write', 13),
+        createNumberShadow('value_high', 'digital_write', 1)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: [{
+                type: 'DigitalWrite',
+                pin: 13,
+                value: true
+            }]
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects INTEGER used directly as If condition', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'If',
+                condition: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                body: [{
+                    type: 'DigitalWrite',
+                    pin: 13,
+                    value: true
+                }]
+            }],
+            loop: []
+        }),
+        /If condition must be Boolean/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits If statement from semantic IR', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    if ((1 < 2)) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator infers OUTPUT pinMode inside If body', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: [{
+                type: 'DigitalWrite',
+                pin: 13,
+                value: true
+            }]
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    pinMode(13, OUTPUT);',
+        '    if ((1 < 2)) {',
+        '        digitalWrite(13, HIGH);',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
