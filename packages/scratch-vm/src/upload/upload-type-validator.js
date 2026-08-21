@@ -75,6 +75,32 @@ class UploadTypeValidator {
                 break;
             }
 
+            case 'IfElse': {
+                const conditionType = this._inferExpressionType(
+                    statement.condition
+                );
+
+                if (conditionType !== VALUE_TYPES.BOOLEAN) {
+                    throw new Error(
+                        'IfElse condition must be Boolean'
+                    );
+                }
+
+                this._validateStatements(
+                    Array.isArray(statement.thenBody) ?
+                        statement.thenBody :
+                        []
+                );
+
+                this._validateStatements(
+                    Array.isArray(statement.elseBody) ?
+                        statement.elseBody :
+                        []
+                );
+
+                break;
+            }
+
             default:
                 throw new Error(
                     `Unsupported Arduino UNO IR statement type: ${

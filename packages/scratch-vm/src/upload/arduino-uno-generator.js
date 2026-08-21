@@ -103,7 +103,28 @@ class ArduinoUnoGenerator {
                     statement.body :
                     [];
 
-                this._collectOutputPinsFromStatements(body, pins);
+                this._collectOutputPinsFromStatements(
+                    body,
+                    pins
+                );
+            } else if (statement.type === 'IfElse') {
+                const thenBody = Array.isArray(statement.thenBody) ?
+                    statement.thenBody :
+                    [];
+
+                const elseBody = Array.isArray(statement.elseBody) ?
+                    statement.elseBody :
+                    [];
+
+                this._collectOutputPinsFromStatements(
+                    thenBody,
+                    pins
+                );
+
+                this._collectOutputPinsFromStatements(
+                    elseBody,
+                    pins
+                );
             }
         }
     }
@@ -174,6 +195,39 @@ class ArduinoUnoGenerator {
                 this._generateStatements(
                     Array.isArray(statement.body) ?
                         statement.body :
+                        [],
+                    indentLevel + 1,
+                    identifiers,
+                    lines
+                );
+
+                lines.push(`${indent}}`);
+                break;
+            }
+
+            case 'IfElse': {
+                const conditionExpression = this._generateExpression(
+                    statement.condition
+                );
+
+                lines.push(
+                    `${indent}if (${conditionExpression}) {`
+                );
+
+                this._generateStatements(
+                    Array.isArray(statement.thenBody) ?
+                        statement.thenBody :
+                        [],
+                    indentLevel + 1,
+                    identifiers,
+                    lines
+                );
+
+                lines.push(`${indent}} else {`);
+
+                this._generateStatements(
+                    Array.isArray(statement.elseBody) ?
+                        statement.elseBody :
                         [],
                     indentLevel + 1,
                     identifiers,

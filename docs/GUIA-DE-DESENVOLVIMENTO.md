@@ -7582,3 +7582,184 @@ branches extraídos e validados recursivamente;
 recursos inferidos em todos os branches;
 geração C++ determinística;
 nenhuma regressão no Modo Palco.
+
+### 19.161. A6.2 — controle condicional `control_if_else` no Arduino UNO Modo Carregar
+
+Em 20/08/2026 foi concluído o A6.2 da implementação incremental do Arduino UNO Modo Carregar v1.
+
+Esta etapa complementa o `control_if` implementado no A6.1 e introduz o controle condicional com dois branches:
+
+```text
+control_if_else
+    ↓
+IfElse
+├── condition: Expression
+├── thenBody: Statement[]
+└── elseBody: Statement[]
+
+O UploadProgramExtractor continua sendo a única camada que conhece diretamente os opcodes Scratch.
+
+O opcode:
+
+control_if_else
+
+é convertido para o statement semântico:
+
+IfElse
+
+A condição reutiliza a infraestrutura de Expression IR consolidada nos checkpoints anteriores.
+
+Os dois branches são extraídos recursivamente:
+
+SUBSTACK  → thenBody
+SUBSTACK2 → elseBody
+
+Exemplo conceitual:
+
+quando Arduino Uno iniciar
+    se <(1 < 2)> então
+        definir pino D13 ALTO
+    senão
+        definir pino D12 BAIXO
+
+é representado semanticamente como:
+
+IfElse
+├── condition
+│   └── BinaryExpression
+│       ├── operator: LessThan
+│       ├── left: IntegerLiteral(1)
+│       └── right: IntegerLiteral(2)
+├── thenBody
+│   └── DigitalWrite
+│       ├── pin: 13
+│       └── value: true
+└── elseBody
+    └── DigitalWrite
+        ├── pin: 12
+        └── value: false
+Tipagem da condição
+
+O UploadTypeValidator exige:
+
+IfElse.condition → BOOLEAN
+
+Não existe coerção booleana implícita.
+
+Portanto:
+
+BOOLEAN → válido
+INTEGER → inválido
+DECIMAL → inválido
+
+Os dois branches também são validados recursivamente:
+
+thenBody
+elseBody
+
+Isso permite que estruturas de controle e statements futuros sejam compostos dentro de ambos os caminhos sem romper a validação semântica da IR.
+
+Geração C++
+
+O ArduinoUnoGenerator gera deterministicamente:
+
+if (<condition>) {
+    ...
+} else {
+    ...
+}
+
+Exemplo:
+
+void setup() {
+    pinMode(12, OUTPUT);
+    pinMode(13, OUTPUT);
+    if ((1 < 2)) {
+        digitalWrite(13, HIGH);
+    } else {
+        digitalWrite(12, LOW);
+    }
+}
+
+
+void loop() {
+}
+
+Os statements de thenBody e elseBody são gerados recursivamente com o nível correto de indentação.
+
+Inferência de recursos nos dois branches
+
+A análise de recursos anterior à geração também passa a reconhecer IfElse.
+
+Recursos utilizados exclusivamente em qualquer um dos branches precisam ser inicializados normalmente no setup().
+
+Assim:
+
+thenBody
+└── DigitalWrite D13
+
+
+elseBody
+└── DigitalWrite D12
+
+resulta deterministicamente em:
+
+pinMode(12, OUTPUT);
+pinMode(13, OUTPUT);
+
+A ordenação dos recursos permanece determinística.
+
+A coleta recursiva reconhece atualmente:
+
+Repeat.body
+If.body
+IfElse.thenBody
+IfElse.elseBody
+Estado automatizado ao fechamento do A6.2
+
+Testes específicos do Upload:
+
+96 pass
+0 fail
+1 suite
+
+Regressão Arduino UNO Stage + Upload:
+
+593 pass
+0 fail
+2 suites
+
+Foram validados especificamente no A6.2:
+
+extração de control_if_else para IfElse semantic IR
+rejeição de INTEGER usado diretamente como condição de IfElse
+geração estrutural de if (...) { ... } else { ... }
+inferência de pinMode para recursos existentes em ambos os branches
+
+Arquivos principais alterados no A6.2:
+
+packages/scratch-vm/src/upload/upload-program-extractor.js
+packages/scratch-vm/src/upload/upload-type-validator.js
+packages/scratch-vm/src/upload/arduino-uno-generator.js
+packages/scratch-vm/test/unit/arduino-uno-upload.js
+
+A alteração local independente:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+permanece fora deste checkpoint e não deve ser adicionada ao staging.
+
+Com o A6.1 e o A6.2 concluídos, o A6 fecha o núcleo inicial de controles condicionais do Arduino UNO Modo Carregar v1:
+
+control_if      → If
+control_if_else → IfElse
+
+O desenvolvimento do Arduino UNO Modo Carregar v1 continua incremental. A próxima etapa deverá ser definida a partir da sequência contratual já consolidada, preservando:
+
+tipagem pedagógica explícita;
+ausência de coerções silenciosas;
+IR independente de Scratch;
+validação recursiva;
+inferência estrutural de recursos;
+geração C++ determinística;
+ausência de regressões no Modo Palco.

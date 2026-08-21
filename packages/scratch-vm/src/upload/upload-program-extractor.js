@@ -13,6 +13,7 @@ const GREATER_THAN_OPCODE = 'operator_gt';
 const AND_OPCODE = 'operator_and';
 const OR_OPCODE = 'operator_or';
 const NOT_OPCODE = 'operator_not';
+const IF_ELSE_OPCODE = 'control_if_else';
 
 /**
  * Extract an EasyBlox Upload program from the canonical Scratch VM state.
@@ -201,6 +202,34 @@ class UploadProgramExtractor {
                     'CONDITION'
                 ),
                 body
+            };
+        }
+
+        case IF_ELSE_OPCODE: {
+            const thenBody = [];
+            const elseBody = [];
+
+            this._extractBranchStatements(
+                blocks,
+                blocks.getBranch(block.id, 1),
+                thenBody
+            );
+
+            this._extractBranchStatements(
+                blocks,
+                blocks.getBranch(block.id, 2),
+                elseBody
+            );
+
+            return {
+                type: 'IfElse',
+                condition: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'CONDITION'
+                ),
+                thenBody,
+                elseBody
             };
         }
 

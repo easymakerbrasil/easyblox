@@ -8363,3 +8363,99 @@ Próximo incremento:
 A6.2 — control_if_else
 
 O A6.2 deverá reutilizar as mesmas regras de condição BOOLEAN, validação recursiva, inferência de recursos e geração determinística estabelecidas no A6.1.
+
+### 23.9. A6.2 — `control_if_else`
+
+Em 20/08/2026 foi concluído o A6.2 do Arduino UNO Modo Carregar v1.
+
+O checkpoint complementa o `control_if` do A6.1 com o segundo controle condicional estruturado:
+
+```text
+control_if_else
+→ IfElse
+
+Representação:
+
+IfElse
+├── condition: Expression
+├── thenBody: Statement[]
+└── elseBody: Statement[]
+
+Mapeamento dos branches Scratch:
+
+SUBSTACK  → thenBody
+SUBSTACK2 → elseBody
+
+Regra de tipo:
+
+IfElse.condition → BOOLEAN
+
+Não existe coerção implícita de INTEGER ou DECIMAL para booleano.
+
+O UploadTypeValidator percorre recursivamente:
+
+thenBody
+elseBody
+
+O ArduinoUnoGenerator gera:
+
+if (<condition>) {
+    ...
+} else {
+    ...
+}
+
+com geração e indentação recursivas dos dois branches.
+
+A inferência de recursos também percorre ambos os caminhos.
+
+A coleta estrutural reconhece atualmente:
+
+Repeat.body
+If.body
+IfElse.thenBody
+IfElse.elseBody
+
+Recursos encontrados em qualquer branch são inicializados no setup().
+
+Estado automatizado:
+
+Upload
+96 pass
+0 fail
+1 suite
+
+
+Stage + Upload
+593 pass
+0 fail
+2 suites
+
+Testes adicionados no A6.2:
+
+Arduino UNO Upload extracts control_if_else into IfElse semantic IR
+Arduino UNO Upload rejects INTEGER used directly as IfElse condition
+Arduino UNO generator emits IfElse statement from semantic IR
+Arduino UNO generator infers OUTPUT pinMode inside both IfElse branches
+
+Arquivos principais:
+
+packages/scratch-vm/src/upload/upload-program-extractor.js
+packages/scratch-vm/src/upload/upload-type-validator.js
+packages/scratch-vm/src/upload/arduino-uno-generator.js
+packages/scratch-vm/test/unit/arduino-uno-upload.js
+
+A alteração independente:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+continua fora do staging.
+
+Com:
+
+A6.1 → control_if
+A6.2 → control_if_else
+
+o A6 fecha o núcleo inicial de controles condicionais do Arduino UNO Modo Carregar v1.
+
+O projeto permanece na implementação incremental do contrato de Upload. A próxima etapa deverá ser definida a partir da sequência contratual consolidada, sem antecipar funcionalidades fora do próximo checkpoint.
