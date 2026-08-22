@@ -124,7 +124,7 @@ const getItemIcons = function (item) {
 
 const getMemberOnlyTags = data => (data && data.some(item => item.isMemberOnly) ? [MEMBERSHIP_TAG] : []);
 
-class LibraryComponent extends React.Component {
+export class LibraryComponent extends React.Component {
     constructor (props) {
         super(props);
         bindAll(this, [
@@ -134,6 +134,7 @@ class LibraryComponent extends React.Component {
             'handleMouseEnter',
             'handleMouseLeave',
             'handlePlayingEnd',
+            'handleRemove',
             'handleSelect',
             'handleTagClick',
             'setFilteredDataRef'
@@ -173,6 +174,14 @@ class LibraryComponent extends React.Component {
 
         this.handleClose();
         this.props.onItemSelected(selectedItem);
+    }
+    handleRemove (id) {
+        const item = this.getFilteredData()
+            .find(data => this.constructKey(data) === id);
+
+        if (item && this.props.onItemRemove) {
+            this.props.onItemRemove(item);
+        }
     }
     handleClose () {
         this.props.onRequestClose();
@@ -293,6 +302,13 @@ class LibraryComponent extends React.Component {
             showPlayButton={this.props.showPlayButton}
             onMouseEnter={this.handleMouseEnter}
             onMouseLeave={this.handleMouseLeave}
+            onRemove={
+                this.props.onItemRemove &&
+                this.props.isItemRemovable &&
+                this.props.isItemRemovable(data) ?
+                    this.handleRemove :
+                    null
+            }
             onSelect={this.handleSelect}
             isMemberOnly={data.isMemberOnly}
         />);
@@ -417,6 +433,8 @@ LibraryComponent.propTypes = {
     withCategories: PropTypes.bool,
     id: PropTypes.string.isRequired,
     intl: intlShape.isRequired,
+    isItemRemovable: PropTypes.func,
+    onItemRemove: PropTypes.func,
     onItemMouseEnter: PropTypes.func,
     onItemMouseLeave: PropTypes.func,
     onItemSelected: PropTypes.func,

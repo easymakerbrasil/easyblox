@@ -1,0 +1,89 @@
+.hardware-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.board-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.board-button {
+    height: 2rem;
+    padding: 0 0.7rem;
+
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.4rem;
+
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.board-button:hover {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.connection-button {
+    width: 1.2rem;
+    height: 1.2rem;
+    min-width: 1.2rem;
+    padding: 0;
+
+    border: 2px solid rgba(255, 255, 255, 0.75);
+    border-radius: 50%;
+
+    cursor: pointer;
+
+    transition:
+        transform 0.12s ease,
+        box-shadow 0.12s ease,
+        opacity 0.12s ease;
+}
+
+.connection-button:hover:not(:disabled) {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+
+.connection-button:focus-visible {
+    outline: 2px solid #ffc800;
+    outline-offset: 2px;
+}
+
+.connection-button:disabled {
+    cursor: default;
+}
+
+.disconnected,
+.connecting {
+    background: #e53935;
+}
+
+.connected {
+    background: #43a047;
+}
+
+.error {
+    background: #ffc800;
+}
+
+.disconnect-confirm-button {
+    border-color: #ffc800 !important;
+    background: #ffc800 !important;
+    color: #282828 !important;
+    font-weight: 600;
+}
+
+.disconnect-confirm-button:hover {
+    border-color: #e6b500 !important;
+    background: #e6b500 !important;
+}

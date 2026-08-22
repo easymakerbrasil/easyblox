@@ -53,7 +53,7 @@ class LibraryItemComponent extends React.PureComponent {
         />);
     }
     render () {
-        return this.props.featured ? (
+        const item = this.props.featured ? (
             <button
                 id={this.props.extensionId}
                 className={classNames(
@@ -194,9 +194,33 @@ class LibraryItemComponent extends React.PureComponent {
                 ) : null}
             </Box>
         );
+
+        if (!this.props.onRemove) {
+            return item;
+        }
+
+        return (
+            <div
+                className={classNames(
+                    styles.removableItemWrapper,
+                    {
+                        [styles.featuredRemovableItemWrapper]: this.props.featured
+                    }
+                )}
+            >
+                {item}
+                <button
+                    aria-label="Remover extensão"
+                    className={styles.removeButton}
+                    type="button"
+                    onClick={this.props.onRemove}
+                >
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+        );
     }
 }
-
 
 LibraryItemComponent.propTypes = {
     intl: intlShape,
@@ -222,6 +246,7 @@ LibraryItemComponent.propTypes = {
     onClick: PropTypes.func.isRequired,
     onFocus: PropTypes.func.isRequired,
     onKeyDown: PropTypes.func.isRequired,
+    onRemove: PropTypes.func,
     onMouseEnter: PropTypes.func.isRequired,
     onMouseLeave: PropTypes.func.isRequired,
     onPlay: PropTypes.func.isRequired,

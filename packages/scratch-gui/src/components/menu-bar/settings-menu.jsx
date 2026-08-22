@@ -1,7 +1,7 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
 import React, {useMemo} from 'react';
-import {useIntl, FormattedMessage, defineMessage} from 'react-intl';
+import {useIntl, defineMessage} from 'react-intl';
 import {connect} from 'react-redux';
 import useMenuNavigation from '../../hooks/use-menu-navigation';
 
@@ -17,9 +17,7 @@ import {persistTheme} from '../../lib/settings/theme/persistence.js';
 import {setColorMode, setTheme} from '../../reducers/settings.js';
 
 import menuBarStyles from './menu-bar.css';
-import styles from './settings-menu.css';
 
-import dropdownCaret from './dropdown-caret.svg';
 import settingsIcon from './icon--settings.svg';
 import themeIcon from '../../lib/assets/icon--theme.svg';
 
@@ -82,18 +80,10 @@ const SettingsMenu = ({
         ref={menuRef}
     >
         <img src={settingsIcon} />
-        <span className={styles.dropdownLabel}>
-            <FormattedMessage
-                defaultMessage="Settings"
-                description="Settings menu"
-                id="gui.menuBar.settings"
-            />
-        </span>
-        <img src={dropdownCaret} />
         <MenuBarMenu
             className={menuBarStyles.menuBarMenu}
             open={isExpanded()}
-            place={isRtl ? 'left' : 'right'}
+            place={isRtl ? 'right' : 'left'}
             onRequestClose={handleOnClose}
         >
             <MenuSection>

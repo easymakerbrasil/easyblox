@@ -5,7 +5,7 @@ import VM from '@scratch/scratch-vm';
 import {defineMessages, injectIntl} from 'react-intl';
 import intlShape from '../lib/intlShape.js';
 
-import extensionLibraryContent from '../lib/libraries/extensions/index.jsx';
+import {getVisibleExtensions} from '../lib/libraries/extensions/index.jsx';
 
 import LibraryComponent from '../components/library/library.jsx';
 import extensionIcon from '../components/action-menu/icon--sprite.svg';
@@ -23,12 +23,23 @@ const messages = defineMessages({
     }
 });
 
-class ExtensionLibrary extends React.PureComponent {
+export class ExtensionLibrary extends React.PureComponent {
     constructor (props) {
         super(props);
         bindAll(this, [
-            'handleItemSelect'
+            'handleItemRemove',
+            'handleItemSelect',
+            'isItemRemovable'
         ]);
+    }
+    handleItemRemove (item) {
+        if (
+            item &&
+            item.extensionId &&
+            this.props.onExtensionRemove
+        ) {
+            this.props.onExtensionRemove(item.extensionId);
+        }
     }
     handleItemSelect (item) {
         const id = item.extensionId;
@@ -39,16 +50,29 @@ class ExtensionLibrary extends React.PureComponent {
         }
         if (id && !item.disabled) {
             if (this.props.vm.extensionManager.isExtensionLoaded(url)) {
+                if (this.props.onExtensionActivate) {
+                    this.props.onExtensionActivate(id);
+                }
                 this.props.onCategorySelected(id);
             } else {
                 this.props.vm.extensionManager.loadExtensionURL(url).then(() => {
+                    if (this.props.onExtensionActivate) {
+                        this.props.onExtensionActivate(id);
+                    }
                     this.props.onCategorySelected(id);
                 });
             }
         }
     }
+    isItemRemovable (item) {
+        return Boolean(
+            item &&
+            item.extensionId &&
+            this.props.activeExtensionIds.includes(item.extensionId)
+        );
+    }
     render () {
-        const extensionLibraryThumbnailData = extensionLibraryContent.map(extension => ({
+        const extensionLibraryThumbnailData = getVisibleExtensions().map(extension => ({
             rawURL: extension.iconURL || extensionIcon,
             ...extension
         }));
@@ -57,8 +81,10 @@ class ExtensionLibrary extends React.PureComponent {
                 data={extensionLibraryThumbnailData}
                 filterable={false}
                 id="extensionLibrary"
+                isItemRemovable={this.isItemRemovable}
                 title={this.props.intl.formatMessage(messages.extensionTitle)}
                 visible={this.props.visible}
+                onItemRemove={this.handleItemRemove}
                 onItemSelected={this.handleItemSelect}
                 onRequestClose={this.props.onRequestClose}
             />
@@ -67,11 +93,18 @@ class ExtensionLibrary extends React.PureComponent {
 }
 
 ExtensionLibrary.propTypes = {
+    activeExtensionIds: PropTypes.arrayOf(PropTypes.string),
     intl: intlShape.isRequired,
     onCategorySelected: PropTypes.func,
+    onExtensionActivate: PropTypes.func,
+    onExtensionRemove: PropTypes.func,
     onRequestClose: PropTypes.func,
     visible: PropTypes.bool,
     vm: PropTypes.instanceOf(VM).isRequired
+};
+
+ExtensionLibrary.defaultProps = {
+    activeExtensionIds: []
 };
 
 export default injectIntl(ExtensionLibrary);

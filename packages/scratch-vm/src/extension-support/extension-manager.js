@@ -125,6 +125,28 @@ class ExtensionManager {
     }
 
     /**
+     * Get the built-in dependencies for an extension.
+     * @param {string} extensionId - the extension ID.
+     * @returns {Array.<string>} a defensive copy of dependency IDs.
+     */
+    getExtensionDependencies (extensionId) {
+        return [
+            ...(builtinExtensionDependencies[extensionId] || [])
+        ];
+    }
+
+    /**
+     * Get the built-in companion extensions for an extension.
+     * @param {string} extensionId - the extension ID.
+     * @returns {Array.<string>} a defensive copy of companion IDs.
+     */
+    getExtensionCompanions (extensionId) {
+        return [
+            ...(builtinExtensionCompanions[extensionId] || [])
+        ];
+    }
+
+    /**
      * Synchronously load an internal extension (core or non-core) by ID. This call will
      * fail if the provided id is not does not match an internal extension.
      * @param {string} extensionId - the ID of an internal extension

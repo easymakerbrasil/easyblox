@@ -1,7 +1,7 @@
 import classNames from 'classnames';
 import omit from 'lodash.omit';
 import PropTypes from 'prop-types';
-import React, {useEffect, useCallback} from 'react';
+import React, {useEffect, useCallback, useState} from 'react';
 import {defineMessages, FormattedMessage, useIntl} from 'react-intl';
 import {connect} from 'react-redux';
 import MediaQuery from 'react-responsive';
@@ -31,6 +31,8 @@ import Alerts from '../../containers/alerts.jsx';
 import DragLayer from '../../containers/drag-layer.jsx';
 import ConnectionModal from '../../containers/connection-modal.jsx';
 import TelemetryModal from '../telemetry-modal/telemetry-modal.jsx';
+import BoardSelectionModal from '../board-selection-modal/board-selection-modal.jsx';
+import {getBoardById} from '../../lib/libraries/extensions/index.jsx';
 
 import layout, {STAGE_SIZE_MODES} from '../../lib/layout-constants';
 import {resolveStageSize} from '../../lib/screen-utils';
@@ -113,6 +115,62 @@ let isRendererSupported = null;
 
 const GUIComponent = props => {
     const intl = useIntl();
+    const [programMode, setProgramMode] = useState('stage');
+    const [selectedBoard, setSelectedBoard] = useState(null);
+    const [boardSelectionModalVisible, setBoardSelectionModalVisible] = useState(false);
+    const [boardSelectionIntent, setBoardSelectionIntent] = useState(null);
+    const [requestedExtensionId, setRequestedExtensionId] = useState(null);
+    const [extensionSelectionRequest, setExtensionSelectionRequest] = useState(0);
+    const [requestedExtensionShouldConnect, setRequestedExtensionShouldConnect] = useState(true);
+    const [connectionState, setConnectionState] = useState('disconnected');
+
+    const handleProgramModeChange = useCallback(nextMode => {
+        if (nextMode === 'upload') {
+            const board = selectedBoard ?
+                getBoardById(selectedBoard) :
+                null;
+
+            if (!board || !board.supportedModes.includes('upload')) {
+                setBoardSelectionIntent('upload');
+                setBoardSelectionModalVisible(true);
+                return;
+            }
+        }
+
+        setProgramMode(nextMode);
+    }, [selectedBoard]);
+
+    const handleBoardSelectionCancel = useCallback(() => {
+        setBoardSelectionModalVisible(false);
+        setBoardSelectionIntent(null);
+    }, []);
+
+    const handleBoardSelectionConfirm = useCallback(boardId => {
+        const board = getBoardById(boardId);
+
+        if (!board) {
+            setBoardSelectionModalVisible(false);
+            setBoardSelectionIntent(null);
+            return;
+        }
+
+        const shouldConnect =
+            boardSelectionIntent === 'upload' ||
+            boardSelectionIntent === 'connect';
+
+        setSelectedBoard(board.boardId);
+        setBoardSelectionModalVisible(false);
+
+        if (boardSelectionIntent === 'upload') {
+            setProgramMode('upload');
+        }
+
+        setRequestedExtensionId(board.extensionId);
+        setRequestedExtensionShouldConnect(shouldConnect);
+        setExtensionSelectionRequest(request => request + 1);
+
+        setBoardSelectionIntent(null);
+    }, [boardSelectionIntent]);
     const {
         accountMenuOptions,
         activeTabIndex,
@@ -207,6 +265,102 @@ const GUIComponent = props => {
         vm,
         ...componentProps
     } = omit(props, 'dispatch', 'setPlatform');
+    useEffect(() => {
+        if (!vm || !selectedBoard) {
+            setConnectionState('disconnected');
+            return;
+        }
+
+        const board = getBoardById(selectedBoard);
+        const extensionId = board ?
+            board.extensionId :
+            null;
+
+        if (!extensionId) {
+            setConnectionState('disconnected');
+            return;
+        }
+
+        const updateConnectionState = () => {
+            setConnectionState(
+                vm.getPeripheralIsConnected(extensionId) ?
+                    'connected' :
+                    'disconnected'
+            );
+        };
+
+        const handleConnectionError = () => {
+            setConnectionState('error');
+        };
+
+        updateConnectionState();
+
+        vm.on('PERIPHERAL_CONNECTED', updateConnectionState);
+        vm.on('PERIPHERAL_DISCONNECTED', updateConnectionState);
+        vm.on('PERIPHERAL_REQUEST_ERROR', handleConnectionError);
+
+        return () => {
+            vm.removeListener('PERIPHERAL_CONNECTED', updateConnectionState);
+            vm.removeListener('PERIPHERAL_DISCONNECTED', updateConnectionState);
+            vm.removeListener('PERIPHERAL_REQUEST_ERROR', handleConnectionError);
+        };
+    }, [vm, selectedBoard]);
+    const handleSelectBoard = useCallback(() => {
+        setBoardSelectionIntent(
+            selectedBoard ?
+                'board' :
+                'connect'
+        );
+        setBoardSelectionModalVisible(true);
+    }, [selectedBoard]);
+
+    const handleConnect = useCallback(() => {
+        if (!selectedBoard) {
+            setBoardSelectionIntent('connect');
+            setBoardSelectionModalVisible(true);
+            return;
+        }
+
+        const board = getBoardById(selectedBoard);
+
+        if (!board) {
+            return;
+        }
+
+        setConnectionState('connecting');
+        setRequestedExtensionId(board.extensionId);
+        setRequestedExtensionShouldConnect(true);
+        setExtensionSelectionRequest(request => request + 1);
+    }, [selectedBoard]);
+
+    const handleDisconnect = useCallback(() => {
+        const board = selectedBoard ?
+            getBoardById(selectedBoard) :
+            null;
+
+        if (board) {
+            vm.disconnectPeripheral(board.extensionId);
+        }
+    }, [selectedBoard, vm]);
+    const handleRemoveBoard = useCallback(() => {
+        const board = selectedBoard ?
+            getBoardById(selectedBoard) :
+            null;
+
+        if (
+            board &&
+            vm.getPeripheralIsConnected(board.extensionId)
+        ) {
+            vm.disconnectPeripheral(board.extensionId);
+        }
+
+        setSelectedBoard(null);
+        setConnectionState('disconnected');
+        setProgramMode('stage');
+        setBoardSelectionModalVisible(false);
+        setBoardSelectionIntent(null);
+        setRequestedExtensionId(null);
+    }, [selectedBoard, vm]);
     if (children) {
         return <Box {...componentProps}>{children}</Box>;
     }
@@ -287,6 +441,19 @@ const GUIComponent = props => {
                             onShowPrivacyPolicy={onShowPrivacyPolicy}
                         />
                     ) : null}
+                    {boardSelectionModalVisible ? (
+                        <BoardSelectionModal
+                            onCancel={handleBoardSelectionCancel}
+                            onConfirm={handleBoardSelectionConfirm}
+                            onRemove={handleRemoveBoard}
+                            requiredMode={
+                                boardSelectionIntent === 'upload' ?
+                                    'upload' :
+                                    null
+                            }
+                            selectedBoard={selectedBoard}
+                        />
+                    ) : null}
                     {loading ? (
                         <Loader />
                     ) : null}
@@ -356,6 +523,8 @@ const GUIComponent = props => {
                             isShared={isShared}
                             isTotallyNormal={isTotallyNormal}
                             logo={logo}
+                            programMode={programMode}
+                            onProgramModeChange={handleProgramModeChange}
                             renderLogin={renderLogin}
                             showComingSoon={showComingSoon}
                             onClickAbout={onClickAbout}
@@ -372,6 +541,11 @@ const GUIComponent = props => {
                             username={username}
                             avatarBadge={avatarBadge}
                             accountMenuOptions={accountMenuOptions}
+                            selectedBoard={selectedBoard}
+                            connectionState={connectionState}
+                            onSelectBoard={handleSelectBoard}
+                            onConnect={handleConnect}
+                            onDisconnect={handleDisconnect}
                         />
                     </MenuRefProvider>
                     }
@@ -478,12 +652,16 @@ const GUIComponent = props => {
                                     >
                                         <Blocks
                                             key={`${blocksId}/${colorMode}/${theme}`}
+                                            activeBoardId={selectedBoard}
                                             canUseCloud={canUseCloud}
+                                            extensionSelectionRequest={extensionSelectionRequest}
                                             grow={1}
                                             isVisible={blocksTabVisible}
                                             options={{
                                                 media: `${basePath}static/${colorModeMap[colorMode].blocksMediaFolder}/`
                                             }}
+                                            requestedExtensionId={requestedExtensionId}
+                                            requestedExtensionShouldConnect={requestedExtensionShouldConnect}
                                             stageSize={stageSize}
                                             theme={theme}
                                             vm={vm}
@@ -538,6 +716,7 @@ const GUIComponent = props => {
                             className={classNames(styles.stageAndTargetWrapper, styles[stageSize])}
                             element="aside"
                         >
+
                             <StageWrapper
                                 isFullScreen={isFullScreen}
                                 isRendererSupported={isRendererSupported}

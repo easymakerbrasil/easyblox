@@ -202,6 +202,57 @@ test('Arduino UNO and hardware companions load together', t => {
     t.end();
 });
 
+test('hardware extension relationships are exposed read-only', t => {
+    const vm = new VirtualMachine();
+
+    const companions =
+        vm.extensionManager.getExtensionCompanions('arduinoUno');
+
+    t.same(
+        companions,
+        ['actuators', 'sensors', 'displays'],
+        'Arduino UNO exposes its hardware companions'
+    );
+
+    const dependencies =
+        vm.extensionManager.getExtensionDependencies('displays');
+
+    t.same(
+        dependencies,
+        ['arduinoUno'],
+        'Displays exposes its Arduino UNO dependency'
+    );
+
+    companions.push('fakeCompanion');
+    dependencies.push('fakeDependency');
+
+    t.same(
+        vm.extensionManager.getExtensionCompanions('arduinoUno'),
+        ['actuators', 'sensors', 'displays'],
+        'companion metadata cannot be mutated externally'
+    );
+
+    t.same(
+        vm.extensionManager.getExtensionDependencies('displays'),
+        ['arduinoUno'],
+        'dependency metadata cannot be mutated externally'
+    );
+
+    t.same(
+        vm.extensionManager.getExtensionCompanions('music'),
+        [],
+        'extensions without companions return an empty array'
+    );
+
+    t.same(
+        vm.extensionManager.getExtensionDependencies('music'),
+        [],
+        'extensions without dependencies return an empty array'
+    );
+
+    t.end();
+});
+
 test('Arduino UNO and hardware companions load asynchronously', t => {
     const vmFromArduino = new VirtualMachine();
 

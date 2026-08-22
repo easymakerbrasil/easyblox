@@ -12,7 +12,10 @@ import log from '../lib/log.js';
 import Prompt from './prompt.jsx';
 import BlocksComponent from '../components/blocks/blocks.jsx';
 import ExtensionLibrary from './extension-library.jsx';
-import extensionData from '../lib/libraries/extensions/index.jsx';
+import extensionData, {
+    filterBlocksXMLForProjectContext,
+    getBoardById
+} from '../lib/libraries/extensions/index.jsx';
 import CustomProcedures from './custom-procedures.jsx';
 import errorBoundaryHOC from '../lib/error-boundary-hoc.jsx';
 import {BLOCKS_DEFAULT_SCALE, STAGE_DISPLAY_SIZES} from '../lib/layout-constants';
@@ -76,6 +79,8 @@ class Blocks extends React.Component {
             'onBlockGlowOn',
             'onBlockGlowOff',
             'handleMonitorsUpdate',
+            'handleExtensionActivate',
+            'handleExtensionRemove',
             'handleExtensionAdded',
             'handleBlocksInfoUpdate',
             'onTargetsUpdate',
@@ -93,7 +98,8 @@ class Blocks extends React.Component {
         this.ScratchBlocks.recordSoundCallback = this.handleOpenSoundRecorder;
 
         this.state = {
-            prompt: null
+            prompt: null,
+            activeExtensionIds: []
         };
         this.onTargetsUpdate = debounce(this.onTargetsUpdate, 100);
         this.toolboxUpdateQueue = [];
@@ -192,6 +198,10 @@ class Blocks extends React.Component {
     shouldComponentUpdate (nextProps, nextState) {
         return (
             this.state.prompt !== nextState.prompt ||
+            this.state.activeExtensionIds !== nextState.activeExtensionIds ||
+            this.props.activeBoardId !== nextProps.activeBoardId ||
+            this.props.requestedExtensionId !== nextProps.requestedExtensionId ||
+            this.props.extensionSelectionRequest !== nextProps.extensionSelectionRequest ||
             this.props.isVisible !== nextProps.isVisible ||
             this._renderedToolboxXML !== nextProps.toolboxXML ||
             this.props.extensionLibraryVisible !== nextProps.extensionLibraryVisible ||
@@ -201,10 +211,22 @@ class Blocks extends React.Component {
             this.props.stageSize !== nextProps.stageSize
         );
     }
-    componentDidUpdate (prevProps) {
+    componentDidUpdate (prevProps, prevState) {
         // If any modals are open, call hideChaff to close z-indexed field editors
         if (this.props.anyModalVisible && !prevProps.anyModalVisible) {
             this.ScratchBlocks.hideChaff();
+        }
+
+        this.handleExtensionSelectionRequest(prevProps);
+
+        if (
+            this.props.activeBoardId !== prevProps.activeBoardId ||
+            this.state.activeExtensionIds !== prevState.activeExtensionIds
+        ) {
+            const toolboxXML = this.getToolboxXML();
+            if (toolboxXML) {
+                this.props.updateToolboxState(toolboxXML);
+            }
         }
 
         // Only rerender the toolbox when the blocks are visible and the xml is
@@ -425,8 +447,44 @@ class Blocks extends React.Component {
             const stageCostumes = stage.getCostumes();
             const targetCostumes = target.getCostumes();
             const targetSounds = target.getSounds();
+            const blocksXML = this.props.vm.runtime.getBlocksXML(target);
+
+            const activeBoard = this.props.activeBoardId ?
+                getBoardById(this.props.activeBoardId) :
+                null;
+
+            const activeBoardCompanionIds = activeBoard ?
+                this.props.vm.extensionManager.getExtensionCompanions(
+                    activeBoard.extensionId
+                ) :
+                [];
+
+            const allBoardCompanionIds = Array.from(new Set(
+                blocksXML
+                    .map(category => extensionData.find(
+                        item =>
+                            item.kind === 'board' &&
+                            item.extensionId === category.id
+                    ))
+                    .filter(Boolean)
+                    .reduce(
+                        (companions, board) => companions.concat(
+                            this.props.vm.extensionManager.getExtensionCompanions(
+                                board.extensionId
+                            )
+                        ),
+                        []
+                    )
+            ));
+
             const dynamicBlocksXML = injectExtensionCategoryMode(
-                this.props.vm.runtime.getBlocksXML(target),
+                filterBlocksXMLForProjectContext(
+                    blocksXML,
+                    this.props.activeBoardId,
+                    this.state.activeExtensionIds,
+                    activeBoardCompanionIds,
+                    allBoardCompanionIds
+                ),
                 this.props.colorMode
             );
             return makeToolboxXML(false, target.isStage, target.id, dynamicBlocksXML,
@@ -518,12 +576,24 @@ class Blocks extends React.Component {
             }
         }
     }
-    handleExtensionAdded (categoryInfo) {
+    handleExtensionAdded (categoryInfo, shouldActivate = true) {
         analytics.event({
             category: 'extensions',
             action: 'added',
             label: categoryInfo.id
         });
+
+        const extension = extensionData.find(
+            item => item.extensionId === categoryInfo.id
+        );
+
+        if (
+            shouldActivate &&
+            extension &&
+            extension.kind === 'extension'
+        ) {
+            this.handleExtensionActivate(categoryInfo.id);
+        }
 
         const defineBlocks = blockInfoArray => {
             if (blockInfoArray && blockInfoArray.length > 0) {
@@ -597,13 +667,59 @@ class Blocks extends React.Component {
             this.props.updateToolboxState(toolboxXML);
         }
     }
-    handleBlocksInfoUpdate (categoryInfo) {
-        // @todo Later we should replace this to avoid all the warnings from redefining blocks.
-        this.handleExtensionAdded(categoryInfo);
+    handleExtensionActivate (extensionId) {
+        this.setState(state => {
+            if (state.activeExtensionIds.includes(extensionId)) {
+                return null;
+            }
+
+            return {
+                activeExtensionIds: [
+                    ...state.activeExtensionIds,
+                    extensionId
+                ]
+            };
+        });
     }
-    handleCategorySelected (categoryId) {
+
+    handleExtensionRemove (extensionId) {
+        this.setState(state => ({
+            activeExtensionIds: state.activeExtensionIds.filter(
+                activeExtensionId => activeExtensionId !== extensionId
+            )
+        }));
+    }
+    handleBlocksInfoUpdate (categoryInfo) {
+        this.handleExtensionAdded(categoryInfo, false);
+    }
+    handleExtensionSelectionRequest (prevProps) {
+        if (
+            this.props.extensionSelectionRequest === prevProps.extensionSelectionRequest ||
+            !this.props.requestedExtensionId
+        ) {
+            return;
+        }
+
+        const extensionId = this.props.requestedExtensionId;
+        const shouldConnect = this.props.requestedExtensionShouldConnect;
+
+        if (this.props.vm.extensionManager.isExtensionLoaded(extensionId)) {
+            this.handleCategorySelected(extensionId, shouldConnect);
+            return;
+        }
+
+        this.props.vm.extensionManager.loadExtensionURL(extensionId).then(() => {
+            this.handleCategorySelected(extensionId, shouldConnect);
+        });
+    }
+    handleCategorySelected (categoryId, shouldConnect = true) {
         const extension = extensionData.find(ext => ext.extensionId === categoryId);
-        if (extension && extension.launchPeripheralConnectionFlow) {
+
+        if (
+            shouldConnect &&
+            extension &&
+            extension.launchPeripheralConnectionFlow
+        ) {
             this.handleConnectionModalStart(categoryId);
         }
 
@@ -717,8 +833,11 @@ class Blocks extends React.Component {
                 ) : null}
                 {extensionLibraryVisible ? (
                     <ExtensionLibrary
+                        activeExtensionIds={this.state.activeExtensionIds}
                         vm={vm}
                         onCategorySelected={this.handleCategorySelected}
+                        onExtensionActivate={this.handleExtensionActivate}
+                        onExtensionRemove={this.handleExtensionRemove}
                         onRequestClose={onRequestCloseExtensionLibrary}
                     />
                 ) : null}
@@ -751,6 +870,10 @@ Blocks.propTypes = {
     onOpenSoundRecorder: PropTypes.func,
     onRequestCloseCustomProcedures: PropTypes.func,
     onRequestCloseExtensionLibrary: PropTypes.func,
+    extensionSelectionRequest: PropTypes.number,
+    requestedExtensionId: PropTypes.string,
+    requestedExtensionShouldConnect: PropTypes.bool,
+    activeBoardId: PropTypes.string,
     options: PropTypes.shape({
         media: PropTypes.string,
         zoom: PropTypes.shape({
@@ -796,9 +919,14 @@ Blocks.defaultOptions = {
 };
 
 Blocks.defaultProps = {
+    extensionSelectionRequest: 0,
+    requestedExtensionId: null,
     isVisible: true,
     options: Blocks.defaultOptions,
+    requestedExtensionShouldConnect: true,
+    activeBoardId: null,
     colorMode: DEFAULT_MODE
+
 };
 
 const mapStateToProps = state => ({

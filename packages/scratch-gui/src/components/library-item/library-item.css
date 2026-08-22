@@ -219,3 +219,69 @@
     height: 1.25rem;
     z-index: 1;
 }
+
+.removable-item-wrapper {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+
+    flex-basis: 160px;
+    max-width: 160px;
+
+    margin: $space;
+}
+
+.removable-item-wrapper > .library-item {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+}
+
+.featured-removable-item-wrapper {
+    flex-basis: 300px;
+    max-width: 300px;
+}
+
+.featured-removable-item-wrapper > .featured-item {
+    flex-basis: auto;
+    max-width: 100%;
+}
+
+.remove-button {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 2;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+
+    border: 2px solid $easyblox-graphite;
+    border-radius: 50%;
+
+    background: white;
+    color: $easyblox-graphite;
+
+    font: inherit;
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+.remove-button:hover {
+    border-color: #ffc800;
+    background: #ffc800;
+}
+
+.remove-button:focus-visible {
+    outline: 3px solid #ffc800;
+    outline-offset: 2px;
+}

@@ -1,0 +1,124 @@
+@import "../../css/units.css";
+@import "../../css/colors.css";
+@import "../../css/easyblox-colors.css";
+
+.modal-content {
+    width: 36rem;
+    max-width: calc(100vw - 4rem);
+}
+
+.header {
+    background-color: $easyblox-graphite;
+}
+
+.body {
+    padding: 1.5rem 1.75rem 2rem;
+    background: $ui-secondary;
+}
+
+.description {
+    margin: 0 0 1.5rem;
+
+    color: $text-primary;
+    font-size: 0.95rem;
+    text-align: center;
+}
+
+.board-grid {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.board-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    width: 13rem;
+    min-height: 11rem;
+    padding: 1rem;
+
+    border: 2px solid transparent;
+    border-radius: 0.75rem;
+
+    background: white;
+
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+
+    font: inherit;
+    cursor: pointer;
+
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
+}
+
+.board-card:hover {
+    border-color: #ffc800;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+    transform: translateY(-2px);
+}
+
+.board-card:focus-visible {
+    outline: 3px solid #ffc800;
+    outline-offset: 2px;
+}
+
+.board-image {
+    display: block;
+
+    width: 9rem;
+    height: 6.5rem;
+
+    margin-bottom: 0.8rem;
+
+    object-fit: contain;
+}
+
+.board-name {
+    color: $text-primary;
+    font-size: 1rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.remove-board-section {
+    display: flex;
+    justify-content: center;
+
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.remove-board-button {
+    padding: 0.65rem 1rem;
+
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 0.5rem;
+
+    background: transparent;
+
+    color: $text-primary;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+.remove-board-button:hover {
+    border-color: #ffc800;
+    background: rgba(255, 200, 0, 0.1);
+}
+
+.remove-board-button:focus-visible {
+    outline: 3px solid #ffc800;
+    outline-offset: 2px;
+}

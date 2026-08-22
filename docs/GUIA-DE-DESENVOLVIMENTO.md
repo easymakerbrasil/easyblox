@@ -7763,3 +7763,313 @@ validação recursiva;
 inferência estrutural de recursos;
 geração C++ determinística;
 ausência de regressões no Modo Palco.
+
+### 19.162. A7 — UX Palco ↔ Carregar, placas e extensões
+
+Em 22/08/2026 foi concluído e validado o checkpoint A7.1/A7.2 da experiência de hardware do EasyBlox, integrando a API pública inicial do Arduino UNO Modo Carregar à nova UX de seleção de modo, placas e extensões. A etapa A7.3, correspondente ao preview C++ somente leitura, permanece para o próximo incremento.
+
+O objetivo desta etapa foi estabelecer uma separação clara entre:
+
+- modo de programação;
+- placa selecionada;
+- conexão física;
+- extensões normais do projeto;
+- categorias auxiliares vinculadas a uma placa.
+
+#### A7.1 — API pública do Arduino UNO Upload
+
+A VirtualMachine passou a expor uma API pública para geração do código Arduino UNO Upload a partir do projeto atual.
+
+A GUI não precisa conhecer diretamente:
+
+- Scratch blocks internos;
+- UploadProgramExtractor;
+- EasyBlox IR;
+- validadores;
+- ArduinoUnoGenerator.
+
+A cadeia permanece encapsulada na Scratch VM.
+
+A arquitetura continua:
+
+Scratch VM
+→ UploadProgramExtractor
+→ EasyBlox IR
+→ validação
+→ ArduinoUnoGenerator
+→ C++
+
+Isso preserva a VM como fonte canônica do programa e mantém a futura GUI de preview C++ independente dos detalhes internos do pipeline.
+
+#### A7.2 — seletor Palco ↔ Carregar
+
+Foi criado o seletor de modo de programação na barra superior:
+
+Palco
+Carregar
+
+O Modo Palco continua sendo o estado padrão.
+
+A mudança para Carregar respeita as capacidades declaradas pela placa.
+
+Se nenhuma placa compatível estiver selecionada, o EasyBlox abre o seletor de placas antes de concluir a mudança de modo.
+
+Placas incompatíveis com o modo solicitado não são oferecidas como opção válida.
+
+#### Controles de hardware
+
+A área de hardware foi reorganizada para utilizar controles compactos na interface principal.
+
+O estado de hardware permanece separado do modo de programação.
+
+A interface distingue:
+
+- placa selecionada;
+- conexão;
+- desconexão;
+- modo Palco;
+- modo Carregar.
+
+Selecionar uma placa não implica necessariamente conectar fisicamente a placa.
+
+#### Catálogo genérico de placas
+
+A biblioteca de extensões passou a classificar explicitamente itens de hardware como placas.
+
+Cada placa pode declarar metadados como:
+
+- boardId;
+- extensionId;
+- kind;
+- modos suportados;
+- visibilidade.
+
+A seleção de placas deixou de depender de lógica específica do Arduino UNO.
+
+O mesmo fluxo foi validado com:
+
+- Arduino UNO;
+- micro:bit.
+
+Placas ocultas no catálogo continuam podendo permanecer registradas sem aparecer na interface atual.
+
+#### Remoção de placa
+
+Quando existe uma placa selecionada, o seletor de placas oferece:
+
+Remover placa selecionada
+
+A remoção:
+
+- desconecta a placa se necessário;
+- limpa selectedBoard;
+- retorna o modo para Palco;
+- fecha o contexto de seleção;
+- remove da paleta as categorias vinculadas à placa.
+
+A remoção da placa não depende da exclusão da extensão correspondente da VM.
+
+#### Companions de hardware
+
+As relações entre uma placa e suas extensões auxiliares são definidas na Scratch VM.
+
+Para o Arduino UNO:
+
+arduinoUno
+├── actuators
+├── sensors
+└── displays
+
+A ExtensionManager passou a expor APIs read-only:
+
+getExtensionDependencies(extensionId)
+getExtensionCompanions(extensionId)
+
+As APIs devolvem cópias defensivas dos arrays internos.
+
+A GUI consulta essas relações em vez de duplicar o conhecimento arquitetural sobre companions.
+
+Assim, ao selecionar Arduino UNO, ficam disponíveis:
+
+- Arduino UNO;
+- Atuadores;
+- Sensores Arduino;
+- Displays.
+
+Ao remover Arduino UNO, todas essas categorias desaparecem juntas da paleta.
+
+#### Extensões normais do projeto
+
+Extensões normais possuem semântica diferente das placas.
+
+O projeto pode possuir:
+
+- zero ou uma placa selecionada;
+- zero ou várias extensões normais ativas.
+
+O Blocks mantém:
+
+activeExtensionIds
+
+como estado do contexto das extensões normais.
+
+Selecionar uma extensão na biblioteca a adiciona ao conjunto de extensões ativas.
+
+Selecionar novamente uma extensão já carregada apenas navega para sua categoria.
+
+#### Remoção de extensão por `×`
+
+Cards de extensões normais ativas passam a apresentar um botão independente:
+
+×
+
+Esse botão remove somente a extensão da paleta ativa.
+
+A operação:
+
+- não aciona o botão principal do card;
+- não fecha obrigatoriamente a biblioteca;
+- não remove outras extensões;
+- não apaga blocos já existentes na área de scripts;
+- não precisa descarregar tecnicamente a extensão da VM.
+
+Isso permite, por exemplo, esconder a categoria Traduzir depois de já ter construído scripts com seus blocos.
+
+#### Proteção contra reativação involuntária
+
+Foi feita uma distinção entre:
+
+EXTENSION_ADDED
+
+e:
+
+BLOCKSINFO_UPDATE
+
+Uma extensão normal carregada realmente pela VM pode ser ativada automaticamente.
+
+Por outro lado, uma atualização de informações dos blocos não pode reativar uma extensão que o usuário removeu da paleta.
+
+Portanto:
+
+handleExtensionAdded(categoryInfo, shouldActivate = true)
+
+permite definir os blocos sem necessariamente alterar activeExtensionIds.
+
+BLOCKSINFO_UPDATE utiliza:
+
+shouldActivate = false
+
+preservando a decisão do usuário.
+
+#### Filtro de contexto do projeto
+
+O filtro antigo limitado à placa ativa foi generalizado para:
+
+filterBlocksXMLForProjectContext(...)
+
+O filtro considera:
+
+- activeBoardId;
+- activeExtensionIds;
+- companions da placa ativa;
+- conjunto conhecido de companions de hardware.
+
+As regras principais são:
+
+- somente a placa ativa permanece entre categorias classificadas como board;
+- companions aparecem somente quando vinculados à placa ativa;
+- extensões normais aparecem somente quando estão em activeExtensionIds;
+- categorias dinâmicas desconhecidas são preservadas para não quebrar extensões externas/customizadas.
+
+#### Reconstrução do toolbox
+
+O toolbox é reconstruído quando muda:
+
+- activeBoardId;
+- activeExtensionIds.
+
+A reconstrução permanece baseada em:
+
+runtime.getBlocksXML(target)
+→ filtro de contexto
+→ injectExtensionCategoryMode(...)
+→ updateToolboxState(...)
+
+Isso evita descarregar extensões apenas para alterar sua visibilidade na paleta.
+
+#### Validação automatizada
+
+A regressão integrada das camadas GUI relacionadas à A7 foi concluída com:
+
+46 pass
+0 fail
+7 suites
+
+O conjunto cobriu:
+
+- Blocks;
+- ExtensionLibrary;
+- Library;
+- LibraryItem;
+- catálogo e filtro de extensões;
+- BoardSelectionModal.
+
+A integração da ExtensionManager para relações de hardware também foi validada com:
+
+50 pass
+0 fail
+1 suite
+
+#### Validação visual
+
+A validação manual confirmou:
+
+Arduino UNO selecionado
+→ Arduino UNO
+→ Atuadores
+→ Sensores Arduino
+→ Displays
+
+Arduino UNO removido
+→ todas as categorias acima deixam a paleta
+
+micro:bit selecionado
+→ categoria micro:bit carregada normalmente
+
+Extensões normais
+→ ativação e remoção independentes funcionando
+
+#### Observação operacional sobre o Scratch VM
+
+Durante a validação foi identificado que alterações realizadas em:
+
+packages/scratch-vm/src/
+
+não aparecem automaticamente nos bundles consumidos pela aplicação.
+
+Após adicionar getExtensionCompanions(), os testes baseados em src estavam corretos, porém o EasyBlox em execução ainda utilizava um dist anterior.
+
+Foi necessário executar:
+
+npm run build
+
+em:
+
+packages/scratch-vm
+
+Após a recompilação, o método foi confirmado em:
+
+dist/node/scratch-vm.js
+dist/web/scratch-vm.js
+
+e Arduino UNO e micro:bit voltaram a carregar normalmente.
+
+Portanto, após alterações de API da Scratch VM que sejam consumidas pelo scratch-gui, deve-se verificar se o bundle utilizado pela aplicação precisa ser recompilado antes da validação visual.
+
+#### Alteração local independente
+
+O arquivo:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+permanece uma alteração local independente e não deve ser incluído no staging da A7.

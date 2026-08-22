@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import React, {useCallback, useRef} from 'react';
 import {useIntl, FormattedMessage, defineMessage} from 'react-intl';
 import {connect} from 'react-redux';
-import locales from 'scratch-l10n';
 
 import check from './check.svg';
 import {MenuItem, Submenu} from '../menu/menu.jsx';
@@ -21,6 +20,21 @@ const languageMenu = defineMessage({
     defaultMessage: 'Language menu',
     description: 'accessibility label for language menu'
 });
+
+const EASYBLOX_LOCALES = [
+    {
+        id: 'pt-br',
+        name: 'Português'
+    },
+    {
+        id: 'en',
+        name: 'English'
+    },
+    {
+        id: 'es-419',
+        name: 'Español'
+    }
+];
 
 const LanguageMenu = ({
     currentLocale,
@@ -40,7 +54,7 @@ const LanguageMenu = ({
         menuRef
     } = useMenuNavigation({
         depth: depth ?? 1,
-        defaultIndexOnOpen: (Object.keys(locales).indexOf(currentLocale)),
+        defaultIndexOnOpen: EASYBLOX_LOCALES.findIndex(locale => locale.id === currentLocale),
         isRtl
     });
 
@@ -90,15 +104,15 @@ const LanguageMenu = ({
                 place={isRtl ? 'left' : 'right'}
             >
                 {
-                    Object.keys(locales)
+                    EASYBLOX_LOCALES
                         .map(locale => {
-                            const isSelected = currentLocale === locale;
+                            const isSelected = currentLocale === locale.id;
 
                             return (<MenuItem
-                                key={locale}
+                                key={locale.id}
                                 className={stylesLanguageMenu.languageMenuItem}
                                 // eslint-disable-next-line react/jsx-no-bind
-                                onClick={() => onChangeLanguage(locale)}
+                                onClick={() => onChangeLanguage(locale.id)}
                                 isDataMenuItem
                                 onParentKeyDown={handleKeyDownOpenMenu}
                                 isSelected={isSelected}
@@ -110,7 +124,7 @@ const LanguageMenu = ({
                                     src={check}
                                     {...(isSelected && {ref: setRef})}
                                 />
-                                {locales[locale].name}
+                                {locale.name}
                             </MenuItem>);
                         })
                 }

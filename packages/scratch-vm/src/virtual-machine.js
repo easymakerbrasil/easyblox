@@ -19,6 +19,15 @@ const formatMessage = require('format-message');
 const Variable = require('./engine/variable');
 const newBlockIds = require('./util/new-block-ids');
 
+const UploadProgramExtractor =
+    require('./upload/upload-program-extractor');
+const UploadContextValidator =
+    require('./upload/upload-context-validator');
+const UploadTypeValidator =
+    require('./upload/upload-type-validator');
+const ArduinoUnoGenerator =
+    require('./upload/arduino-uno-generator');
+
 const {loadCostume} = require('./import/load-costume.js');
 const {loadSound} = require('./import/load-sound.js');
 const {serializeSounds, serializeCostumes} = require('./serialization/serialize-assets');
@@ -1619,6 +1628,24 @@ class VirtualMachine extends EventEmitter {
      */
     configureSerialTransportFactory (factory) {
         this.runtime.configureSerialTransportFactory(factory);
+    }
+
+    /**
+     * Generate Arduino UNO Upload C++ from the current project.
+     * @returns {string} Complete deterministic Arduino UNO sketch.
+     */
+    generateArduinoUnoUploadCode () {
+        const extractor = new UploadProgramExtractor(this.runtime);
+        const contextValidator = new UploadContextValidator();
+        const typeValidator = new UploadTypeValidator();
+        const generator = new ArduinoUnoGenerator();
+
+        const ir = extractor.extract();
+
+        contextValidator.validate(ir);
+        typeValidator.validate(ir);
+
+        return generator.generate(ir);
     }
 }
 

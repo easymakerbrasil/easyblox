@@ -8459,3 +8459,270 @@ A6.2 → control_if_else
 o A6 fecha o núcleo inicial de controles condicionais do Arduino UNO Modo Carregar v1.
 
 O projeto permanece na implementação incremental do contrato de Upload. A próxima etapa deverá ser definida a partir da sequência contratual consolidada, sem antecipar funcionalidades fora do próximo checkpoint.
+
+### 23.10. A7.1/A7.2 — API Upload e UX Palco ↔ Carregar
+
+Em 22/08/2026 foi concluído e validado o checkpoint A7.1/A7.2 do Arduino UNO Modo Carregar v1.
+
+O trabalho integra a primeira API pública de geração Upload da Scratch VM à nova experiência de seleção de modo, placas e extensões do EasyBlox.
+
+A etapa A7.3 — preview C++ somente leitura — permanece para o próximo incremento.
+
+#### A7.1 — API pública da Scratch VM
+
+A VirtualMachine passou a disponibilizar a geração Arduino UNO Upload através de API pública.
+
+A GUI não acessa diretamente:
+
+UploadProgramExtractor
+EasyBlox IR
+Upload validators
+ArduinoUnoGenerator
+
+O fluxo permanece encapsulado na VM:
+
+Scratch VM
+→ UploadProgramExtractor
+→ EasyBlox IR
+→ validação
+→ ArduinoUnoGenerator
+→ C++
+
+Isso mantém a Scratch VM como fonte canônica do programa.
+
+#### A7.2 — seletor Palco ↔ Carregar
+
+Foi implementado o seletor superior:
+
+Palco
+Carregar
+
+Palco permanece como modo padrão.
+
+A entrada em Carregar verifica a existência de placa compatível.
+
+Quando necessário, o seletor de placas é aberto antes da mudança efetiva de modo.
+
+#### Seleção de placas
+
+O catálogo de extensões passou a diferenciar explicitamente:
+
+board
+extension
+
+As placas utilizam metadados próprios, incluindo:
+
+boardId
+extensionId
+modes
+visible
+
+O fluxo genérico foi validado com:
+
+Arduino UNO
+micro:bit
+
+O seletor permite também:
+
+Remover placa selecionada
+
+Ao remover uma placa:
+
+- a conexão é encerrada quando necessário;
+- selectedBoard é limpo;
+- connectionState retorna para disconnected;
+- programMode retorna para stage;
+- as categorias associadas à placa deixam a paleta.
+
+#### Companions de hardware
+
+A relação entre uma placa e suas categorias auxiliares permanece definida na Scratch VM.
+
+Para Arduino UNO:
+
+arduinoUno
+├── actuators
+├── sensors
+└── displays
+
+A ExtensionManager passou a expor:
+
+getExtensionDependencies(extensionId)
+getExtensionCompanions(extensionId)
+
+Os valores retornados são cópias defensivas.
+
+A GUI consulta essas APIs e não replica a relação Arduino → companions.
+
+Com Arduino UNO ativo, a paleta apresenta:
+
+Arduino UNO
+Atuadores
+Sensores Arduino
+Displays
+
+Ao remover Arduino UNO, as quatro categorias desaparecem juntas.
+
+#### Extensões normais
+
+Extensões normais são independentes da placa selecionada.
+
+O modelo atual permite:
+
+0 ou 1 placa selecionada
+0 ou N extensões normais ativas
+
+O estado das extensões normais é mantido em:
+
+activeExtensionIds
+
+Cards de extensões ativas apresentam um botão:
+
+×
+
+Esse botão remove somente aquela extensão do contexto visível da paleta.
+
+A remoção:
+
+- não dispara a ação principal do card;
+- não remove outras extensões;
+- não apaga blocos já existentes nos scripts;
+- não exige descarregar tecnicamente a extensão da VM.
+
+A biblioteca pode permanecer aberta após a remoção.
+
+#### Proteção contra reativação
+
+Foi distinguido o comportamento de:
+
+EXTENSION_ADDED
+BLOCKSINFO_UPDATE
+
+Uma extensão efetivamente adicionada pode entrar em activeExtensionIds.
+
+Uma atualização de informações dos blocos não pode reativar automaticamente uma extensão removida pelo usuário.
+
+handleExtensionAdded passou a aceitar:
+
+shouldActivate = true
+
+e handleBlocksInfoUpdate utiliza:
+
+shouldActivate = false
+
+#### Filtro geral do toolbox
+
+O filtro anterior específico para placa foi generalizado para:
+
+filterBlocksXMLForProjectContext(...)
+
+O filtro considera:
+
+activeBoardId
+activeExtensionIds
+activeBoardCompanionIds
+allBoardCompanionIds
+
+Regras:
+
+- somente a placa ativa permanece entre categorias classificadas como board;
+- companions aparecem somente com a placa correspondente;
+- extensões normais aparecem somente quando estão ativas;
+- categorias dinâmicas desconhecidas continuam preservadas.
+
+O toolbox é reconstruído quando muda:
+
+activeBoardId
+activeExtensionIds
+
+#### Validação automatizada da GUI
+
+Regressão integrada:
+
+46 pass
+0 fail
+7 suites
+
+Cobertura funcional desta regressão:
+
+Blocks
+ExtensionLibrary
+Library
+LibraryItem
+catálogo/filtro de extensões
+BoardSelectionModal
+
+A relação de companions na Scratch VM também foi validada:
+
+50 pass
+0 fail
+1 suite
+
+#### Validação visual
+
+Validado manualmente em 22/08/2026:
+
+Arduino UNO selecionado
+→ Arduino UNO + Atuadores + Sensores Arduino + Displays visíveis
+
+Arduino UNO removido
+→ categorias de hardware removidas da paleta
+
+micro:bit selecionado
+→ categoria micro:bit disponível normalmente
+
+extensões normais
+→ ativação e remoção independentes funcionando
+
+blocos já utilizados de uma extensão removida
+→ permanecem no workspace
+
+#### Scratch VM `src` versus `dist`
+
+Durante a validação foi identificado um ponto operacional importante.
+
+A implementação de:
+
+getExtensionCompanions()
+
+estava presente em:
+
+packages/scratch-vm/src/
+
+e os testes da VM estavam GREEN.
+
+Entretanto, o scratch-gui em execução ainda consumia bundles anteriores de:
+
+packages/scratch-vm/dist/
+
+Isso provocava falha no getToolboxXML quando qualquer placa era selecionada, impedindo temporariamente o carregamento das categorias Arduino UNO e micro:bit.
+
+A correção operacional foi recompilar a VM:
+
+cd packages\scratch-vm
+npm run build
+
+Após o build, getExtensionCompanions foi confirmado em:
+
+dist\node\scratch-vm.js
+dist\web\scratch-vm.js
+
+e o comportamento visual voltou ao normal.
+
+Diretriz:
+
+após mudanças de API da Scratch VM consumidas pelo scratch-gui, verificar e recompilar o dist antes da validação visual quando necessário.
+
+#### Alteração local independente
+
+O arquivo:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+permanece fora do staging e não pertence ao checkpoint A7.1/A7.2.
+
+Estado do checkpoint:
+
+A7.1 — concluído
+A7.2 — concluído e validado
+A7.3 — próximo incremento: preview C++ somente leitura

@@ -52,7 +52,7 @@ import faceSensingIconURL from './faceSensing/faceSensing.png';
 import faceSensingInsetIconURL from './faceSensing/faceSensing-small.svg';
 
 
-export default [
+const extensionLibraryContent = [
     {
         name: (
             <FormattedMessage
@@ -451,3 +451,115 @@ export default [
         helpLink: 'https://scratch.mit.edu/wedo'
     }
 ];
+
+const BOARD_METADATA = {
+    arduinoUno: {
+        boardId: 'arduino-uno',
+        kind: 'board',
+        supportedModes: [
+            'stage',
+            'upload'
+        ],
+        visible: true
+    },
+    microbit: {
+        boardId: 'microbit',
+        kind: 'board',
+        supportedModes: [
+            'stage'
+        ],
+        visible: true
+    },
+    ev3: {
+        kind: 'board',
+        visible: false
+    },
+    boost: {
+        kind: 'board',
+        visible: false
+    },
+    wedo2: {
+        kind: 'board',
+        visible: false
+    }
+};
+
+const classifiedLibraryContent = extensionLibraryContent.map(item => ({
+    kind: 'extension',
+    visible: true,
+    ...item,
+    ...(BOARD_METADATA[item.extensionId] || {})
+}));
+
+export const getVisibleExtensions = () =>
+    classifiedLibraryContent.filter(item =>
+        item.kind === 'extension' && item.visible
+    );
+
+export const getVisibleBoards = () =>
+    classifiedLibraryContent.filter(item =>
+        item.kind === 'board' && item.visible
+    );
+
+export const getBoardById = boardId =>
+    getVisibleBoards().find(item => item.boardId === boardId) || null;
+
+export const filterBlocksXMLForActiveBoard = (blocksXML, activeBoardId) => {
+    const activeBoard = activeBoardId ?
+        getBoardById(activeBoardId) :
+        null;
+
+    const activeBoardExtensionId = activeBoard ?
+        activeBoard.extensionId :
+        null;
+
+    return blocksXML.filter(category => {
+        const catalogItem = classifiedLibraryContent.find(
+            item => item.extensionId === category.id
+        );
+
+        if (!catalogItem || catalogItem.kind !== 'board') {
+            return true;
+        }
+
+        return category.id === activeBoardExtensionId;
+    });
+};
+
+export const filterBlocksXMLForProjectContext = (
+    blocksXML,
+    activeBoardId,
+    activeExtensionIds = [],
+    activeBoardCompanionIds = [],
+    allBoardCompanionIds = []
+) => {
+    const activeBoard = activeBoardId ?
+        getBoardById(activeBoardId) :
+        null;
+
+    const activeBoardExtensionId = activeBoard ?
+        activeBoard.extensionId :
+        null;
+
+    return blocksXML.filter(category => {
+        const catalogItem = classifiedLibraryContent.find(
+            item => item.extensionId === category.id
+        );
+
+        if (catalogItem && catalogItem.kind === 'board') {
+            return category.id === activeBoardExtensionId;
+        }
+
+        if (allBoardCompanionIds.includes(category.id)) {
+            return activeBoardCompanionIds.includes(category.id);
+        }
+
+        if (catalogItem && catalogItem.kind === 'extension') {
+            return activeExtensionIds.includes(category.id);
+        }
+
+        return true;
+    });
+};
+
+export default classifiedLibraryContent;

@@ -21,6 +21,7 @@ class LibraryItem extends React.PureComponent {
             'handleMouseEnter',
             'handleMouseLeave',
             'handlePlay',
+            'handleRemove',
             'handleStop',
             'rotateIcon',
             'startRotatingIcons',
@@ -97,6 +98,14 @@ class LibraryItem extends React.PureComponent {
     handlePlay () {
         this.props.onMouseEnter(this.props.id);
     }
+    handleRemove (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (this.props.onRemove) {
+            this.props.onRemove(this.props.id);
+        }
+    }
     handleStop () {
         this.props.onMouseLeave(this.props.id);
     }
@@ -155,6 +164,7 @@ class LibraryItem extends React.PureComponent {
                 onPlay={this.handlePlay}
                 onStop={this.handleStop}
                 isMemberOnly={this.props.isMemberOnly}
+                onRemove={this.props.onRemove ? this.handleRemove : null}
             />
         );
     }
@@ -192,8 +202,11 @@ LibraryItem.propTypes = {
     onSelect: PropTypes.func.isRequired,
     platform: PropTypes.oneOf(Object.keys(PLATFORM)),
     showPlayButton: PropTypes.bool,
+    onRemove: PropTypes.func,
     isMemberOnly: PropTypes.bool
 };
+
+export {LibraryItem};
 
 export default compose(
     injectIntl,
