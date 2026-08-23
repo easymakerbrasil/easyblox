@@ -32,6 +32,7 @@ import DragLayer from '../../containers/drag-layer.jsx';
 import ConnectionModal from '../../containers/connection-modal.jsx';
 import TelemetryModal from '../telemetry-modal/telemetry-modal.jsx';
 import BoardSelectionModal from '../board-selection-modal/board-selection-modal.jsx';
+import UploadWorkspace from '../upload-workspace/upload-workspace.jsx';
 import {getBoardById} from '../../lib/libraries/extensions/index.jsx';
 
 import layout, {STAGE_SIZE_MODES} from '../../lib/layout-constants';
@@ -39,6 +40,9 @@ import {resolveStageSize} from '../../lib/screen-utils';
 import {colorModeMap} from '../../lib/settings/color-mode/index.js';
 import {DEFAULT_THEME, themeMap} from '../../lib/settings/theme/index.js';
 import {AccountMenuOptionsPropTypes} from '../../lib/account-menu-options';
+import {
+    subscribeToArduinoUnoUploadPreview
+} from '../../lib/upload-code-preview.js';
 
 import styles from './gui.css';
 import codeIcon from './icon--code.svg';
@@ -123,6 +127,8 @@ const GUIComponent = props => {
     const [extensionSelectionRequest, setExtensionSelectionRequest] = useState(0);
     const [requestedExtensionShouldConnect, setRequestedExtensionShouldConnect] = useState(true);
     const [connectionState, setConnectionState] = useState('disconnected');
+    const [uploadPreviewCode, setUploadPreviewCode] = useState('');
+    const [uploadPreviewError, setUploadPreviewError] = useState(null);
 
     const handleProgramModeChange = useCallback(nextMode => {
         if (nextMode === 'upload') {
@@ -265,6 +271,29 @@ const GUIComponent = props => {
         vm,
         ...componentProps
     } = omit(props, 'dispatch', 'setPlatform');
+    useEffect(() => {
+        if (
+            !vm ||
+            programMode !== 'upload' ||
+            selectedBoard !== 'arduino-uno'
+        ) {
+            setUploadPreviewCode('');
+            setUploadPreviewError(null);
+            return;
+        }
+
+        return subscribeToArduinoUnoUploadPreview(
+            vm,
+            ({code, error}) => {
+                setUploadPreviewCode(code);
+                setUploadPreviewError(error);
+            }
+        );
+    }, [
+        vm,
+        programMode,
+        selectedBoard
+    ]);
     useEffect(() => {
         if (!vm || !selectedBoard) {
             setConnectionState('disconnected');
@@ -717,37 +746,46 @@ const GUIComponent = props => {
                             element="aside"
                         >
 
-                            <StageWrapper
-                                isFullScreen={isFullScreen}
-                                isRendererSupported={isRendererSupported}
-                                isRtl={isRtl}
-                                isCreating={isCreating}
-                                stageSize={stageSize}
-                                vm={vm}
-                                ariaRole="region"
-                                ariaLabel={intl.formatMessage(ariaMessages.stage)}
-                                manuallySaveThumbnails={manuallySaveThumbnails}
-                                onSetManualThumbnail={onSetManualThumbnail}
-                                onSetManualThumbnailButtonClick={onSetManualThumbnailButtonClick}
-                                loading={loading}
-                                showNewFeatureCallouts={showNewFeatureCallouts}
-                                userOwnsProject={userOwnsProject}
-                                username={username}
-                                onUpdateProjectThumbnail={onUpdateProjectThumbnail}
-                            />
-                            <Box
-                                className={styles.targetWrapper}
-                                role="region"
-                                aria-label={intl.formatMessage(ariaMessages.targetPane)}
-                                element="section"
-                            >
-                                <TargetPane
-                                    stageSize={stageSize}
-                                    vm={vm}
-                                    onNewSpriteClick={onNewSpriteClick}
-                                    onNewBackdropClick={onNewLibraryBackdropClick}
+                            {programMode === 'upload' ? (
+                                <UploadWorkspace
+                                    code={uploadPreviewCode}
+                                    error={uploadPreviewError}
                                 />
-                            </Box>
+                            ) : (
+                                <React.Fragment>
+                                    <StageWrapper
+                                        isFullScreen={isFullScreen}
+                                        isRendererSupported={isRendererSupported}
+                                        isRtl={isRtl}
+                                        isCreating={isCreating}
+                                        stageSize={stageSize}
+                                        vm={vm}
+                                        ariaRole="region"
+                                        ariaLabel={intl.formatMessage(ariaMessages.stage)}
+                                        manuallySaveThumbnails={manuallySaveThumbnails}
+                                        onSetManualThumbnail={onSetManualThumbnail}
+                                        onSetManualThumbnailButtonClick={onSetManualThumbnailButtonClick}
+                                        loading={loading}
+                                        showNewFeatureCallouts={showNewFeatureCallouts}
+                                        userOwnsProject={userOwnsProject}
+                                        username={username}
+                                        onUpdateProjectThumbnail={onUpdateProjectThumbnail}
+                                    />
+                                    <Box
+                                        className={styles.targetWrapper}
+                                        role="region"
+                                        aria-label={intl.formatMessage(ariaMessages.targetPane)}
+                                        element="section"
+                                    >
+                                        <TargetPane
+                                            stageSize={stageSize}
+                                            vm={vm}
+                                            onNewSpriteClick={onNewSpriteClick}
+                                            onNewBackdropClick={onNewLibraryBackdropClick}
+                                        />
+                                    </Box>
+                                </React.Fragment>
+                            )}
                         </Box>
                     </Box>
                     <DragLayer />

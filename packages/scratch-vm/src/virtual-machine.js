@@ -25,6 +25,10 @@ const UploadContextValidator =
     require('./upload/upload-context-validator');
 const UploadTypeValidator =
     require('./upload/upload-type-validator');
+const UploadResourceValidator =
+    require('./upload/upload-resource-validator');
+const ArduinoUnoBoardProfile =
+    require('./upload/board-profiles/arduino-uno-board-profile');
 const ArduinoUnoGenerator =
     require('./upload/arduino-uno-generator');
 
@@ -1638,12 +1642,16 @@ class VirtualMachine extends EventEmitter {
         const extractor = new UploadProgramExtractor(this.runtime);
         const contextValidator = new UploadContextValidator();
         const typeValidator = new UploadTypeValidator();
+        const resourceValidator = new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
         const generator = new ArduinoUnoGenerator();
 
         const ir = extractor.extract();
 
         contextValidator.validate(ir);
         typeValidator.validate(ir);
+        resourceValidator.validate(ir);
 
         return generator.generate(ir);
     }

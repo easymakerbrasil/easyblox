@@ -35,6 +35,15 @@ class UploadTypeValidator {
         for (const statement of statements) {
             switch (statement.type) {
             case 'DigitalWrite':
+            case 'PwmWrite':
+            case 'ToneStart':
+            case 'ToneStop':
+            case 'TimerReset':
+            case 'MotorConfigure':
+            case 'MotorWrite':
+            case 'MotorStop':
+            case 'ServoWrite':
+            case 'RelayWrite':
                 break;
 
             case 'Repeat': {
@@ -137,6 +146,15 @@ class UploadTypeValidator {
             return VALUE_TYPES.INTEGER;
 
         case 'DecimalLiteral':
+            return VALUE_TYPES.DECIMAL;
+
+        case 'DigitalReadExpression':
+            return VALUE_TYPES.BOOLEAN;
+
+        case 'AnalogReadExpression':
+            return VALUE_TYPES.INTEGER;
+
+        case 'TimerReadExpression':
             return VALUE_TYPES.DECIMAL;
 
         case 'BinaryExpression':

@@ -15,6 +15,12 @@ const InternalIdentifierAllocator =
 const UploadTypeValidator =
     require('../../src/upload/upload-type-validator');
 
+const ArduinoUnoBoardProfile =
+    require('../../src/upload/board-profiles/arduino-uno-board-profile');
+
+const UploadResourceValidator =
+    require('../../src/upload/upload-resource-validator');
+
 const createRuntimeWithBlocks = blockDefinitions => {
     const runtime = new Runtime();
     const blocks = new Blocks(runtime);
@@ -40,9 +46,14 @@ const createUploadHat = (next = null) => ({
     shadow: false
 });
 
-const createNumberShadow = (id, parent, value) => ({
+const createNumberShadow = (
     id,
-    opcode: 'math_number',
+    parent,
+    value,
+    opcode = 'math_number'
+) => ({
+    id,
+    opcode,
     next: null,
     parent,
     inputs: {},
@@ -54,6 +65,123 @@ const createNumberShadow = (id, parent, value) => ({
     },
     topLevel: false,
     shadow: true
+});
+
+const createExtensionMenuShadow = (
+    id,
+    parent,
+    opcode,
+    fieldName,
+    value
+) => ({
+    id,
+    opcode,
+    next: null,
+    parent,
+    inputs: {},
+    fields: {
+        [fieldName]: {
+            name: fieldName,
+            value: String(value)
+        }
+    },
+    topLevel: false,
+    shadow: true
+});
+
+tap.test('Arduino UNO Upload extracts real extension menu shadows', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('digital_write'),
+        {
+            id: 'digital_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'pin_menu',
+                    shadow: 'pin_menu'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'value_menu',
+                    shadow: 'value_menu'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'pin_menu',
+            'digital_write',
+            'arduinoUno_menu_digitalPins',
+            'digitalPins',
+            13
+        ),
+        createExtensionMenuShadow(
+            'value_menu',
+            'digital_write',
+            'arduinoUno_menu_digitalValues',
+            'digitalValues',
+            1
+        )
+    ]);
+
+    tap.test('Arduino UNO Upload extracts real math_whole_number REPEAT shadow', t => {
+        const runtime = createRuntimeWithBlocks([
+            createUploadHat('repeat'),
+            {
+                id: 'repeat',
+                opcode: 'control_repeat',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {
+                    TIMES: {
+                        name: 'TIMES',
+                        block: 'repeat_times',
+                        shadow: 'repeat_times'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createNumberShadow(
+                'repeat_times',
+                'repeat',
+                10,
+                'math_whole_number'
+            )
+        ]);
+
+        const extractor = new UploadProgramExtractor(runtime);
+
+        t.same(extractor.extract(), {
+            setup: [{
+                type: 'Repeat',
+                times: 10,
+                body: []
+            }],
+            loop: []
+        });
+
+        t.end();
+    });
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: true
+        }],
+        loop: []
+    });
+
+    t.end();
 });
 
 tap.test('Arduino UNO Upload extracts an empty entry point', t => {
@@ -709,6 +837,2714 @@ tap.test('Arduino UNO Upload context validator accepts reachable IR', t => {
     t.end();
 });
 
+tap.test('Arduino UNO BoardProfile defines default motor profiles', t => {
+    t.same(
+        ArduinoUnoBoardProfile.motors,
+        {
+            1: {
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3
+            },
+            2: {
+                in1Pin: 7,
+                in2Pin: 8,
+                pwmPin: 5
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects invalid motor PWM pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 2
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor PWM pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts valid motor PWM pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects invalid motor IN1 pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 1,
+            in2Pin: 4,
+            pwmPin: 3
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor IN1 pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects invalid motor IN2 pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 1,
+            pwmPin: 3
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor IN2 pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects equal motor IN1 and IN2 pins', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 2,
+            pwmPin: 3
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor pins must be different/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects equal motor IN1 and PWM pins', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 3,
+            in2Pin: 4,
+            pwmPin: 3
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor pins must be different/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects equal motor IN2 and PWM pins', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 3,
+            pwmPin: 3
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor pins must be different/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported motor number', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 3,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects duplicate MotorConfigure', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }, {
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 7,
+            in2Pin: 8,
+            pwmPin: 5
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor can only be configured once/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts one configuration per motor', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }, {
+            type: 'MotorConfigure',
+            motor: 2,
+            in1Pin: 7,
+            in2Pin: 8,
+            pwmPin: 5
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo and Tone on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 6,
+            angle: 90
+        }, {
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 440
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Tone and Servo on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 440
+        }, {
+            type: 'ServoWrite',
+            pin: 6,
+            angle: 90
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo and Tone conflict inside Repeat', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 6,
+            angle: 90
+        }, {
+            type: 'Repeat',
+            times: 10,
+            body: [{
+                type: 'ToneStart',
+                pin: 6,
+                frequency: 440
+            }]
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo and Tone conflict inside If', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 6,
+            angle: 90
+        }, {
+            type: 'If',
+            condition: {
+                type: 'BooleanLiteral',
+                value: true
+            },
+            body: [{
+                type: 'ToneStart',
+                pin: 6,
+                frequency: 440
+            }]
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo and Tone conflict inside IfElse', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 6,
+            angle: 90
+        }, {
+            type: 'IfElse',
+            condition: {
+                type: 'BooleanLiteral',
+                value: true
+            },
+            thenBody: [{
+                type: 'ToneStart',
+                pin: 6,
+                frequency: 440
+            }],
+            elseBody: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo and Tone conflict inside IfElse else branch', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 6,
+            angle: 90
+        }, {
+            type: 'IfElse',
+            condition: {
+                type: 'BooleanLiteral',
+                value: false
+            },
+            thenBody: [],
+            elseBody: [{
+                type: 'ToneStart',
+                pin: 6,
+                frequency: 440
+            }]
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO BoardProfile defines PWM pins', t => {
+    t.same(
+        ArduinoUnoBoardProfile.pwmPins,
+        [3, 5, 6, 9, 10, 11]
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO BoardProfile defines analog pins', t => {
+    t.same(
+        ArduinoUnoBoardProfile.analogPins,
+        [14, 15, 16, 17, 18, 19]
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO BoardProfile defines Servo pins', t => {
+    t.same(
+        ArduinoUnoBoardProfile.servoPins,
+        [3, 5, 6, 9, 10, 11]
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO BoardProfile defines Servo angle range', t => {
+    t.same(
+        ArduinoUnoBoardProfile.servoAngleRange,
+        {
+            min: 0,
+            max: 180
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO BoardProfile defines Servo PWM conflict pins', t => {
+    t.same(
+        ArduinoUnoBoardProfile.servoPwmConflictPins,
+        [9, 10]
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo with PWM on Timer1 conflict pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }, {
+            type: 'PwmWrite',
+            pin: 9,
+            value: 128
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo cannot be used with PWM on the selected pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo with PWM on second Timer1 conflict pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }, {
+            type: 'PwmWrite',
+            pin: 10,
+            value: 128
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo cannot be used with PWM on the selected pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts Servo with PWM outside Timer1 conflict pins', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }, {
+            type: 'PwmWrite',
+            pin: 6,
+            value: 128
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported PWM pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'PwmWrite',
+            pin: 2,
+            value: 128
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /PWM pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts supported PWM pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'PwmWrite',
+            pin: 6,
+            value: 128
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO BoardProfile defines Tone pins', t => {
+    t.same(
+        ArduinoUnoBoardProfile.tonePins,
+        [3, 5, 6, 9, 10, 11]
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO BoardProfile defines Tone frequency range', t => {
+    t.same(
+        ArduinoUnoBoardProfile.toneFrequencyRange,
+        {
+            min: 1,
+            max: 65535
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Tone frequency below range', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 0
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Tone frequency is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Tone frequency above range', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 65536
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Tone frequency is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts Tone minimum frequency', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 1
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts Tone maximum frequency', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 65535
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported ToneStop pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStop',
+            pin: 2
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Tone pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts supported ToneStop pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStop',
+            pin: 6
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Motor and PWM on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 75
+        }, {
+            type: 'PwmWrite',
+            pin: 3,
+            value: 128
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor and PWM cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo and PWM on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }, {
+            type: 'PwmWrite',
+            pin: 5,
+            value: 128
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo and PWM cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Relay and PWM on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'RelayWrite',
+            pin: 6,
+            state: true
+        }, {
+            type: 'PwmWrite',
+            pin: 6,
+            value: 128
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Relay and PWM cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported DigitalWrite pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'DigitalWrite',
+            pin: 1,
+            value: true
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /DigitalWrite pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts supported DigitalWrite pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'DigitalWrite',
+            pin: 13,
+            value: true
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported DigitalRead pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'DigitalReadExpression',
+                pin: 1
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /DigitalRead pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts supported DigitalRead pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'DigitalReadExpression',
+                pin: 2
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported AnalogRead pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'AnalogReadExpression',
+                    pin: 13
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 500
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /AnalogRead pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts supported AnalogRead pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'AnalogReadExpression',
+                    pin: 14
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 500
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects DigitalWrite and Servo on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'DigitalWrite',
+            pin: 5,
+            value: true
+        }, {
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /DigitalWrite and Servo cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects DigitalRead and Servo on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }, {
+            type: 'If',
+            condition: {
+                type: 'DigitalReadExpression',
+                pin: 5
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /DigitalRead and Servo cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported Tone pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 2,
+            frequency: 440
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Tone pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts supported Tone pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 440
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported Servo pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 2,
+            angle: 90
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts supported Servo pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo angle above range', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 181
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo angle is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo angle below range', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: -1
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo angle is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts Servo minimum angle', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 0
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts Servo maximum angle', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 180
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported Relay pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'RelayWrite',
+            pin: 1,
+            state: true
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Relay pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts supported Relay pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'RelayWrite',
+            pin: 12,
+            state: true
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Relay and Servo on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }, {
+            type: 'RelayWrite',
+            pin: 5,
+            state: true
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Relay and Servo cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Servo and Relay on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'RelayWrite',
+            pin: 5,
+            state: true
+        }, {
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Relay and Servo cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Relay and Tone on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 440
+        }, {
+            type: 'RelayWrite',
+            pin: 6,
+            state: true
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Relay and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Tone and Relay on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'RelayWrite',
+            pin: 6,
+            state: true
+        }, {
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 440
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Relay and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Motor and Servo on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 5
+        }, {
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor and Servo cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects default Motor and Servo on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 75
+        }, {
+            type: 'ServoWrite',
+            pin: 3,
+            angle: 90
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor and Servo cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects default MotorStop and Servo on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorStop',
+            motor: 1
+        }, {
+            type: 'ServoWrite',
+            pin: 3,
+            angle: 90
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor and Servo cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Motor and Tone on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 75
+        }, {
+            type: 'ToneStart',
+            pin: 3,
+            frequency: 440
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Motor and Relay on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 75
+        }, {
+            type: 'RelayWrite',
+            pin: 3,
+            state: true
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor and Relay cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects overlapping motor configurations', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }, {
+            type: 'MotorConfigure',
+            motor: 2,
+            in1Pin: 2,
+            in2Pin: 8,
+            pwmPin: 5
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motors cannot share pins/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects overlap between configured and default motors', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 7,
+            in2Pin: 4,
+            pwmPin: 3
+        }, {
+            type: 'MotorWrite',
+            motor: 2,
+            direction: 0,
+            speedPercent: 75
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motors cannot share pins/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported MotorWrite motor', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorWrite',
+            motor: 3,
+            direction: 0,
+            speedPercent: 75
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported MotorStop motor', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorStop',
+            motor: 3
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts both default motors', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 75
+        }, {
+            type: 'MotorWrite',
+            motor: 2,
+            direction: 1,
+            speedPercent: 50
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO BoardProfile defines digital-capable pins', t => {
+    t.same(
+        ArduinoUnoBoardProfile.digitalPins,
+        [
+            2, 3, 4, 5, 6, 7, 8, 9,
+            10, 11, 12, 13,
+            14, 15, 16, 17, 18, 19
+        ]
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects MotorConfigure inside REPEAT', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: 1,
+            body: [{
+                type: 'MotorConfigure',
+                motor: 1,
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3
+            }]
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor configuration must be declared directly in Arduino UNO setup/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator accepts MotorConfigure directly in setup', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects MotorConfigure in loop', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [],
+        loop: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }]
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor configuration must be declared directly in Arduino UNO setup/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects MotorConfigure inside IF', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BooleanLiteral',
+                value: true
+            },
+            body: [{
+                type: 'MotorConfigure',
+                motor: 1,
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3
+            }]
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor configuration must be declared directly in Arduino UNO setup/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects MotorConfigure inside IF ELSE', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'IfElse',
+            condition: {
+                type: 'BooleanLiteral',
+                value: true
+            },
+            thenBody: [{
+                type: 'MotorConfigure',
+                motor: 1,
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3
+            }],
+            elseBody: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor configuration must be declared directly in Arduino UNO setup/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts MotorConfigure into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('motor_configure'),
+        {
+            id: 'motor_configure',
+            opcode: 'actuators_motorConfigure',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                MOTOR: {
+                    name: 'MOTOR',
+                    block: 'motor_number',
+                    shadow: 'motor_number'
+                },
+                IN1: {
+                    name: 'IN1',
+                    block: 'motor_in1',
+                    shadow: 'motor_in1'
+                },
+                IN2: {
+                    name: 'IN2',
+                    block: 'motor_in2',
+                    shadow: 'motor_in2'
+                },
+                PWM: {
+                    name: 'PWM',
+                    block: 'motor_pwm',
+                    shadow: 'motor_pwm'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'motor_number',
+            'motor_configure',
+            'actuators_menu_motorNumbers',
+            'motorNumbers',
+            1
+        ),
+        createExtensionMenuShadow(
+            'motor_in1',
+            'motor_configure',
+            'actuators_menu_motorDigitalPins',
+            'motorDigitalPins',
+            2
+        ),
+        createExtensionMenuShadow(
+            'motor_in2',
+            'motor_configure',
+            'actuators_menu_motorDigitalPins',
+            'motorDigitalPins',
+            4
+        ),
+        createExtensionMenuShadow(
+            'motor_pwm',
+            'motor_configure',
+            'actuators_menu_motorPwmPins',
+            'motorPwmPins',
+            3
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts MotorConfigure statement', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates declarative MotorConfigure C++', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'const int MOTOR1_IN1 = 2;',
+        'const int MOTOR1_IN2 = 4;',
+        'const int MOTOR1_PWM = 3;',
+        '',
+        'void setup() {',
+        '    pinMode(MOTOR1_IN1, OUTPUT);',
+        '    pinMode(MOTOR1_IN2, OUTPUT);',
+        '    pinMode(MOTOR1_PWM, OUTPUT);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates MotorConfigure from Scratch blocks end to end', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('motor_configure'),
+        {
+            id: 'motor_configure',
+            opcode: 'actuators_motorConfigure',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                MOTOR: {
+                    name: 'MOTOR',
+                    block: 'motor_number',
+                    shadow: 'motor_number'
+                },
+                IN1: {
+                    name: 'IN1',
+                    block: 'motor_in1',
+                    shadow: 'motor_in1'
+                },
+                IN2: {
+                    name: 'IN2',
+                    block: 'motor_in2',
+                    shadow: 'motor_in2'
+                },
+                PWM: {
+                    name: 'PWM',
+                    block: 'motor_pwm',
+                    shadow: 'motor_pwm'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'motor_number',
+            'motor_configure',
+            'actuators_menu_motorNumbers',
+            'motorNumbers',
+            1
+        ),
+        createExtensionMenuShadow(
+            'motor_in1',
+            'motor_configure',
+            'actuators_menu_motorDigitalPins',
+            'motorDigitalPins',
+            2
+        ),
+        createExtensionMenuShadow(
+            'motor_in2',
+            'motor_configure',
+            'actuators_menu_motorDigitalPins',
+            'motorDigitalPins',
+            4
+        ),
+        createExtensionMenuShadow(
+            'motor_pwm',
+            'motor_configure',
+            'actuators_menu_motorPwmPins',
+            'motorPwmPins',
+            3
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const contextValidator = new UploadContextValidator();
+    const typeValidator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    contextValidator.validate(ir);
+    typeValidator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'const int MOTOR1_IN1 = 2;',
+        'const int MOTOR1_IN2 = 4;',
+        'const int MOTOR1_PWM = 3;',
+        '',
+        'void setup() {',
+        '    pinMode(MOTOR1_IN1, OUTPUT);',
+        '    pinMode(MOTOR1_IN2, OUTPUT);',
+        '    pinMode(MOTOR1_PWM, OUTPUT);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts MotorWrite into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('motor_write'),
+        {
+            id: 'motor_write',
+            opcode: 'actuators_motorWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                MOTOR: {
+                    name: 'MOTOR',
+                    block: 'motor_number',
+                    shadow: 'motor_number'
+                },
+                DIRECTION: {
+                    name: 'DIRECTION',
+                    block: 'motor_direction',
+                    shadow: 'motor_direction'
+                },
+                SPEED: {
+                    name: 'SPEED',
+                    block: 'motor_speed',
+                    shadow: 'motor_speed'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'motor_number',
+            'motor_write',
+            'actuators_menu_motorNumbers',
+            'motorNumbers',
+            1
+        ),
+        createExtensionMenuShadow(
+            'motor_direction',
+            'motor_write',
+            'actuators_menu_motorDirections',
+            'motorDirections',
+            0
+        ),
+        {
+            id: 'motor_speed',
+            opcode: 'easyblox_motor_speed',
+            next: null,
+            parent: 'motor_write',
+            inputs: {},
+            fields: {
+                NUM: {
+                    name: 'NUM',
+                    value: 75
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 75
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts MotorWrite statement', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 75
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates MotorWrite forward C++', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }, {
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 75
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'const int MOTOR1_IN1 = 2;',
+        'const int MOTOR1_IN2 = 4;',
+        'const int MOTOR1_PWM = 3;',
+        '',
+        'void setup() {',
+        '    pinMode(MOTOR1_IN1, OUTPUT);',
+        '    pinMode(MOTOR1_IN2, OUTPUT);',
+        '    pinMode(MOTOR1_PWM, OUTPUT);',
+        '    analogWrite(MOTOR1_PWM, 0);',
+        '    digitalWrite(MOTOR1_IN1, HIGH);',
+        '    digitalWrite(MOTOR1_IN2, LOW);',
+        '    analogWrite(MOTOR1_PWM, 191);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload uses default motor profile without MotorConfigure', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 100
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'const int MOTOR1_IN1 = 2;',
+        'const int MOTOR1_IN2 = 4;',
+        'const int MOTOR1_PWM = 3;',
+        '',
+        'void setup() {',
+        '    pinMode(MOTOR1_IN1, OUTPUT);',
+        '    pinMode(MOTOR1_IN2, OUTPUT);',
+        '    pinMode(MOTOR1_PWM, OUTPUT);',
+        '    analogWrite(MOTOR1_PWM, 0);',
+        '    digitalWrite(MOTOR1_IN1, HIGH);',
+        '    digitalWrite(MOTOR1_IN2, LOW);',
+        '    analogWrite(MOTOR1_PWM, 255);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload overrides default motor profile with MotorConfigure', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 7,
+            in2Pin: 8,
+            pwmPin: 6
+        }, {
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 100
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'const int MOTOR1_IN1 = 7;',
+        'const int MOTOR1_IN2 = 8;',
+        'const int MOTOR1_PWM = 6;',
+        '',
+        'void setup() {',
+        '    pinMode(MOTOR1_IN1, OUTPUT);',
+        '    pinMode(MOTOR1_IN2, OUTPUT);',
+        '    pinMode(MOTOR1_PWM, OUTPUT);',
+        '    analogWrite(MOTOR1_PWM, 0);',
+        '    digitalWrite(MOTOR1_IN1, HIGH);',
+        '    digitalWrite(MOTOR1_IN2, LOW);',
+        '    analogWrite(MOTOR1_PWM, 255);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates MotorWrite reverse C++', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }, {
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 1,
+            speedPercent: 50
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'const int MOTOR1_IN1 = 2;',
+        'const int MOTOR1_IN2 = 4;',
+        'const int MOTOR1_PWM = 3;',
+        '',
+        'void setup() {',
+        '    pinMode(MOTOR1_IN1, OUTPUT);',
+        '    pinMode(MOTOR1_IN2, OUTPUT);',
+        '    pinMode(MOTOR1_PWM, OUTPUT);',
+        '    analogWrite(MOTOR1_PWM, 0);',
+        '    digitalWrite(MOTOR1_IN1, LOW);',
+        '    digitalWrite(MOTOR1_IN2, HIGH);',
+        '    analogWrite(MOTOR1_PWM, 128);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates stopped MotorWrite when speed is zero', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }, {
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 0
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'const int MOTOR1_IN1 = 2;',
+        'const int MOTOR1_IN2 = 4;',
+        'const int MOTOR1_PWM = 3;',
+        '',
+        'void setup() {',
+        '    pinMode(MOTOR1_IN1, OUTPUT);',
+        '    pinMode(MOTOR1_IN2, OUTPUT);',
+        '    pinMode(MOTOR1_PWM, OUTPUT);',
+        '    analogWrite(MOTOR1_PWM, 0);',
+        '    digitalWrite(MOTOR1_IN1, LOW);',
+        '    digitalWrite(MOTOR1_IN2, LOW);',
+        '    analogWrite(MOTOR1_PWM, 0);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts MotorStop into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('motor_stop'),
+        {
+            id: 'motor_stop',
+            opcode: 'actuators_motorStop',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                MOTOR: {
+                    name: 'MOTOR',
+                    block: 'motor_number',
+                    shadow: 'motor_number'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'motor_number',
+            'motor_stop',
+            'actuators_menu_motorNumbers',
+            'motorNumbers',
+            1
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'MotorStop',
+            motor: 1
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts MotorStop statement', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'MotorStop',
+            motor: 1
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates MotorStop coast C++', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 1,
+            in1Pin: 2,
+            in2Pin: 4,
+            pwmPin: 3
+        }, {
+            type: 'MotorStop',
+            motor: 1
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'const int MOTOR1_IN1 = 2;',
+        'const int MOTOR1_IN2 = 4;',
+        'const int MOTOR1_PWM = 3;',
+        '',
+        'void setup() {',
+        '    pinMode(MOTOR1_IN1, OUTPUT);',
+        '    pinMode(MOTOR1_IN2, OUTPUT);',
+        '    pinMode(MOTOR1_PWM, OUTPUT);',
+        '    analogWrite(MOTOR1_PWM, 0);',
+        '    digitalWrite(MOTOR1_IN1, LOW);',
+        '    digitalWrite(MOTOR1_IN2, LOW);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ServoWrite into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('servo_write'),
+        {
+            id: 'servo_write',
+            opcode: 'actuators_servoWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'servo_pin',
+                    shadow: 'servo_pin'
+                },
+                ANGLE: {
+                    name: 'ANGLE',
+                    block: 'servo_angle',
+                    shadow: 'servo_angle'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'servo_pin',
+            'servo_write',
+            'actuators_menu_servoPins',
+            'servoPins',
+            5
+        ),
+        {
+            id: 'servo_angle',
+            opcode: 'easyblox_servo_angle',
+            next: null,
+            parent: 'servo_write',
+            inputs: {},
+            fields: {
+                NUM: {
+                    name: 'NUM',
+                    value: 90
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts ServoWrite statement', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates ServoWrite C++', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        '#include <Servo.h>',
+        '',
+        'Servo servo5;',
+        '',
+        'void setup() {',
+        '    if (!servo5.attached()) {',
+        '        servo5.attach(5);',
+        '    }',
+        '    servo5.write(90);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts RelayWrite into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('relay_write'),
+        {
+            id: 'relay_write',
+            opcode: 'actuators_relayWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'relay_pin',
+                    shadow: 'relay_pin'
+                },
+                STATE: {
+                    name: 'STATE',
+                    block: 'relay_state',
+                    shadow: 'relay_state'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'relay_pin',
+            'relay_write',
+            'actuators_menu_relayPins',
+            'relayPins',
+            12
+        ),
+        createExtensionMenuShadow(
+            'relay_state',
+            'relay_write',
+            'actuators_menu_relayStates',
+            'relayStates',
+            1
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'RelayWrite',
+            pin: 12,
+            state: true
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts RelayWrite statement', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'RelayWrite',
+            pin: 12,
+            state: true
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates RelayWrite C++', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'RelayWrite',
+            pin: 12,
+            state: true
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    pinMode(12, OUTPUT);',
+        '    digitalWrite(12, HIGH);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates RelayWrite LOW state C++', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'RelayWrite',
+            pin: 12,
+            state: false
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    pinMode(12, OUTPUT);',
+        '    digitalWrite(12, LOW);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload deduplicates Servo instance on the same pin', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }, {
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 45
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        '#include <Servo.h>',
+        '',
+        'Servo servo5;',
+        '',
+        'void setup() {',
+        '    if (!servo5.attached()) {',
+        '        servo5.attach(5);',
+        '    }',
+        '    servo5.write(90);',
+        '    if (!servo5.attached()) {',
+        '        servo5.attach(5);',
+        '    }',
+        '    servo5.write(45);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload context validator rejects code after FOREVER', t => {
     const validator = new UploadContextValidator();
 
@@ -1008,7 +3844,7 @@ tap.test('Arduino UNO generator emits REPEAT with an internal loop identifier', 
     t.equal(code, [
         'void setup() {',
         '    pinMode(13, OUTPUT);',
-        '    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < 3; ++easyblox_repeat_index_0) {',
+        '    for (int i = 0; i < 3; ++i) {',
         '        digitalWrite(13, HIGH);',
         '    }',
         '}',
@@ -1067,8 +3903,8 @@ tap.test('Arduino UNO generator emits nested REPEAT with unique internal identif
     t.equal(code, [
         'void setup() {',
         '    pinMode(13, OUTPUT);',
-        '    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < 2; ++easyblox_repeat_index_0) {',
-        '        for (int easyblox_repeat_index_1 = 0; easyblox_repeat_index_1 < 3; ++easyblox_repeat_index_1) {',
+        '    for (int i = 0; i < 2; ++i) {',
+        '        for (int j = 0; j < 3; ++j) {',
         '            digitalWrite(13, HIGH);',
         '        }',
         '    }',
@@ -1178,7 +4014,7 @@ tap.test('Arduino UNO Upload supports REPEAT inside main FOREVER loop', t => {
         '}',
         '',
         'void loop() {',
-        '    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < 2; ++easyblox_repeat_index_0) {',
+        '    for (int i = 0; i < 2; ++i) {',
         '        digitalWrite(13, HIGH);',
         '    }',
         '}',
@@ -1472,7 +4308,7 @@ tap.test('Arduino UNO generator emits INTEGER addition expression in REPEAT coun
     t.equal(code, [
         'void setup() {',
         '    pinMode(13, OUTPUT);',
-        '    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < (1 + 2); ++easyblox_repeat_index_0) {',
+        '    for (int i = 0; i < (1 + 2); ++i) {',
         '        digitalWrite(13, HIGH);',
         '    }',
         '}',
@@ -1573,7 +4409,7 @@ tap.test('Arduino UNO Upload generates REPEAT from extracted INTEGER addition en
     t.equal(generator.generate(ir), [
         'void setup() {',
         '    pinMode(13, OUTPUT);',
-        '    for (int easyblox_repeat_index_0 = 0; easyblox_repeat_index_0 < (1 + 2); ++easyblox_repeat_index_0) {',
+        '    for (int i = 0; i < (1 + 2); ++i) {',
         '        digitalWrite(13, HIGH);',
         '    }',
         '}',
@@ -1869,7 +4705,7 @@ tap.test('Arduino UNO generator emits subtraction expression', t => {
 
     t.match(
         code,
-        /easyblox_repeat_index_0 < \(5 - 2\)/
+        /i < \(5 - 2\)/
     );
 
     t.end();
@@ -1900,7 +4736,7 @@ tap.test('Arduino UNO generator emits multiplication expression', t => {
 
     t.match(
         code,
-        /easyblox_repeat_index_0 < \(2 \* 3\)/
+        /i < \(2 \* 3\)/
     );
 
     t.end();
@@ -3464,6 +6300,537 @@ tap.test('Arduino UNO Upload extracts control_if into If semantic IR', t => {
         }],
         loop: []
     });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates timer reset', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('timer_reset'),
+        {
+            id: 'timer_reset',
+            opcode: 'arduinoUno_timerReset',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'TimerReset'
+        }],
+        loop: []
+    });
+
+    validator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'unsigned long easyblox_timer_reset_at = 0;',
+        '',
+        'void setup() {',
+        '    easyblox_timer_reset_at = millis();',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates timer read expression', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_block'),
+        {
+            id: 'if_block',
+            opcode: 'control_if',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'greater_than',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'greater_than',
+            opcode: 'operator_gt',
+            next: null,
+            parent: 'if_block',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'timer_read',
+                    shadow: null
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'threshold',
+                    shadow: 'threshold'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'timer_read',
+            opcode: 'arduinoUno_timerRead',
+            next: null,
+            parent: 'greater_than',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'threshold',
+            'greater_than',
+            1.5
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'TimerReadExpression'
+                },
+                right: {
+                    type: 'DecimalLiteral',
+                    value: 1.5
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    validator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'unsigned long easyblox_timer_reset_at = 0;',
+        '',
+        'void setup() {',
+        '    if ((((millis() - easyblox_timer_reset_at) / 1000.0) > 1.5)) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates tone stop', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('tone_stop'),
+        {
+            id: 'tone_stop',
+            opcode: 'arduinoUno_toneStop',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'tone_pin_menu',
+                    shadow: 'tone_pin_menu'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'tone_pin_menu',
+            'tone_stop',
+            'arduinoUno_menu_pwmPins',
+            'pwmPins',
+            6
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'ToneStop',
+            pin: 6
+        }],
+        loop: []
+    });
+
+    validator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    noTone(6);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates tone start', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('tone_start'),
+        {
+            id: 'tone_start',
+            opcode: 'arduinoUno_toneStart',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'tone_pin_menu',
+                    shadow: 'tone_pin_menu'
+                },
+                FREQUENCY: {
+                    name: 'FREQUENCY',
+                    block: 'tone_frequency',
+                    shadow: 'tone_frequency'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'tone_pin_menu',
+            'tone_start',
+            'arduinoUno_menu_pwmPins',
+            'pwmPins',
+            6
+        ),
+        createNumberShadow(
+            'tone_frequency',
+            'tone_start',
+            440
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 440
+        }],
+        loop: []
+    });
+
+    validator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    tone(6, 440);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates PWM write', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('pwm_write'),
+        {
+            id: 'pwm_write',
+            opcode: 'arduinoUno_pwmWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'pwm_pin_menu',
+                    shadow: 'pwm_pin_menu'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'pwm_value',
+                    shadow: 'pwm_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'pwm_pin_menu',
+            'pwm_write',
+            'arduinoUno_menu_pwmPins',
+            'pwmPins',
+            3
+        ),
+        createNumberShadow(
+            'pwm_value',
+            'pwm_write',
+            128,
+            'easyblox_pwm_value'
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'PwmWrite',
+            pin: 3,
+            value: 128
+        }],
+        loop: []
+    });
+
+    validator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    pinMode(3, OUTPUT);',
+        '    analogWrite(3, 128);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates analogRead numeric expression', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_block'),
+        {
+            id: 'if_block',
+            opcode: 'control_if',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'greater_than',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'greater_than',
+            opcode: 'operator_gt',
+            next: null,
+            parent: 'if_block',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'analog_read',
+                    shadow: null
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'threshold',
+                    shadow: 'threshold'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'analog_read',
+            opcode: 'arduinoUno_analogRead',
+            next: null,
+            parent: 'greater_than',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'analog_pin_menu',
+                    shadow: 'analog_pin_menu'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'analog_pin_menu',
+            'analog_read',
+            'arduinoUno_menu_analogPins',
+            'analogPins',
+            14
+        ),
+        createNumberShadow(
+            'threshold',
+            'greater_than',
+            500
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'AnalogReadExpression',
+                    pin: 14
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 500
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    validator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    if ((analogRead(A0) > 500)) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates digitalRead boolean condition', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_block'),
+        {
+            id: 'if_block',
+            opcode: 'control_if',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'digital_read',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'digital_read',
+            opcode: 'arduinoUno_digitalRead',
+            next: null,
+            parent: 'if_block',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'pin_menu',
+                    shadow: 'pin_menu'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'pin_menu',
+            'digital_read',
+            'arduinoUno_menu_digitalPins',
+            'digitalPins',
+            2
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'DigitalReadExpression',
+                pin: 2
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    validator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    pinMode(2, INPUT);',
+        '    if ((digitalRead(2) == HIGH)) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
 
     t.end();
 });

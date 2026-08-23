@@ -8073,3 +8073,301 @@ O arquivo:
 packages/scratch-gui/src/components/action-menu/icon--sprite.svg
 
 permanece uma alteração local independente e não deve ser incluído no staging da A7.
+
+### 19.163. A7.3 em implementação — workspace Upload e validação de recursos
+
+Em 23/08/2026 foi consolidado um checkpoint intermediário da etapa A7.3 do Arduino UNO Modo Carregar v1.
+
+A7.3 ainda não está concluído como um todo.
+
+Neste checkpoint foram implementadas e validadas duas frentes complementares:
+
+- workspace visual do Modo Carregar na GUI;
+- arquitetura de capacidades e validação física de recursos na Scratch VM.
+
+#### Workspace do Modo Carregar
+
+Quando o modo de programação é `Carregar`, a área anteriormente ocupada pelo Palco e pelo painel de atores passa a utilizar o componente:
+
+`UploadWorkspace`
+
+O Modo Palco continua utilizando normalmente:
+
+- Stage;
+- TargetPane.
+
+No Modo Carregar, esses componentes não são exibidos nessa região.
+
+O `UploadWorkspace` contém atualmente:
+
+- preview C++ somente leitura;
+- atualização baseada na API pública da Scratch VM;
+- região inferior reservada ao Monitor Serial;
+- Monitor Serial colapsável.
+
+O preview é alimentado por:
+
+`packages/scratch-gui/src/lib/upload-code-preview.js`
+
+A GUI não acessa diretamente o extrator, validadores ou gerador.
+
+Ela continua utilizando a API pública:
+
+`vm.generateArduinoUnoUploadCode()`
+
+Isso preserva a Scratch VM como fonte canônica do programa.
+
+O Monitor Serial já possui a estrutura visual colapsável, porém a implementação completa da categoria Serial e do transporte do monitor permanece para incremento posterior.
+
+Também permanecem pendentes dentro de A7.3:
+
+- categoria Serial Upload-only;
+- blocos de inicialização, escrita e escrita com quebra de linha;
+- integração funcional completa do Monitor Serial;
+- tradução pedagógica dos erros técnicos;
+- acabamento visual definitivo do `UploadWorkspace`;
+- filtragem completa das categorias/blocos conforme Palco versus Carregar.
+
+Portanto, este checkpoint representa:
+
+`A7.3 — implementação parcial funcional`
+
+e não o fechamento integral da etapa.
+
+#### BoardProfile do Arduino UNO
+
+Foi introduzido o perfil de capacidades:
+
+`packages/scratch-vm/src/upload/board-profiles/arduino-uno-board-profile.js`
+
+O `ArduinoUnoBoardProfile` concentra capacidades e defaults físicos da placa, evitando espalhar conhecimento específico do Arduino UNO pelos validadores genéricos.
+
+Entre os dados atualmente modelados estão:
+
+- `digitalPins`;
+- `pwmPins`;
+- `analogPins`;
+- `tonePins`;
+- `toneFrequencyRange`;
+- `servoPins`;
+- `servoAngleRange`;
+- `servoPwmConflictPins`;
+- configurações padrão dos motores 1 e 2.
+
+Pinos analógicos são representados internamente como:
+
+```text
+A0 = 14
+A1 = 15
+A2 = 16
+A3 = 17
+A4 = 18
+A5 = 19
+
+Os valores 14..19 permanecem também em digitalPins, porque os pinos analógicos do Arduino UNO podem atuar como digitais.
+
+O objetivo arquitetural é permitir que validações genéricas dependam de um perfil de placa, preparando o mesmo pipeline para futuras placas sem duplicação estrutural.
+
+UploadResourceValidator
+
+Foi introduzido:
+
+packages/scratch-vm/src/upload/upload-resource-validator.js
+
+O UploadResourceValidator recebe um BoardProfile e valida capacidades e conflitos físicos do programa depois das validações de contexto e tipos.
+
+O pipeline público passou a ser:
+
+Scratch VM
+→ UploadProgramExtractor
+→ EasyBlox IR
+→ UploadContextValidator
+→ UploadTypeValidator
+→ UploadResourceValidator + BoardProfile
+→ ArduinoUnoGenerator
+→ C++
+
+A integração foi realizada também em:
+
+VirtualMachine.generateArduinoUnoUploadCode()
+
+Assim, a API pública não gera C++ quando o programa contém um conflito físico já conhecido pelo perfil e pelas regras de recursos.
+
+Recursos atualmente validados
+
+O UploadResourceValidator já cobre, entre outros pontos:
+
+Motores:
+
+motor lógico suportado;
+IN1 e IN2 em pinos digitais válidos;
+PWM em pino PWM válido;
+três pinos diferentes dentro do mesmo motor;
+uma única configuração declarativa por motor;
+ausência de compartilhamento físico entre motores;
+uso das configurações padrão do BoardProfile quando não existe MotorConfigure;
+validação de MotorWrite e MotorStop;
+conflitos com Servo, Tone, Relay e PWM.
+
+Servo:
+
+pino suportado;
+ângulo dentro de 0..180;
+conflito com Tone no mesmo pino;
+conflito com Relay no mesmo pino;
+conflito com Motor no mesmo pino;
+conflito com PWM no mesmo pino;
+conflito global de Timer1 quando existe Servo e PWM em D9 ou D10.
+
+Tone:
+
+pino suportado;
+frequência dentro de 1..65535;
+validação de ToneStart;
+validação de capacidade do pino em ToneStop;
+ToneStop não reserva recurso ativo de Tone;
+conflitos com Servo, Relay e Motor conforme o contrato atual.
+
+Relay:
+
+pino digital suportado;
+conflitos com Servo, Tone, Motor e PWM.
+
+PWM:
+
+pino suportado;
+conflitos físicos com Motor, Servo e Relay;
+conflito Timer1 com Servo conforme o BoardProfile.
+
+DigitalWrite:
+
+pino digital suportado;
+conflito físico com Servo.
+
+DigitalReadExpression:
+
+pino digital suportado;
+conflito físico com Servo.
+
+AnalogReadExpression:
+
+somente analogPins;
+Arduino UNO atualmente limitado a A0..A5.
+Statements versus expressions
+
+A validação de recursos mantém separação entre statements e expressions.
+
+Statements estruturados continuam percorridos recursivamente em:
+
+Repeat.body;
+If.body;
+IfElse.thenBody;
+IfElse.elseBody.
+
+Expressões passaram a possuir travessia própria através de:
+
+_validateStatementExpressions(...)
+
+e:
+
+_validateExpression(...)
+
+Essa separação permite validar expressões de hardware aninhadas, como:
+
+BinaryExpression
+└── AnalogReadExpression
+
+ou:
+
+If.condition
+└── DigitalReadExpression
+
+sem transformar expressions artificialmente em statements.
+
+Coerência com o contrato Stage
+
+As regras de recursos não são adicionadas por suposição.
+
+Quando necessário, o firmware Stage é utilizado como referência para confirmar o comportamento físico já adotado pelo EasyBlox.
+
+Exemplos verificados neste checkpoint:
+
+DigitalWrite rejeita Servo no mesmo pino;
+DigitalRead rejeita Servo no mesmo pino;
+AnalogRead aceita somente A0..A5 e protege o contexto I2C;
+PwmWrite protege Servo no mesmo pino e o conflito Timer1 em D9/D10;
+o firmware Stage atual não bloqueia Tone × PWM, portanto essa restrição não foi inventada no Upload.
+
+A filosofia permanece:
+
+validar o que pertence ao contrato da placa e ao comportamento físico conhecido, sem criar restrições arbitrárias.
+
+Validação automatizada do checkpoint
+
+Regressão ampliada da Scratch VM:
+
+arduino-uno-protocol.js       246 pass
+arduino-uno-upload.js         210 pass
+virtual-machine-upload.js       3 pass
+arduino-uno.js                497 pass
+
+Total:
+956 pass
+0 fail
+4 suites
+
+Regressão específica da GUI A7.3:
+
+upload-code-preview.test.js
+upload-workspace.test.jsx
+
+8 pass
+0 fail
+2 suites
+
+Validação estática da GUI:
+
+0 errors
+14 warnings
+
+Os 14 warnings correspondem exclusivamente à regra arrow-parens já conhecida no projeto e não foram corrigidos automaticamente.
+
+Também foram aprovados:
+
+node --check
+
+para:
+
+upload-resource-validator.js;
+arduino-uno-board-profile.js;
+virtual-machine.js.
+
+E:
+
+git diff --check
+
+sem erros reais de whitespace.
+
+Os avisos de normalização CRLF → LF são informativos.
+
+Estado deste checkpoint
+
+A7.1 — concluído
+
+A7.2 — concluído e validado
+
+A7.3 — em implementação; workspace Upload e preview C++ funcionais, arquitetura de recursos integrada
+
+Ainda não fechar A7.3 até concluir pelo menos:
+
+Serial;
+Monitor Serial funcional;
+tradução pedagógica dos erros;
+filtragem Palco/Carregar;
+acabamento visual do workspace.
+
+A alteração local:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+continua independente e deve permanecer fora do staging deste checkpoint.

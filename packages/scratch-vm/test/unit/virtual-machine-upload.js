@@ -30,15 +30,42 @@ const createUploadHat = (next = null) => ({
     shadow: false
 });
 
-const createNumberShadow = (id, parent, value) => ({
+const createNumberShadow = (
     id,
-    opcode: 'math_number',
+    parent,
+    value,
+    opcode = 'math_number'
+) => ({
+    id,
+    opcode,
     next: null,
     parent,
     inputs: {},
     fields: {
         NUM: {
             name: 'NUM',
+            value: String(value)
+        }
+    },
+    topLevel: false,
+    shadow: true
+});
+
+const createExtensionMenuShadow = (
+    id,
+    parent,
+    opcode,
+    fieldName,
+    value
+) => ({
+    id,
+    opcode,
+    next: null,
+    parent,
+    inputs: {},
+    fields: {
+        [fieldName]: {
+            name: fieldName,
             value: String(value)
         }
     },
@@ -107,6 +134,89 @@ test('VirtualMachine generates Arduino UNO Upload C++ from current runtime', t =
         '}',
         ''
     ].join('\n'));
+
+    t.end();
+});
+
+test('VirtualMachine rejects Arduino UNO Upload resource conflicts', t => {
+    const vm = new VirtualMachine();
+
+    vm.runtime = createRuntimeWithBlocks([
+        createUploadHat('servo_write'),
+        {
+            id: 'servo_write',
+            opcode: 'actuators_servoWrite',
+            next: 'pwm_write',
+            parent: 'upload_hat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'servo_pin',
+                    shadow: 'servo_pin'
+                },
+                ANGLE: {
+                    name: 'ANGLE',
+                    block: 'servo_angle',
+                    shadow: 'servo_angle'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'servo_pin',
+            'servo_write',
+            'actuators_menu_servoPins',
+            'servoPins',
+            5
+        ),
+        createNumberShadow(
+            'servo_angle',
+            'servo_write',
+            90,
+            'easyblox_servo_angle'
+        ),
+        {
+            id: 'pwm_write',
+            opcode: 'arduinoUno_pwmWrite',
+            next: null,
+            parent: 'servo_write',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'pwm_pin',
+                    shadow: 'pwm_pin'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'pwm_value',
+                    shadow: 'pwm_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'pwm_pin',
+            'pwm_write',
+            'arduinoUno_menu_pwmPins',
+            'pwmPins',
+            5
+        ),
+        createNumberShadow(
+            'pwm_value',
+            'pwm_write',
+            128,
+            'easyblox_pwm_value'
+        )
+    ]);
+
+    t.throws(
+        () => vm.generateArduinoUnoUploadCode(),
+        /Servo and PWM cannot use the same pin/
+    );
 
     t.end();
 });

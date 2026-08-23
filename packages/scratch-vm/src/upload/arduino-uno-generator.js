@@ -1,6 +1,9 @@
 const InternalIdentifierAllocator =
     require('./internal-identifier-allocator');
 
+const ArduinoUnoBoardProfile =
+    require('./board-profiles/arduino-uno-board-profile');
+
 /**
  * Generate deterministic Arduino UNO C++ from EasyBlox semantic IR.
  */
@@ -14,7 +17,27 @@ class ArduinoUnoGenerator {
         const setupStatements = Array.isArray(ir.setup) ? ir.setup : [];
         const loopStatements = Array.isArray(ir.loop) ? ir.loop : [];
 
+        const motorConfigurations = this._collectMotorConfigurations(
+            setupStatements,
+            loopStatements
+        );
+
+        const usesTimer = this._usesTimer(
+            setupStatements,
+            loopStatements
+        );
+
+        const inputPins = this._collectInputPins(
+            setupStatements,
+            loopStatements
+        );
+
         const outputPins = this._collectOutputPins(
+            setupStatements,
+            loopStatements
+        );
+
+        const servoPins = this._collectServoPins(
             setupStatements,
             loopStatements
         );
@@ -25,9 +48,53 @@ class ArduinoUnoGenerator {
          */
         const identifiers = new InternalIdentifierAllocator();
 
-        const lines = [
-            'void setup() {'
-        ];
+        const lines = [];
+
+        if (servoPins.length > 0) {
+            lines.push(
+                '#include <Servo.h>',
+                ''
+            );
+
+            for (const pin of servoPins) {
+                lines.push(`Servo servo${pin};`);
+            }
+
+            lines.push('');
+        }
+
+        for (const motor of motorConfigurations) {
+            lines.push(
+                `const int MOTOR${motor.motor}_IN1 = ${motor.in1Pin};`,
+                `const int MOTOR${motor.motor}_IN2 = ${motor.in2Pin};`,
+                `const int MOTOR${motor.motor}_PWM = ${motor.pwmPin};`
+            );
+        }
+
+        if (motorConfigurations.length > 0) {
+            lines.push('');
+        }
+
+        if (usesTimer) {
+            lines.push(
+                'unsigned long easyblox_timer_reset_at = 0;',
+                ''
+            );
+        }
+
+        lines.push('void setup() {');
+
+        for (const motor of motorConfigurations) {
+            lines.push(
+                `    pinMode(MOTOR${motor.motor}_IN1, OUTPUT);`,
+                `    pinMode(MOTOR${motor.motor}_IN2, OUTPUT);`,
+                `    pinMode(MOTOR${motor.motor}_PWM, OUTPUT);`
+            );
+        }
+
+        for (const pin of inputPins) {
+            lines.push(`    pinMode(${pin}, INPUT);`);
+        }
 
         for (const pin of outputPins) {
             lines.push(`    pinMode(${pin}, OUTPUT);`);
@@ -62,6 +129,390 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Check whether the program uses the Arduino timer.
+     * @param {Array<object>} setupStatements Setup IR statements.
+     * @param {Array<object>} loopStatements Loop IR statements.
+     * @returns {boolean} True when timer support is required.
+     * @private
+     */
+    _usesTimer (setupStatements, loopStatements) {
+        return (
+            this._statementsUseTimer(setupStatements) ||
+            this._statementsUseTimer(loopStatements)
+        );
+    }
+
+    /**
+     * Recursively inspect statements for timer expressions.
+     * @param {Array<object>} statements Semantic IR statements.
+     * @returns {boolean} True when timer support is required.
+     * @private
+     */
+    _statementsUseTimer (statements) {
+        for (const statement of statements) {
+            if (statement.type === 'TimerReset') {
+                return true;
+            }
+
+            if (statement.type === 'Repeat') {
+                if (
+                    this._expressionUsesTimer(statement.times) ||
+                    this._statementsUseTimer(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'If') {
+                if (
+                    this._expressionUsesTimer(statement.condition) ||
+                    this._statementsUseTimer(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'IfElse') {
+                if (
+                    this._expressionUsesTimer(statement.condition) ||
+                    this._statementsUseTimer(
+                        Array.isArray(statement.thenBody) ?
+                            statement.thenBody :
+                            []
+                    ) ||
+                    this._statementsUseTimer(
+                        Array.isArray(statement.elseBody) ?
+                            statement.elseBody :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Recursively inspect Expression IR for timer reads.
+     * @param {number|object} expression EasyBlox expression IR.
+     * @returns {boolean} True when the expression uses the timer.
+     * @private
+     */
+    _expressionUsesTimer (expression) {
+        if (!expression || typeof expression !== 'object') {
+            return false;
+        }
+
+        switch (expression.type) {
+        case 'TimerReadExpression':
+            return true;
+
+        case 'BinaryExpression':
+            return (
+                this._expressionUsesTimer(expression.left) ||
+                this._expressionUsesTimer(expression.right)
+            );
+
+        case 'UnaryExpression':
+            return this._expressionUsesTimer(expression.operand);
+
+        default:
+            return false;
+        }
+    }
+
+    /**
+     * Collect declarative motor configurations from setup.
+     * MotorConfigure is restricted by UploadContextValidator to the
+     * root of setup, so no recursive traversal is required here.
+     * @param {Array<object>} setupStatements Setup IR statements.
+     * @returns {Array<object>} Motor configurations in deterministic order.
+     * @private
+     */
+    _collectMotorConfigurations (
+        setupStatements,
+        loopStatements
+    ) {
+        const configurations = new Map();
+
+        /*
+        * Explicit MotorConfigure statements override the board defaults.
+        */
+        for (const statement of setupStatements) {
+            if (
+                statement &&
+                statement.type === 'MotorConfigure'
+            ) {
+                configurations.set(
+                    statement.motor,
+                    statement
+                );
+            }
+        }
+
+        const usedMotors = new Set();
+
+        this._collectUsedMotorsFromStatements(
+            setupStatements,
+            usedMotors
+        );
+
+        this._collectUsedMotorsFromStatements(
+            loopStatements,
+            usedMotors
+        );
+
+        for (const motor of usedMotors) {
+            if (configurations.has(motor)) {
+                continue;
+            }
+
+            const defaultConfiguration =
+                ArduinoUnoBoardProfile.motors[motor];
+
+            if (!defaultConfiguration) {
+                continue;
+            }
+
+            configurations.set(motor, {
+                type: 'MotorConfigure',
+                motor,
+                in1Pin: defaultConfiguration.in1Pin,
+                in2Pin: defaultConfiguration.in2Pin,
+                pwmPin: defaultConfiguration.pwmPin
+            });
+        }
+
+        return Array.from(configurations.values())
+            .sort((a, b) => a.motor - b.motor);
+    }
+
+    /**
+     * Recursively collect motors referenced by executable statements.
+     * @param {Array<object>} statements Semantic IR statements.
+     * @param {Set<number>} motors Destination motor set.
+     * @private
+     */
+    _collectUsedMotorsFromStatements (statements, motors) {
+        for (const statement of statements) {
+            if (
+                statement.type === 'MotorWrite' ||
+                statement.type === 'MotorStop'
+            ) {
+                motors.add(statement.motor);
+            } else if (
+                statement.type === 'Repeat' ||
+                statement.type === 'If'
+            ) {
+                this._collectUsedMotorsFromStatements(
+                    Array.isArray(statement.body) ?
+                        statement.body :
+                        [],
+                    motors
+                );
+            } else if (statement.type === 'IfElse') {
+                this._collectUsedMotorsFromStatements(
+                    Array.isArray(statement.thenBody) ?
+                        statement.thenBody :
+                        [],
+                    motors
+                );
+
+                this._collectUsedMotorsFromStatements(
+                    Array.isArray(statement.elseBody) ?
+                        statement.elseBody :
+                        [],
+                    motors
+                );
+            }
+        }
+    }
+
+    /**
+     * Collect Servo pins required by executable statements.
+     * @param {Array<object>} setupStatements Setup IR statements.
+     * @param {Array<object>} loopStatements Loop IR statements.
+     * @returns {Array<number>} Unique Servo pins in deterministic order.
+     * @private
+     */
+    _collectServoPins (setupStatements, loopStatements) {
+        const pins = new Set();
+
+        this._collectServoPinsFromStatements(
+            setupStatements,
+            pins
+        );
+
+        this._collectServoPinsFromStatements(
+            loopStatements,
+            pins
+        );
+
+        return Array.from(pins).sort((a, b) => a - b);
+    }
+
+    /**
+     * Recursively collect Servo pins from structured IR.
+     * @param {Array<object>} statements Semantic IR statements.
+     * @param {Set<number>} pins Destination pin set.
+     * @private
+     */
+    _collectServoPinsFromStatements (statements, pins) {
+        for (const statement of statements) {
+            if (statement.type === 'ServoWrite') {
+                pins.add(statement.pin);
+            } else if (
+                statement.type === 'Repeat' ||
+                statement.type === 'If'
+            ) {
+                this._collectServoPinsFromStatements(
+                    Array.isArray(statement.body) ?
+                        statement.body :
+                        [],
+                    pins
+                );
+            } else if (statement.type === 'IfElse') {
+                this._collectServoPinsFromStatements(
+                    Array.isArray(statement.thenBody) ?
+                        statement.thenBody :
+                        [],
+                    pins
+                );
+
+                this._collectServoPinsFromStatements(
+                    Array.isArray(statement.elseBody) ?
+                        statement.elseBody :
+                        [],
+                    pins
+                );
+            }
+        }
+    }
+
+    /**
+     * Infer digital INPUT resources required by expressions.
+     * @param {Array<object>} setupStatements Setup IR statements.
+     * @param {Array<object>} loopStatements Loop IR statements.
+     * @returns {Array<number>} Unique pins in deterministic order.
+     * @private
+     */
+    _collectInputPins (setupStatements, loopStatements) {
+        const pins = new Set();
+
+        this._collectInputPinsFromStatements(
+            setupStatements,
+            pins
+        );
+
+        this._collectInputPinsFromStatements(
+            loopStatements,
+            pins
+        );
+
+        return Array.from(pins).sort((a, b) => a - b);
+    }
+
+    /**
+     * Recursively collect digital INPUT resources from statements.
+     * @param {Array<object>} statements Semantic IR statements.
+     * @param {Set<number>} pins Destination pin set.
+     * @private
+     */
+    _collectInputPinsFromStatements (statements, pins) {
+        for (const statement of statements) {
+            if (statement.type === 'Repeat') {
+                this._collectInputPinsFromExpression(
+                    statement.times,
+                    pins
+                );
+
+                this._collectInputPinsFromStatements(
+                    Array.isArray(statement.body) ?
+                        statement.body :
+                        [],
+                    pins
+                );
+            } else if (statement.type === 'If') {
+                this._collectInputPinsFromExpression(
+                    statement.condition,
+                    pins
+                );
+
+                this._collectInputPinsFromStatements(
+                    Array.isArray(statement.body) ?
+                        statement.body :
+                        [],
+                    pins
+                );
+            } else if (statement.type === 'IfElse') {
+                this._collectInputPinsFromExpression(
+                    statement.condition,
+                    pins
+                );
+
+                this._collectInputPinsFromStatements(
+                    Array.isArray(statement.thenBody) ?
+                        statement.thenBody :
+                        [],
+                    pins
+                );
+
+                this._collectInputPinsFromStatements(
+                    Array.isArray(statement.elseBody) ?
+                        statement.elseBody :
+                        [],
+                    pins
+                );
+            }
+        }
+    }
+
+    /**
+     * Recursively collect digital INPUT resources from Expression IR.
+     * @param {number|object} expression EasyBlox expression IR.
+     * @param {Set<number>} pins Destination pin set.
+     * @private
+     */
+    _collectInputPinsFromExpression (expression, pins) {
+        if (!expression || typeof expression !== 'object') {
+            return;
+        }
+
+        switch (expression.type) {
+        case 'DigitalReadExpression':
+            pins.add(expression.pin);
+            break;
+
+        case 'BinaryExpression':
+            this._collectInputPinsFromExpression(
+                expression.left,
+                pins
+            );
+            this._collectInputPinsFromExpression(
+                expression.right,
+                pins
+            );
+            break;
+
+        case 'UnaryExpression':
+            this._collectInputPinsFromExpression(
+                expression.operand,
+                pins
+            );
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    /**
      * Infer digital OUTPUT resources required by executable statements.
      * Resources inside structured statements must also be discovered.
      * @param {Array<object>} setupStatements Setup IR statements.
@@ -93,7 +544,11 @@ class ArduinoUnoGenerator {
      */
     _collectOutputPinsFromStatements (statements, pins) {
         for (const statement of statements) {
-            if (statement.type === 'DigitalWrite') {
+            if (
+                statement.type === 'DigitalWrite' ||
+                statement.type === 'PwmWrite' ||
+                statement.type === 'RelayWrite'
+            ) {
                 pins.add(statement.pin);
             } else if (
                 statement.type === 'Repeat' ||
@@ -135,13 +590,15 @@ class ArduinoUnoGenerator {
      * @param {number} indentLevel Current indentation depth.
      * @param {InternalIdentifierAllocator} identifiers Identifier allocator.
      * @param {Array<string>} lines Destination source lines.
+     * @param {number} repeatDepth Current nested Repeat depth.
      * @private
      */
     _generateStatements (
         statements,
         indentLevel,
         identifiers,
-        lines
+        lines,
+        repeatDepth = 0
     ) {
         const indent = '    '.repeat(indentLevel);
 
@@ -155,9 +612,108 @@ class ArduinoUnoGenerator {
                 );
                 break;
 
+            case 'PwmWrite':
+                lines.push(
+                    `${indent}analogWrite(${statement.pin}, ${statement.value});`
+                );
+                break;
+
+            case 'ToneStart':
+                lines.push(
+                    `${indent}tone(${statement.pin}, ${statement.frequency});`
+                );
+                break;
+
+            case 'ToneStop':
+                lines.push(
+                    `${indent}noTone(${statement.pin});`
+                );
+                break;
+
+            case 'TimerReset':
+                lines.push(
+                    `${indent}easyblox_timer_reset_at = millis();`
+                );
+                break;
+
+            case 'MotorConfigure':
+                /*
+                * MotorConfigure is declarative hardware configuration.
+                * Its C++ declarations and pin setup are generated separately.
+                */
+                break;
+
+            case 'MotorWrite': {
+                if (
+                    statement.direction !== 0 &&
+                    statement.direction !== 1
+                ) {
+                    throw new Error(
+                        `Unsupported Arduino UNO motor direction: ${
+                            statement.direction
+                        }`
+                    );
+                }
+
+                const pwmValue = Math.round(
+                    statement.speedPercent * 255 / 100
+                );
+
+                lines.push(
+                    `${indent}analogWrite(MOTOR${statement.motor}_PWM, 0);`
+                );
+
+                if (pwmValue === 0) {
+                    lines.push(
+                        `${indent}digitalWrite(MOTOR${statement.motor}_IN1, LOW);`,
+                        `${indent}digitalWrite(MOTOR${statement.motor}_IN2, LOW);`
+                    );
+                } else if (statement.direction === 0) {
+                    lines.push(
+                        `${indent}digitalWrite(MOTOR${statement.motor}_IN1, HIGH);`,
+                        `${indent}digitalWrite(MOTOR${statement.motor}_IN2, LOW);`
+                    );
+                } else {
+                    lines.push(
+                        `${indent}digitalWrite(MOTOR${statement.motor}_IN1, LOW);`,
+                        `${indent}digitalWrite(MOTOR${statement.motor}_IN2, HIGH);`
+                    );
+                }
+
+                lines.push(
+                    `${indent}analogWrite(MOTOR${statement.motor}_PWM, ${pwmValue});`
+                );
+                break;
+            }
+
+            case 'MotorStop':
+                lines.push(
+                    `${indent}analogWrite(MOTOR${statement.motor}_PWM, 0);`,
+                    `${indent}digitalWrite(MOTOR${statement.motor}_IN1, LOW);`,
+                    `${indent}digitalWrite(MOTOR${statement.motor}_IN2, LOW);`
+                );
+                break;
+
+            case 'ServoWrite':
+                lines.push(
+                    `${indent}if (!servo${statement.pin}.attached()) {`,
+                    `${indent}    servo${statement.pin}.attach(${statement.pin});`,
+                    `${indent}}`,
+                    `${indent}servo${statement.pin}.write(${statement.angle});`
+                );
+                break;
+
+            case 'RelayWrite':
+                lines.push(
+                    `${indent}digitalWrite(${statement.pin}, ${
+                        statement.state ? 'HIGH' : 'LOW'
+                    });`
+                );
+                break;
+
             case 'Repeat': {
-                const identifier = identifiers.allocate(
-                    'easyblox_repeat_index'
+                const identifier = this._getRepeatIdentifier(
+                    repeatDepth
                 );
 
                 const timesExpression = this._generateExpression(
@@ -176,7 +732,8 @@ class ArduinoUnoGenerator {
                         [],
                     indentLevel + 1,
                     identifiers,
-                    lines
+                    lines,
+                    repeatDepth + 1
                 );
 
                 lines.push(`${indent}}`);
@@ -198,7 +755,8 @@ class ArduinoUnoGenerator {
                         [],
                     indentLevel + 1,
                     identifiers,
-                    lines
+                    lines,
+                    repeatDepth
                 );
 
                 lines.push(`${indent}}`);
@@ -220,7 +778,8 @@ class ArduinoUnoGenerator {
                         [],
                     indentLevel + 1,
                     identifiers,
-                    lines
+                    lines,
+                    repeatDepth
                 );
 
                 lines.push(`${indent}} else {`);
@@ -231,7 +790,8 @@ class ArduinoUnoGenerator {
                         [],
                     indentLevel + 1,
                     identifiers,
-                    lines
+                    lines,
+                    repeatDepth
                 );
 
                 lines.push(`${indent}}`);
@@ -246,6 +806,32 @@ class ArduinoUnoGenerator {
                 );
             }
         }
+    }
+
+    /**
+     * Get a pedagogical C++ identifier for a Repeat loop.
+     * Identifiers are determined by Repeat nesting depth, not indentation.
+     * @param {number} repeatDepth Current nested Repeat depth.
+     * @returns {string} Pedagogical loop identifier.
+     * @private
+     */
+    _getRepeatIdentifier (repeatDepth) {
+        const repeatIdentifiers = 'ijklmnopqrstuvwxyz';
+
+        if (
+            !Number.isInteger(repeatDepth) ||
+            repeatDepth < 0
+        ) {
+            throw new Error(
+                `Invalid Arduino UNO Repeat depth: ${repeatDepth}`
+            );
+        }
+
+        if (repeatDepth < repeatIdentifiers.length) {
+            return repeatIdentifiers[repeatDepth];
+        }
+
+        return `i${repeatDepth}`;
     }
 
     /**
@@ -289,6 +875,15 @@ class ArduinoUnoGenerator {
             }
 
             return String(expression.value);
+
+        case 'DigitalReadExpression':
+            return `(digitalRead(${expression.pin}) == HIGH)`;
+
+        case 'AnalogReadExpression':
+            return `analogRead(${this._generateAnalogPin(expression.pin)})`;
+
+        case 'TimerReadExpression':
+            return '((millis() - easyblox_timer_reset_at) / 1000.0)';
 
         case 'BinaryExpression': {
             const left = this._generateExpression(expression.left);
@@ -345,6 +940,28 @@ class ArduinoUnoGenerator {
             );
         }
     }
+
+    /**
+     * Generate Arduino notation for an analog pin.
+     * EasyBlox stores UNO analog pins canonically as 14..19.
+     * @param {number} pin Canonical Arduino UNO analog pin.
+     * @returns {string} Arduino analog pin notation.
+     * @private
+     */
+    _generateAnalogPin (pin) {
+        if (
+            !Number.isInteger(pin) ||
+            pin < 14 ||
+            pin > 19
+        ) {
+            throw new Error(
+                `Invalid Arduino UNO analog pin: ${pin}`
+            );
+        }
+
+        return `A${pin - 14}`;
+    }
+
     /**
      * Generate a C++ unary expression.
      * @param {object} expression UnaryExpression IR.

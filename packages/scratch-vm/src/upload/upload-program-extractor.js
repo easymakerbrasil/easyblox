@@ -1,5 +1,17 @@
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
+const DIGITAL_READ_OPCODE = 'arduinoUno_digitalRead';
+const ANALOG_READ_OPCODE = 'arduinoUno_analogRead';
+const PWM_WRITE_OPCODE = 'arduinoUno_pwmWrite';
+const TONE_START_OPCODE = 'arduinoUno_toneStart';
+const TONE_STOP_OPCODE = 'arduinoUno_toneStop';
+const TIMER_READ_OPCODE = 'arduinoUno_timerRead';
+const TIMER_RESET_OPCODE = 'arduinoUno_timerReset';
+const MOTOR_CONFIGURE_OPCODE = 'actuators_motorConfigure';
+const MOTOR_WRITE_OPCODE = 'actuators_motorWrite';
+const MOTOR_STOP_OPCODE = 'actuators_motorStop';
+const SERVO_WRITE_OPCODE = 'actuators_servoWrite';
+const RELAY_WRITE_OPCODE = 'actuators_relayWrite';
 const FOREVER_OPCODE = 'control_forever';
 const REPEAT_OPCODE = 'control_repeat';
 const IF_OPCODE = 'control_if';
@@ -169,6 +181,136 @@ class UploadProgramExtractor {
                 value: this._readDigitalValue(blocks, block, 'VALUE')
             };
 
+        case TONE_START_OPCODE:
+            return {
+                type: 'ToneStart',
+                pin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'PIN'
+                ),
+                frequency: this._readNumberInput(
+                    blocks,
+                    block,
+                    'FREQUENCY'
+                )
+            };
+
+        case TONE_STOP_OPCODE:
+            return {
+                type: 'ToneStop',
+                pin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'PIN'
+                )
+            };
+
+        case PWM_WRITE_OPCODE:
+            return {
+                type: 'PwmWrite',
+                pin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'PIN'
+                ),
+                value: this._readNumberInput(
+                    blocks,
+                    block,
+                    'VALUE'
+                )
+            };
+
+        case TIMER_RESET_OPCODE:
+            return {
+                type: 'TimerReset'
+            };
+
+        case MOTOR_CONFIGURE_OPCODE:
+            return {
+                type: 'MotorConfigure',
+                motor: this._readNumberInput(
+                    blocks,
+                    block,
+                    'MOTOR'
+                ),
+                in1Pin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'IN1'
+                ),
+                in2Pin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'IN2'
+                ),
+                pwmPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'PWM'
+                )
+            };
+
+        case MOTOR_WRITE_OPCODE:
+            return {
+                type: 'MotorWrite',
+                motor: this._readNumberInput(
+                    blocks,
+                    block,
+                    'MOTOR'
+                ),
+                direction: this._readNumberInput(
+                    blocks,
+                    block,
+                    'DIRECTION'
+                ),
+                speedPercent: this._readNumberInput(
+                    blocks,
+                    block,
+                    'SPEED'
+                )
+            };
+
+        case MOTOR_STOP_OPCODE:
+            return {
+                type: 'MotorStop',
+                motor: this._readNumberInput(
+                    blocks,
+                    block,
+                    'MOTOR'
+                )
+            };
+
+        case SERVO_WRITE_OPCODE:
+            return {
+                type: 'ServoWrite',
+                pin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'PIN'
+                ),
+                angle: this._readNumberInput(
+                    blocks,
+                    block,
+                    'ANGLE'
+                )
+            };
+
+        case RELAY_WRITE_OPCODE:
+            return {
+                type: 'RelayWrite',
+                pin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'PIN'
+                ),
+                state: this._readDigitalValue(
+                    blocks,
+                    block,
+                    'STATE'
+                )
+            };
+
         case REPEAT_OPCODE: {
             const body = [];
 
@@ -294,7 +436,7 @@ class UploadProgramExtractor {
         /*
         * Preserve the A3 IR shape for direct numeric literals.
         */
-        if (inputBlock.opcode === 'math_number') {
+        if (this._isNumericLiteralOpcode(inputBlock.opcode)) {
             const value = this._readNumberInput(
                 blocks,
                 block,
@@ -332,17 +474,11 @@ class UploadProgramExtractor {
             );
         }
 
-        switch (block.opcode) {
-        case 'math_number': {
-            const fields = blocks.getFields(block);
-            const numberField = fields && fields.NUM;
-            const value = numberField && Number(numberField.value);
-
-            if (!Number.isFinite(value)) {
-                throw new Error(
-                    'Invalid Arduino UNO Upload numeric literal'
-                );
-            }
+        if (this._isNumericLiteralOpcode(block.opcode)) {
+            const value = this._readNumericLiteralValue(
+                blocks,
+                block
+            );
 
             return Number.isInteger(value) ?
                 {
@@ -355,6 +491,7 @@ class UploadProgramExtractor {
                 };
         }
 
+        switch (block.opcode) {
         case ADD_OPCODE:
             return {
                 type: 'BinaryExpression',
@@ -369,6 +506,31 @@ class UploadProgramExtractor {
                     block,
                     'NUM2'
                 )
+            };
+
+        case DIGITAL_READ_OPCODE:
+            return {
+                type: 'DigitalReadExpression',
+                pin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'PIN'
+                )
+            };
+
+        case ANALOG_READ_OPCODE:
+            return {
+                type: 'AnalogReadExpression',
+                pin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'PIN'
+                )
+            };
+
+        case TIMER_READ_OPCODE:
+            return {
+                type: 'TimerReadExpression'
             };
 
         case SUBTRACT_OPCODE:
@@ -543,6 +705,34 @@ class UploadProgramExtractor {
         );
     }
 
+    _isNumericLiteralOpcode (opcode) {
+        return [
+            'math_number',
+            'math_positive_number',
+            'math_whole_number',
+            'math_integer',
+            'math_angle',
+            'easyblox_servo_angle',
+            'easyblox_pwm_value',
+            'easyblox_motor_speed',
+            'easyblox_percentage'
+        ].includes(opcode);
+    }
+
+    _readNumericLiteralValue (blocks, block) {
+        const fields = blocks.getFields(block);
+        const numberField = fields && fields.NUM;
+        const value = numberField && Number(numberField.value);
+
+        if (!Number.isFinite(value)) {
+            throw new Error(
+                'Invalid Arduino UNO Upload numeric literal'
+            );
+        }
+
+        return value;
+    }
+
     /**
      * Read a numeric Scratch input from its connected/shadow block.
      * @param {Blocks} blocks Scratch Blocks storage.
@@ -563,23 +753,37 @@ class UploadProgramExtractor {
 
         const inputBlock = blocks.getBlock(input.block);
 
-        if (!inputBlock || inputBlock.opcode !== 'math_number') {
+        if (!inputBlock) {
             throw new Error(
                 `Unsupported numeric input ${inputName} in ${block.opcode}`
             );
         }
 
-        const fields = blocks.getFields(inputBlock);
-        const numberField = fields && fields.NUM;
-        const value = numberField && Number(numberField.value);
-
-        if (!Number.isFinite(value)) {
-            throw new Error(
-                `Invalid numeric input ${inputName} in ${block.opcode}`
+        if (this._isNumericLiteralOpcode(inputBlock.opcode)) {
+            return this._readNumericLiteralValue(
+                blocks,
+                inputBlock
             );
         }
 
-        return value;
+        if (inputBlock.opcode.includes('_menu_')) {
+            const fields = blocks.getFields(inputBlock);
+            const fieldNames = fields ? Object.keys(fields) : [];
+
+            if (fieldNames.length === 1) {
+                const value = Number(
+                    fields[fieldNames[0]].value
+                );
+
+                if (Number.isFinite(value)) {
+                    return value;
+                }
+            }
+        }
+
+        throw new Error(
+            `Unsupported numeric input ${inputName} in ${block.opcode}`
+        );
     }
 }
 
