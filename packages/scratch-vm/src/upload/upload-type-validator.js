@@ -44,7 +44,23 @@ class UploadTypeValidator {
             case 'MotorStop':
             case 'ServoWrite':
             case 'RelayWrite':
+            case 'SerialBegin':
                 break;
+
+            case 'SerialWrite':
+            case 'SerialWriteLine': {
+                const valueType = this._inferExpressionType(
+                    statement.value
+                );
+
+                if (valueType !== VALUE_TYPES.TEXT) {
+                    throw new Error(
+                        'Serial write value must be Texto'
+                    );
+                }
+
+                break;
+            }
 
             case 'Repeat': {
                 const timesType = this._inferExpressionType(
@@ -147,6 +163,9 @@ class UploadTypeValidator {
 
         case 'DecimalLiteral':
             return VALUE_TYPES.DECIMAL;
+
+        case 'TextLiteral':
+            return VALUE_TYPES.TEXT;
 
         case 'DigitalReadExpression':
             return VALUE_TYPES.BOOLEAN;

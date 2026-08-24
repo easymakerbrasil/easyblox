@@ -117,7 +117,7 @@ const ariaMessages = defineMessages({
 // Assume that it doesn't change for a session.
 let isRendererSupported = null;
 
-const GUIComponent = props => {
+export const GUIComponent = props => {
     const intl = useIntl();
     const [programMode, setProgramMode] = useState('stage');
     const [selectedBoard, setSelectedBoard] = useState(null);
@@ -682,6 +682,7 @@ const GUIComponent = props => {
                                         <Blocks
                                             key={`${blocksId}/${colorMode}/${theme}`}
                                             activeBoardId={selectedBoard}
+                                            programMode={programMode}
                                             canUseCloud={canUseCloud}
                                             extensionSelectionRequest={extensionSelectionRequest}
                                             grow={1}

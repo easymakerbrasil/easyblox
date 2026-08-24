@@ -6,6 +6,8 @@ const ArgumentType = require('../extension-support/argument-type');
 const Blocks = require('./blocks');
 const BlocksRuntimeCache = require('./blocks-runtime-cache');
 const BlockType = require('../extension-support/block-type');
+const BlockExecutionMode = require('../extension-support/block-execution-mode');
+const BlockInactiveModeBehavior = require('../extension-support/block-inactive-mode-behavior');
 const Profiler = require('./profiler');
 const Sequencer = require('./sequencer');
 const execute = require('./execute.js');
@@ -1099,6 +1101,10 @@ class Runtime extends EventEmitter {
             return this._convertSeparatorForScratchBlocks(blockInfo);
         }
 
+        blockInfo = Object.assign({
+            executionMode: BlockExecutionMode.BOTH
+        }, blockInfo);
+
         if (blockInfo.blockType === BlockType.BUTTON) {
             return this._convertButtonForScratchBlocks(blockInfo);
         }
@@ -1452,12 +1458,98 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Get the execution mode metadata for a registered extension block.
+     * @param {string} blockType - scratch-blocks block type
+     * @returns {?BlockExecutionMode} execution mode, or null if the block is not registered
+     */
+    getBlockExecutionMode (blockType) {
+        for (const categoryInfo of this._blockInfo) {
+            const convertedBlock = categoryInfo.blocks.find(block =>
+                block &&
+                block.json &&
+                block.json.type === blockType
+            );
+
+            if (convertedBlock) {
+                return convertedBlock.info.executionMode ||
+                    BlockExecutionMode.BOTH;
+            }
+        }
+
+        const stageOnlyPrefixes = [
+            'motion_',
+            'looks_',
+            'sound_',
+            'event_',
+            'sensing_'
+        ];
+
+        if (stageOnlyPrefixes.some(prefix =>
+            blockType.startsWith(prefix)
+        )) {
+            return BlockExecutionMode.STAGE_ONLY;
+        }
+
+        const stageOnlyControlBlocks = new Set([
+            'control_stop',
+            'control_start_as_clone',
+            'control_create_clone_of',
+            'control_delete_this_clone'
+        ]);
+
+        if (stageOnlyControlBlocks.has(blockType)) {
+            return BlockExecutionMode.STAGE_ONLY;
+        }
+
+        if (blockType.startsWith('control_')) {
+            return BlockExecutionMode.BOTH;
+        }
+
+        if (
+            blockType.startsWith('operator_') ||
+            blockType.startsWith('procedures_')
+        ) {
+            return BlockExecutionMode.BOTH;
+        }
+
+        const bothModeVariableBlocks = new Set([
+            'data_setvariableto',
+            'data_changevariableby'
+        ]);
+
+        if (bothModeVariableBlocks.has(blockType)) {
+            return BlockExecutionMode.BOTH;
+        }
+
+        const stageOnlyListBlocks = new Set([
+            'data_listcontents',
+            'data_addtolist',
+            'data_deleteoflist',
+            'data_deletealloflist',
+            'data_insertatlist',
+            'data_replaceitemoflist',
+            'data_itemoflist',
+            'data_itemnumoflist',
+            'data_lengthoflist',
+            'data_listcontainsitem',
+            'data_hidelist',
+            'data_showlist'
+        ]);
+
+        if (stageOnlyListBlocks.has(blockType)) {
+            return BlockExecutionMode.STAGE_ONLY;
+        }
+
+        return null;
+    }
+
+    /**
      * @returns {Array.<object>} scratch-blocks XML for each category of extension blocks, in category order.
-     * @param {?Target} [target] - the active editing target (optional)
+     * @param {?BlockExecutionMode} [executionMode] - execution mode used to filter palette blocks (optional)
      * @property {string} id - the category / extension ID
      * @property {string} xml - the XML text for this category, starting with `<category>` and ending with `</category>`
      */
-    getBlocksXML (target) {
+    getBlocksXML (target, executionMode = null) {
         return this._blockInfo.map(categoryInfo => {
             const {name, color1, color2} = categoryInfo;
             // Filter out blocks that aren't supposed to be shown on this target, as determined by the block info's
@@ -1471,9 +1563,40 @@ class Runtime extends EventEmitter {
                         target.isStage ? TargetType.STAGE : TargetType.SPRITE
                     );
                 }
+                let blockExecutionModeIncludesCurrentMode = true;
+
+                if (executionMode) {
+                    const blockExecutionMode =
+                        block.info.executionMode || BlockExecutionMode.BOTH;
+
+                    blockExecutionModeIncludesCurrentMode =
+                        blockExecutionMode === BlockExecutionMode.BOTH ||
+                        blockExecutionMode === executionMode;
+                }
+
+                const inactiveModeBehavior =
+                    block.info.inactiveModeBehavior ||
+                    BlockInactiveModeBehavior.HIDE;
+
+                const keepDisabledWhenIncompatible =
+                    !blockExecutionModeIncludesCurrentMode &&
+                    inactiveModeBehavior ===
+                        BlockInactiveModeBehavior.SHOW_DISABLED;
+
                 // If the block info's `hideFromPalette` is true, then filter out this block
-                return blockFilterIncludesTarget && !block.info.hideFromPalette;
+                return (
+                    blockFilterIncludesTarget &&
+                    (
+                        blockExecutionModeIncludesCurrentMode ||
+                        keepDisabledWhenIncompatible
+                    ) &&
+                    !block.info.hideFromPalette
+                );
             });
+
+            if (paletteBlocks.length === 0) {
+                return null;
+            }
 
             const colorXML = `colour="${color1}" secondaryColour="${color2}"`;
 
@@ -1496,9 +1619,27 @@ class Runtime extends EventEmitter {
             return {
                 id: categoryInfo.id,
                 xml: `<category name="${name}" toolboxitemid="${categoryInfo.id}" ${statusButtonXML} ${colorXML} ${
-                    menuIconXML}>${paletteBlocks.map(block => block.xml).join('')}</category>`
+                    menuIconXML}>${paletteBlocks.map(block => {
+                    const blockExecutionMode =
+                        block.info.executionMode || BlockExecutionMode.BOTH;
+                    const incompatible =
+                        Boolean(executionMode) &&
+                        blockExecutionMode !== BlockExecutionMode.BOTH &&
+                        blockExecutionMode !== executionMode;
+                    const showDisabled =
+                        incompatible &&
+                        block.info.inactiveModeBehavior ===
+                            BlockInactiveModeBehavior.SHOW_DISABLED;
+
+                    return showDisabled ?
+                        block.xml.replace(
+                            '>',
+                            ' disabled-reasons="EASYBLOX_EXECUTION_MODE">'
+                        ) :
+                        block.xml;
+                }).join('')}</category>`
             };
-        });
+        }).filter(Boolean);
     }
 
     /**

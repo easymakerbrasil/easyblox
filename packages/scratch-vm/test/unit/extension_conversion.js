@@ -2,6 +2,7 @@ const test = require('tap').test;
 
 const ArgumentType = require('../../src/extension-support/argument-type');
 const BlockType = require('../../src/extension-support/block-type');
+const BlockExecutionMode = require('../../src/extension-support/block-execution-mode');
 const Runtime = require('../../src/engine/runtime');
 const ScratchBlocksConstants = require('../../src/engine/scratch-blocks-constants');
 
@@ -45,6 +46,7 @@ const testExtensionInfo = {
         {
             opcode: 'command',
             blockType: BlockType.COMMAND,
+            executionMode: BlockExecutionMode.UPLOAD_ONLY,
             text: 'text with [ARG] [ARG_WITH_DEFAULT]',
             arguments: {
                 ARG: {
@@ -59,6 +61,7 @@ const testExtensionInfo = {
         {
             opcode: 'ifElse',
             blockType: BlockType.CONDITIONAL,
+            executionMode: BlockExecutionMode.STAGE_ONLY,
             branchCount: 2,
             text: [
                 'test if [THING] is spiffy and if so then',
@@ -148,6 +151,7 @@ const testLabel = function (t, label) {
 
 const testReporter = function (t, reporter) {
     t.equal(reporter.json.type, 'test_reporter');
+    t.equal(reporter.info.executionMode, BlockExecutionMode.BOTH);
     testCategoryInfo(t, reporter);
     t.equal(reporter.json.outputShape, ScratchBlocksConstants.OUTPUT_SHAPE_ROUND);
     t.equal(reporter.json.output, 'String');
@@ -204,6 +208,7 @@ const testSeparator = function (t, separator) {
 
 const testCommand = function (t, command) {
     t.equal(command.json.type, 'test_command');
+    t.equal(command.info.executionMode, BlockExecutionMode.UPLOAD_ONLY);
     testCategoryInfo(t, command);
     t.equal(command.json.outputShape, ScratchBlocksConstants.OUTPUT_SHAPE_SQUARE);
     t.ok(Object.prototype.hasOwnProperty.call(command.json, 'previousStatement'));
@@ -316,6 +321,367 @@ test('registerExtensionPrimitives', t => {
     });
 
     runtime._registerExtensionPrimitives(testExtensionInfo);
+});
+
+test('getBlocksXML excludes UPLOAD_ONLY blocks in stage mode', t => {
+    const runtime = new Runtime();
+
+    runtime._registerExtensionPrimitives(testExtensionInfo);
+
+    const blocksXML = runtime.getBlocksXML(
+        null,
+        BlockExecutionMode.STAGE_ONLY
+    );
+
+    const testCategory = blocksXML.find(category =>
+        category.id === 'test'
+    );
+
+    t.ok(
+        testCategory.xml.includes(
+            '<block type="test_reporter"></block>'
+        ),
+        'BOTH block remains visible in stage mode'
+    );
+
+    t.notOk(
+        testCategory.xml.includes(
+            '<block type="test_command">'
+        ),
+        'UPLOAD_ONLY block is hidden in stage mode'
+    );
+
+    t.end();
+});
+
+test('getBlocksXML keeps SHOW_DISABLED incompatible blocks disabled in the palette', t => {
+    const runtime = new Runtime();
+
+    const showDisabledExtensionInfo = Object.assign(
+        {},
+        testExtensionInfo,
+        {
+            id: 'showDisabled',
+            name: 'show disabled extension',
+            blocks: [
+                {
+                    opcode: 'command',
+                    blockType: BlockType.COMMAND,
+                    executionMode: BlockExecutionMode.UPLOAD_ONLY,
+                    inactiveModeBehavior: 'show_disabled',
+                    text: 'upload command'
+                }
+            ]
+        }
+    );
+
+    runtime._registerExtensionPrimitives(
+        showDisabledExtensionInfo
+    );
+
+    const blocksXML = runtime.getBlocksXML(
+        null,
+        BlockExecutionMode.STAGE_ONLY
+    );
+
+    const category = blocksXML.find(categoryInfo =>
+        categoryInfo.id === 'showDisabled'
+    );
+
+    t.ok(
+        category,
+        'category remains visible when its incompatible block uses SHOW_DISABLED'
+    );
+
+    t.ok(
+        category.xml.includes(
+            '<block type="showDisabled_command" disabled-reasons="EASYBLOX_EXECUTION_MODE">'
+        ),
+        'incompatible block remains visible and disabled in the palette'
+    );
+
+    t.end();
+});
+
+test('getBlockExecutionMode resolves extension block execution modes', t => {
+    const runtime = new Runtime();
+
+    runtime._registerExtensionPrimitives(testExtensionInfo);
+
+    t.equal(
+        runtime.getBlockExecutionMode('test_command'),
+        BlockExecutionMode.UPLOAD_ONLY,
+        'resolves UPLOAD_ONLY extension block'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('test_reporter'),
+        BlockExecutionMode.BOTH,
+        'resolves BOTH extension block'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('test_ifElse'),
+        BlockExecutionMode.STAGE_ONLY,
+        'resolves STAGE_ONLY extension block'
+    );
+
+    t.end();
+});
+
+test('getBlockExecutionMode resolves native Scratch execution modes', t => {
+    const runtime = new Runtime();
+
+    t.equal(
+        runtime.getBlockExecutionMode('motion_movesteps'),
+        BlockExecutionMode.STAGE_ONLY,
+        'Motion blocks are STAGE_ONLY'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('looks_sayforsecs'),
+        BlockExecutionMode.STAGE_ONLY,
+        'Looks blocks are STAGE_ONLY'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('sound_playuntildone'),
+        BlockExecutionMode.STAGE_ONLY,
+        'Sound blocks are STAGE_ONLY'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('event_whenflagclicked'),
+        BlockExecutionMode.STAGE_ONLY,
+        'Event blocks are STAGE_ONLY'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('sensing_touchingobject'),
+        BlockExecutionMode.STAGE_ONLY,
+        'Sensing blocks are STAGE_ONLY'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('control_stop'),
+        BlockExecutionMode.STAGE_ONLY,
+        'stop is STAGE_ONLY'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('control_start_as_clone'),
+        BlockExecutionMode.STAGE_ONLY,
+        'start as clone is STAGE_ONLY'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('control_create_clone_of'),
+        BlockExecutionMode.STAGE_ONLY,
+        'create clone is STAGE_ONLY'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('control_delete_this_clone'),
+        BlockExecutionMode.STAGE_ONLY,
+        'delete clone is STAGE_ONLY'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('control_repeat'),
+        BlockExecutionMode.BOTH,
+        'normal Control blocks remain BOTH'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('control_if'),
+        BlockExecutionMode.BOTH,
+        'normal conditional Control blocks remain BOTH'
+    );
+
+    t.end();
+});
+
+test('getBlockExecutionMode keeps Upload-compatible native blocks in both modes', t => {
+    const runtime = new Runtime();
+
+    t.equal(
+        runtime.getBlockExecutionMode('operator_add'),
+        BlockExecutionMode.BOTH,
+        'Operators remain BOTH'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('operator_equals'),
+        BlockExecutionMode.BOTH,
+        'Boolean operators remain BOTH'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('data_setvariableto'),
+        BlockExecutionMode.BOTH,
+        'variable assignment remains BOTH'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('data_changevariableby'),
+        BlockExecutionMode.BOTH,
+        'variable changes remain BOTH'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('procedures_definition'),
+        BlockExecutionMode.BOTH,
+        'My Blocks definitions remain BOTH'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('procedures_call'),
+        BlockExecutionMode.BOTH,
+        'My Blocks calls remain BOTH'
+    );
+
+    t.end();
+});
+
+test('getBlockExecutionMode keeps Scratch lists stage only in Upload v1', t => {
+    const runtime = new Runtime();
+
+    const stageOnlyListBlocks = [
+        'data_listcontents',
+        'data_addtolist',
+        'data_deleteoflist',
+        'data_deletealloflist',
+        'data_insertatlist',
+        'data_replaceitemoflist',
+        'data_itemoflist',
+        'data_itemnumoflist',
+        'data_lengthoflist',
+        'data_listcontainsitem',
+        'data_hidelist',
+        'data_showlist'
+    ];
+
+    for (const blockType of stageOnlyListBlocks) {
+        t.equal(
+            runtime.getBlockExecutionMode(blockType),
+            BlockExecutionMode.STAGE_ONLY,
+            `${blockType} is STAGE_ONLY in Upload v1`
+        );
+    }
+
+    t.end();
+});
+
+test('getBlocksXML removes categories with no blocks for the current mode', t => {
+    const runtime = new Runtime();
+
+    const uploadOnlyExtensionInfo = Object.assign(
+        {},
+        testExtensionInfo,
+        {
+            id: 'uploadOnly',
+            name: 'upload only extension',
+            blocks: [
+                {
+                    opcode: 'command',
+                    blockType: BlockType.COMMAND,
+                    executionMode: BlockExecutionMode.UPLOAD_ONLY,
+                    text: 'upload only command'
+                }
+            ]
+        }
+    );
+
+    runtime._registerExtensionPrimitives(
+        uploadOnlyExtensionInfo
+    );
+
+    const blocksXML = runtime.getBlocksXML(
+        null,
+        BlockExecutionMode.STAGE_ONLY
+    );
+
+    t.notOk(
+        blocksXML.find(category =>
+            category.id === 'uploadOnly'
+        ),
+        'category with no visible blocks is hidden in stage mode'
+    );
+
+    t.end();
+});
+
+test('getBlocksXML excludes STAGE_ONLY blocks in upload mode', t => {
+    const runtime = new Runtime();
+
+    runtime._registerExtensionPrimitives(testExtensionInfo);
+
+    const blocksXML = runtime.getBlocksXML(
+        null,
+        BlockExecutionMode.UPLOAD_ONLY
+    );
+
+    const testCategory = blocksXML.find(category =>
+        category.id === 'test'
+    );
+
+    t.ok(
+        testCategory.xml.includes(
+            '<block type="test_reporter"></block>'
+        ),
+        'BOTH block remains visible in upload mode'
+    );
+
+    t.ok(
+        testCategory.xml.includes(
+            '<block type="test_command">'
+        ),
+        'UPLOAD_ONLY block remains visible in upload mode'
+    );
+
+    t.notOk(
+        testCategory.xml.includes(
+            '<block type="test_ifElse"><value name="THING"></value></block>'
+        ),
+        'STAGE_ONLY block is hidden in upload mode'
+    );
+
+    t.end();
+});
+
+test('getBlocksXML preserves all execution modes when no mode is provided', t => {
+    const runtime = new Runtime();
+
+    runtime._registerExtensionPrimitives(testExtensionInfo);
+
+    const blocksXML = runtime.getBlocksXML(null);
+
+    const testCategory = blocksXML.find(category =>
+        category.id === 'test'
+    );
+
+    t.ok(
+        testCategory.xml.includes(
+            '<block type="test_reporter"></block>'
+        ),
+        'BOTH block remains visible without execution mode filtering'
+    );
+
+    t.ok(
+        testCategory.xml.includes(
+            '<block type="test_command">'
+        ),
+        'UPLOAD_ONLY block remains visible without execution mode filtering'
+    );
+
+    t.ok(
+        testCategory.xml.includes(
+            '<block type="test_ifElse"><value name="THING"></value></block>'
+        ),
+        'STAGE_ONLY block remains visible without execution mode filtering'
+    );
+
+    t.end();
 });
 
 test('custom field types should be added to block and EXTENSION_FIELD_ADDED callback triggered', t => {

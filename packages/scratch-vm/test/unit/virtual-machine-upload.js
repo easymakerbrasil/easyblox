@@ -138,6 +138,83 @@ test('VirtualMachine generates Arduino UNO Upload C++ from current runtime', t =
     t.end();
 });
 
+test('VirtualMachine generates Arduino UNO Serial Upload C++ from current runtime', t => {
+    const vm = new VirtualMachine();
+
+    vm.runtime = createRuntimeWithBlocks([
+        createUploadHat('serial_begin'),
+        {
+            id: 'serial_begin',
+            opcode: 'serial_serialBegin',
+            next: 'serial_write_line',
+            parent: 'upload_hat',
+            inputs: {
+                BAUD: {
+                    name: 'BAUD',
+                    block: 'serial_baud',
+                    shadow: 'serial_baud'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'serial_baud',
+            'serial_begin',
+            'serial_menu_baudRates',
+            'baudRates',
+            9600
+        ),
+        {
+            id: 'serial_write_line',
+            opcode: 'serial_serialWriteLine',
+            next: null,
+            parent: 'serial_begin',
+            inputs: {
+                TEXT: {
+                    name: 'TEXT',
+                    block: 'serial_text',
+                    shadow: 'serial_text'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'serial_text',
+            opcode: 'text',
+            next: null,
+            parent: 'serial_write_line',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'Olá'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const code = vm.generateArduinoUnoUploadCode();
+
+    t.equal(code, [
+        'void setup() {',
+        '    Serial.begin(9600);',
+        '    Serial.println("Olá");',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
 test('VirtualMachine rejects Arduino UNO Upload resource conflicts', t => {
     const vm = new VirtualMachine();
 

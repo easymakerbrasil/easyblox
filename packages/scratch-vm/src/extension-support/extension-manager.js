@@ -17,6 +17,7 @@ const builtinExtensions = {
     actuators: () => require('../extensions/scratch3_actuators'),
     sensors: () => require('../extensions/scratch3_sensors'),
     displays: () => require('../extensions/scratch3_displays'),
+    serial: () => require('../extensions/scratch3_serial'),
     pen: () => require('../extensions/scratch3_pen'),
     wedo2: () => require('../extensions/scratch3_wedo2'),
     music: () => require('../extensions/scratch3_music'),
@@ -34,11 +35,12 @@ const builtinExtensions = {
 const builtinExtensionDependencies = {
     actuators: ['arduinoUno'],
     sensors: ['arduinoUno'],
-    displays: ['arduinoUno']
+    displays: ['arduinoUno'],
+    serial: ['arduinoUno']
 };
 
 const builtinExtensionCompanions = {
-    arduinoUno: ['actuators', 'sensors', 'displays']
+    arduinoUno: ['actuators', 'sensors', 'displays', 'serial']
 };
 
 /**

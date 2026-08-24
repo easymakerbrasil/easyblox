@@ -1,6 +1,8 @@
 const tap = require('tap');
 
 const BlockType = require('../../src/extension-support/block-type');
+const BlockExecutionMode = require('../../src/extension-support/block-execution-mode');
+const BlockInactiveModeBehavior = require('../../src/extension-support/block-inactive-mode-behavior');
 const ArgumentType = require('../../src/extension-support/argument-type');
 const ArduinoUnoPeripheral = require('../../src/extensions/scratch3_arduino_uno/peripheral');
 const Scratch3ArduinoUnoBlocks = require('../../src/extensions/scratch3_arduino_uno');
@@ -1607,6 +1609,11 @@ tap.test('Arduino UNO exposes reordered blocks and timer blocks', t => {
     );
 
     t.equal(info.blocks[0].opcode, 'whenArduinoUnoStart');
+    t.equal(
+        info.blocks[0].executionMode,
+        BlockExecutionMode.UPLOAD_ONLY,
+        'Arduino UNO start hat is Upload-only'
+    );
     t.equal(info.blocks[1].opcode, 'digitalWrite');
     t.equal(info.blocks[2].opcode, 'digitalRead');
     t.equal(info.blocks[3].opcode, 'analogRead');
@@ -2470,6 +2477,17 @@ tap.test('Arduino UNO exposes an inert Upload entry point hat', t => {
     t.equal(startBlock.text, 'quando Arduino Uno iniciar');
     t.equal(startBlock.isEdgeActivated, false);
     t.equal(startBlock.shouldRestartExistingThreads, false);
+
+        t.equal(
+        startBlock.executionMode,
+        BlockExecutionMode.UPLOAD_ONLY,
+        'Upload entry point must remain Upload-only'
+    );
+    t.equal(
+        startBlock.inactiveModeBehavior,
+        BlockInactiveModeBehavior.SHOW_DISABLED,
+        'Upload entry point must remain visible but disabled in Stage mode'
+    );
 
     t.equal(
         extension.whenArduinoUnoStart(),

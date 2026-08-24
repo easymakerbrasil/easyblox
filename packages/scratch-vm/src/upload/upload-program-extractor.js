@@ -12,6 +12,9 @@ const MOTOR_WRITE_OPCODE = 'actuators_motorWrite';
 const MOTOR_STOP_OPCODE = 'actuators_motorStop';
 const SERVO_WRITE_OPCODE = 'actuators_servoWrite';
 const RELAY_WRITE_OPCODE = 'actuators_relayWrite';
+const SERIAL_BEGIN_OPCODE = 'serial_serialBegin';
+const SERIAL_WRITE_OPCODE = 'serial_serialWrite';
+const SERIAL_WRITE_LINE_OPCODE = 'serial_serialWriteLine';
 const FOREVER_OPCODE = 'control_forever';
 const REPEAT_OPCODE = 'control_repeat';
 const IF_OPCODE = 'control_if';
@@ -26,6 +29,7 @@ const AND_OPCODE = 'operator_and';
 const OR_OPCODE = 'operator_or';
 const NOT_OPCODE = 'operator_not';
 const IF_ELSE_OPCODE = 'control_if_else';
+const TEXT_OPCODE = 'text';
 
 /**
  * Extract an EasyBlox Upload program from the canonical Scratch VM state.
@@ -311,6 +315,36 @@ class UploadProgramExtractor {
                 )
             };
 
+        case SERIAL_BEGIN_OPCODE:
+            return {
+                type: 'SerialBegin',
+                baud: this._readNumberInput(
+                    blocks,
+                    block,
+                    'BAUD'
+                )
+            };
+
+        case SERIAL_WRITE_OPCODE:
+            return {
+                type: 'SerialWrite',
+                value: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'TEXT'
+                )
+            };
+
+        case SERIAL_WRITE_LINE_OPCODE:
+            return {
+                type: 'SerialWriteLine',
+                value: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'TEXT'
+                )
+            };
+
         case REPEAT_OPCODE: {
             const body = [];
 
@@ -489,6 +523,22 @@ class UploadProgramExtractor {
                     type: 'DecimalLiteral',
                     value
                 };
+        }
+
+        if (block.opcode === TEXT_OPCODE) {
+            const fields = blocks.getFields(block);
+            const textField = fields && fields.TEXT;
+
+            if (!textField) {
+                throw new Error(
+                    'Missing TEXT field in Scratch text literal'
+                );
+            }
+
+            return {
+                type: 'TextLiteral',
+                value: String(textField.value)
+            };
         }
 
         switch (block.opcode) {

@@ -1,4 +1,6 @@
 const ArgumentType = require('../../extension-support/argument-type');
+const BlockExecutionMode = require('../../extension-support/block-execution-mode');
+const BlockInactiveModeBehavior = require('../../extension-support/block-inactive-mode-behavior');
 const BlockType = require('../../extension-support/block-type');
 
 const ArduinoUnoPeripheral = require('./peripheral');
@@ -30,6 +32,8 @@ class Scratch3ArduinoUnoBlocks {
                 {
                     opcode: 'whenArduinoUnoStart',
                     blockType: BlockType.HAT,
+                    executionMode: BlockExecutionMode.UPLOAD_ONLY,
+                    inactiveModeBehavior: BlockInactiveModeBehavior.SHOW_DISABLED,
                     text: 'quando Arduino Uno iniciar',
                     isEdgeActivated: false,
                     shouldRestartExistingThreads: false

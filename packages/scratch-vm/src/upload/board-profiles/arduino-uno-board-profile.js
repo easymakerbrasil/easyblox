@@ -57,6 +57,16 @@ const ArduinoUnoBoardProfile = Object.freeze({
         max: 65535
     }),
 
+    serialBaudRates: Object.freeze([
+        4800,
+        9600,
+        19200,
+        38400,
+        57600,
+        115200
+    ]),
+
+
     servoPins: Object.freeze([
         3,
         5,

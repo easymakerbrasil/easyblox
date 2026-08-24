@@ -1,5 +1,8 @@
 import registerEasyBloxRangeNumberField from './easyblox-range-number-field';
 import registerEasyBloxMatrix8x8Field from './easyblox-matrix-8x8-field';
+import {
+    registerEasyBloxConnectionChecker
+} from './easyblox-connection-checker';
 
 /**
  * Connect scratch blocks with the vm
@@ -8,6 +11,8 @@ import registerEasyBloxMatrix8x8Field from './easyblox-matrix-8x8-field';
  */
 export default function (vm) {
     const ScratchBlocks = require('scratch-blocks');
+    registerEasyBloxConnectionChecker(ScratchBlocks);
+
     registerEasyBloxMatrix8x8Field(ScratchBlocks);
 
     registerEasyBloxRangeNumberField(ScratchBlocks);

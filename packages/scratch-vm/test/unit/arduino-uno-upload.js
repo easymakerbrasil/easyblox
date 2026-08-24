@@ -89,6 +89,42 @@ const createExtensionMenuShadow = (
     shadow: true
 });
 
+tap.test('Arduino UNO Upload extracts Scratch text as TextLiteral expression', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'text_literal',
+            opcode: 'text',
+            next: null,
+            parent: null,
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'Olá'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const blocks = runtime.targets[0].blocks;
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'text_literal'
+        ),
+        {
+            type: 'TextLiteral',
+            value: 'Olá'
+        }
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload extracts real extension menu shadows', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('digital_write'),
@@ -876,6 +912,48 @@ tap.test('Arduino UNO Upload resource validator rejects invalid motor PWM pin', 
     t.throws(
         () => validator.validate(ir),
         /Motor PWM pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported Serial baud rate', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'SerialBegin',
+            baud: 12345
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial baud rate is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts supported Serial baud rate', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'SerialBegin',
+            baud: 9600
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
     );
 
     t.end();
@@ -2638,6 +2716,270 @@ tap.test('Arduino UNO Upload context validator rejects MotorConfigure inside IF 
     t.end();
 });
 
+tap.test('Arduino UNO Upload context validator rejects SerialBegin inside REPEAT', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: 1,
+            body: [{
+                type: 'SerialBegin',
+                baud: 9600
+            }]
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial initialization must be declared directly in Arduino UNO setup/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects SerialBegin in loop', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [],
+        loop: [{
+            type: 'SerialBegin',
+            baud: 9600
+        }]
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial initialization must be declared directly in Arduino UNO setup/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator accepts SerialBegin directly in setup', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'SerialBegin',
+            baud: 9600
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects SerialBegin inside IF', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BooleanLiteral',
+                value: true
+            },
+            body: [{
+                type: 'SerialBegin',
+                baud: 9600
+            }]
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial initialization must be declared directly in Arduino UNO setup/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects SerialBegin inside IF ELSE', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'IfElse',
+            condition: {
+                type: 'BooleanLiteral',
+                value: true
+            },
+            thenBody: [{
+                type: 'SerialBegin',
+                baud: 9600
+            }],
+            elseBody: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial initialization must be declared directly in Arduino UNO setup/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects duplicate SerialBegin', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [
+            {
+                type: 'SerialBegin',
+                baud: 9600
+            },
+            {
+                type: 'SerialBegin',
+                baud: 9600
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial can only be initialized once/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects SerialWrite without SerialBegin', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'SerialWrite',
+            value: {
+                type: 'TextLiteral',
+                value: 'Olá'
+            }
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial must be initialized before use/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects SerialWriteLine without SerialBegin', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'TextLiteral',
+                value: 'Olá'
+            }
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial must be initialized before use/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator accepts SerialWrite after SerialBegin', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [
+            {
+                type: 'SerialBegin',
+                baud: 9600
+            },
+            {
+                type: 'SerialWrite',
+                value: {
+                    type: 'TextLiteral',
+                    value: 'Olá'
+                }
+            }
+        ],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects SerialWrite before SerialBegin', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [
+            {
+                type: 'SerialWrite',
+                value: {
+                    type: 'TextLiteral',
+                    value: 'Olá'
+                }
+            },
+            {
+                type: 'SerialBegin',
+                baud: 9600
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial must be initialized before use/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator accepts SerialWrite in loop after setup initialization', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        setup: [{
+            type: 'SerialBegin',
+            baud: 9600
+        }],
+        loop: [{
+            type: 'SerialWrite',
+            value: {
+                type: 'TextLiteral',
+                value: 'Olá'
+            }
+        }]
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload extracts MotorConfigure into semantic IR', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('motor_configure'),
@@ -2718,6 +3060,151 @@ tap.test('Arduino UNO Upload extracts MotorConfigure into semantic IR', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts SerialBegin into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('serial_begin'),
+        {
+            id: 'serial_begin',
+            opcode: 'serial_serialBegin',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                BAUD: {
+                    name: 'BAUD',
+                    block: 'serial_baud',
+                    shadow: 'serial_baud'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'serial_baud',
+            'serial_begin',
+            'serial_menu_baudRates',
+            'baudRates',
+            9600
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'SerialBegin',
+            baud: 9600
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts SerialWrite into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('serial_write'),
+        {
+            id: 'serial_write',
+            opcode: 'serial_serialWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TEXT: {
+                    name: 'TEXT',
+                    block: 'serial_text',
+                    shadow: 'serial_text'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'serial_text',
+            opcode: 'text',
+            next: null,
+            parent: 'serial_write',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'Olá'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'SerialWrite',
+            value: {
+                type: 'TextLiteral',
+                value: 'Olá'
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts SerialWriteLine into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('serial_write_line'),
+        {
+            id: 'serial_write_line',
+            opcode: 'serial_serialWriteLine',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TEXT: {
+                    name: 'TEXT',
+                    block: 'serial_line_text',
+                    shadow: 'serial_line_text'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'serial_line_text',
+            opcode: 'text',
+            next: null,
+            parent: 'serial_write_line',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'Olá'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'TextLiteral',
+                value: 'Olá'
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload type validator accepts MotorConfigure statement', t => {
     const validator = new UploadTypeValidator();
 
@@ -2735,6 +3222,113 @@ tap.test('Arduino UNO Upload type validator accepts MotorConfigure statement', t
     t.equal(
         validator.validate(ir),
         ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts SerialBegin statement', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'SerialBegin',
+            baud: 9600
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts SerialWrite with TEXT', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'SerialWrite',
+            value: {
+                type: 'TextLiteral',
+                value: 'Olá'
+            }
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts SerialWriteLine with TEXT', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'TextLiteral',
+                value: 'Olá'
+            }
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects SerialWriteLine without TEXT', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'IntegerLiteral',
+                value: 42
+            }
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial write value must be Texto/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects SerialWrite without TEXT', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'SerialWrite',
+            value: {
+                type: 'IntegerLiteral',
+                value: 42
+            }
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial write value must be Texto/
     );
 
     t.end();
@@ -2763,6 +3357,84 @@ tap.test('Arduino UNO Upload generates declarative MotorConfigure C++', t => {
         '    pinMode(MOTOR1_IN1, OUTPUT);',
         '    pinMode(MOTOR1_IN2, OUTPUT);',
         '    pinMode(MOTOR1_PWM, OUTPUT);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates SerialBegin C++', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialBegin',
+            baud: 9600
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    Serial.begin(9600);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates SerialWrite C++', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWrite',
+            value: {
+                type: 'TextLiteral',
+                value: 'Olá'
+            }
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    Serial.print("Olá");',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates SerialWriteLine C++', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'TextLiteral',
+                value: 'Olá'
+            }
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    Serial.println("Olá");',
         '}',
         '',
         'void loop() {',
@@ -2856,6 +3528,172 @@ tap.test('Arduino UNO Upload generates MotorConfigure from Scratch blocks end to
         '    pinMode(MOTOR1_IN1, OUTPUT);',
         '    pinMode(MOTOR1_IN2, OUTPUT);',
         '    pinMode(MOTOR1_PWM, OUTPUT);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates SerialWrite from Scratch blocks end to end', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('serial_begin'),
+        {
+            id: 'serial_begin',
+            opcode: 'serial_serialBegin',
+            next: 'serial_write',
+            parent: 'upload_hat',
+            inputs: {
+                BAUD: {
+                    name: 'BAUD',
+                    block: 'serial_baud',
+                    shadow: 'serial_baud'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'serial_baud',
+            'serial_begin',
+            'serial_menu_baudRates',
+            'baudRates',
+            9600
+        ),
+        {
+            id: 'serial_write',
+            opcode: 'serial_serialWrite',
+            next: null,
+            parent: 'serial_begin',
+            inputs: {
+                TEXT: {
+                    name: 'TEXT',
+                    block: 'serial_text',
+                    shadow: 'serial_text'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'serial_text',
+            opcode: 'text',
+            next: null,
+            parent: 'serial_write',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'Olá'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const contextValidator = new UploadContextValidator();
+    const typeValidator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    contextValidator.validate(ir);
+    typeValidator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    Serial.begin(9600);',
+        '    Serial.print("Olá");',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates SerialWriteLine from Scratch blocks end to end', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('serial_begin'),
+        {
+            id: 'serial_begin',
+            opcode: 'serial_serialBegin',
+            next: 'serial_write_line',
+            parent: 'upload_hat',
+            inputs: {
+                BAUD: {
+                    name: 'BAUD',
+                    block: 'serial_baud',
+                    shadow: 'serial_baud'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'serial_baud',
+            'serial_begin',
+            'serial_menu_baudRates',
+            'baudRates',
+            9600
+        ),
+        {
+            id: 'serial_write_line',
+            opcode: 'serial_serialWriteLine',
+            next: null,
+            parent: 'serial_begin',
+            inputs: {
+                TEXT: {
+                    name: 'TEXT',
+                    block: 'serial_line_text',
+                    shadow: 'serial_line_text'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'serial_line_text',
+            opcode: 'text',
+            next: null,
+            parent: 'serial_write_line',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'Olá'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const contextValidator = new UploadContextValidator();
+    const typeValidator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    contextValidator.validate(ir);
+    typeValidator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    Serial.begin(9600);',
+        '    Serial.println("Olá");',
         '}',
         '',
         'void loop() {',
@@ -4905,6 +5743,34 @@ tap.test('Arduino UNO Upload type validator rejects DECIMAL division as REPEAT c
     t.end();
 });
 
+tap.test('Arduino UNO generator emits TextLiteral as C++ string literal', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'TextLiteral',
+            value: 'Olá'
+        }),
+        '"Olá"'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator escapes TextLiteral for C++ safely', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'TextLiteral',
+            value: 'Ele disse "Olá"\\Arduino\nLinha 2'
+        }),
+        '"Ele disse \\"Olá\\"\\\\Arduino\\nLinha 2"'
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO generator preserves decimal semantics for INTEGER division', t => {
     const generator = new ArduinoUnoGenerator();
 
@@ -5020,6 +5886,22 @@ tap.test('Arduino UNO Upload extracts operator_lt as expression IR', t => {
                 value: 2
             }
         }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers TEXT for TextLiteral', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'TextLiteral',
+        value: 'Olá'
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.TEXT
     );
 
     t.end();

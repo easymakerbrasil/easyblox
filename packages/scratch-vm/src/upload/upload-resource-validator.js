@@ -32,6 +32,19 @@ class UploadResourceValidator {
         const usedMotors = new Set();
 
         for (const statement of setup) {
+            if (statement.type === 'SerialBegin') {
+                const supportedSerialBaudRates =
+                    Array.isArray(this.boardProfile.serialBaudRates) ?
+                        this.boardProfile.serialBaudRates :
+                        [];
+
+                if (!supportedSerialBaudRates.includes(statement.baud)) {
+                    throw new Error(
+                        'Serial baud rate is not supported by the selected board'
+                    );
+                }
+            }
+
             if (statement.type === 'MotorConfigure') {
                 if (configuredMotors.has(statement.motor)) {
                     throw new Error(

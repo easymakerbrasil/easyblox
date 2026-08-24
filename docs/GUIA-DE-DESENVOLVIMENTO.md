@@ -8371,3 +8371,378 @@ A alteração local:
 packages/scratch-gui/src/components/action-menu/icon--sprite.svg
 
 continua independente e deve permanecer fora do staging deste checkpoint.
+
+### 19.164. A7.3 — modos de execução, Serial e proteção estrutural das conexões
+
+Este checkpoint amplia a implementação da A7.3 com a formalização do contrato de compatibilidade Palco/Carregar e com a proteção dos blocos incompatíveis já existentes no workspace.
+
+Branch de trabalho:
+
+`feat/easyblox-arduino-uno-upload-mode`
+
+Base deste ciclo:
+
+`4830457032 feat: add Arduino UNO Upload workspace and resource validation`
+
+#### Contrato `executionMode`
+
+A Scratch VM passa a ser a fonte canônica da compatibilidade de execução dos blocos.
+
+Valores aprovados:
+
+`STAGE_ONLY = 'stage'`
+
+`UPLOAD_ONLY = 'upload'`
+
+`BOTH = 'both'`
+
+Na ausência de declaração explícita, o comportamento padrão permanece `BOTH`.
+
+A classificação representa o contrato funcional aprovado do bloco e não o estado momentâneo de implementação do compilador Upload.
+
+#### Categorias nativas
+
+São `STAGE_ONLY`:
+
+- Movimento;
+- Aparência;
+- Som;
+- Eventos;
+- Sensores nativos do Scratch.
+
+Operadores permanecem `BOTH`.
+
+Procedimentos / Meus Blocos permanecem `BOTH`.
+
+Variáveis escalares permanecem `BOTH`.
+
+Listas permanecem `STAGE_ONLY` na v1.
+
+A categoria Controle é mista.
+
+Somente estes blocos de Controle são `STAGE_ONLY`:
+
+- `pare [todos]`;
+- `quando eu começar como um clone`;
+- `crie clone de [este ator]`;
+- `apague este clone`.
+
+Os demais blocos de Controle permanecem `BOTH`.
+
+#### Arduino UNO
+
+Na extensão Arduino UNO, somente:
+
+`quando Arduino Uno iniciar`
+
+é `UPLOAD_ONLY`.
+
+Todos os demais blocos Arduino UNO permanecem `BOTH`, independentemente de alguma lacuna temporária de implementação no gerador.
+
+#### Serial
+
+A extensão/categoria Serial passa a ser `UPLOAD_ONLY`.
+
+Contrato inicial:
+
+- iniciar Serial;
+- escrever Serial;
+- escrever Serial com quebra de linha;
+- baud rate através de opções fechadas.
+
+A categoria Serial deve ficar oculta da paleta no Modo Palco.
+
+#### Visibilidade da paleta versus estado do workspace
+
+O modo de execução controla dois comportamentos diferentes:
+
+1. disponibilidade na paleta;
+2. estado dos blocos que já existem no workspace.
+
+Blocos incompatíveis não devem ser removidos do projeto ao trocar de modo.
+
+Um bloco `STAGE_ONLY` já presente no script deve permanecer visível quando o usuário entra em Carregar, porém desabilitado.
+
+Da mesma forma, um bloco `UPLOAD_ONLY` existente deve permanecer visível no Palco, porém desabilitado.
+
+Ao retornar ao modo compatível, o bloco deve ser reabilitado.
+
+As conexões já existentes do script devem ser preservadas.
+
+O bloco desabilitado por incompatibilidade de modo não pode iniciar nem aceitar novas conexões.
+
+A razão canônica utilizada pelo EasyBlox é:
+
+`EASYBLOX_EXECUTION_MODE`
+
+A atualização dos blocos existentes é realizada por:
+
+`Blocks.updateWorkspaceExecutionMode()`
+
+através de:
+
+`block.setDisabledReason(...)`
+
+Eventos provocados exclusivamente pela troca de modo não devem contaminar a persistência do projeto.
+
+#### Comportamento da toolbox
+
+O comportamento padrão de um bloco incompatível é:
+
+`HIDE`
+
+Também existe:
+
+`SHOW_DISABLED`
+
+para casos em que o bloco deve continuar aparecendo na paleta, porém desabilitado.
+
+Exceção atualmente aprovada:
+
+`quando Arduino Uno iniciar`
+
+deve permanecer visível-desabilitado na paleta do Palco e habilitado no Modo Carregar.
+
+Serial permanece oculto no Palco.
+
+#### EasyBloxConnectionChecker
+
+Foi introduzido:
+
+`packages/scratch-gui/src/lib/easyblox-connection-checker.js`
+
+O checker preserva primeiro qualquer rejeição produzida pelo `ConnectionChecker` original do Scratch Blocks.
+
+Depois, verifica se algum dos dois blocos da conexão possui a razão:
+
+`EASYBLOX_EXECUTION_MODE`
+
+Quando possui, a conexão é rejeitada com:
+
+`REASON_CHECKS_FAILED`
+
+Outras razões de desabilitação não são tratadas como incompatibilidade de modo por esse checker.
+
+#### Causa-raiz da integração com Scratch Blocks
+
+Os testes unitários iniciais demonstravam que o checker funcionava isoladamente, porém o teste visual ainda permitia conectar blocos incompatíveis.
+
+A investigação com a implementação real de `scratch-blocks 12.5.1` mostrou que o wrapper Scratch de:
+
+`ScratchBlocks.inject(...)`
+
+reescreve o objeto `plugins` recebido pelo chamador.
+
+A implementação efetiva contém comportamento equivalente a:
+
+`Object.assign(options, {renderer: ..., plugins: {toolbox: ..., flyoutsVerticalToolbox: ..., metricsManager: ...}})`
+
+Consequentemente, um:
+
+`plugins.connectionChecker`
+
+fornecido diretamente pelo EasyBlox era descartado antes da criação do workspace.
+
+A causa-raiz não estava em:
+
+`EasyBloxConnectionChecker.canConnectWithReason()`
+
+mas no caminho de configuração do `inject`.
+
+#### Solução adotada
+
+Foi adicionada a função:
+
+`registerEasyBloxConnectionChecker(...)`
+
+O checker EasyBlox é registrado como implementação `DEFAULT` do tipo:
+
+`CONNECTION_CHECKER`
+
+no registry do Scratch Blocks.
+
+O registro é idempotente para evitar criação de cadeias sucessivas de subclasses quando `VMScratchBlocks()` é chamado mais de uma vez.
+
+O registro é realizado em:
+
+`packages/scratch-gui/src/lib/blocks.js`
+
+antes do workspace ser criado.
+
+Dessa forma, mesmo que o wrapper Scratch substitua o objeto `plugins`, o `inject` encontra o `EasyBloxConnectionChecker` através do registry padrão.
+
+#### Teste de integração real
+
+Foi criado:
+
+`packages/scratch-gui/test/unit/lib/easyblox-connection-checker-integration.test.js`
+
+O teste utiliza `WorkspaceSvg` real do Scratch Blocks e cobre:
+
+- instalação do checker no workspace;
+- conexão real entre blocos renderizados;
+- rejeição durante drag quando um dos blocos possui a razão de incompatibilidade;
+- passagem pelo caminho real `VMScratchBlocks(...)`;
+- passagem pelo `ScratchBlocks.inject(...)` real.
+
+O RED conclusivo anterior à correção produzia:
+
+`Expected: "EasyBloxConnectionChecker"`
+
+`Received: ""`
+
+Depois do registro no registry padrão, a integração passou.
+
+O teste visual do EasyBlox também foi validado com sucesso:
+
+- bloco `quando Arduino Uno iniciar` no Palco não aceita nova conexão;
+- bloco `quando bandeira verde for clicada` no Modo Carregar não aceita nova conexão.
+
+#### Validação automatizada desta etapa
+
+Regressão GUI de modo + checker:
+
+`37 pass`
+
+`0 fail`
+
+`6 suites`
+
+Inclui:
+
+- `easyblox-connection-checker.test.js`;
+- `easyblox-connection-checker-integration.test.js`;
+- `make-toolbox-xml-program-mode.test.js`;
+- `variable-category-program-mode.test.js`;
+- `gui-program-mode.test.jsx`;
+- `blocks.test.js`.
+
+Regressões Scratch VM executadas:
+
+`extension_conversion.js`
+
+`142 pass`
+
+`arduino-uno.js`
+
+`500 pass`
+
+`arduino-uno-upload.js`
+
+`240 pass`
+
+Infraestrutura executada individualmente:
+
+`extension-manager-easyblox.js`
+
+`4 pass`
+
+`serial-extension.js`
+
+`30 pass`
+
+`virtual-machine-upload.js`
+
+`4 pass`
+
+A execução conjunta dessas três últimas suítes sofreu `SIGKILL` em `virtual-machine-upload.js` após aproximadamente 35 segundos.
+
+A mesma suíte executada isoladamente passou `4/4`, portanto o evento foi tratado como limitação da execução conjunta do TAP e não como regressão funcional.
+
+#### ESLint
+
+Validação conjunta dos arquivos diretamente envolvidos no checker/container:
+
+`0 errors`
+
+`63 warnings`
+
+Os warnings incluem principalmente o conflito já existente entre:
+
+`arrow-parens`
+
+e:
+
+`@stylistic/arrow-parens`
+
+A configuração efetiva confirmou:
+
+`arrow-parens: [1]`
+
+`@stylistic/arrow-parens: [2, "as-needed"]`
+
+Por esse motivo, não devem ser adicionados parênteses apenas para eliminar os warnings da regra de severidade 1, pois isso gera erro na regra de severidade 2.
+
+Também permanecem warnings JSDoc e outros warnings antigos não bloqueantes do container.
+
+#### Validação estática
+
+`git diff --check`
+
+aprovado sem erros reais de whitespace.
+
+Os avisos:
+
+`CRLF will be replaced by LF`
+
+continuam informativos em alguns arquivos da Scratch VM.
+
+#### Pendência estrutural descoberta no UploadWorkspace
+
+Durante a validação visual foi identificado um problema arquitetural independente do checker.
+
+Atualmente, ao trocar:
+
+`Palco → Carregar`
+
+o fluxo ainda utiliza o script do `editingTarget` selecionado no Stage como fonte do programa Arduino.
+
+Esse comportamento está incorreto.
+
+O contrato aprovado passa a ser:
+
+- scripts Stage continuam pertencendo aos targets Scratch;
+- o Modo Carregar possui um programa/workspace Arduino próprio;
+- esse workspace não pertence a um ator;
+- seleção de ator no Stage não pode alterar o programa Arduino;
+- na primeira entrada em Carregar, o projeto recebe um workspace Upload inicialmente vazio;
+- ao retornar ao Palco, scripts e target selecionado devem ser restaurados exatamente;
+- ao voltar novamente para Carregar, o mesmo programa Upload deve ser recuperado;
+- o programa Upload deve persistir com o projeto;
+- C++ / `.ino` é artefato gerado a partir de `Blocks → EasyBlox IR → C++`, não a fonte primária editável.
+
+Essa correção estrutural passa a ser a próxima pendência obrigatória da A7.3 antes da implementação do tradutor pedagógico de erros.
+
+#### Estado da A7.3 após esta etapa
+
+A7.1 — concluído
+
+A7.2 — concluído e validado
+
+A7.3 — em implementação
+
+Concluído ou funcional nesta etapa:
+
+- classificação `executionMode`;
+- filtragem Palco/Carregar;
+- preservação de blocos incompatíveis existentes;
+- desabilitação por razão EasyBlox;
+- bloqueio de novas conexões incompatíveis;
+- registro real do `EasyBloxConnectionChecker`;
+- Serial Upload-only;
+- testes unitários e de integração do checker;
+- validação visual da proteção de conexões.
+
+Ainda pendente para fechamento da A7.3:
+
+- workspace/programa Upload independente dos atores Stage;
+- persistência desse programa no projeto;
+- Monitor Serial funcional de ponta a ponta;
+- tradução pedagógica dos erros;
+- acabamento visual definitivo do UploadWorkspace.
+
+A alteração local:
+
+`packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
+
+continua independente e não deve ser adicionada ao staging sem autorização explícita.

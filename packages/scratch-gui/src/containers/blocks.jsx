@@ -5,6 +5,13 @@ import makeToolboxXML from '../lib/make-toolbox-xml';
 import PropTypes from 'prop-types';
 import React from 'react';
 import VMScratchBlocks from '../lib/blocks';
+import {
+    createEasyBloxConnectionChecker,
+    EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+} from '../lib/easyblox-connection-checker';
+import {
+    filterVariableCategoryForProgramMode
+} from '../lib/variable-category-program-mode';
 import VM from '@scratch/scratch-vm';
 
 import analytics from '../lib/analytics';
@@ -61,10 +68,13 @@ class Blocks extends React.Component {
     constructor (props) {
         super(props);
         this.ScratchBlocks = VMScratchBlocks(props.vm);
+        this.filterVariableCategoryForProgramMode =
+            filterVariableCategoryForProgramMode;
         bindAll(this, [
             'attachVM',
             'detachVM',
             'getToolboxXML',
+            'getVariableCategoryForProgramMode',
             'handleCategorySelected',
             'handleConnectionModalStart',
             'handleDrop',
@@ -103,7 +113,9 @@ class Blocks extends React.Component {
         };
         this.onTargetsUpdate = debounce(this.onTargetsUpdate, 100);
         this.toolboxUpdateQueue = [];
+        this._recreateFlyoutOnNextToolboxUpdate = false;
     }
+
     componentDidMount () {
         this.ScratchBlocks = VMScratchBlocks(this.props.vm, this.props.useCatBlocks);
         this.ScratchBlocks.dialog.setPrompt(this.handlePromptStart);
@@ -114,25 +126,13 @@ class Blocks extends React.Component {
         this.ScratchBlocks.ScratchProcedures.externalProcedureDefCallback = this.props.onActivateCustomProcedures;
         this.ScratchBlocks.ScratchMsgs.setLocale(this.props.locale);
 
-        const workspaceConfig = defaultsDeep({},
-            Blocks.defaultOptions,
-            this.props.options,
-            {
-                rtl: this.props.isRtl,
-                toolbox: this.props.toolboxXML,
-                theme: new this.ScratchBlocks.Theme(
-                    this.props.colorMode,
-                    getColorsForMode(this.props.colorMode)
-                ),
-                // TODO: use scratch-blocks constants instead of bare strings
-                scratchTheme: this.props.useCatBlocks ? 'catblocks' : 'classic'
-            }
-        );
+        const workspaceConfig = this.getWorkspaceConfig();
         this.workspace = this.ScratchBlocks.inject(this.blocks, workspaceConfig);
         this.workspace.registerToolboxCategoryCallback(
             'VARIABLE',
-            this.ScratchBlocks.ScratchVariables.getVariablesCategory
+            this.getVariableCategoryForProgramMode
         );
+
         this.workspace.registerToolboxCategoryCallback(
             'PROCEDURE',
             this.ScratchBlocks.ScratchProcedures.getProceduresCategory
@@ -200,6 +200,7 @@ class Blocks extends React.Component {
             this.state.prompt !== nextState.prompt ||
             this.state.activeExtensionIds !== nextState.activeExtensionIds ||
             this.props.activeBoardId !== nextProps.activeBoardId ||
+            this.props.programMode !== nextProps.programMode ||
             this.props.requestedExtensionId !== nextProps.requestedExtensionId ||
             this.props.extensionSelectionRequest !== nextProps.extensionSelectionRequest ||
             this.props.isVisible !== nextProps.isVisible ||
@@ -219,8 +220,14 @@ class Blocks extends React.Component {
 
         this.handleExtensionSelectionRequest(prevProps);
 
+        if (this.props.programMode !== prevProps.programMode) {
+            this.updateWorkspaceExecutionMode();
+            this._recreateFlyoutOnNextToolboxUpdate = true;
+        }
+
         if (
             this.props.activeBoardId !== prevProps.activeBoardId ||
+            this.props.programMode !== prevProps.programMode ||
             this.state.activeExtensionIds !== prevState.activeExtensionIds
         ) {
             const toolboxXML = this.getToolboxXML();
@@ -233,7 +240,16 @@ class Blocks extends React.Component {
         // different from the previously rendered toolbox xml.
         // Do not check against prevProps.toolboxXML because that may not have been rendered.
         if (this.props.isVisible && this.props.toolboxXML !== this._renderedToolboxXML) {
-            this.requestToolboxUpdate();
+            if (this._recreateFlyoutOnNextToolboxUpdate) {
+                this.workspace.getFlyout().setRecyclingEnabled(false);
+                this.requestToolboxUpdate();
+                this.withToolboxUpdates(() => {
+                    this.workspace.getFlyout().setRecyclingEnabled(true);
+                    this._recreateFlyoutOnNextToolboxUpdate = false;
+                });
+            } else {
+                this.requestToolboxUpdate();
+            }
         }
 
         if (this.props.isVisible === prevProps.isVisible) {
@@ -281,6 +297,71 @@ class Blocks extends React.Component {
 
         // Clear the flyout blocks so that they can be recreated on mount.
         this.props.vm.clearFlyoutBlocks();
+    }
+
+    updateWorkspaceExecutionMode () {
+        if (!this.workspace) {
+            return;
+        }
+
+        const currentMode = this.props.programMode;
+
+        for (const block of this.workspace.getAllBlocks(false)) {
+            const executionMode =
+                this.props.vm.runtime.getBlockExecutionMode(block.type);
+
+            const incompatible =
+                executionMode !== null &&
+                executionMode !== 'both' &&
+                executionMode !== currentMode;
+
+            block.setDisabledReason(
+                incompatible,
+                EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+            );
+        }
+    }
+
+    getWorkspaceConfig () {
+        const workspaceConfig = defaultsDeep({},
+            Blocks.defaultOptions,
+            this.props.options,
+            {
+                rtl: this.props.isRtl,
+                toolbox: this.props.toolboxXML,
+                theme: new this.ScratchBlocks.Theme(
+                    this.props.colorMode,
+                    getColorsForMode(this.props.colorMode)
+                ),
+                // TODO: use scratch-blocks constants instead of bare strings
+                scratchTheme: this.props.useCatBlocks ? 'catblocks' : 'classic'
+            }
+        );
+
+        workspaceConfig.plugins = Object.assign(
+            {},
+            workspaceConfig.plugins,
+            {
+                connectionChecker:
+                    createEasyBloxConnectionChecker(this.ScratchBlocks)
+            }
+        );
+
+        return workspaceConfig;
+    }
+
+    getVariableCategoryForProgramMode (workspace) {
+        const elements =
+            this.ScratchBlocks.ScratchVariables.getVariablesCategory(
+                workspace
+            );
+
+        return this.filterVariableCategoryForProgramMode(
+            elements,
+            this.props.programMode,
+            blockType =>
+                this.props.vm.runtime.getBlockExecutionMode(blockType)
+        );
     }
     requestToolboxUpdate () {
         clearTimeout(this.toolboxUpdateTimeout);
@@ -447,7 +528,10 @@ class Blocks extends React.Component {
             const stageCostumes = stage.getCostumes();
             const targetCostumes = target.getCostumes();
             const targetSounds = target.getSounds();
-            const blocksXML = this.props.vm.runtime.getBlocksXML(target);
+            const blocksXML = this.props.vm.runtime.getBlocksXML(
+                target,
+                this.props.programMode
+            );
 
             const activeBoard = this.props.activeBoardId ?
                 getBoardById(this.props.activeBoardId) :
@@ -491,7 +575,8 @@ class Blocks extends React.Component {
                 targetCostumes[targetCostumes.length - 1].name,
                 stageCostumes[stageCostumes.length - 1].name,
                 targetSounds.length > 0 ? targetSounds[targetSounds.length - 1].name : '',
-                getColorsForMode(this.props.colorMode)
+                getColorsForMode(this.props.colorMode),
+                this.props.programMode
             );
         } catch {
             return null;
@@ -535,6 +620,8 @@ class Blocks extends React.Component {
         } finally {
             this.ScratchBlocks.Events.enable();
         }
+
+        this.updateWorkspaceExecutionMode();
 
         if (this.props.vm.editingTarget && this.props.workspaceMetrics.targets[this.props.vm.editingTarget.id]) {
             const {scrollX, scrollY, scale} = this.props.workspaceMetrics.targets[this.props.vm.editingTarget.id];
@@ -874,6 +961,10 @@ Blocks.propTypes = {
     requestedExtensionId: PropTypes.string,
     requestedExtensionShouldConnect: PropTypes.bool,
     activeBoardId: PropTypes.string,
+    programMode: PropTypes.oneOf([
+        'stage',
+        'upload'
+    ]),
     options: PropTypes.shape({
         media: PropTypes.string,
         zoom: PropTypes.shape({
@@ -925,6 +1016,7 @@ Blocks.defaultProps = {
     options: Blocks.defaultOptions,
     requestedExtensionShouldConnect: true,
     activeBoardId: null,
+    programMode: 'stage',
     colorMode: DEFAULT_MODE
 
 };

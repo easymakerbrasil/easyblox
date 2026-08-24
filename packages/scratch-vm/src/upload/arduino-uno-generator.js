@@ -711,6 +711,28 @@ class ArduinoUnoGenerator {
                 );
                 break;
 
+            case 'SerialBegin':
+                lines.push(
+                    `${indent}Serial.begin(${statement.baud});`
+                );
+                break;
+
+            case 'SerialWrite':
+                lines.push(
+                    `${indent}Serial.print(${
+                        this._generateExpression(statement.value)
+                    });`
+                );
+                break;
+
+            case 'SerialWriteLine':
+                lines.push(
+                    `${indent}Serial.println(${
+                        this._generateExpression(statement.value)
+                    });`
+                );
+                break;
+
             case 'Repeat': {
                 const identifier = this._getRepeatIdentifier(
                     repeatDepth
@@ -876,6 +898,9 @@ class ArduinoUnoGenerator {
 
             return String(expression.value);
 
+        case 'TextLiteral':
+            return `"${this._escapeCppStringLiteral(expression.value)}"`;
+
         case 'DigitalReadExpression':
             return `(digitalRead(${expression.pin}) == HIGH)`;
 
@@ -939,6 +964,21 @@ class ArduinoUnoGenerator {
                 }`
             );
         }
+    }
+
+    /**
+     * Escape a value for use inside a C++ string literal.
+     * @param {*} value Value to escape.
+     * @returns {string} Escaped C++ string content without surrounding quotes.
+     * @private
+     */
+    _escapeCppStringLiteral (value) {
+        return String(value)
+            .replace(/\\/g, '\\\\')
+            .replace(/"/g, '\\"')
+            .replace(/\r/g, '\\r')
+            .replace(/\n/g, '\\n')
+            .replace(/\t/g, '\\t');
     }
 
     /**

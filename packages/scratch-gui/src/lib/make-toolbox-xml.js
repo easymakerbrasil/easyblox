@@ -408,7 +408,8 @@ const events = function (isInitialSetup, isStage, targetId, colors) {
     `;
 };
 
-const control = function (isInitialSetup, isStage, targetId, colors) {
+const control = function (isInitialSetup, isStage, targetId, colors, programMode = 'stage') {
+    const isUploadMode = programMode === 'upload';
     // Note: the category's secondaryColour matches up with the blocks' tertiary color, both used for border color.
     return `
     <category
@@ -440,10 +441,12 @@ const control = function (isInitialSetup, isStage, targetId, colors) {
         <block type="control_if_else"/>
         <block id="wait_until" type="control_wait_until"/>
         <block id="repeat_until" type="control_repeat_until"/>
-        ${blockSeparator}
-        <block type="control_stop"/>
-        ${blockSeparator}
-        ${isStage ? `
+        ${isUploadMode ? '' : `
+            ${blockSeparator}
+            <block type="control_stop"/>
+            ${blockSeparator}
+        `}
+        ${isUploadMode ? '' : (isStage ? `
             <block type="control_create_clone_of">
                 <value name="CLONE_OPTION">
                     <shadow type="control_create_clone_of_menu"/>
@@ -457,7 +460,7 @@ const control = function (isInitialSetup, isStage, targetId, colors) {
                 </value>
             </block>
             <block type="control_delete_this_clone"/>
-        `}
+        `)}
         ${categorySeparator}
     </category>
     `;
@@ -792,12 +795,14 @@ const xmlClose = '</xml>';
  * @param {?string} backdropName - The name of the default selected backdrop dropdown.
  * @param {?string} soundName -  The name of the default selected sound dropdown.
  * @param {?object} colors - The colors for the color mode.
+ * @param {?string} programMode - The current EasyBlox program mode: stage or upload.
  * @returns {string} - a ScratchBlocks-style XML document for the contents of the toolbox.
  */
 const makeToolboxXML = function (isInitialSetup, isStage = true, targetId, categoriesXML = [],
-    costumeName = '', backdropName = '', soundName = '', colors = defaultColors) {
+    costumeName = '', backdropName = '', soundName = '', colors = defaultColors, programMode = 'stage') {
     isStage = isInitialSetup || isStage;
     const gap = [categorySeparator];
+    const isUploadMode = programMode === 'upload';
 
     costumeName = xmlEscape(costumeName);
     backdropName = xmlEscape(backdropName);
@@ -813,14 +818,41 @@ const makeToolboxXML = function (isInitialSetup, isStage = true, targetId, categ
         }
         // return `undefined`
     };
-    const motionXML = moveCategory('motion') || motion(isInitialSetup, isStage, targetId, colors.motion);
-    const looksXML = moveCategory('looks') ||
-        looks(isInitialSetup, isStage, targetId, costumeName, backdropName, colors.looks);
-    const soundXML = moveCategory('sound') || sound(isInitialSetup, isStage, targetId, soundName, colors.sounds);
-    const eventsXML = moveCategory('event') || events(isInitialSetup, isStage, targetId, colors.event);
-    const controlXML = moveCategory('control') || control(isInitialSetup, isStage, targetId, colors.control);
-    const sensingXML = moveCategory('sensing') || sensing(isInitialSetup, isStage, targetId, colors.sensing);
+
+    if (isUploadMode) {
+        moveCategory('motion');
+        moveCategory('looks');
+        moveCategory('sound');
+        moveCategory('event');
+        moveCategory('sensing');
+    }
+
+    const motionXML = isUploadMode ?
+        '' :
+        (moveCategory('motion') || motion(isInitialSetup, isStage, targetId, colors.motion));
+
+    const looksXML = isUploadMode ?
+        '' :
+        (moveCategory('looks') ||
+            looks(isInitialSetup, isStage, targetId, costumeName, backdropName, colors.looks));
+
+    const soundXML = isUploadMode ?
+        '' :
+        (moveCategory('sound') || sound(isInitialSetup, isStage, targetId, soundName, colors.sounds));
+
+    const eventsXML = isUploadMode ?
+        '' :
+        (moveCategory('event') || events(isInitialSetup, isStage, targetId, colors.event));
+
+    const controlXML = moveCategory('control') ||
+        control(isInitialSetup, isStage, targetId, colors.control, programMode);
+
+    const sensingXML = isUploadMode ?
+        '' :
+        (moveCategory('sensing') || sensing(isInitialSetup, isStage, targetId, colors.sensing));
+
     const operatorsXML = moveCategory('operators') || operators(isInitialSetup, isStage, targetId, colors.operators);
+
     const variablesXML = moveCategory('data') || variables(isInitialSetup, isStage, targetId, colors.data);
     const myBlocksXML = moveCategory('procedures') || myBlocks(isInitialSetup, isStage, targetId, colors.more);
 

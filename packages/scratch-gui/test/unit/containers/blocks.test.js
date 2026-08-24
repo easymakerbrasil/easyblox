@@ -1,4 +1,69 @@
 import {Blocks} from '../../../src/containers/blocks.jsx';
+import {
+    EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+} from '../../../src/lib/easyblox-connection-checker';
+
+describe('Blocks variable category program mode', () => {
+    test('filters the Scratch variable category using the current program mode', () => {
+        const elements = [
+            document.createElement('button'),
+            document.createElement('block')
+        ];
+
+        const filteredElements = [
+            elements[0]
+        ];
+
+        const instance = {
+            props: {
+                programMode: 'upload',
+                vm: {
+                    runtime: {
+                        getBlockExecutionMode: jest.fn()
+                    }
+                }
+            },
+            ScratchBlocks: {
+                ScratchVariables: {
+                    getVariablesCategory: jest.fn().mockReturnValue(elements)
+                }
+            },
+            filterVariableCategoryForProgramMode: jest.fn()
+                .mockReturnValue(filteredElements)
+        };
+
+        const workspace = {};
+
+        const result =
+            Blocks.prototype.getVariableCategoryForProgramMode.call(
+                instance,
+                workspace
+            );
+
+        expect(
+            instance.ScratchBlocks.ScratchVariables.getVariablesCategory
+        ).toHaveBeenCalledWith(workspace);
+
+        expect(
+            instance.filterVariableCategoryForProgramMode
+        ).toHaveBeenCalledWith(
+            elements,
+            'upload',
+            expect.any(Function)
+        );
+
+        expect(result).toBe(filteredElements);
+
+        const executionModeResolver =
+            instance.filterVariableCategoryForProgramMode.mock.calls[0][2];
+
+        executionModeResolver('data_addtolist');
+
+        expect(
+            instance.props.vm.runtime.getBlockExecutionMode
+        ).toHaveBeenCalledWith('data_addtolist');
+    });
+});
 
 describe('Blocks container onWorkspaceUpdate', () => {
     let instance;
@@ -9,6 +74,7 @@ describe('Blocks container onWorkspaceUpdate', () => {
             getToolboxXML: jest.fn().mockReturnValue(null),
             onWorkspaceMetricsChange: jest.fn(),
             toolboxUpdateChangeListener: jest.fn(),
+            updateWorkspaceExecutionMode: jest.fn(),
             props: {
                 vm: {editingTarget: null},
                 workspaceMetrics: {targets: {}},
@@ -63,6 +129,28 @@ describe('Blocks container onWorkspaceUpdate', () => {
         expect(instance.ScratchBlocks.Events.enable).toHaveBeenCalled();
     });
 
+    test('updates workspace execution mode after loading the workspace', () => {
+        Blocks.prototype.onWorkspaceUpdate.call(instance, {xml: '<xml/>'});
+
+        expect(instance.updateWorkspaceExecutionMode)
+            .toHaveBeenCalledTimes(1);
+
+        expect(instance.ScratchBlocks.clearWorkspaceAndLoadFromXml)
+            .toHaveBeenCalled();
+    });
+
+    test('updates workspace execution mode after a partial workspace load failure', () => {
+        instance.ScratchBlocks.clearWorkspaceAndLoadFromXml.mockImplementation(() => {
+            throw new Error('workspace load failed');
+        });
+
+        Blocks.prototype.onWorkspaceUpdate.call(instance, {xml: '<xml/>'});
+
+        expect(instance.updateWorkspaceExecutionMode)
+            .toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('Blocks requested extension selection', () => {
     let instance;
 
@@ -89,7 +177,10 @@ describe('Blocks requested extension selection', () => {
         });
 
         expect(instance.handleCategorySelected).toHaveBeenCalledTimes(1);
-        expect(instance.handleCategorySelected).toHaveBeenCalledWith('arduinoUno', true);
+        expect(instance.handleCategorySelected).toHaveBeenCalledWith(
+            'arduinoUno',
+            true
+        );
     });
 
     test('does not process the same request twice', () => {
@@ -149,7 +240,6 @@ describe('Blocks requested extension selection', () => {
         );
     });
 });
-});
 
 describe('Blocks active board toolbox updates', () => {
     test('updates when the active board changes', () => {
@@ -159,8 +249,7 @@ describe('Blocks active board toolbox updates', () => {
             },
             props: {
                 activeBoardId: null
-            },
-            _renderedToolboxXML: undefined
+            }
         };
 
         const shouldUpdate = Blocks.prototype.shouldComponentUpdate.call(
@@ -205,6 +294,335 @@ describe('Blocks active board toolbox updates', () => {
         expect(instance.props.updateToolboxState)
             .toHaveBeenCalledWith('<xml filtered/>');
     });
+});
+
+describe('Blocks program mode toolbox updates', () => {
+    test('updates when the program mode changes', () => {
+        const instance = {
+            state: {
+                prompt: null
+            },
+            props: {
+                programMode: 'stage'
+            }
+        };
+
+        const shouldUpdate = Blocks.prototype.shouldComponentUpdate.call(
+            instance,
+            {
+                programMode: 'upload'
+            },
+            {
+                prompt: null
+            }
+        );
+
+        expect(shouldUpdate).toBe(true);
+    });
+
+    test('rebuilds toolbox state when the program mode changes', () => {
+        const activeExtensionIds = [];
+        const instance = {
+            state: {
+                activeExtensionIds
+            },
+            props: {
+                activeBoardId: null,
+                programMode: 'upload',
+                anyModalVisible: false,
+                isVisible: false,
+                toolboxXML: '<xml/>',
+                updateToolboxState: jest.fn()
+            },
+            _renderedToolboxXML: '<xml/>',
+            ScratchBlocks: {
+                hideChaff: jest.fn()
+            },
+            getToolboxXML: jest.fn().mockReturnValue('<xml filtered/>'),
+            handleExtensionSelectionRequest: jest.fn(),
+            requestToolboxUpdate: jest.fn(),
+            updateWorkspaceExecutionMode: jest.fn()
+        };
+
+        Blocks.prototype.componentDidUpdate.call(
+            instance,
+            {
+                activeBoardId: null,
+                programMode: 'stage',
+                anyModalVisible: false,
+                isVisible: false,
+                toolboxXML: '<xml/>'
+            },
+            {
+                activeExtensionIds
+            }
+        );
+
+        expect(instance.getToolboxXML).toHaveBeenCalledTimes(1);
+        expect(instance.props.updateToolboxState)
+            .toHaveBeenCalledWith('<xml filtered/>');
+    });
+
+    test('recreates flyout blocks after a program mode toolbox update', () => {
+        const activeExtensionIds = [];
+        const setRecyclingEnabled = jest.fn();
+
+        const instance = {
+            state: {
+                activeExtensionIds
+            },
+            props: {
+                activeBoardId: null,
+                programMode: 'stage',
+                anyModalVisible: false,
+                isVisible: true,
+                toolboxXML: '<xml/>',
+                updateToolboxState: jest.fn()
+            },
+            _renderedToolboxXML: '<xml/>',
+            ScratchBlocks: {
+                hideChaff: jest.fn()
+            },
+            workspace: {
+                getFlyout: jest.fn().mockReturnValue({
+                    setRecyclingEnabled
+                })
+            },
+            getToolboxXML: jest.fn().mockReturnValue(
+                '<xml filtered/>'
+            ),
+            handleExtensionSelectionRequest: jest.fn(),
+            requestToolboxUpdate: jest.fn(),
+            withToolboxUpdates: jest.fn(fn => fn()),
+            updateWorkspaceExecutionMode: jest.fn()
+        };
+
+        // First render: program mode changes and the new toolbox XML is generated.
+        Blocks.prototype.componentDidUpdate.call(
+            instance,
+            {
+                activeBoardId: null,
+                programMode: 'upload',
+                anyModalVisible: false,
+                isVisible: true,
+                toolboxXML: '<xml/>'
+            },
+            {
+                activeExtensionIds
+            }
+        );
+
+        expect(instance.props.updateToolboxState)
+            .toHaveBeenCalledWith('<xml filtered/>');
+
+        // Second render: Redux delivers the new toolbox XML to Blockly.
+        instance.props.toolboxXML = '<xml filtered/>';
+
+        Blocks.prototype.componentDidUpdate.call(
+            instance,
+            {
+                activeBoardId: null,
+                programMode: 'stage',
+                anyModalVisible: false,
+                isVisible: true,
+                toolboxXML: '<xml/>'
+            },
+            {
+                activeExtensionIds
+            }
+        );
+
+        expect(instance.requestToolboxUpdate)
+            .toHaveBeenCalledTimes(1);
+
+        expect(setRecyclingEnabled.mock.calls).toEqual([
+            [false],
+            [true]
+        ]);
+    });
+
+    test('passes the program mode when requesting blocks XML', () => {
+        const target = {
+            id: 'target-id',
+            isStage: false,
+            getCostumes: jest.fn().mockReturnValue([
+                {name: 'target costume'}
+            ]),
+            getSounds: jest.fn().mockReturnValue([])
+        };
+
+        const stage = {
+            id: 'stage-id',
+            isStage: true,
+            getCostumes: jest.fn().mockReturnValue([
+                {name: 'stage costume'}
+            ])
+        };
+
+        const getBlocksXML = jest.fn().mockReturnValue([]);
+
+        const instance = {
+            state: {
+                activeExtensionIds: []
+            },
+            props: {
+                activeBoardId: null,
+                programMode: 'upload',
+                colorMode: 'default',
+                vm: {
+                    editingTarget: target,
+                    runtime: {
+                        getTargetForStage: jest.fn().mockReturnValue(stage),
+                        getBlocksXML
+                    },
+                    extensionManager: {
+                        getExtensionCompanions: jest.fn().mockReturnValue([])
+                    }
+                }
+            }
+        };
+
+        const toolboxXML =
+            Blocks.prototype.getToolboxXML.call(instance);
+
+        expect(getBlocksXML).toHaveBeenCalledWith(
+            target,
+            'upload'
+        );
+
+        expect(toolboxXML).not.toContain(
+            'toolboxitemid="motion"'
+        );
+
+        expect(toolboxXML).toContain(
+            'toolboxitemid="operators"'
+        );
+    });
+
+    test('configures the EasyBlox connection checker for the workspace', () => {
+        class ScratchConnectionChecker {}
+
+        const instance = {
+            props: {
+                options: {},
+                isRtl: false,
+                toolboxXML: '<xml/>',
+                colorMode: 'default',
+                useCatBlocks: false
+            },
+            ScratchBlocks: {
+                Theme: jest.fn(),
+                registry: {
+                    Type: {
+                        CONNECTION_CHECKER: 'connectionChecker'
+                    },
+                    DEFAULT: 'default',
+                    getClass: jest.fn().mockReturnValue(ScratchConnectionChecker)
+                },
+                Connection: {
+                    CAN_CONNECT: 0,
+                    REASON_CHECKS_FAILED: 4
+                }
+            }
+        };
+
+        const workspaceConfig =
+            Blocks.prototype.getWorkspaceConfig.call(instance);
+
+        expect(workspaceConfig.plugins.connectionChecker)
+            .toEqual(expect.any(Function));
+
+        const checker =
+            new workspaceConfig.plugins.connectionChecker();
+
+        expect(checker).toBeInstanceOf(ScratchConnectionChecker);
+    });
+});
+
+test('updates workspace block disabled state for the program mode', () => {
+    const stageOnlyBlock = {
+        type: 'motion_movesteps',
+        setDisabledReason: jest.fn()
+    };
+    const uploadOnlyBlock = {
+        type: 'serial_serialWrite',
+        setDisabledReason: jest.fn()
+    };
+    const bothBlock = {
+        type: 'operator_add',
+        setDisabledReason: jest.fn()
+    };
+    const unknownBlock = {
+        type: 'unknown_shadow_block',
+        setDisabledReason: jest.fn()
+    };
+
+    const executionModes = {
+        motion_movesteps: 'stage',
+        serial_serialWrite: 'upload',
+        operator_add: 'both',
+        unknown_shadow_block: null
+    };
+
+    const getBlockExecutionMode = jest.fn(blockType =>
+        executionModes[blockType]
+    );
+
+    const instance = {
+        props: {
+            programMode: 'upload',
+            vm: {
+                runtime: {
+                    getBlockExecutionMode
+                }
+            }
+        },
+        workspace: {
+            getAllBlocks: jest.fn().mockReturnValue([
+                stageOnlyBlock,
+                uploadOnlyBlock,
+                bothBlock,
+                unknownBlock
+            ])
+        }
+    };
+
+    Blocks.prototype.updateWorkspaceExecutionMode.call(instance);
+
+    expect(instance.workspace.getAllBlocks).toHaveBeenCalledWith(false);
+
+    expect(stageOnlyBlock.setDisabledReason).toHaveBeenCalledWith(
+        true,
+        EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+    );
+    expect(uploadOnlyBlock.setDisabledReason).toHaveBeenCalledWith(
+        false,
+        EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+    );
+    expect(bothBlock.setDisabledReason).toHaveBeenCalledWith(
+        false,
+        EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+    );
+    expect(unknownBlock.setDisabledReason).toHaveBeenCalledWith(
+        false,
+        EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+    );
+
+    stageOnlyBlock.setDisabledReason.mockClear();
+    uploadOnlyBlock.setDisabledReason.mockClear();
+
+    instance.props.programMode = 'stage';
+
+    Blocks.prototype.updateWorkspaceExecutionMode.call(instance);
+
+    expect(stageOnlyBlock.setDisabledReason).toHaveBeenCalledWith(
+        false,
+        EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+    );
+    expect(uploadOnlyBlock.setDisabledReason).toHaveBeenCalledWith(
+        true,
+        EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+    );
 });
 
 describe('Blocks active extensions', () => {
@@ -279,8 +697,7 @@ describe('Blocks active extensions', () => {
                 prompt: null,
                 activeExtensionIds: ['translate']
             },
-            props: {},
-            _renderedToolboxXML: undefined
+            props: {}
         };
 
         const shouldUpdate =
