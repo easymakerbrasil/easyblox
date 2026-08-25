@@ -154,9 +154,37 @@ class ArduinoUnoGenerator {
                 return true;
             }
 
+            if (
+                statement.type === 'Wait' &&
+                this._expressionUsesTimer(statement.duration)
+            ) {
+                return true;
+            }
+
             if (statement.type === 'Repeat') {
                 if (
                     this._expressionUsesTimer(statement.times) ||
+                    this._statementsUseTimer(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'WaitUntil') {
+                if (
+                    this._expressionUsesTimer(
+                        statement.condition
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'RepeatUntil') {
+                if (
+                    this._expressionUsesTimer(
+                        statement.condition
+                    ) ||
                     this._statementsUseTimer(
                         Array.isArray(statement.body) ?
                             statement.body :
@@ -438,6 +466,24 @@ class ArduinoUnoGenerator {
                         [],
                     pins
                 );
+
+            } else if (statement.type === 'WaitUntil') {
+                this._collectInputPinsFromExpression(
+                    statement.condition,
+                    pins
+                );
+            } else if (statement.type === 'RepeatUntil') {
+                this._collectInputPinsFromExpression(
+                    statement.condition,
+                    pins
+                );
+
+                this._collectInputPinsFromStatements(
+                    Array.isArray(statement.body) ?
+                        statement.body :
+                        [],
+                    pins
+                );
             } else if (statement.type === 'If') {
                 this._collectInputPinsFromExpression(
                     statement.condition,
@@ -552,6 +598,7 @@ class ArduinoUnoGenerator {
                 pins.add(statement.pin);
             } else if (
                 statement.type === 'Repeat' ||
+                statement.type === 'RepeatUntil' ||
                 statement.type === 'If'
             ) {
                 const body = Array.isArray(statement.body) ?
@@ -733,6 +780,47 @@ class ArduinoUnoGenerator {
                 );
                 break;
 
+            case 'Wait': {
+                const duration = statement.duration;
+
+                if (
+                    duration &&
+                    (
+                        duration.type === 'IntegerLiteral' ||
+                        duration.type === 'DecimalLiteral'
+                    )
+                ) {
+                    const milliseconds = Math.max(
+                        0,
+                        duration.value * 1000
+                    );
+
+                    lines.push(
+                        `${indent}delay(${milliseconds});`
+                    );
+                    break;
+                }
+
+                const durationExpression = this._generateExpression(
+                    duration
+                );
+
+                const identifier = identifiers.allocate(
+                    'waitSeconds'
+                );
+
+                lines.push(
+                    `${indent}{`,
+                    `${indent}    float ${identifier} = ${durationExpression};`,
+                    `${indent}    if (${identifier} < 0) {`,
+                    `${indent}        ${identifier} = 0;`,
+                    `${indent}    }`,
+                    `${indent}    delay(${identifier} * 1000);`,
+                    `${indent}}`
+                );
+                break;
+            }
+
             case 'Repeat': {
                 const identifier = this._getRepeatIdentifier(
                     repeatDepth
@@ -756,6 +844,42 @@ class ArduinoUnoGenerator {
                     identifiers,
                     lines,
                     repeatDepth + 1
+                );
+
+                lines.push(`${indent}}`);
+                break;
+            }
+
+            case 'WaitUntil': {
+                const conditionExpression = this._generateExpression(
+                    statement.condition
+                );
+
+                lines.push(
+                    `${indent}while (!${conditionExpression}) {`
+                );
+
+                lines.push(`${indent}}`);
+                break;
+            }
+
+            case 'RepeatUntil': {
+                const conditionExpression = this._generateExpression(
+                    statement.condition
+                );
+
+                lines.push(
+                    `${indent}while (!${conditionExpression}) {`
+                );
+
+                this._generateStatements(
+                    Array.isArray(statement.body) ?
+                        statement.body :
+                        [],
+                    indentLevel + 1,
+                    identifiers,
+                    lines,
+                    repeatDepth
                 );
 
                 lines.push(`${indent}}`);

@@ -101,6 +101,25 @@ export default function (vm) {
         }
     };
 
+    ScratchBlocks.Blocks.easyblox_nonnegative_number = {
+        init: function () {
+            this.jsonInit({
+                message0: '%1',
+                args0: [
+                    {
+                        type: 'field_easyblox_range_number',
+                        name: 'NUM',
+                        value: 1,
+                        min: 0
+                    }
+                ],
+                output: 'Number',
+                outputShape: ScratchBlocks.OUTPUT_SHAPE_ROUND,
+                extensions: ['colours_textfield']
+            });
+        }
+    };
+
     ScratchBlocks.Blocks.easyblox_matrix_8x8 = {
         init: function () {
             this.jsonInit({

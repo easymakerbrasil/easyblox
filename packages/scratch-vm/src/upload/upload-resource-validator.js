@@ -300,6 +300,8 @@ class UploadResourceValidator {
         for (const statement of statements) {
             if (
                 (
+                    statement.type === 'WaitUntil' ||
+                    statement.type === 'RepeatUntil' ||
                     statement.type === 'If' ||
                     statement.type === 'IfElse'
                 ) &&
@@ -314,6 +316,7 @@ class UploadResourceValidator {
             if (
                 (
                     statement.type === 'Repeat' ||
+                    statement.type === 'RepeatUntil' ||
                     statement.type === 'If'
                 ) &&
                 Array.isArray(statement.body)

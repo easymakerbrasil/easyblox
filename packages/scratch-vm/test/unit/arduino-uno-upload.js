@@ -7186,6 +7186,622 @@ tap.test('Arduino UNO Upload extracts control_if into If semantic IR', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts control_wait_until into WaitUntil semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('wait_until_block'),
+        {
+            id: 'wait_until_block',
+            opcode: 'control_wait_until',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'condition_lt',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'condition_lt',
+            opcode: 'operator_lt',
+            next: null,
+            parent: 'wait_until_block',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'left_1',
+                    shadow: 'left_1'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'right_2',
+                    shadow: 'right_2'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left_1', 'condition_lt', 1),
+        createNumberShadow('right_2', 'condition_lt', 2)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'WaitUntil',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload accepts BOOLEAN WaitUntil condition', t => {
+    const validator = new UploadTypeValidator();
+
+    t.doesNotThrow(() => validator.validate({
+        setup: [{
+            type: 'WaitUntil',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }],
+        loop: []
+    }));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects INTEGER used directly as WaitUntil condition', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'WaitUntil',
+                condition: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                }
+            }],
+            loop: []
+        }),
+        /WaitUntil condition must be Boolean/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits WaitUntil as negated while statement', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'WaitUntil',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    while (!(1 < 2)) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator collects digital input used by WaitUntil condition', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'WaitUntil',
+            condition: {
+                type: 'DigitalReadExpression',
+                pin: 2
+            }
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    pinMode(2, INPUT);',
+        '    while (!(digitalRead(2) == HIGH)) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator collects timer used by WaitUntil condition', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'WaitUntil',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'TimerReadExpression'
+                },
+                right: {
+                    type: 'DecimalLiteral',
+                    value: 1.5
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'unsigned long easyblox_timer_reset_at = 0;',
+        '',
+        'void setup() {',
+        '    while (!(((millis() - easyblox_timer_reset_at) / 1000.0) > 1.5)) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported DigitalRead pin in WaitUntil condition', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'WaitUntil',
+            condition: {
+                type: 'DigitalReadExpression',
+                pin: 1
+            }
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /DigitalRead pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported DigitalRead pin in RepeatUntil condition', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'RepeatUntil',
+            condition: {
+                type: 'DigitalReadExpression',
+                pin: 1
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /DigitalRead pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator validates RepeatUntil body recursively', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'RepeatUntil',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: [{
+                type: 'If',
+                condition: {
+                    type: 'DigitalReadExpression',
+                    pin: 1
+                },
+                body: []
+            }]
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /DigitalRead pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts control_repeat_until into RepeatUntil semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat_until_block'),
+        {
+            id: 'repeat_until_block',
+            opcode: 'control_repeat_until',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'condition_lt',
+                    shadow: null
+                },
+                SUBSTACK: {
+                    name: 'SUBSTACK',
+                    block: 'digital_write',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'condition_lt',
+            opcode: 'operator_lt',
+            next: null,
+            parent: 'repeat_until_block',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'left_1',
+                    shadow: 'left_1'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'right_2',
+                    shadow: 'right_2'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left_1', 'condition_lt', 1),
+        createNumberShadow('right_2', 'condition_lt', 2),
+        {
+            id: 'digital_write',
+            opcode: 'arduinoUno_digitalWrite',
+            next: null,
+            parent: 'repeat_until_block',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'pin_13',
+                    shadow: 'pin_13'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'value_high',
+                    shadow: 'value_high'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('pin_13', 'digital_write', 13),
+        createNumberShadow('value_high', 'digital_write', 1)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'RepeatUntil',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: [{
+                type: 'DigitalWrite',
+                pin: 13,
+                value: true
+            }]
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload accepts BOOLEAN RepeatUntil condition', t => {
+    const validator = new UploadTypeValidator();
+
+    t.doesNotThrow(() => validator.validate({
+        setup: [{
+            type: 'RepeatUntil',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: [{
+                type: 'DigitalWrite',
+                pin: 13,
+                value: true
+            }]
+        }],
+        loop: []
+    }));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects INTEGER used directly as RepeatUntil condition', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'RepeatUntil',
+                condition: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                body: []
+            }],
+            loop: []
+        }),
+        /RepeatUntil condition must be Boolean/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload validates RepeatUntil body recursively', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'RepeatUntil',
+                condition: {
+                    type: 'BinaryExpression',
+                    operator: 'LessThan',
+                    left: {
+                        type: 'IntegerLiteral',
+                        value: 1
+                    },
+                    right: {
+                        type: 'IntegerLiteral',
+                        value: 2
+                    }
+                },
+                body: [{
+                    type: 'Wait',
+                    duration: {
+                        type: 'BinaryExpression',
+                        operator: 'LessThan',
+                        left: {
+                            type: 'IntegerLiteral',
+                            value: 1
+                        },
+                        right: {
+                            type: 'IntegerLiteral',
+                            value: 2
+                        }
+                    }
+                }]
+            }],
+            loop: []
+        }),
+        /Wait duration must be numeric/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits RepeatUntil as negated while statement', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'RepeatUntil',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            body: [{
+                type: 'DigitalWrite',
+                pin: 13,
+                value: true
+            }]
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    pinMode(13, OUTPUT);',
+        '    while (!(1 < 2)) {',
+        '        digitalWrite(13, HIGH);',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator collects digital input used by RepeatUntil condition', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'RepeatUntil',
+            condition: {
+                type: 'DigitalReadExpression',
+                pin: 2
+            },
+            body: [{
+                type: 'DigitalWrite',
+                pin: 13,
+                value: true
+            }]
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    pinMode(2, INPUT);',
+        '    pinMode(13, OUTPUT);',
+        '    while (!(digitalRead(2) == HIGH)) {',
+        '        digitalWrite(13, HIGH);',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits timer support for TimerReadExpression in RepeatUntil condition', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'RepeatUntil',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'TimerReadExpression'
+                },
+                right: {
+                    type: 'DecimalLiteral',
+                    value: 1.5
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'unsigned long easyblox_timer_reset_at = 0;',
+        '',
+        'void setup() {',
+        '    while (!(((millis() - easyblox_timer_reset_at) / 1000.0) > 1.5)) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload generates timer reset', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('timer_reset'),
@@ -7977,6 +8593,292 @@ tap.test('Arduino UNO Upload extracts control_if_else into IfElse semantic IR', 
         }],
         loop: []
     });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts control_wait into Wait semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('wait_block'),
+        {
+            id: 'wait_block',
+            opcode: 'control_wait',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                DURATION: {
+                    name: 'DURATION',
+                    block: 'wait_duration',
+                    shadow: 'wait_duration'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'wait_duration',
+            'wait_block',
+            1.5
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'Wait',
+            duration: {
+                type: 'DecimalLiteral',
+                value: 1.5
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts EasyBlox non-negative Wait literal', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('wait_block'),
+        {
+            id: 'wait_block',
+            opcode: 'control_wait',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                DURATION: {
+                    name: 'DURATION',
+                    block: 'wait_duration',
+                    shadow: 'wait_duration'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'wait_duration',
+            'wait_block',
+            1.5,
+            'easyblox_nonnegative_number'
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'Wait',
+            duration: {
+                type: 'DecimalLiteral',
+                value: 1.5
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts DECIMAL Wait duration', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Wait',
+            duration: {
+                type: 'DecimalLiteral',
+                value: 1.5
+            }
+        }],
+        loop: []
+    };
+
+    t.doesNotThrow(() => validator.validate(ir));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects BOOLEAN Wait duration', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Wait',
+            duration: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Wait duration must be numeric/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits delay for Wait duration in seconds', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Wait',
+            duration: {
+                type: 'DecimalLiteral',
+                value: 1.5
+            }
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    delay(1500);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator preserves numeric expression in Wait duration', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Wait',
+            duration: {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'DecimalLiteral',
+                    value: 0.5
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    {',
+        '        float waitSeconds_0 = (1 + 0.5);',
+        '        if (waitSeconds_0 < 0) {',
+        '            waitSeconds_0 = 0;',
+        '        }',
+        '        delay(waitSeconds_0 * 1000);',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator collects timer support from Wait duration', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Wait',
+            duration: {
+                type: 'TimerReadExpression'
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /unsigned long easyblox_timer_reset_at = 0;/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator detects Wait nested inside Repeat', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: 2,
+            body: [{
+                type: 'Wait',
+                duration: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                }
+            }]
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /delay\(1000\);/
+    );
+
+    t.notMatch(
+        code,
+        /easyblox_wait/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator clamps negative literal Wait duration to zero milliseconds', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Wait',
+            duration: {
+                type: 'DecimalLiteral',
+                value: -1.5
+            }
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    delay(0);',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.notMatch(
+        code,
+        /easyblox_wait/
+    );
 
     t.end();
 });

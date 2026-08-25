@@ -21,11 +21,37 @@ const registerEasyBloxRangeNumberField = ScratchBlocks => {
         }
 
         /**
+         * Prevent typing a negative sign when the configured range
+         * does not allow negative values.
+         * @param {KeyboardEvent} event Keyboard event.
+         */
+        onHtmlInputKeyDown_ (event) {
+            super.onHtmlInputKeyDown_(event);
+
+            if (
+                event.key === '-' &&
+                this.getMin() >= 0
+            ) {
+                event.preventDefault();
+            }
+        }
+
+        /**
          * Show the normal numeric editor together with a range slider.
          * @param {PointerEvent} event Event that opened the editor.
          */
         showEditor_ (event) {
             super.showEditor_(event, false, false);
+
+            const min = this.getMin();
+            const max = this.getMax();
+
+            if (
+                !Number.isFinite(min) ||
+                !Number.isFinite(max)
+            ) {
+                return;
+            }
 
             ScratchBlocks.DropDownDiv.hideWithoutAnimation();
             ScratchBlocks.DropDownDiv.clearContent();

@@ -26,6 +26,64 @@ describe('makeToolboxXML program mode', () => {
         expect(xml).toContain('toolboxitemid="myBlocks"');
     });
 
+    test('uses the EasyBlox non-negative number shadow for control_wait', () => {
+        const xml = makeToolboxXML(
+            false,
+            false,
+            'target-id',
+            [],
+            '',
+            '',
+            '',
+            defaultColors,
+            'stage'
+        );
+
+        expect(xml).toContain(
+            '<shadow type="easyblox_nonnegative_number">'
+        );
+
+        expect(xml).not.toContain(
+            '<shadow type="math_positive_number">'
+        );
+    });
+
+    test('uses numeric shadows for operator_lt operands', () => {
+    const xml = makeToolboxXML(
+        false,
+        false,
+        'target-id',
+        [],
+        '',
+        '',
+        '',
+        defaultColors,
+        'stage'
+    );
+
+    const operatorLtStart = xml.indexOf(
+        '<block type="operator_lt">'
+    );
+
+    const operatorEqualsStart = xml.indexOf(
+        '<block type="operator_equals">',
+        operatorLtStart
+    );
+
+    const operatorLtXml = xml.slice(
+        operatorLtStart,
+        operatorEqualsStart
+    );
+
+    expect(operatorLtXml).toContain(
+        '<shadow type="math_number">'
+    );
+
+    expect(operatorLtXml).not.toContain(
+        '<shadow type="text">'
+    );
+});
+
     test('hides Stage-only native categories in Upload mode', () => {
         const xml = makeToolboxXML(
             false,

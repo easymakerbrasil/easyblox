@@ -9537,29 +9537,48 @@ Hoje, ao alternar:
 
 `Palco → Carregar`
 
-o fluxo ainda utiliza o script do:
+o fluxo utiliza o script do:
 
 `editingTarget`
 
-selecionado no Stage como fonte para a geração Arduino.
+selecionado como fonte para a geração Arduino.
 
-Esse comportamento está incorreto e deve ser corrigido antes de avançar para o tradutor pedagógico de erros.
+Esse comportamento está correto e corresponde ao contrato definitivo aprovado para a transição entre Modo Palco e Modo Carregar.
 
 Contrato aprovado:
 
-- scripts Stage continuam pertencendo aos atores/stage targets;
-- o programa Upload deve possuir workspace próprio;
-- o workspace Upload não pertence a nenhum ator;
-- a seleção do ator Stage não pode modificar a origem do programa Arduino;
-- primeira entrada em Carregar cria um workspace Upload vazio para o projeto;
-- retornar ao Palco restaura exatamente os scripts Stage e o target selecionado;
-- retornar novamente a Carregar recupera o mesmo programa Upload;
-- o programa Upload deve persistir com o projeto;
-- C++ / `.ino` continua sendo artefato gerado;
+- Palco e Carregar utilizam o mesmo workspace e os mesmos scripts do target selecionado;
+- não existe workspace, programa de blocos ou armazenamento de blocos independente para o Modo Carregar;
+- entrar no Modo Carregar não cria um workspace vazio;
+- alternar entre Palco e Carregar não apaga, desconecta, move nem reorganiza blocos existentes;
+- a mudança de modo altera a disponibilidade da toolbox e o estado de compatibilidade dos blocos já presentes no workspace;
+- blocos incompatíveis com o modo atual permanecem visíveis no script, mas ficam desabilitados e não podem receber novas conexões incompatíveis;
+- blocos `STAGE_ONLY` ficam ocultos da paleta no Modo Carregar;
+- blocos `UPLOAD_ONLY` ficam ocultos da paleta no Modo Palco;
+- blocos `BOTH` permanecem disponíveis nos dois modos;
+- toolbox e estado dos blocos existentes no workspace são contratos distintos;
 - a fonte editável permanece sendo os blocos;
-- pipeline permanece `Blocks → EasyBlox IR → C++`.
+- C++ / `.ino` continua sendo artefato gerado;
+- pipeline permanece `Blocks → EasyBlox IR → validação → C++`.
 
-Essa passa a ser a próxima correção estrutural obrigatória da A7.3.
+Contrato pedagógico do C++ gerado:
+
+- o preview C++ faz parte da experiência educacional e deve apresentar código Arduino reconhecível pelo aluno;
+- priorizar a API oficial do Arduino sempre que ela representar diretamente a operação;
+- quando houver biblioteca adotada, priorizar a API pública e convencional dessa biblioteca;
+- quando não houver API Arduino específica, utilizar construções padrão de C/C++;
+- helpers proprietários EasyBlox só devem ser introduzidos quando forem tecnicamente necessários e não houver representação Arduino/C++ adequada;
+- não criar wrappers `easyblox_*` apenas por conveniência quando a API Arduino já oferece a operação;
+- exemplos já validados incluem `delay()`, `while`, `pinMode()`, `digitalWrite()` e `digitalRead()`;
+- a geração deve permanecer determinística, compilável e semanticamente equivalente aos blocos.
+
+Contrato de campos numéricos:
+
+- entradas literais com domínio conhecido devem aplicar esse domínio diretamente na interface;
+- `espere [segundos]` aceita valores literais não negativos, incluindo decimais;
+- expressões matemáticas continuam podendo produzir valores negativos quando semanticamente permitido;
+- valores legados ou programáticos fora do domínio devem continuar sendo tratados defensivamente pelo pipeline;
+- campos reutilizáveis com limites devem ser preferidos para contratos como Servo `0–180`, PWM `0–255` e demais domínios explícitos.
 
 #### Estado atual
 
@@ -9568,6 +9587,38 @@ A7.1 — concluído
 A7.2 — concluído e validado
 
 A7.3 — em implementação
+
+Implementado/validado:
+
+- contrato `executionMode`;
+- classificação Stage/Upload/Both;
+- toolbox dependente de modo;
+- workspace único compartilhado entre Palco e Carregar;
+- preservação de blocos incompatíveis existentes;
+- disabled reason EasyBlox;
+- bloqueio de novas conexões incompatíveis;
+- `EasyBloxConnectionChecker`;
+- integração real do checker com Scratch Blocks;
+- Serial Upload-only;
+- preview C++ em tempo real;
+- geração C++ canônica para as operações já integradas;
+- `control_wait` com geração por `delay()`;
+- `control_wait_until` com geração por `while (!condição)`;
+- `control_repeat_until` com geração por `while (!condição)` e corpo recursivo;
+- coleta e validação de recursos utilizados em condições e corpos estruturados;
+- campos numéricos EasyBlox com domínio explícito;
+- regressões GUI e VM desta etapa.
+
+Próxima prioridade:
+
+- concluir os Operadores compatíveis com Upload;
+- depois Variáveis;
+- depois Meus Blocos / Procedures;
+- depois Sensores Arduino;
+- depois Displays;
+- Monitor Serial funcional;
+- tradução pedagógica dos erros;
+- acabamento visual definitivo da A7.3.
 
 Implementado/validado:
 

@@ -422,7 +422,7 @@ const control = function (isInitialSetup, isStage, targetId, colors, programMode
         secondaryColour="${colors.colourTertiary}">
         <block type="control_wait">
             <value name="DURATION">
-                <shadow type="math_positive_number">
+                <shadow type="easyblox_nonnegative_number">
                     <field name="NUM">1</field>
                 </shadow>
             </value>
@@ -640,13 +640,13 @@ const operators = function (isInitialSetup, isStage, targetId, colors) {
         </block>
         <block type="operator_lt">
             <value name="OPERAND1">
-                <shadow type="text">
-                    <field name="TEXT"/>
+                <shadow type="math_number">
+                    <field name="NUM">0</field>
                 </shadow>
             </value>
             <value name="OPERAND2">
-                <shadow type="text">
-                    <field name="TEXT">50</field>
+                <shadow type="math_number">
+                    <field name="NUM">50</field>
                 </shadow>
             </value>
         </block>

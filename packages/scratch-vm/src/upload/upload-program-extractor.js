@@ -18,6 +18,9 @@ const SERIAL_WRITE_LINE_OPCODE = 'serial_serialWriteLine';
 const FOREVER_OPCODE = 'control_forever';
 const REPEAT_OPCODE = 'control_repeat';
 const IF_OPCODE = 'control_if';
+const WAIT_OPCODE = 'control_wait';
+const WAIT_UNTIL_OPCODE = 'control_wait_until';
+const REPEAT_UNTIL_OPCODE = 'control_repeat_until';
 const ADD_OPCODE = 'operator_add';
 const SUBTRACT_OPCODE = 'operator_subtract';
 const MULTIPLY_OPCODE = 'operator_multiply';
@@ -344,6 +347,46 @@ class UploadProgramExtractor {
                     'TEXT'
                 )
             };
+
+        case WAIT_OPCODE:
+            return {
+                type: 'Wait',
+                duration: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'DURATION'
+                )
+            };
+
+            case WAIT_UNTIL_OPCODE:
+                return {
+                    type: 'WaitUntil',
+                    condition: this._extractExpressionInput(
+                        blocks,
+                        block,
+                        'CONDITION'
+                    )
+                };
+
+        case REPEAT_UNTIL_OPCODE: {
+            const body = [];
+
+            this._extractBranchStatements(
+                blocks,
+                blocks.getBranch(block.id, 1),
+                body
+            );
+
+            return {
+                type: 'RepeatUntil',
+                condition: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'CONDITION'
+                ),
+                body
+            };
+        }
 
         case REPEAT_OPCODE: {
             const body = [];
@@ -762,6 +805,7 @@ class UploadProgramExtractor {
             'math_whole_number',
             'math_integer',
             'math_angle',
+            'easyblox_nonnegative_number',
             'easyblox_servo_angle',
             'easyblox_pwm_value',
             'easyblox_motor_speed',

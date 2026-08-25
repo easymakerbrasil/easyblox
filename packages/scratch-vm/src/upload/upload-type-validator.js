@@ -62,6 +62,57 @@ class UploadTypeValidator {
                 break;
             }
 
+            case 'Wait': {
+                const durationType = this._inferExpressionType(
+                    statement.duration
+                );
+
+                if (
+                    durationType !== VALUE_TYPES.INTEGER &&
+                    durationType !== VALUE_TYPES.DECIMAL
+                ) {
+                    throw new Error(
+                        'Wait duration must be numeric'
+                    );
+                }
+
+                break;
+            }
+
+            case 'WaitUntil': {
+                const conditionType = this._inferExpressionType(
+                    statement.condition
+                );
+
+                if (conditionType !== VALUE_TYPES.BOOLEAN) {
+                    throw new Error(
+                        'WaitUntil condition must be Boolean'
+                    );
+                }
+
+                break;
+            }
+
+            case 'RepeatUntil': {
+                const conditionType = this._inferExpressionType(
+                    statement.condition
+                );
+
+                if (conditionType !== VALUE_TYPES.BOOLEAN) {
+                    throw new Error(
+                        'RepeatUntil condition must be Boolean'
+                    );
+                }
+
+                this._validateStatements(
+                    Array.isArray(statement.body) ?
+                        statement.body :
+                        []
+                );
+
+                break;
+            }
+
             case 'Repeat': {
                 const timesType = this._inferExpressionType(
                     statement.times
