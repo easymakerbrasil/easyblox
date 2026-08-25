@@ -151,6 +151,69 @@ describe('Blocks container onWorkspaceUpdate', () => {
     });
 });
 
+describe('Blocks VM attachment', () => {
+    test('requests the current workspace after registering the workspace listener', () => {
+        const callOrder = [];
+
+        const flyoutWorkspace = {
+            addChangeListener: jest.fn()
+        };
+
+        const workspace = {
+            addChangeListener: jest.fn(),
+            getFlyout: jest.fn().mockReturnValue({
+                getWorkspace: jest.fn().mockReturnValue(flyoutWorkspace)
+            })
+        };
+
+        const addListener = jest.fn(eventName => {
+            if (eventName === 'workspaceUpdate') {
+                callOrder.push('workspaceUpdate listener');
+            }
+        });
+
+        const refreshWorkspace = jest.fn(() => {
+            callOrder.push('refreshWorkspace');
+        });
+
+        const instance = {
+            workspace,
+            props: {
+                vm: {
+                    blockListener: jest.fn(),
+                    flyoutBlockListener: jest.fn(),
+                    monitorBlockListener: jest.fn(),
+                    addListener,
+                    refreshWorkspace
+                }
+            },
+            onScriptGlowOn: jest.fn(),
+            onScriptGlowOff: jest.fn(),
+            onBlockGlowOn: jest.fn(),
+            onBlockGlowOff: jest.fn(),
+            onVisualReport: jest.fn(),
+            onWorkspaceUpdate: jest.fn(),
+            onTargetsUpdate: jest.fn(),
+            handleMonitorsUpdate: jest.fn(),
+            handleExtensionAdded: jest.fn(),
+            handleBlocksInfoUpdate: jest.fn(),
+            handleStatusButtonUpdate: jest.fn()
+        };
+
+        Blocks.prototype.attachVM.call(instance);
+
+        expect(addListener).toHaveBeenCalledWith(
+            'workspaceUpdate',
+            instance.onWorkspaceUpdate
+        );
+        expect(refreshWorkspace).toHaveBeenCalledTimes(1);
+        expect(callOrder).toEqual([
+            'workspaceUpdate listener',
+            'refreshWorkspace'
+        ]);
+    });
+});
+
 describe('Blocks requested extension selection', () => {
     let instance;
 
