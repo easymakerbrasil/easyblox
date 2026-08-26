@@ -32,6 +32,12 @@ class ArduinoUnoGenerator {
             loopStatements
         );
 
+        const usesStringContainsIgnoreCase =
+            this._usesStringContainsIgnoreCase(
+                setupStatements,
+                loopStatements
+            );
+
         const usesUnicodeStringLength = (
             this._usesUnicodeStringLength(
                 setupStatements,
@@ -172,6 +178,57 @@ class ArduinoUnoGenerator {
                 '    }',
                 '',
                 '    return value.substring(byteIndex, byteIndex + byteLength);',
+                '}',
+                ''
+            );
+        }
+
+        if (usesStringContainsIgnoreCase) {
+            lines.push(
+                'String unicodeLatin1ToLower(const String &value) {',
+                '    String result;',
+                '    result.reserve(value.length());',
+                '    size_t index = 0;',
+                '',
+                '    while (index < value.length()) {',
+                '        const unsigned char current = static_cast<unsigned char>(value[index]);',
+                '',
+                "        if (current >= 'A' && current <= 'Z') {",
+                "            result += static_cast<char>(current + ('a' - 'A'));",
+                '            ++index;',
+                '            continue;',
+                '        }',
+                '',
+                '        if (current == 0xC3 && index + 1 < value.length()) {',
+                '            const unsigned char next = static_cast<unsigned char>(value[index + 1]);',
+                '',
+                '            if (',
+                '                (next >= 0x80 && next <= 0x96) ||',
+                '                (next >= 0x98 && next <= 0x9E)',
+                '            ) {',
+                '                result += static_cast<char>(current);',
+                '                result += static_cast<char>(next + 0x20);',
+                '                index += 2;',
+                '                continue;',
+                '            }',
+                '        }',
+                '',
+                '        result += static_cast<char>(current);',
+                '        ++index;',
+                '    }',
+                '',
+                '    return result;',
+                '}',
+                '',
+                'bool stringContainsIgnoreCase(const String &value, const String &substring) {',
+                '    if (substring.length() == 0) {',
+                '        return true;',
+                '    }',
+                '',
+                '    const String normalizedValue = unicodeLatin1ToLower(value);',
+                '    const String normalizedSubstring = unicodeLatin1ToLower(substring);',
+                '',
+                '    return normalizedValue.indexOf(normalizedSubstring) >= 0;',
                 '}',
                 ''
             );
@@ -445,6 +502,156 @@ class ArduinoUnoGenerator {
                     return true;
                 }
             }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check whether the program requires case-insensitive Contains support.
+     * @param {Array<object>} setupStatements Setup IR statements.
+     * @param {Array<object>} loopStatements Loop IR statements.
+     * @returns {boolean} True when Contains is used.
+     * @private
+     */
+    _usesStringContainsIgnoreCase (setupStatements, loopStatements) {
+        return (
+            this._statementsUseStringContainsIgnoreCase(setupStatements) ||
+            this._statementsUseStringContainsIgnoreCase(loopStatements)
+        );
+    }
+
+    /**
+     * Recursively inspect statements for Contains expressions.
+     * @param {Array<object>} statements Semantic IR statements.
+     * @returns {boolean} True when Contains is used.
+     * @private
+     */
+    _statementsUseStringContainsIgnoreCase (statements) {
+        for (const statement of statements) {
+            if (
+                (
+                    statement.type === 'SerialWrite' ||
+                    statement.type === 'SerialWriteLine'
+                ) &&
+                this._expressionUsesStringContainsIgnoreCase(statement.value)
+            ) {
+                return true;
+            }
+
+            if (
+                statement.type === 'Wait' &&
+                this._expressionUsesStringContainsIgnoreCase(
+                    statement.duration
+                )
+            ) {
+                return true;
+            }
+
+            if (statement.type === 'Repeat') {
+                if (
+                    this._expressionUsesStringContainsIgnoreCase(
+                        statement.times
+                    ) ||
+                    this._statementsUseStringContainsIgnoreCase(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'WaitUntil') {
+                if (
+                    this._expressionUsesStringContainsIgnoreCase(
+                        statement.condition
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'RepeatUntil') {
+                if (
+                    this._expressionUsesStringContainsIgnoreCase(
+                        statement.condition
+                    ) ||
+                    this._statementsUseStringContainsIgnoreCase(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'If') {
+                if (
+                    this._expressionUsesStringContainsIgnoreCase(
+                        statement.condition
+                    ) ||
+                    this._statementsUseStringContainsIgnoreCase(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'IfElse') {
+                if (
+                    this._expressionUsesStringContainsIgnoreCase(
+                        statement.condition
+                    ) ||
+                    this._statementsUseStringContainsIgnoreCase(
+                        Array.isArray(statement.thenBody) ?
+                            statement.thenBody :
+                            []
+                    ) ||
+                    this._statementsUseStringContainsIgnoreCase(
+                        Array.isArray(statement.elseBody) ?
+                            statement.elseBody :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Recursively inspect Expression IR for Contains.
+     * @param {number|object} expression EasyBlox expression IR.
+     * @returns {boolean} True when the expression uses Contains.
+     * @private
+     */
+    _expressionUsesStringContainsIgnoreCase (expression) {
+        if (!expression || typeof expression !== 'object') {
+            return false;
+        }
+
+        if (
+            expression.type === 'BinaryExpression' &&
+            expression.operator === 'Contains'
+        ) {
+            return true;
+        }
+
+        if (expression.type === 'BinaryExpression') {
+            return (
+                this._expressionUsesStringContainsIgnoreCase(
+                    expression.left
+                ) ||
+                this._expressionUsesStringContainsIgnoreCase(
+                    expression.right
+                )
+            );
+        }
+
+        if (expression.type === 'UnaryExpression') {
+            return this._expressionUsesStringContainsIgnoreCase(
+                expression.operand
+            );
         }
 
         return false;
@@ -1447,6 +1654,13 @@ class ArduinoUnoGenerator {
                     this._generateTextCoercion(expression.right)
                 })`;
 
+            case 'Contains':
+                return `stringContainsIgnoreCase(${
+                    this._generateTextCoercion(expression.left)
+                }, ${
+                    this._generateTextCoercion(expression.right)
+                })`;
+
             default:
                 throw new Error(
                     `Unsupported Arduino UNO Upload binary operator: ${
@@ -1508,7 +1722,8 @@ class ArduinoUnoGenerator {
                 'Equals',
                 'GreaterThan',
                 'And',
-                'Or'
+                'Or',
+                'Contains'
             ].includes(expression.operator);
         }
 

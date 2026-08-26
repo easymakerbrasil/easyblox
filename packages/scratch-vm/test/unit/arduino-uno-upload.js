@@ -5435,6 +5435,178 @@ tap.test('Arduino UNO Upload generates operator_letter_of from Scratch blocks en
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts operator_contains as text comparison expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'contains',
+            opcode: 'operator_contains',
+            next: null,
+            parent: null,
+            inputs: {
+                STRING1: {
+                    name: 'STRING1',
+                    block: 'contains_text',
+                    shadow: 'contains_text'
+                },
+                STRING2: {
+                    name: 'STRING2',
+                    block: 'contains_substring',
+                    shadow: 'contains_substring'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'contains_text',
+            opcode: 'text',
+            next: null,
+            parent: 'contains',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'EasyBlox'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        },
+        {
+            id: 'contains_substring',
+            opcode: 'text',
+            next: null,
+            parent: 'contains',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'blox'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const blocks = runtime.targets[0].blocks;
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'contains'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'Contains',
+            left: {
+                type: 'TextLiteral',
+                value: 'EasyBlox'
+            },
+            right: {
+                type: 'TextLiteral',
+                value: 'blox'
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates operator_contains from Scratch blocks end to end', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_block'),
+        {
+            id: 'if_block',
+            opcode: 'control_if',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'contains',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'contains',
+            opcode: 'operator_contains',
+            next: null,
+            parent: 'if_block',
+            inputs: {
+                STRING1: {
+                    name: 'STRING1',
+                    block: 'contains_text',
+                    shadow: 'contains_text'
+                },
+                STRING2: {
+                    name: 'STRING2',
+                    block: 'contains_substring',
+                    shadow: 'contains_substring'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'contains_text',
+            opcode: 'text',
+            next: null,
+            parent: 'contains',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'EasyBlox'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        },
+        {
+            id: 'contains_substring',
+            opcode: 'text',
+            next: null,
+            parent: 'contains',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'blox'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const contextValidator = new UploadContextValidator();
+    const typeValidator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    contextValidator.validate(ir);
+    typeValidator.validate(ir);
+
+    const code = generator.generate(ir);
+
+    t.match(
+        code,
+        /if \(stringContainsIgnoreCase\(String\("EasyBlox"\), String\("blox"\)\)\) \{/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload generates operator_length from Scratch blocks end to end', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('repeat'),
@@ -6339,6 +6511,28 @@ tap.test('Arduino UNO generator emits LetterOf using Unicode-aware helper', t =>
     t.end();
 });
 
+tap.test('Arduino UNO generator emits Contains using case-insensitive text helper', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Contains',
+            left: {
+                type: 'TextLiteral',
+                value: 'EasyBlox'
+            },
+            right: {
+                type: 'TextLiteral',
+                value: 'blox'
+            }
+        }),
+        'stringContainsIgnoreCase(String("EasyBlox"), String("blox"))'
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO generator emits Join as Arduino String concatenation', t => {
     const generator = new ArduinoUnoGenerator();
 
@@ -6408,6 +6602,36 @@ tap.test('Arduino UNO generator emits Join dynamic Boolean as true or false text
             }
         }),
         '(String("Comparação: ") + String((1 < 2) ? "true" : "false"))'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Contains in Join as true or false text', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Join',
+            left: {
+                type: 'TextLiteral',
+                value: 'Resultado: '
+            },
+            right: {
+                type: 'BinaryExpression',
+                operator: 'Contains',
+                left: {
+                    type: 'TextLiteral',
+                    value: 'EasyBlox'
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'blox'
+                }
+            }
+        }),
+        '(String("Resultado: ") + String(stringContainsIgnoreCase(String("EasyBlox"), String("blox")) ? "true" : "false"))'
     );
 
     t.end();
@@ -6686,6 +6910,30 @@ tap.test('Arduino UNO Upload type validator rejects TEXT LetterOf index', t => {
             loop: []
         }),
         /LetterOf index must be numeric/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers BOOLEAN for TEXT Contains INTEGER', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'Contains',
+        left: {
+            type: 'TextLiteral',
+            value: 'EasyBlox 27'
+        },
+        right: {
+            type: 'IntegerLiteral',
+            value: 27
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.BOOLEAN
     );
 
     t.end();
@@ -9955,6 +10203,120 @@ tap.test('Arduino UNO generator emits Unicode-aware letter support when required
     t.match(
         code,
         /String unicodeLetterOf\(const String &value, double letter\) \{/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits case-insensitive contains helper when required', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'Contains',
+                left: {
+                    type: 'TextLiteral',
+                    value: 'EasyBlox'
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'blox'
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /bool stringContainsIgnoreCase\(const String &value, const String &substring\) \{[\s\S]*unicodeLatin1ToLower\(value\)[\s\S]*unicodeLatin1ToLower\(substring\)[\s\S]*indexOf/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator does not emit Contains helpers when unused', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [],
+        loop: []
+    });
+
+    t.notMatch(
+        code,
+        /unicodeLatin1ToLower/
+    );
+
+    t.notMatch(
+        code,
+        /stringContainsIgnoreCase/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Latin-1 lowercase dependency for Contains', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'Contains',
+                left: {
+                    type: 'TextLiteral',
+                    value: 'OLÁ'
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'olá'
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /String unicodeLatin1ToLower\(const String &value\) \{[\s\S]*current >= 'A' && current <= 'Z'[\s\S]*current == 0xC3[\s\S]*next >= 0x80 && next <= 0x96[\s\S]*next >= 0x98 && next <= 0x9E[\s\S]*next \+ 0x20/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator preserves Scratch Contains semantics for empty substring', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'Contains',
+                left: {
+                    type: 'TextLiteral',
+                    value: ''
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: ''
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /bool stringContainsIgnoreCase\(const String &value, const String &substring\) \{[\s\S]*if \(substring\.length\(\) == 0\) \{[\s\S]*return true;[\s\S]*\}/
     );
 
     t.end();

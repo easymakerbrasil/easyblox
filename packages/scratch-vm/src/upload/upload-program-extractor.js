@@ -34,6 +34,7 @@ const NOT_OPCODE = 'operator_not';
 const JOIN_OPCODE = 'operator_join';
 const LENGTH_OPCODE = 'operator_length';
 const LETTER_OF_OPCODE = 'operator_letter_of';
+const CONTAINS_OPCODE = 'operator_contains';
 const IF_ELSE_OPCODE = 'control_if_else';
 const TEXT_OPCODE = 'text';
 
@@ -811,6 +812,22 @@ class UploadProgramExtractor {
                     blocks,
                     block,
                     'STRING'
+                )
+            };
+
+        case CONTAINS_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'Contains',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'STRING1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'STRING2'
                 )
             };
 
