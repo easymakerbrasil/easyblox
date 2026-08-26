@@ -5245,6 +5245,196 @@ tap.test('Arduino UNO Upload extracts operator_length as unary text expression I
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts operator_letter_of as indexed text expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'letter_of',
+            opcode: 'operator_letter_of',
+            next: null,
+            parent: null,
+            inputs: {
+                LETTER: {
+                    name: 'LETTER',
+                    block: 'letter_index',
+                    shadow: 'letter_index'
+                },
+                STRING: {
+                    name: 'STRING',
+                    block: 'text_value',
+                    shadow: 'text_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'letter_index',
+            'letter_of',
+            2
+        ),
+        {
+            id: 'text_value',
+            opcode: 'text',
+            next: null,
+            parent: 'letter_of',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'EasyBlox'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const blocks = runtime.targets[0].blocks;
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'letter_of'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'LetterOf',
+            left: {
+                type: 'IntegerLiteral',
+                value: 2
+            },
+            right: {
+                type: 'TextLiteral',
+                value: 'EasyBlox'
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates operator_letter_of from Scratch blocks end to end', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('serial_begin'),
+        {
+            id: 'serial_begin',
+            opcode: 'serial_serialBegin',
+            next: 'serial_write_line',
+            parent: 'upload_hat',
+            inputs: {
+                BAUD: {
+                    name: 'BAUD',
+                    block: 'serial_baud',
+                    shadow: 'serial_baud'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'serial_baud',
+            'serial_begin',
+            'serial_menu_baudRates',
+            'baudRates',
+            9600
+        ),
+        {
+            id: 'serial_write_line',
+            opcode: 'serial_serialWriteLine',
+            next: null,
+            parent: 'serial_begin',
+            inputs: {
+                TEXT: {
+                    name: 'TEXT',
+                    block: 'letter_of',
+                    shadow: 'serial_line_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'serial_line_shadow',
+            opcode: 'text',
+            next: null,
+            parent: 'serial_write_line',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: ''
+                }
+            },
+            topLevel: false,
+            shadow: true
+        },
+        {
+            id: 'letter_of',
+            opcode: 'operator_letter_of',
+            next: null,
+            parent: 'serial_write_line',
+            inputs: {
+                LETTER: {
+                    name: 'LETTER',
+                    block: 'letter_index',
+                    shadow: 'letter_index'
+                },
+                STRING: {
+                    name: 'STRING',
+                    block: 'text_value',
+                    shadow: 'text_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'letter_index',
+            'letter_of',
+            2
+        ),
+        {
+            id: 'text_value',
+            opcode: 'text',
+            next: null,
+            parent: 'letter_of',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'EasyBlox'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const contextValidator = new UploadContextValidator();
+    const typeValidator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    contextValidator.validate(ir);
+    typeValidator.validate(ir);
+
+    const code = generator.generate(ir);
+
+    t.match(
+        code,
+        /Serial\.println\(unicodeLetterOf\(String\("EasyBlox"\), 2\)\);/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload generates operator_length from Scratch blocks end to end', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('repeat'),
@@ -5313,7 +5503,7 @@ tap.test('Arduino UNO Upload generates operator_length from Scratch blocks end t
     typeValidator.validate(ir);
 
     t.equal(generator.generate(ir), [
-        'size_t scratchStringLength(const String &value) {',
+        'size_t unicodeStringLength(const String &value) {',
         '    size_t length = 0;',
         '    size_t index = 0;',
         '',
@@ -5321,7 +5511,7 @@ tap.test('Arduino UNO Upload generates operator_length from Scratch blocks end t
         '        const unsigned char current = static_cast<unsigned char>(value[index]);',
         '',
         '        if ((current & 0xF8) == 0xF0) {',
-        '            length += 2;',
+        '            ++length;',
         '            index += 4;',
         '        } else if ((current & 0xF0) == 0xE0) {',
         '            ++length;',
@@ -5339,7 +5529,7 @@ tap.test('Arduino UNO Upload generates operator_length from Scratch blocks end t
         '}',
         '',
         'void setup() {',
-        '    for (int i = 0; i < scratchStringLength(String("Olá")); ++i) {',
+        '    for (int i = 0; i < unicodeStringLength(String("Olá")); ++i) {',
         '    }',
         '}',
         '',
@@ -6127,6 +6317,28 @@ tap.test('Arduino UNO generator escapes TextLiteral for C++ safely', t => {
     t.end();
 });
 
+tap.test('Arduino UNO generator emits LetterOf using Unicode-aware helper', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'LetterOf',
+            left: {
+                type: 'IntegerLiteral',
+                value: 2
+            },
+            right: {
+                type: 'TextLiteral',
+                value: 'EasyBlox'
+            }
+        }),
+        'unicodeLetterOf(String("EasyBlox"), 2)'
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO generator emits Join as Arduino String concatenation', t => {
     const generator = new ArduinoUnoGenerator();
 
@@ -6398,6 +6610,82 @@ tap.test('Arduino UNO Upload type validator infers INTEGER for TEXT Length', t =
     t.equal(
         type,
         UploadTypeValidator.VALUE_TYPES.INTEGER
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers TEXT for INTEGER LetterOf TEXT', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'LetterOf',
+        left: {
+            type: 'IntegerLiteral',
+            value: 2
+        },
+        right: {
+            type: 'TextLiteral',
+            value: 'EasyBlox'
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.TEXT
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts DECIMAL LetterOf index', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'LetterOf',
+        left: {
+            type: 'DecimalLiteral',
+            value: 2.5
+        },
+        right: {
+            type: 'TextLiteral',
+            value: 'EasyBlox'
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.TEXT
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator rejects TEXT LetterOf index', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'SerialWriteLine',
+                value: {
+                    type: 'BinaryExpression',
+                    operator: 'LetterOf',
+                    left: {
+                        type: 'TextLiteral',
+                        value: '2'
+                    },
+                    right: {
+                        type: 'TextLiteral',
+                        value: 'EasyBlox'
+                    }
+                }
+            }],
+            loop: []
+        }),
+        /LetterOf index must be numeric/
     );
 
     t.end();
@@ -7580,7 +7868,7 @@ tap.test('Arduino UNO generator emits Not expression', t => {
     t.end();
 });
 
-tap.test('Arduino UNO generator emits Length using Scratch-compatible string length', t => {
+tap.test('Arduino UNO generator emits Length using Unicode string length', t => {
     const generator = new ArduinoUnoGenerator();
 
     t.equal(
@@ -7592,7 +7880,7 @@ tap.test('Arduino UNO generator emits Length using Scratch-compatible string len
                 value: 'EasyBlox'
             }
         }),
-        'scratchStringLength(String("EasyBlox"))'
+        'unicodeStringLength(String("EasyBlox"))'
     );
 
     t.end();
@@ -7610,7 +7898,7 @@ tap.test('Arduino UNO generator preserves Boolean text semantics in Length', t =
                 value: true
             }
         }),
-        'scratchStringLength(String(true ? "true" : "false"))'
+        'unicodeStringLength(String(true ? "true" : "false"))'
     );
 
     t.end();
@@ -9642,7 +9930,402 @@ tap.test('Arduino UNO generator preserves numeric expression in Wait duration', 
     t.end();
 });
 
-tap.test('Arduino UNO generator emits Scratch-compatible string length support when required', t => {
+tap.test('Arduino UNO generator emits Unicode-aware letter support when required', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'EasyBlox'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /String unicodeLetterOf\(const String &value, double letter\) \{/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits string length dependency for LetterOf', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'EasyBlox'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /size_t unicodeStringLength\(const String &value\) \{/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator converts LetterOf index from Scratch one-based indexing', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'EasyBlox'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /const double index = letter - 1;/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator truncates positive decimal LetterOf index like Scratch', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'DecimalLiteral',
+                    value: 2.5
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'EasyBlox'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /const size_t characterIndex = static_cast<size_t>\(index\);/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator returns selected ASCII character for LetterOf', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'EasyBlox'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /size_t byteLength = 1;/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator maps LetterOf character index to UTF-8 byte position', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 4
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'Olá!'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /size_t byteIndex = 0;\n    size_t characterPosition = 0;/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator handles two-byte UTF-8 character in LetterOf', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'áA'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /else if \(\(current & 0xE0\) == 0xC0\) \{\n            byteIndex \+= 2;\n            \+\+characterPosition;/
+    );
+
+    t.match(
+        code,
+        /else if \(\(current & 0xE0\) == 0xC0\) \{\n        byteLength = 2;/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator advances one LetterOf character for three-byte UTF-8', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: '€A'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /else if \(\(current & 0xF0\) == 0xE0\) \{\n            byteIndex \+= 3;\n            \+\+characterPosition;/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator advances one LetterOf character for four-byte UTF-8', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: '😄A'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /if \(\(current & 0xF8\) == 0xF0\) \{\n            byteIndex \+= 4;\n            \+\+characterPosition;/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator returns complete four-byte UTF-8 character for LetterOf', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: '😄'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /if \(\(current & 0xF8\) == 0xF0\) \{\n        byteLength = 4;/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator returns complete UTF-8 character for LetterOf', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'Olá'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /return value\.substring\(byteIndex, byteIndex \+ byteLength\);/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator returns empty LetterOf for index below Scratch range', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 0
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'EasyBlox'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /if \(index < 0\) \{\n        return "";\n    \}/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator returns empty LetterOf for index above Scratch range', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'SerialWriteLine',
+            value: {
+                type: 'BinaryExpression',
+                operator: 'LetterOf',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 9
+                },
+                right: {
+                    type: 'TextLiteral',
+                    value: 'EasyBlox'
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /if \(index >= unicodeStringLength\(value\)\) \{\n        return "";\n    \}/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Unicode string length support when required', t => {
     const generator = new ArduinoUnoGenerator();
 
     const code = generator.generate({
@@ -9663,13 +10346,13 @@ tap.test('Arduino UNO generator emits Scratch-compatible string length support w
 
     t.match(
         code,
-        /size_t scratchStringLength\(const String &value\) \{/
+        /size_t unicodeStringLength\(const String &value\) \{/
     );
 
     t.end();
 });
 
-tap.test('Arduino UNO generator emits UTF-8 aware Scratch string length support', t => {
+tap.test('Arduino UNO generator emits UTF-8 aware Unicode string length support', t => {
     const generator = new ArduinoUnoGenerator();
 
     const code = generator.generate({
@@ -9696,7 +10379,7 @@ tap.test('Arduino UNO generator emits UTF-8 aware Scratch string length support'
     t.end();
 });
 
-tap.test('Arduino UNO generator counts four-byte UTF-8 as two Scratch string units', t => {
+tap.test('Arduino UNO generator counts four-byte UTF-8 as one Unicode character', t => {
     const generator = new ArduinoUnoGenerator();
 
     const code = generator.generate({
@@ -9717,7 +10400,7 @@ tap.test('Arduino UNO generator counts four-byte UTF-8 as two Scratch string uni
 
     t.match(
         code,
-        /if \(\(current & 0xF8\) == 0xF0\) \{\n            length \+= 2;\n            index \+= 4;/
+        /if \(\(current & 0xF8\) == 0xF0\) \{\n            \+\+length;\n            index \+= 4;/
     );
 
     t.end();

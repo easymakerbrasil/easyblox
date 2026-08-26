@@ -349,6 +349,15 @@ class UploadTypeValidator {
         case 'Join':
             return VALUE_TYPES.TEXT;
 
+        case 'LetterOf':
+            if (!this._isNumericType(leftType)) {
+                throw new Error(
+                    'LetterOf index must be numeric'
+                );
+            }
+
+            return VALUE_TYPES.TEXT;
+
         default:
             throw new Error(
                 `Unsupported Arduino UNO Upload binary operator: ${

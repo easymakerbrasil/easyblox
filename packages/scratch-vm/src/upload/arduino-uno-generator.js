@@ -27,9 +27,17 @@ class ArduinoUnoGenerator {
             loopStatements
         );
 
-        const usesScratchStringLength = this._usesScratchStringLength(
+        const usesUnicodeLetterOf = this._usesUnicodeLetterOf(
             setupStatements,
             loopStatements
+        );
+
+        const usesUnicodeStringLength = (
+            this._usesUnicodeStringLength(
+                setupStatements,
+                loopStatements
+            ) ||
+            usesUnicodeLetterOf
         );
 
         const inputPins = this._collectInputPins(
@@ -87,9 +95,9 @@ class ArduinoUnoGenerator {
             );
         }
 
-        if (usesScratchStringLength) {
+        if (usesUnicodeStringLength) {
             lines.push(
-                'size_t scratchStringLength(const String &value) {',
+                'size_t unicodeStringLength(const String &value) {',
                 '    size_t length = 0;',
                 '    size_t index = 0;',
                 '',
@@ -97,7 +105,7 @@ class ArduinoUnoGenerator {
                 '        const unsigned char current = static_cast<unsigned char>(value[index]);',
                 '',
                 '        if ((current & 0xF8) == 0xF0) {',
-                '            length += 2;',
+                '            ++length;',
                 '            index += 4;',
                 '        } else if ((current & 0xF0) == 0xE0) {',
                 '            ++length;',
@@ -112,6 +120,58 @@ class ArduinoUnoGenerator {
                 '    }',
                 '',
                 '    return length;',
+                '}',
+                ''
+            );
+        }
+
+        if (usesUnicodeLetterOf) {
+            lines.push(
+                'String unicodeLetterOf(const String &value, double letter) {',
+                '    const double index = letter - 1;',
+                '    if (index < 0) {',
+                '        return "";',
+                '    }',
+                '    if (index >= unicodeStringLength(value)) {',
+                '        return "";',
+                '    }',
+                '    const size_t characterIndex = static_cast<size_t>(index);',
+                '    size_t byteIndex = 0;',
+                '    size_t characterPosition = 0;',
+                '',
+                '    while (',
+                '        byteIndex < value.length() &&',
+                '        characterPosition < characterIndex',
+                '    ) {',
+                '        const unsigned char current = static_cast<unsigned char>(value[byteIndex]);',
+                '',
+                '        if ((current & 0xF8) == 0xF0) {',
+                '            byteIndex += 4;',
+                '            ++characterPosition;',
+                '        } else if ((current & 0xF0) == 0xE0) {',
+                '            byteIndex += 3;',
+                '            ++characterPosition;',
+                '        } else if ((current & 0xE0) == 0xC0) {',
+                '            byteIndex += 2;',
+                '            ++characterPosition;',
+                '        } else {',
+                '            ++byteIndex;',
+                '            ++characterPosition;',
+                '        }',
+                '    }',
+                '',
+                '    const unsigned char current = static_cast<unsigned char>(value[byteIndex]);',
+                '    size_t byteLength = 1;',
+                '',
+                '    if ((current & 0xF8) == 0xF0) {',
+                '        byteLength = 4;',
+                '    } else if ((current & 0xF0) == 0xE0) {',
+                '        byteLength = 3;',
+                '    } else if ((current & 0xE0) == 0xC0) {',
+                '        byteLength = 2;',
+                '    }',
+                '',
+                '    return value.substring(byteIndex, byteIndex + byteLength);',
                 '}',
                 ''
             );
@@ -297,10 +357,10 @@ class ArduinoUnoGenerator {
      * @returns {boolean} True when Length is used.
      * @private
      */
-    _usesScratchStringLength (setupStatements, loopStatements) {
+    _usesUnicodeStringLength (setupStatements, loopStatements) {
         return (
-            this._statementsUseScratchStringLength(setupStatements) ||
-            this._statementsUseScratchStringLength(loopStatements)
+            this._statementsUseUnicodeStringLength(setupStatements) ||
+            this._statementsUseUnicodeStringLength(loopStatements)
         );
     }
 
@@ -310,29 +370,29 @@ class ArduinoUnoGenerator {
      * @returns {boolean} True when Length is used.
      * @private
      */
-    _statementsUseScratchStringLength (statements) {
+    _statementsUseUnicodeStringLength (statements) {
         for (const statement of statements) {
             if (
                 (
                     statement.type === 'SerialWrite' ||
                     statement.type === 'SerialWriteLine'
                 ) &&
-                this._expressionUsesScratchStringLength(statement.value)
+                this._expressionUsesUnicodeStringLength(statement.value)
             ) {
                 return true;
             }
 
             if (
                 statement.type === 'Wait' &&
-                this._expressionUsesScratchStringLength(statement.duration)
+                this._expressionUsesUnicodeStringLength(statement.duration)
             ) {
                 return true;
             }
 
             if (statement.type === 'Repeat') {
                 if (
-                    this._expressionUsesScratchStringLength(statement.times) ||
-                    this._statementsUseScratchStringLength(
+                    this._expressionUsesUnicodeStringLength(statement.times) ||
+                    this._statementsUseUnicodeStringLength(
                         Array.isArray(statement.body) ?
                             statement.body :
                             []
@@ -342,14 +402,14 @@ class ArduinoUnoGenerator {
                 }
             } else if (statement.type === 'WaitUntil') {
                 if (
-                    this._expressionUsesScratchStringLength(statement.condition)
+                    this._expressionUsesUnicodeStringLength(statement.condition)
                 ) {
                     return true;
                 }
             } else if (statement.type === 'RepeatUntil') {
                 if (
-                    this._expressionUsesScratchStringLength(statement.condition) ||
-                    this._statementsUseScratchStringLength(
+                    this._expressionUsesUnicodeStringLength(statement.condition) ||
+                    this._statementsUseUnicodeStringLength(
                         Array.isArray(statement.body) ?
                             statement.body :
                             []
@@ -359,8 +419,8 @@ class ArduinoUnoGenerator {
                 }
             } else if (statement.type === 'If') {
                 if (
-                    this._expressionUsesScratchStringLength(statement.condition) ||
-                    this._statementsUseScratchStringLength(
+                    this._expressionUsesUnicodeStringLength(statement.condition) ||
+                    this._statementsUseUnicodeStringLength(
                         Array.isArray(statement.body) ?
                             statement.body :
                             []
@@ -370,13 +430,13 @@ class ArduinoUnoGenerator {
                 }
             } else if (statement.type === 'IfElse') {
                 if (
-                    this._expressionUsesScratchStringLength(statement.condition) ||
-                    this._statementsUseScratchStringLength(
+                    this._expressionUsesUnicodeStringLength(statement.condition) ||
+                    this._statementsUseUnicodeStringLength(
                         Array.isArray(statement.thenBody) ?
                             statement.thenBody :
                             []
                     ) ||
-                    this._statementsUseScratchStringLength(
+                    this._statementsUseUnicodeStringLength(
                         Array.isArray(statement.elseBody) ?
                             statement.elseBody :
                             []
@@ -391,12 +451,146 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Check whether the program requires Unicode-aware letter support.
+     * @param {Array<object>} setupStatements Setup IR statements.
+     * @param {Array<object>} loopStatements Loop IR statements.
+     * @returns {boolean} True when LetterOf is used.
+     * @private
+     */
+    _usesUnicodeLetterOf (setupStatements, loopStatements) {
+        return (
+            this._statementsUseUnicodeLetterOf(setupStatements) ||
+            this._statementsUseUnicodeLetterOf(loopStatements)
+        );
+    }
+
+    /**
+     * Recursively inspect statements for LetterOf expressions.
+     * @param {Array<object>} statements Semantic IR statements.
+     * @returns {boolean} True when LetterOf is used.
+     * @private
+     */
+    _statementsUseUnicodeLetterOf (statements) {
+        for (const statement of statements) {
+            if (
+                (
+                    statement.type === 'SerialWrite' ||
+                    statement.type === 'SerialWriteLine'
+                ) &&
+                this._expressionUsesUnicodeLetterOf(statement.value)
+            ) {
+                return true;
+            }
+
+            if (
+                statement.type === 'Wait' &&
+                this._expressionUsesUnicodeLetterOf(statement.duration)
+            ) {
+                return true;
+            }
+
+            if (statement.type === 'Repeat') {
+                if (
+                    this._expressionUsesUnicodeLetterOf(statement.times) ||
+                    this._statementsUseUnicodeLetterOf(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'WaitUntil') {
+                if (
+                    this._expressionUsesUnicodeLetterOf(statement.condition)
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'RepeatUntil') {
+                if (
+                    this._expressionUsesUnicodeLetterOf(statement.condition) ||
+                    this._statementsUseUnicodeLetterOf(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'If') {
+                if (
+                    this._expressionUsesUnicodeLetterOf(statement.condition) ||
+                    this._statementsUseUnicodeLetterOf(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'IfElse') {
+                if (
+                    this._expressionUsesUnicodeLetterOf(statement.condition) ||
+                    this._statementsUseUnicodeLetterOf(
+                        Array.isArray(statement.thenBody) ?
+                            statement.thenBody :
+                            []
+                    ) ||
+                    this._statementsUseUnicodeLetterOf(
+                        Array.isArray(statement.elseBody) ?
+                            statement.elseBody :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Recursively inspect Expression IR for LetterOf.
+     * @param {number|object} expression EasyBlox expression IR.
+     * @returns {boolean} True when the expression uses LetterOf.
+     * @private
+     */
+    _expressionUsesUnicodeLetterOf (expression) {
+        if (!expression || typeof expression !== 'object') {
+            return false;
+        }
+
+        if (
+            expression.type === 'BinaryExpression' &&
+            expression.operator === 'LetterOf'
+        ) {
+            return true;
+        }
+
+        if (expression.type === 'BinaryExpression') {
+            return (
+                this._expressionUsesUnicodeLetterOf(expression.left) ||
+                this._expressionUsesUnicodeLetterOf(expression.right)
+            );
+        }
+
+        if (expression.type === 'UnaryExpression') {
+            return this._expressionUsesUnicodeLetterOf(
+                expression.operand
+            );
+        }
+
+        return false;
+    }
+
+    /**
      * Recursively inspect Expression IR for Length.
      * @param {number|object} expression EasyBlox expression IR.
      * @returns {boolean} True when the expression uses Length.
      * @private
      */
-    _expressionUsesScratchStringLength (expression) {
+    _expressionUsesUnicodeStringLength (expression) {
         if (!expression || typeof expression !== 'object') {
             return false;
         }
@@ -410,13 +604,13 @@ class ArduinoUnoGenerator {
 
         if (expression.type === 'BinaryExpression') {
             return (
-                this._expressionUsesScratchStringLength(expression.left) ||
-                this._expressionUsesScratchStringLength(expression.right)
+                this._expressionUsesUnicodeStringLength(expression.left) ||
+                this._expressionUsesUnicodeStringLength(expression.right)
             );
         }
 
         if (expression.type === 'UnaryExpression') {
-            return this._expressionUsesScratchStringLength(
+            return this._expressionUsesUnicodeStringLength(
                 expression.operand
             );
         }
@@ -1241,6 +1435,11 @@ class ArduinoUnoGenerator {
             case 'Or':
                 return `(${left} || ${right})`;
 
+            case 'LetterOf':
+                return `unicodeLetterOf(${
+                    this._generateTextCoercion(expression.right)
+                }, ${left})`;
+
             case 'Join':
                 return `(${
                     this._generateTextCoercion(expression.left)
@@ -1371,7 +1570,7 @@ class ArduinoUnoGenerator {
             return `(!${operand})`;
 
         case 'Length':
-            return `scratchStringLength(${
+            return `unicodeStringLength(${
                 this._generateTextCoercion(expression.operand)
             })`;
 
