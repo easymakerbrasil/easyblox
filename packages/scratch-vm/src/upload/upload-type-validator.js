@@ -343,6 +343,9 @@ class UploadTypeValidator {
             );
             return VALUE_TYPES.BOOLEAN;
 
+        case 'Join':
+            return VALUE_TYPES.TEXT;
+
         default:
             throw new Error(
                 `Unsupported Arduino UNO Upload binary operator: ${

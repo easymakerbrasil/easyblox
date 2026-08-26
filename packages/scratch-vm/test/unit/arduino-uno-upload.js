@@ -3704,6 +3704,130 @@ tap.test('Arduino UNO Upload generates SerialWriteLine from Scratch blocks end t
     t.end();
 });
 
+tap.test('Arduino UNO Upload generates operator_join from Scratch blocks end to end', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('serial_begin'),
+        {
+            id: 'serial_begin',
+            opcode: 'serial_serialBegin',
+            next: 'serial_write_line',
+            parent: 'upload_hat',
+            inputs: {
+                BAUD: {
+                    name: 'BAUD',
+                    block: 'serial_baud',
+                    shadow: 'serial_baud'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'serial_baud',
+            'serial_begin',
+            'serial_menu_baudRates',
+            'baudRates',
+            9600
+        ),
+        {
+            id: 'serial_write_line',
+            opcode: 'serial_serialWriteLine',
+            next: null,
+            parent: 'serial_begin',
+            inputs: {
+                TEXT: {
+                    name: 'TEXT',
+                    block: 'join',
+                    shadow: 'serial_line_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'serial_line_shadow',
+            opcode: 'text',
+            next: null,
+            parent: 'serial_write_line',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: ''
+                }
+            },
+            topLevel: false,
+            shadow: true
+        },
+        {
+            id: 'join',
+            opcode: 'operator_join',
+            next: null,
+            parent: 'serial_write_line',
+            inputs: {
+                STRING1: {
+                    name: 'STRING1',
+                    block: 'join_left',
+                    shadow: 'join_left'
+                },
+                STRING2: {
+                    name: 'STRING2',
+                    block: 'join_right',
+                    shadow: 'join_right'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'join_left',
+            opcode: 'text',
+            next: null,
+            parent: 'join',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'A temperatura é: '
+                }
+            },
+            topLevel: false,
+            shadow: true
+        },
+        createNumberShadow(
+            'join_right',
+            'join',
+            27
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const contextValidator = new UploadContextValidator();
+    const typeValidator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    contextValidator.validate(ir);
+    typeValidator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    Serial.begin(9600);',
+        '    Serial.println((String("A temperatura é: ") + String(27)));',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload extracts MotorWrite into semantic IR', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('motor_write'),
@@ -4995,6 +5119,76 @@ tap.test('Arduino UNO Upload extracts operator_add as typed expression IR', t =>
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts operator_join as typed text expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'join',
+            opcode: 'operator_join',
+            next: null,
+            parent: null,
+            inputs: {
+                STRING1: {
+                    name: 'STRING1',
+                    block: 'left_text',
+                    shadow: 'left_text'
+                },
+                STRING2: {
+                    name: 'STRING2',
+                    block: 'right_number',
+                    shadow: 'right_number'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'left_text',
+            opcode: 'text',
+            next: null,
+            parent: 'join',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'A temperatura é: '
+                }
+            },
+            topLevel: false,
+            shadow: true
+        },
+        createNumberShadow(
+            'right_number',
+            'join',
+            27
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const blocks = runtime.targets[0].blocks;
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'join'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'Join',
+            left: {
+                type: 'TextLiteral',
+                value: 'A temperatura é: '
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 27
+            }
+        }
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload accepts extracted INTEGER addition as REPEAT count', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('repeat'),
@@ -5771,6 +5965,102 @@ tap.test('Arduino UNO generator escapes TextLiteral for C++ safely', t => {
     t.end();
 });
 
+tap.test('Arduino UNO generator emits Join as Arduino String concatenation', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Join',
+            left: {
+                type: 'TextLiteral',
+                value: 'A temperatura é: '
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 27
+            }
+        }),
+        '(String("A temperatura é: ") + String(27))'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Join Boolean as true or false text', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Join',
+            left: {
+                type: 'TextLiteral',
+                value: 'Sensor ativo: '
+            },
+            right: {
+                type: 'BooleanLiteral',
+                value: true
+            }
+        }),
+        '(String("Sensor ativo: ") + String(true ? "true" : "false"))'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Join dynamic Boolean as true or false text', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Join',
+            left: {
+                type: 'TextLiteral',
+                value: 'Comparação: '
+            },
+            right: {
+                type: 'BinaryExpression',
+                operator: 'LessThan',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }),
+        '(String("Comparação: ") + String((1 < 2) ? "true" : "false"))'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits DecimalLiteral Join with Arduino String', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Join',
+            left: {
+                type: 'TextLiteral',
+                value: 'Temperatura: '
+            },
+            right: {
+                type: 'DecimalLiteral',
+                value: 27.5
+            }
+        }),
+        '(String("Temperatura: ") + String(27.5))'
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO generator preserves decimal semantics for INTEGER division', t => {
     const generator = new ArduinoUnoGenerator();
 
@@ -5897,6 +6187,30 @@ tap.test('Arduino UNO Upload type validator infers TEXT for TextLiteral', t => {
     const type = validator._inferExpressionType({
         type: 'TextLiteral',
         value: 'Olá'
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.TEXT
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers TEXT for TEXT Join INTEGER', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'BinaryExpression',
+        operator: 'Join',
+        left: {
+            type: 'TextLiteral',
+            value: 'A temperatura é: '
+        },
+        right: {
+            type: 'IntegerLiteral',
+            value: 27
+        }
     });
 
     t.equal(

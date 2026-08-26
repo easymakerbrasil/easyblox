@@ -1072,6 +1072,13 @@ class ArduinoUnoGenerator {
             case 'Or':
                 return `(${left} || ${right})`;
 
+            case 'Join':
+                return `(${
+                    this._generateTextCoercion(expression.left)
+                } + ${
+                    this._generateTextCoercion(expression.right)
+                })`;
+
             default:
                 throw new Error(
                     `Unsupported Arduino UNO Upload binary operator: ${
@@ -1091,6 +1098,56 @@ class ArduinoUnoGenerator {
                 }`
             );
         }
+    }
+
+    /**
+     * Generate an Arduino String coercion preserving Scratch text semantics.
+     * @param {object} expression EasyBlox expression IR.
+     * @returns {string} C++ expression producing Arduino String.
+     * @private
+     */
+    _generateTextCoercion (expression) {
+        const generated = this._generateExpression(expression);
+
+        if (this._isBooleanExpression(expression)) {
+            return `String(${generated} ? "true" : "false")`;
+        }
+
+        return `String(${generated})`;
+    }
+
+    /**
+     * Check whether an EasyBlox expression produces a boolean value.
+     * @param {object} expression EasyBlox expression IR.
+     * @returns {boolean} True when the expression result is boolean.
+     * @private
+     */
+    _isBooleanExpression (expression) {
+        if (!expression || typeof expression !== 'object') {
+            return false;
+        }
+
+        if (
+            expression.type === 'BooleanLiteral' ||
+            expression.type === 'DigitalReadExpression'
+        ) {
+            return true;
+        }
+
+        if (expression.type === 'BinaryExpression') {
+            return [
+                'LessThan',
+                'Equals',
+                'GreaterThan',
+                'And',
+                'Or'
+            ].includes(expression.operator);
+        }
+
+        return (
+            expression.type === 'UnaryExpression' &&
+            expression.operator === 'Not'
+        );
     }
 
     /**
