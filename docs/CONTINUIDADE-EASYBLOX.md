@@ -9724,3 +9724,30 @@ Validação concluída:
 - `BooleanLiteral` coberto pela tipagem e pelo gerador;
 - integração `Extractor → ContextValidator → TypeValidator → Generator` validada;
 - preview visual validado no EasyBlox sem mensagem lateral de erro e com sketch Arduino vazio exibido corretamente.
+
+#### Compatibilidade legada de Controle — Scratch 2
+
+A auditoria final da categoria `Controle` identificou dois opcodes nativos
+mantidos pela Scratch VM exclusivamente para compatibilidade com projetos
+Scratch 2 (`.sb2`):
+
+- `control_while`, originado de `doWhile`;
+- `control_for_each`, originado de `doForLoop`.
+
+Esses blocos não fazem parte da toolbox pública atual do Scratch 3/EasyBlox.
+
+Pelo contrato de `executionMode`, permanecem `BOTH`, pois somente
+`control_stop`, `control_start_as_clone`, `control_create_clone_of` e
+`control_delete_this_clone` são `STAGE_ONLY`.
+
+O `UploadProgramExtractor` ainda não implementa esses dois opcodes e os rejeita
+explicitamente por meio do erro de opcode Upload não suportado, evitando
+geração silenciosa de código incorreto.
+
+Decisão:
+
+- considerar concluído o suporte Upload da categoria `Controle` pública atual;
+- registrar `control_while` e `control_for_each` como compatibilidade legada SB2;
+- implementar `control_while` em uma etapa futura de compatibilidade;
+- implementar `control_for_each` após a infraestrutura Upload de Variáveis,
+pois sua semântica depende diretamente de uma variável iteradora.
