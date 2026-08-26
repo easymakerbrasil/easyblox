@@ -9620,30 +9620,6 @@ Próxima prioridade:
 - tradução pedagógica dos erros;
 - acabamento visual definitivo da A7.3.
 
-Implementado/validado:
-
-- contrato `executionMode`;
-- classificação Stage/Upload/Both;
-- toolbox dependente de modo;
-- preservação de blocos incompatíveis existentes;
-- disabled reason EasyBlox;
-- bloqueio de novas conexões incompatíveis;
-- `EasyBloxConnectionChecker`;
-- integração real do checker com Scratch Blocks;
-- Serial Upload-only;
-- regressões GUI e VM desta etapa.
-
-Próxima prioridade:
-
-`workspace/programa Upload independente do editingTarget Stage`
-
-Depois:
-
-- persistência do programa Upload;
-- Monitor Serial funcional;
-- tradução pedagógica dos erros;
-- acabamento visual definitivo da A7.3.
-
 A alteração local:
 
 `packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
@@ -9651,3 +9627,100 @@ A alteração local:
 continua independente.
 
 Nunca adicioná-la ao staging sem autorização explícita.
+
+### 23.13. Condições booleanas vazias e programa Upload vazio
+
+Em 25/08/2026 foi fechado o comportamento dos controles com entrada booleana vazia no Modo Carregar.
+
+Para estes blocos:
+
+- `control_if`;
+- `control_if_else`;
+- `control_wait_until`;
+- `control_repeat_until`;
+
+uma entrada `CONDITION` sem bloco conectado segue a semântica do Scratch e equivale a:
+
+```text
+false
+```
+
+Na EasyBlox IR, esse estado é representado explicitamente por:
+
+```text
+BooleanLiteral(false)
+```
+
+Contrato do pipeline:
+
+```text
+CONDITION vazia
+→ BooleanLiteral(false)
+→ tipo BOOLEAN
+→ literal C++ false
+```
+
+Assim, uma condição vazia não gera erro técnico de expressão ausente.
+
+Exemplos de geração:
+
+```cpp
+if (false) {
+}
+```
+
+```cpp
+while (!false) {
+}
+```
+
+O tratamento é específico para entradas booleanas de condição. O comportamento genérico de `_extractExpressionInput()` permanece inalterado para entradas obrigatórias de outros tipos.
+
+Também foi revisado o contrato do entry point Arduino UNO.
+
+A ausência do bloco:
+
+```text
+quando Arduino Uno iniciar
+```
+
+não representa erro. Nesse estado, o programa Upload é considerado vazio, porém válido.
+
+IR resultante:
+
+```text
+setup: []
+loop: []
+```
+
+C++ resultante:
+
+```cpp
+void setup() {
+}
+
+void loop() {
+}
+```
+
+Portanto:
+
+- o preview C++ deve estar disponível mesmo sem `quando Arduino Uno iniciar`;
+- não deve ser exibida a mensagem `Arduino UNO Upload entry point not found`;
+- scripts Stage independentes não passam a fazer parte do programa Upload;
+- mais de um `quando Arduino Uno iniciar` continua inválido, preservando o contrato de entry point único.
+
+Implementação envolvida:
+
+- `UploadProgramExtractor`;
+- `UploadTypeValidator`;
+- `ArduinoUnoGenerator`.
+
+Validação concluída:
+
+- `275/275` asserts GREEN em `test/unit/arduino-uno-upload.js`;
+- geração determinística do sketch vazio já coberta por teste;
+- condições vazias dos quatro controles cobertas no extrator;
+- `BooleanLiteral` coberto pela tipagem e pelo gerador;
+- integração `Extractor → ContextValidator → TypeValidator → Generator` validada;
+- preview visual validado no EasyBlox sem mensagem lateral de erro e com sketch Arduino vazio exibido corretamente.

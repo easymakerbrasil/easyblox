@@ -436,7 +436,7 @@ tap.test('Arduino UNO Upload rejects reachable Stage-only blocks', t => {
     t.end();
 });
 
-tap.test('Arduino UNO Upload rejects projects without an entry point', t => {
+tap.test('Arduino UNO Upload treats projects without an entry point as an empty program', t => {
     const runtime = createRuntimeWithBlocks([
         {
             id: 'stage_script',
@@ -452,10 +452,10 @@ tap.test('Arduino UNO Upload rejects projects without an entry point', t => {
 
     const extractor = new UploadProgramExtractor(runtime);
 
-    t.throws(
-        () => extractor.extract(),
-        /entry point not found/
-    );
+    t.same(extractor.extract(), {
+        setup: [],
+        loop: []
+    });
 
     t.end();
 });
@@ -7186,6 +7186,71 @@ tap.test('Arduino UNO Upload extracts control_if into If semantic IR', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts empty control_if condition as false BooleanLiteral', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_block'),
+        {
+            id: 'if_block',
+            opcode: 'control_if',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BooleanLiteral',
+                value: false
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts empty control_if_else condition as false BooleanLiteral', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_else_block'),
+        {
+            id: 'if_else_block',
+            opcode: 'control_if_else',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'IfElse',
+            condition: {
+                type: 'BooleanLiteral',
+                value: false
+            },
+            thenBody: [],
+            elseBody: []
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload extracts control_wait_until into WaitUntil semantic IR', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('wait_until_block'),
@@ -7250,6 +7315,55 @@ tap.test('Arduino UNO Upload extracts control_wait_until into WaitUntil semantic
         }],
         loop: []
     });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts empty control_wait_until condition as false BooleanLiteral', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('wait_until_block'),
+        {
+            id: 'wait_until_block',
+            opcode: 'control_wait_until',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'WaitUntil',
+            condition: {
+                type: 'BooleanLiteral',
+                value: false
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator recognizes BooleanLiteral as BOOLEAN', t => {
+    const validator = new UploadTypeValidator();
+
+    t.doesNotThrow(() => validator.validate({
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BooleanLiteral',
+                value: false
+            },
+            body: []
+        }],
+        loop: []
+    }));
 
     t.end();
 });
@@ -7584,6 +7698,38 @@ tap.test('Arduino UNO Upload extracts control_repeat_until into RepeatUntil sema
                 pin: 13,
                 value: true
             }]
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts empty control_repeat_until condition as false BooleanLiteral', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat_until_block'),
+        {
+            id: 'repeat_until_block',
+            opcode: 'control_repeat_until',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'RepeatUntil',
+            condition: {
+                type: 'BooleanLiteral',
+                value: false
+            },
+            body: []
         }],
         loop: []
     });
@@ -8333,6 +8479,142 @@ tap.test('Arduino UNO Upload generates digitalRead boolean condition', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload generates empty If condition as false end to end', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_block'),
+        {
+            id: 'if_block',
+            opcode: 'control_if',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const contextValidator = new UploadContextValidator();
+    const typeValidator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    contextValidator.validate(ir);
+    typeValidator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'void setup() {',
+        '    if (false) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates remaining empty control conditions as false end to end', t => {
+    const cases = [{
+        firstBlockId: 'if_else_block',
+        block: {
+            id: 'if_else_block',
+            opcode: 'control_if_else',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        expectedCode: [
+            'void setup() {',
+            '    if (false) {',
+            '    } else {',
+            '    }',
+            '}',
+            '',
+            'void loop() {',
+            '}',
+            ''
+        ].join('\n')
+    }, {
+        firstBlockId: 'wait_until_block',
+        block: {
+            id: 'wait_until_block',
+            opcode: 'control_wait_until',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        expectedCode: [
+            'void setup() {',
+            '    while (!false) {',
+            '    }',
+            '}',
+            '',
+            'void loop() {',
+            '}',
+            ''
+        ].join('\n')
+    }, {
+        firstBlockId: 'repeat_until_block',
+        block: {
+            id: 'repeat_until_block',
+            opcode: 'control_repeat_until',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        expectedCode: [
+            'void setup() {',
+            '    while (!false) {',
+            '    }',
+            '}',
+            '',
+            'void loop() {',
+            '}',
+            ''
+        ].join('\n')
+    }];
+
+    const generatedCodes = cases.map(testCase => {
+        const runtime = createRuntimeWithBlocks([
+            createUploadHat(testCase.firstBlockId),
+            testCase.block
+        ]);
+
+        const extractor = new UploadProgramExtractor(runtime);
+        const contextValidator = new UploadContextValidator();
+        const typeValidator = new UploadTypeValidator();
+        const generator = new ArduinoUnoGenerator();
+
+        const ir = extractor.extract();
+
+        contextValidator.validate(ir);
+        typeValidator.validate(ir);
+
+        return generator.generate(ir);
+    });
+
+    t.same(
+        generatedCodes,
+        cases.map(testCase => testCase.expectedCode)
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload rejects INTEGER used directly as If condition', t => {
     const validator = new UploadTypeValidator();
 
@@ -8384,6 +8666,35 @@ tap.test('Arduino UNO generator emits If statement from semantic IR', t => {
     t.equal(code, [
         'void setup() {',
         '    if ((1 < 2)) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits false for BooleanLiteral condition', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BooleanLiteral',
+                value: false
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.equal(code, [
+        'void setup() {',
+        '    if (false) {',
         '    }',
         '}',
         '',

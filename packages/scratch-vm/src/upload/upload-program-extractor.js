@@ -56,7 +56,10 @@ class UploadProgramExtractor {
         const entryPoints = this._findEntryPoints();
 
         if (entryPoints.length === 0) {
-            throw new Error('Arduino UNO Upload entry point not found');
+            return {
+                setup: [],
+                loop: []
+            };
         }
 
         if (entryPoints.length > 1) {
@@ -361,7 +364,7 @@ class UploadProgramExtractor {
             case WAIT_UNTIL_OPCODE:
                 return {
                     type: 'WaitUntil',
-                    condition: this._extractExpressionInput(
+                    condition: this._extractBooleanConditionInput(
                         blocks,
                         block,
                         'CONDITION'
@@ -379,7 +382,7 @@ class UploadProgramExtractor {
 
             return {
                 type: 'RepeatUntil',
-                condition: this._extractExpressionInput(
+                condition: this._extractBooleanConditionInput(
                     blocks,
                     block,
                     'CONDITION'
@@ -415,7 +418,7 @@ class UploadProgramExtractor {
 
             return {
                 type: 'If',
-                condition: this._extractExpressionInput(
+                condition: this._extractBooleanConditionInput(
                     blocks,
                     block,
                     'CONDITION'
@@ -442,7 +445,7 @@ class UploadProgramExtractor {
 
             return {
                 type: 'IfElse',
-                condition: this._extractExpressionInput(
+                condition: this._extractBooleanConditionInput(
                     blocks,
                     block,
                     'CONDITION'
@@ -772,6 +775,33 @@ class UploadProgramExtractor {
                 }`
             );
         }
+    }
+
+    /**
+     * Extract a Boolean condition input using Scratch semantics.
+     * An empty Boolean input is equivalent to false.
+     * @param {Blocks} blocks Scratch Blocks storage.
+     * @param {object} block Parent control block.
+     * @param {string} inputName Scratch input name.
+     * @returns {object} Boolean Expression IR.
+     * @private
+     */
+    _extractBooleanConditionInput (blocks, block, inputName) {
+        const inputs = blocks.getInputs(block);
+        const input = inputs && inputs[inputName];
+
+        if (!input || !input.block) {
+            return {
+                type: 'BooleanLiteral',
+                value: false
+            };
+        }
+
+        return this._extractExpressionInput(
+            blocks,
+            block,
+            inputName
+        );
     }
 
     /**

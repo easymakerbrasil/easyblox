@@ -1025,6 +1025,9 @@ class ArduinoUnoGenerator {
         case 'TextLiteral':
             return `"${this._escapeCppStringLiteral(expression.value)}"`;
 
+        case 'BooleanLiteral':
+            return expression.value ? 'true' : 'false';
+
         case 'DigitalReadExpression':
             return `(digitalRead(${expression.pin}) == HIGH)`;
 

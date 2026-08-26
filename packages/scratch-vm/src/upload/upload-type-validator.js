@@ -218,6 +218,9 @@ class UploadTypeValidator {
         case 'TextLiteral':
             return VALUE_TYPES.TEXT;
 
+        case 'BooleanLiteral':
+            return VALUE_TYPES.BOOLEAN;
+
         case 'DigitalReadExpression':
             return VALUE_TYPES.BOOLEAN;
 
