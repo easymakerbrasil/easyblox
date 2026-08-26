@@ -27,6 +27,11 @@ class ArduinoUnoGenerator {
             loopStatements
         );
 
+        const usesScratchStringLength = this._usesScratchStringLength(
+            setupStatements,
+            loopStatements
+        );
+
         const inputPins = this._collectInputPins(
             setupStatements,
             loopStatements
@@ -78,6 +83,36 @@ class ArduinoUnoGenerator {
         if (usesTimer) {
             lines.push(
                 'unsigned long easyblox_timer_reset_at = 0;',
+                ''
+            );
+        }
+
+        if (usesScratchStringLength) {
+            lines.push(
+                'size_t scratchStringLength(const String &value) {',
+                '    size_t length = 0;',
+                '    size_t index = 0;',
+                '',
+                '    while (index < value.length()) {',
+                '        const unsigned char current = static_cast<unsigned char>(value[index]);',
+                '',
+                '        if ((current & 0xF8) == 0xF0) {',
+                '            length += 2;',
+                '            index += 4;',
+                '        } else if ((current & 0xF0) == 0xE0) {',
+                '            ++length;',
+                '            index += 3;',
+                '        } else if ((current & 0xE0) == 0xC0) {',
+                '            ++length;',
+                '            index += 2;',
+                '        } else {',
+                '            ++length;',
+                '            ++index;',
+                '        }',
+                '    }',
+                '',
+                '    return length;',
+                '}',
                 ''
             );
         }
@@ -253,6 +288,140 @@ class ArduinoUnoGenerator {
         default:
             return false;
         }
+    }
+
+    /**
+     * Check whether the program requires Scratch-compatible string length support.
+     * @param {Array<object>} setupStatements Setup IR statements.
+     * @param {Array<object>} loopStatements Loop IR statements.
+     * @returns {boolean} True when Length is used.
+     * @private
+     */
+    _usesScratchStringLength (setupStatements, loopStatements) {
+        return (
+            this._statementsUseScratchStringLength(setupStatements) ||
+            this._statementsUseScratchStringLength(loopStatements)
+        );
+    }
+
+    /**
+     * Recursively inspect statements for Length expressions.
+     * @param {Array<object>} statements Semantic IR statements.
+     * @returns {boolean} True when Length is used.
+     * @private
+     */
+    _statementsUseScratchStringLength (statements) {
+        for (const statement of statements) {
+            if (
+                (
+                    statement.type === 'SerialWrite' ||
+                    statement.type === 'SerialWriteLine'
+                ) &&
+                this._expressionUsesScratchStringLength(statement.value)
+            ) {
+                return true;
+            }
+
+            if (
+                statement.type === 'Wait' &&
+                this._expressionUsesScratchStringLength(statement.duration)
+            ) {
+                return true;
+            }
+
+            if (statement.type === 'Repeat') {
+                if (
+                    this._expressionUsesScratchStringLength(statement.times) ||
+                    this._statementsUseScratchStringLength(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'WaitUntil') {
+                if (
+                    this._expressionUsesScratchStringLength(statement.condition)
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'RepeatUntil') {
+                if (
+                    this._expressionUsesScratchStringLength(statement.condition) ||
+                    this._statementsUseScratchStringLength(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'If') {
+                if (
+                    this._expressionUsesScratchStringLength(statement.condition) ||
+                    this._statementsUseScratchStringLength(
+                        Array.isArray(statement.body) ?
+                            statement.body :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            } else if (statement.type === 'IfElse') {
+                if (
+                    this._expressionUsesScratchStringLength(statement.condition) ||
+                    this._statementsUseScratchStringLength(
+                        Array.isArray(statement.thenBody) ?
+                            statement.thenBody :
+                            []
+                    ) ||
+                    this._statementsUseScratchStringLength(
+                        Array.isArray(statement.elseBody) ?
+                            statement.elseBody :
+                            []
+                    )
+                ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Recursively inspect Expression IR for Length.
+     * @param {number|object} expression EasyBlox expression IR.
+     * @returns {boolean} True when the expression uses Length.
+     * @private
+     */
+    _expressionUsesScratchStringLength (expression) {
+        if (!expression || typeof expression !== 'object') {
+            return false;
+        }
+
+        if (
+            expression.type === 'UnaryExpression' &&
+            expression.operator === 'Length'
+        ) {
+            return true;
+        }
+
+        if (expression.type === 'BinaryExpression') {
+            return (
+                this._expressionUsesScratchStringLength(expression.left) ||
+                this._expressionUsesScratchStringLength(expression.right)
+            );
+        }
+
+        if (expression.type === 'UnaryExpression') {
+            return this._expressionUsesScratchStringLength(
+                expression.operand
+            );
+        }
+
+        return false;
     }
 
     /**
@@ -1200,6 +1369,11 @@ class ArduinoUnoGenerator {
         switch (expression.operator) {
         case 'Not':
             return `(!${operand})`;
+
+        case 'Length':
+            return `scratchStringLength(${
+                this._generateTextCoercion(expression.operand)
+            })`;
 
         default:
             throw new Error(

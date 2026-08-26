@@ -32,6 +32,7 @@ const AND_OPCODE = 'operator_and';
 const OR_OPCODE = 'operator_or';
 const NOT_OPCODE = 'operator_not';
 const JOIN_OPCODE = 'operator_join';
+const LENGTH_OPCODE = 'operator_length';
 const IF_ELSE_OPCODE = 'control_if_else';
 const TEXT_OPCODE = 'text';
 
@@ -782,6 +783,17 @@ class UploadProgramExtractor {
                     blocks,
                     block,
                     'STRING2'
+                )
+            };
+
+        case LENGTH_OPCODE:
+            return {
+                type: 'UnaryExpression',
+                operator: 'Length',
+                operand: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'STRING'
                 )
             };
 

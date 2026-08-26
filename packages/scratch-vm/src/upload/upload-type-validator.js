@@ -266,6 +266,9 @@ class UploadTypeValidator {
 
             return VALUE_TYPES.BOOLEAN;
 
+        case 'Length':
+            return VALUE_TYPES.INTEGER;
+
         default:
             throw new Error(
                 `Unsupported Arduino UNO Upload unary operator: ${

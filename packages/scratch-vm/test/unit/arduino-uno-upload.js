@@ -5189,6 +5189,168 @@ tap.test('Arduino UNO Upload extracts operator_join as typed text expression IR'
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts operator_length as unary text expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'length',
+            opcode: 'operator_length',
+            next: null,
+            parent: null,
+            inputs: {
+                STRING: {
+                    name: 'STRING',
+                    block: 'text_value',
+                    shadow: 'text_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'text_value',
+            opcode: 'text',
+            next: null,
+            parent: 'length',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'EasyBlox'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const blocks = runtime.targets[0].blocks;
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'length'
+        ),
+        {
+            type: 'UnaryExpression',
+            operator: 'Length',
+            operand: {
+                type: 'TextLiteral',
+                value: 'EasyBlox'
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates operator_length from Scratch blocks end to end', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'length',
+                    shadow: 'repeat_times_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'length',
+            opcode: 'operator_length',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                STRING: {
+                    name: 'STRING',
+                    block: 'text_value',
+                    shadow: 'text_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'text_value',
+            opcode: 'text',
+            next: null,
+            parent: 'length',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'Olá'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        },
+        createNumberShadow(
+            'repeat_times_shadow',
+            'repeat',
+            10
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const contextValidator = new UploadContextValidator();
+    const typeValidator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    contextValidator.validate(ir);
+    typeValidator.validate(ir);
+
+    t.equal(generator.generate(ir), [
+        'size_t scratchStringLength(const String &value) {',
+        '    size_t length = 0;',
+        '    size_t index = 0;',
+        '',
+        '    while (index < value.length()) {',
+        '        const unsigned char current = static_cast<unsigned char>(value[index]);',
+        '',
+        '        if ((current & 0xF8) == 0xF0) {',
+        '            length += 2;',
+        '            index += 4;',
+        '        } else if ((current & 0xF0) == 0xE0) {',
+        '            ++length;',
+        '            index += 3;',
+        '        } else if ((current & 0xE0) == 0xC0) {',
+        '            ++length;',
+        '            index += 2;',
+        '        } else {',
+        '            ++length;',
+        '            ++index;',
+        '        }',
+        '    }',
+        '',
+        '    return length;',
+        '}',
+        '',
+        'void setup() {',
+        '    for (int i = 0; i < scratchStringLength(String("Olá")); ++i) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload accepts extracted INTEGER addition as REPEAT count', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('repeat'),
@@ -6216,6 +6378,26 @@ tap.test('Arduino UNO Upload type validator infers TEXT for TEXT Join INTEGER', 
     t.equal(
         type,
         UploadTypeValidator.VALUE_TYPES.TEXT
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator infers INTEGER for TEXT Length', t => {
+    const validator = new UploadTypeValidator();
+
+    const type = validator._inferExpressionType({
+        type: 'UnaryExpression',
+        operator: 'Length',
+        operand: {
+            type: 'TextLiteral',
+            value: 'EasyBlox'
+        }
+    });
+
+    t.equal(
+        type,
+        UploadTypeValidator.VALUE_TYPES.INTEGER
     );
 
     t.end();
@@ -7393,6 +7575,42 @@ tap.test('Arduino UNO generator emits Not expression', t => {
             }
         }),
         '(!(1 < 2))'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Length using Scratch-compatible string length', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'UnaryExpression',
+            operator: 'Length',
+            operand: {
+                type: 'TextLiteral',
+                value: 'EasyBlox'
+            }
+        }),
+        'scratchStringLength(String("EasyBlox"))'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator preserves Boolean text semantics in Length', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'UnaryExpression',
+            operator: 'Length',
+            operand: {
+                type: 'BooleanLiteral',
+                value: true
+            }
+        }),
+        'scratchStringLength(String(true ? "true" : "false"))'
     );
 
     t.end();
@@ -9420,6 +9638,87 @@ tap.test('Arduino UNO generator preserves numeric expression in Wait duration', 
         '}',
         ''
     ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Scratch-compatible string length support when required', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'UnaryExpression',
+                operator: 'Length',
+                operand: {
+                    type: 'TextLiteral',
+                    value: 'Olá'
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /size_t scratchStringLength\(const String &value\) \{/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits UTF-8 aware Scratch string length support', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'UnaryExpression',
+                operator: 'Length',
+                operand: {
+                    type: 'TextLiteral',
+                    value: 'Olá'
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /if \(\(current & 0xF8\) == 0xF0\)/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator counts four-byte UTF-8 as two Scratch string units', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'UnaryExpression',
+                operator: 'Length',
+                operand: {
+                    type: 'TextLiteral',
+                    value: '😄'
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /if \(\(current & 0xF8\) == 0xF0\) \{\n            length \+= 2;\n            index \+= 4;/
+    );
 
     t.end();
 });
