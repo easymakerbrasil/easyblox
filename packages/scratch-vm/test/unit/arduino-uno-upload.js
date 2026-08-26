@@ -6118,6 +6118,76 @@ tap.test('Arduino UNO Upload extracts operator_multiply as expression IR', t => 
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts operator_mod as expression IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'mod',
+                    shadow: 'repeat_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'mod',
+            opcode: 'operator_mod',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                NUM1: {
+                    name: 'NUM1',
+                    block: 'left',
+                    shadow: 'left'
+                },
+                NUM2: {
+                    name: 'NUM2',
+                    block: 'right',
+                    shadow: 'right'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('left', 'mod', 10),
+        createNumberShadow('right', 'mod', 3),
+        createNumberShadow('repeat_shadow', 'repeat', 10)
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Mod',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 10
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload type validator accepts INTEGER subtraction as REPEAT count', t => {
     const validator = new UploadTypeValidator();
 
@@ -6134,6 +6204,34 @@ tap.test('Arduino UNO Upload type validator accepts INTEGER subtraction as REPEA
                 right: {
                     type: 'IntegerLiteral',
                     value: 2
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.doesNotThrow(() => validator.validate(ir));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts INTEGER Mod as REPEAT count', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Mod',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 10
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 3
                 }
             },
             body: []
@@ -6293,6 +6391,371 @@ tap.test('Arduino UNO generator emits multiplication expression', t => {
     t.match(
         code,
         /i < \(2 \* 3\)/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Scratch-compatible Mod expression', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Mod',
+            left: {
+                type: 'IntegerLiteral',
+                value: 10
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 3
+            }
+        }),
+        'scratchMod(10, 3)'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits Scratch Mod helper when required', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Mod',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: -10
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 3
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /double scratchMod\(double n, double modulus\) \{[\s\S]*double result = fmod\(n, modulus\);[\s\S]*if \(result \/ modulus < 0\) \{[\s\S]*result \+= modulus;[\s\S]*return result;/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts remaining standard operators as IR batch', t => {
+    const randomRuntime = createRuntimeWithBlocks([
+        {
+            id: 'random',
+            opcode: 'operator_random',
+            next: null,
+            parent: null,
+            inputs: {
+                FROM: {
+                    name: 'FROM',
+                    block: 'random_from',
+                    shadow: 'random_from'
+                },
+                TO: {
+                    name: 'TO',
+                    block: 'random_to',
+                    shadow: 'random_to'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('random_from', 'random', 1),
+        createNumberShadow('random_to', 'random', 10)
+    ]);
+
+    const randomExtractor = new UploadProgramExtractor(randomRuntime);
+
+    t.same(
+        randomExtractor._extractExpression(
+            randomRuntime.targets[0].blocks,
+            'random'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'Random',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 10
+            }
+        }
+    );
+
+    const roundRuntime = createRuntimeWithBlocks([
+        {
+            id: 'round',
+            opcode: 'operator_round',
+            next: null,
+            parent: null,
+            inputs: {
+                NUM: {
+                    name: 'NUM',
+                    block: 'round_num',
+                    shadow: 'round_num'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('round_num', 'round', 2.6)
+    ]);
+
+    const roundExtractor = new UploadProgramExtractor(roundRuntime);
+
+    t.same(
+        roundExtractor._extractExpression(
+            roundRuntime.targets[0].blocks,
+            'round'
+        ),
+        {
+            type: 'UnaryExpression',
+            operator: 'Round',
+            operand: {
+                type: 'DecimalLiteral',
+                value: 2.6
+            }
+        }
+    );
+
+    const mathOpRuntime = createRuntimeWithBlocks([
+        {
+            id: 'mathop',
+            opcode: 'operator_mathop',
+            next: null,
+            parent: null,
+            inputs: {
+                NUM: {
+                    name: 'NUM',
+                    block: 'mathop_num',
+                    shadow: 'mathop_num'
+                }
+            },
+            fields: {
+                OPERATOR: {
+                    name: 'OPERATOR',
+                    value: 'sqrt'
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow('mathop_num', 'mathop', 9)
+    ]);
+
+    const mathOpExtractor = new UploadProgramExtractor(mathOpRuntime);
+
+    t.same(
+        mathOpExtractor._extractExpression(
+            mathOpRuntime.targets[0].blocks,
+            'mathop'
+        ),
+        {
+            type: 'UnaryExpression',
+            operator: 'MathOp',
+            mathOperator: 'sqrt',
+            operand: {
+                type: 'IntegerLiteral',
+                value: 9
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload validates remaining standard operator types as batch', t => {
+    const validator = new UploadTypeValidator();
+
+    const repeatProgram = times => ({
+        setup: [{
+            type: 'Repeat',
+            times,
+            body: []
+        }],
+        loop: []
+    });
+
+    t.doesNotThrow(() => validator.validate(
+        repeatProgram({
+            type: 'BinaryExpression',
+            operator: 'Random',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 10
+            }
+        })
+    ));
+
+    t.throws(
+        () => validator.validate(
+            repeatProgram({
+                type: 'BinaryExpression',
+                operator: 'Random',
+                left: {
+                    type: 'DecimalLiteral',
+                    value: 1.5
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 10
+                }
+            })
+        ),
+        /Repeat count must be/
+    );
+
+    t.doesNotThrow(() => validator.validate(
+        repeatProgram({
+            type: 'UnaryExpression',
+            operator: 'Round',
+            operand: {
+                type: 'DecimalLiteral',
+                value: 2.6
+            }
+        })
+    ));
+
+    t.doesNotThrow(() => validator.validate(
+        repeatProgram({
+            type: 'UnaryExpression',
+            operator: 'MathOp',
+            mathOperator: 'floor',
+            operand: {
+                type: 'DecimalLiteral',
+                value: 2.9
+            }
+        })
+    ));
+
+    t.throws(
+        () => validator.validate(
+            repeatProgram({
+                type: 'UnaryExpression',
+                operator: 'MathOp',
+                mathOperator: 'sqrt',
+                operand: {
+                    type: 'IntegerLiteral',
+                    value: 9
+                }
+            })
+        ),
+        /Repeat count must be/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits remaining standard operators as batch', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type: 'BinaryExpression',
+            operator: 'Random',
+            left: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 10
+            }
+        }),
+        'scratchRandom(1, 10)'
+    );
+
+    t.equal(
+        generator._generateExpression({
+            type: 'UnaryExpression',
+            operator: 'Round',
+            operand: {
+                type: 'DecimalLiteral',
+                value: -1.5
+            }
+        }),
+        'floor(-1.5 + 0.5)'
+    );
+
+    const mathCases = [
+        ['abs', -3, 'fabs(-3)'],
+        ['floor', 2.9, 'floor(2.9)'],
+        ['ceiling', 2.1, 'ceil(2.1)'],
+        ['sqrt', 9, 'sqrt(9)'],
+        ['sin', 90, 'sin(90 * PI / 180.0)'],
+        ['cos', 180, 'cos(180 * PI / 180.0)'],
+        ['tan', 45, 'tan(45 * PI / 180.0)'],
+        ['asin', 0.5, '(asin(0.5) * 180.0 / PI)'],
+        ['acos', 0.5, '(acos(0.5) * 180.0 / PI)'],
+        ['atan', 1, '(atan(1) * 180.0 / PI)'],
+        ['ln', 10, 'log(10)'],
+        ['log', 100, 'log10(100)'],
+        ['e ^', 2, 'exp(2)'],
+        ['10 ^', 3, 'pow(10, 3)']
+    ];
+
+    for (const [mathOperator, value, expected] of mathCases) {
+        t.equal(
+            generator._generateExpression({
+                type: 'UnaryExpression',
+                operator: 'MathOp',
+                mathOperator,
+                operand: Number.isInteger(value) ? {
+                    type: 'IntegerLiteral',
+                    value
+                } : {
+                    type: 'DecimalLiteral',
+                    value
+                }
+            }),
+            expected,
+            `MathOp ${mathOperator}`
+        );
+    }
+
+    const code = generator.generate({
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'BinaryExpression',
+                operator: 'Random',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 10
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /double scratchRandom\(double from, double to\) \{[\s\S]*const double low = from <= to \? from : to;[\s\S]*const double high = from <= to \? to : from;[\s\S]*floor\(from\) == from[\s\S]*floor\(to\) == to[\s\S]*random/
     );
 
     t.end();

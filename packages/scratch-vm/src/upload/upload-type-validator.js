@@ -269,6 +269,45 @@ class UploadTypeValidator {
         case 'Length':
             return VALUE_TYPES.INTEGER;
 
+        case 'Round': {
+            const operandType = this._inferExpressionType(
+                expression.operand
+            );
+
+            if (!this._isNumericType(operandType)) {
+                throw new Error(
+                    'Round operand must be numeric'
+                );
+            }
+
+            return VALUE_TYPES.INTEGER;
+        }
+
+        case 'MathOp': {
+            const operandType = this._inferExpressionType(
+                expression.operand
+            );
+
+            if (!this._isNumericType(operandType)) {
+                throw new Error(
+                    'MathOp operand must be numeric'
+                );
+            }
+
+            if (
+                expression.mathOperator === 'floor' ||
+                expression.mathOperator === 'ceiling'
+            ) {
+                return VALUE_TYPES.INTEGER;
+            }
+
+            if (expression.mathOperator === 'abs') {
+                return operandType;
+            }
+
+            return VALUE_TYPES.DECIMAL;
+        }
+
         default:
             throw new Error(
                 `Unsupported Arduino UNO Upload unary operator: ${
@@ -292,6 +331,8 @@ class UploadTypeValidator {
         case 'Add':
         case 'Subtract':
         case 'Multiply':
+        case 'Mod':
+        case 'Random':
             return this._promoteNumericTypes(
                 leftType,
                 rightType,

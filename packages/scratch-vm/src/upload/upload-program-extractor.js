@@ -35,6 +35,10 @@ const JOIN_OPCODE = 'operator_join';
 const LENGTH_OPCODE = 'operator_length';
 const LETTER_OF_OPCODE = 'operator_letter_of';
 const CONTAINS_OPCODE = 'operator_contains';
+const MOD_OPCODE = 'operator_mod';
+const RANDOM_OPCODE = 'operator_random';
+const ROUND_OPCODE = 'operator_round';
+const MATHOP_OPCODE = 'operator_mathop';
 const IF_ELSE_OPCODE = 'control_if_else';
 const TEXT_OPCODE = 'text';
 
@@ -830,6 +834,71 @@ class UploadProgramExtractor {
                     'STRING2'
                 )
             };
+
+        case MOD_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'Mod',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM1'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM2'
+                )
+            };
+
+        case RANDOM_OPCODE:
+            return {
+                type: 'BinaryExpression',
+                operator: 'Random',
+                left: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'FROM'
+                ),
+                right: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'TO'
+                )
+            };
+
+        case ROUND_OPCODE:
+            return {
+                type: 'UnaryExpression',
+                operator: 'Round',
+                operand: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM'
+                )
+            };
+
+        case MATHOP_OPCODE: {
+            const fields = blocks.getFields(block);
+            const operatorField = fields && fields.OPERATOR;
+
+            if (!operatorField) {
+                throw new Error(
+                    'Missing OPERATOR field in operator_mathop'
+                );
+            }
+
+            return {
+                type: 'UnaryExpression',
+                operator: 'MathOp',
+                mathOperator: String(operatorField.value).toLowerCase(),
+                operand: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUM'
+                )
+            };
+        }
 
         default:
             throw new Error(

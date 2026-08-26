@@ -38,6 +38,18 @@ class ArduinoUnoGenerator {
                 loopStatements
             );
 
+        const usesScratchMod = this._programUsesExpressionOperator(
+            setupStatements,
+            loopStatements,
+            'Mod'
+        );
+
+        const usesScratchRandom = this._programUsesExpressionOperator(
+            setupStatements,
+            loopStatements,
+            'Random'
+        );
+
         const usesUnicodeStringLength = (
             this._usesUnicodeStringLength(
                 setupStatements,
@@ -229,6 +241,53 @@ class ArduinoUnoGenerator {
                 '    const String normalizedSubstring = unicodeLatin1ToLower(substring);',
                 '',
                 '    return normalizedValue.indexOf(normalizedSubstring) >= 0;',
+                '}',
+                ''
+            );
+        }
+
+        if (usesScratchMod) {
+            lines.push(
+                'double scratchMod(double n, double modulus) {',
+                '    double result = fmod(n, modulus);',
+                '',
+                '    if (result / modulus < 0) {',
+                '        result += modulus;',
+                '    }',
+                '',
+                '    return result;',
+                '}',
+                ''
+            );
+        }
+
+        if (usesScratchRandom) {
+            lines.push(
+                'double scratchRandom(double from, double to) {',
+                '    const double low = from <= to ? from : to;',
+                '    const double high = from <= to ? to : from;',
+                '',
+                '    if (low == high) {',
+                '        return low;',
+                '    }',
+                '',
+                '    if (',
+                '        floor(from) == from &&',
+                '        floor(to) == to',
+                '    ) {',
+                '        return static_cast<double>(',
+                '            random(',
+                '                static_cast<long>(low),',
+                '                static_cast<long>(high) + 1L',
+                '            )',
+                '        );',
+                '    }',
+                '',
+                '    const double unit =',
+                '        static_cast<double>(random(0, 1000000L)) /',
+                '        1000000.0;',
+                '',
+                '    return low + (unit * (high - low));',
                 '}',
                 ''
             );
@@ -655,6 +714,67 @@ class ArduinoUnoGenerator {
         }
 
         return false;
+    }
+
+    /**
+     * Check whether an expression operator occurs anywhere in the program IR.
+     * @param {Array<object>} setupStatements Setup IR statements.
+     * @param {Array<object>} loopStatements Loop IR statements.
+     * @param {string} operator Expression operator.
+     * @returns {boolean} True when the operator is used.
+     * @private
+     */
+    _programUsesExpressionOperator (
+        setupStatements,
+        loopStatements,
+        operator
+    ) {
+        return (
+            this._irUsesExpressionOperator(
+                setupStatements,
+                operator
+            ) ||
+            this._irUsesExpressionOperator(
+                loopStatements,
+                operator
+            )
+        );
+    }
+
+    /**
+     * Recursively inspect EasyBlox IR for an expression operator.
+     * @param {*} value IR value.
+     * @param {string} operator Expression operator.
+     * @returns {boolean} True when found.
+     * @private
+     */
+    _irUsesExpressionOperator (value, operator) {
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._irUsesExpressionOperator(item, operator)
+            );
+        }
+
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        if (
+            (
+                value.type === 'BinaryExpression' ||
+                value.type === 'UnaryExpression'
+            ) &&
+            value.operator === operator
+        ) {
+            return true;
+        }
+
+        return Object.keys(value).some(key =>
+            this._irUsesExpressionOperator(
+                value[key],
+                operator
+            )
+        );
     }
 
     /**
@@ -1621,6 +1741,12 @@ class ArduinoUnoGenerator {
             case 'Multiply':
                 return `(${left} * ${right})`;
 
+            case 'Mod':
+                return `scratchMod(${left}, ${right})`;
+
+            case 'Random':
+                return `scratchRandom(${left}, ${right})`;
+
             case 'Divide':
                 return `(` +
                     `static_cast<double>(${left}) / ` +
@@ -1670,8 +1796,25 @@ class ArduinoUnoGenerator {
             }
         }
 
-        case 'UnaryExpression':
-            return this._generateUnaryExpression(expression);
+        case 'UnaryExpression': {
+            const operand = this._generateExpression(
+                expression.operand
+            );
+
+            switch (expression.operator) {
+            case 'Round':
+                return `floor(${operand} + 0.5)`;
+
+            case 'MathOp':
+                return this._generateMathOpExpression(
+                    expression.mathOperator,
+                    operand
+                );
+
+            default:
+                return this._generateUnaryExpression(expression);
+            }
+        }
 
         default:
             throw new Error(
@@ -1681,6 +1824,64 @@ class ArduinoUnoGenerator {
             );
         }
     }
+
+    /**
+     * Generate a Scratch mathematical operator as Arduino C++.
+     * Scratch angles are expressed in degrees.
+     * @param {string} operator Scratch math operator.
+     * @param {string} operand Generated numeric operand.
+     * @returns {string} Generated C++ expression.
+     * @private
+     */
+    _generateMathOpExpression (operator, operand) {
+        switch (operator) {
+        case 'abs':
+            return `fabs(${operand})`;
+
+        case 'floor':
+            return `floor(${operand})`;
+
+        case 'ceiling':
+            return `ceil(${operand})`;
+
+        case 'sqrt':
+            return `sqrt(${operand})`;
+
+        case 'sin':
+            return `sin(${operand} * PI / 180.0)`;
+
+        case 'cos':
+            return `cos(${operand} * PI / 180.0)`;
+
+        case 'tan':
+            return `tan(${operand} * PI / 180.0)`;
+
+        case 'asin':
+            return `(asin(${operand}) * 180.0 / PI)`;
+
+        case 'acos':
+            return `(acos(${operand}) * 180.0 / PI)`;
+
+        case 'atan':
+            return `(atan(${operand}) * 180.0 / PI)`;
+
+        case 'ln':
+            return `log(${operand})`;
+
+        case 'log':
+            return `log10(${operand})`;
+
+        case 'e ^':
+            return `exp(${operand})`;
+
+        case '10 ^':
+            return `pow(10, ${operand})`;
+
+        default:
+            return '0';
+        }
+    }
+
 
     /**
      * Generate an Arduino String coercion preserving Scratch text semantics.
