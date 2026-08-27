@@ -306,6 +306,7 @@ test('duplicateVariable creates a new variable with a new ID by default', t => {
     t.equal(Object.keys(target.variables).length, 1);
     const originalVariable = target.variables['a var ID'];
     originalVariable.value = 10;
+    originalVariable.easybloxValueType = 'INTEGER';
     const newVariable = target.duplicateVariable('a var ID');
     // Duplicating a variable should not add the variable to the current target
     t.equal(Object.keys(target.variables).length, 1);
@@ -315,6 +316,12 @@ test('duplicateVariable creates a new variable with a new ID by default', t => {
 
     // Duplicate variable should start out with the same value as the original variable
     t.equal(newVariable.value, originalVariable.value);
+
+    t.equal(
+        newVariable.easybloxValueType,
+        'INTEGER',
+        'duplicate variable preserves EasyBlox value type'
+    );
 
     // Modifying one variable should not modify the other
     newVariable.value = 15;
@@ -330,10 +337,23 @@ test('duplicateVariable creates new array reference for list variable.value', t 
     target.createVariable('a var ID', 'arr', Variable.LIST_TYPE);
     const originalVariable = target.variables['a var ID'];
     originalVariable.value = arr;
+    originalVariable.easybloxValueType = 'TEXT';
+    originalVariable.easybloxListCapacity = 10;
     const newVariable = target.duplicateVariable('a var ID');
     // Values are deeply equal but not the same object
     t.same(originalVariable.value, newVariable.value);
     t.not(originalVariable.value, newVariable.value);
+    t.equal(
+        newVariable.easybloxValueType,
+        'TEXT',
+        'duplicate list preserves EasyBlox item type'
+    );
+
+    t.equal(
+        newVariable.easybloxListCapacity,
+        10,
+        'duplicate list preserves EasyBlox capacity'
+    );
     t.end();
 });
 
@@ -485,6 +505,108 @@ test('duplicateVariables re-IDs variables when a block container is provided', t
     t.type(copiedBlocks.getBlock('a block'), 'object');
     t.equal(copiedBlocks.getBlock('a block').fields.VARIABLE.id, mockVarDupeID);
     t.equal(copiedBlocks.getBlock('a block').fields.VARIABLE.value, 'a mock variable');
+
+    t.end();
+});
+
+test('shareLocalVariableToStage preserves EasyBlox metadata when creating a global variable', t => {
+    const runtime = new Runtime();
+
+    const stage = new Target(runtime);
+    stage.isStage = true;
+
+    const target = new Target(runtime);
+    target.isStage = false;
+
+    runtime.targets = [stage, target];
+
+    target.createVariable(
+        'local scalar id',
+        'contador',
+        Variable.SCALAR_TYPE
+    );
+
+    const localVariable = target.variables['local scalar id'];
+    localVariable.easybloxValueType = 'INTEGER';
+
+    target.shareLocalVariableToStage(
+        'local scalar id',
+        []
+    );
+
+    const stageVariable = stage.variables['StageVarFromLocal_local scalar id'];
+
+    t.ok(
+        stageVariable,
+        'sharing creates the corresponding global variable'
+    );
+
+    t.equal(
+        stageVariable.type,
+        Variable.SCALAR_TYPE,
+        'shared global preserves Scratch variable type'
+    );
+
+    t.equal(
+        stageVariable.easybloxValueType,
+        'INTEGER',
+        'shared global preserves EasyBlox value type'
+    );
+
+    t.end();
+});
+
+test('shareLocalVariableToSprite preserves EasyBlox metadata when creating a local list', t => {
+    const runtime = new Runtime();
+
+    const source = new Target(runtime);
+    source.isStage = false;
+
+    const receivingSprite = new Target(runtime);
+    receivingSprite.isStage = false;
+
+    runtime.targets = [source, receivingSprite];
+
+    source.createVariable(
+        'local list id',
+        'nomes',
+        Variable.LIST_TYPE
+    );
+
+    const localList = source.variables['local list id'];
+    localList.easybloxValueType = 'TEXT';
+    localList.easybloxListCapacity = 10;
+
+    source.shareLocalVariableToSprite(
+        'local list id',
+        receivingSprite,
+        []
+    );
+
+    const sharedList = Object.values(receivingSprite.variables)[0];
+
+    t.ok(
+        sharedList,
+        'sharing creates a local list on the receiving sprite'
+    );
+
+    t.equal(
+        sharedList.type,
+        Variable.LIST_TYPE,
+        'shared list preserves Scratch list type'
+    );
+
+    t.equal(
+        sharedList.easybloxValueType,
+        'TEXT',
+        'shared list preserves EasyBlox item type'
+    );
+
+    t.equal(
+        sharedList.easybloxListCapacity,
+        10,
+        'shared list preserves EasyBlox capacity'
+    );
 
     t.end();
 });

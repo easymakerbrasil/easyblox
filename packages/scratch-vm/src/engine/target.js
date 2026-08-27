@@ -416,6 +416,10 @@ class Target extends EventEmitter {
                 originalVariable.type,
                 originalVariable.isCloud
             );
+
+            newVariable.easybloxValueType = originalVariable.easybloxValueType;
+            newVariable.easybloxListCapacity = originalVariable.easybloxListCapacity;
+
             if (newVariable.type === Variable.LIST_TYPE) {
                 newVariable.value = originalVariable.value.slice(0);
             } else {
@@ -566,6 +570,9 @@ class Target extends EventEmitter {
 
             const newStageName = `Stage: ${varName}`;
             stageVar = this.runtime.createNewGlobalVariable(newStageName, varIdForStage, varType);
+
+            stageVar.easybloxValueType = variable.easybloxValueType;
+            stageVar.easybloxListCapacity = variable.easybloxListCapacity;
         }
         // Update all variable references to use the new name and ID
         this.mergeVariables(varId, stageVar.id, varRefs, stageVar.name);
@@ -596,6 +603,10 @@ class Target extends EventEmitter {
             newVarId = existingLocalVar.id;
         } else {
             const newVar = new Variable(null, varName, varType);
+
+            newVar.easybloxValueType = variable.easybloxValueType;
+            newVar.easybloxListCapacity = variable.easybloxListCapacity;
+
             newVarId = newVar.id;
             sprite.variables[newVarId] = newVar;
         }

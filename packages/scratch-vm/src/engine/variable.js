@@ -19,6 +19,10 @@ class Variable {
         this.name = name;
         this.type = type;
         this.isCloud = isCloud;
+
+        this.easybloxValueType = null;
+        this.easybloxListCapacity = null;
+
         switch (this.type) {
         case Variable.SCALAR_TYPE:
             this.value = 0;

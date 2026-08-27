@@ -163,3 +163,27 @@ test('procedures block hierarchy is preserved across a serialize/deserialize rou
 
     t.end();
 });
+
+test('procedure EasyBlox argument types are preserved across a serialize/deserialize round-trip', t => {
+    const blocks = makeNewFormatBlocks();
+
+    blocks.proto_id.mutation.easybloxargumenttypes = '["INTEGER"]';
+
+    const deserialized = sb3.deserializeBlocks(blocks);
+    const [serialized] = sb3.serializeBlocks(deserialized);
+    const roundTripped = sb3.deserializeBlocks(serialized);
+
+    t.equal(
+        roundTripped.proto_id.mutation.argumentids,
+        '["arg_id"]',
+        'procedure argument ids are preserved'
+    );
+
+    t.equal(
+        roundTripped.proto_id.mutation.easybloxargumenttypes,
+        '["INTEGER"]',
+        'EasyBlox argument types are preserved'
+    );
+
+    t.end();
+});

@@ -4,6 +4,7 @@ const VirtualMachine = require('../../src/index');
 const Runtime = require('../../src/engine/runtime');
 const sb3 = require('../../src/serialization/sb3');
 const readFileToBuffer = require('../fixtures/readProjectFile').readFileToBuffer;
+const Variable = require('../../src/engine/variable');
 const exampleProjectPath = path.resolve(__dirname, '../fixtures/clone-cleanup.sb2');
 const commentsSB2ProjectPath = path.resolve(__dirname, '../fixtures/comments.sb2');
 const commentsSB3ProjectPath = path.resolve(__dirname, '../fixtures/comments.sb3');
@@ -26,6 +27,220 @@ test('serialize', t => {
         });
 });
 
+test('serialize preserves EasyBlox Upload data metadata without changing Scratch variable arrays', t => {
+    const vm = new VirtualMachine();
+
+    return vm.loadProject(readFileToBuffer(exampleProjectPath))
+        .then(() => {
+            const stage = vm.runtime.targets[0];
+
+            stage.createVariable(
+                'easyblox-scalar-id',
+                'pontuação',
+                Variable.SCALAR_TYPE
+            );
+
+            const scalar = stage.variables['easyblox-scalar-id'];
+            scalar.value = 0;
+            scalar.easybloxValueType = 'INTEGER';
+
+            stage.createVariable(
+                'easyblox-list-id',
+                'nomes',
+                Variable.LIST_TYPE
+            );
+
+            const list = stage.variables['easyblox-list-id'];
+            list.value = ['Ana'];
+            list.easybloxValueType = 'TEXT';
+            list.easybloxListCapacity = 10;
+
+            const result = sb3.serialize(vm.runtime);
+            const serializedStage = result.targets[0];
+
+            t.same(
+                serializedStage.variables['easyblox-scalar-id'],
+                ['pontuação', 0],
+                'Scratch scalar variable representation remains unchanged'
+            );
+
+            t.same(
+                serializedStage.lists['easyblox-list-id'],
+                ['nomes', ['Ana']],
+                'Scratch list representation remains unchanged'
+            );
+
+            t.same(
+                serializedStage.easybloxData['easyblox-scalar-id'],
+                {
+                    valueType: 'INTEGER'
+                },
+                'scalar EasyBlox type is serialized separately by variable id'
+            );
+
+            t.same(
+                serializedStage.easybloxData['easyblox-list-id'],
+                {
+                    valueType: 'TEXT',
+                    capacity: 10
+                },
+                'list EasyBlox type and capacity are serialized separately by list id'
+            );
+
+            t.end();
+        });
+});
+
+test('deserialize restores EasyBlox Upload data metadata by variable id', t => {
+    const vm = new VirtualMachine();
+
+    return vm.loadProject(readFileToBuffer(exampleProjectPath))
+        .then(() => {
+            const stage = vm.runtime.targets[0];
+
+            stage.createVariable(
+                'easyblox-scalar-id',
+                'pontuação',
+                Variable.SCALAR_TYPE
+            );
+
+            const scalar = stage.variables['easyblox-scalar-id'];
+            scalar.value = 0;
+            scalar.easybloxValueType = 'INTEGER';
+
+            stage.createVariable(
+                'easyblox-list-id',
+                'nomes',
+                Variable.LIST_TYPE
+            );
+
+            const list = stage.variables['easyblox-list-id'];
+            list.value = ['Ana'];
+            list.easybloxValueType = 'TEXT';
+            list.easybloxListCapacity = 10;
+
+            const serialized = JSON.parse(JSON.stringify(sb3.serialize(vm.runtime)));
+
+            return sb3.deserialize(serialized, new Runtime());
+        })
+        .then(({targets}) => {
+            const stage = targets[0];
+
+            const scalar = stage.variables['easyblox-scalar-id'];
+            const list = stage.variables['easyblox-list-id'];
+
+            t.equal(
+                scalar.value,
+                0,
+                'Scratch scalar value survives deserialization'
+            );
+
+            t.same(
+                list.value,
+                ['Ana'],
+                'Scratch list contents survive deserialization'
+            );
+
+            t.equal(
+                scalar.easybloxValueType,
+                'INTEGER',
+                'scalar EasyBlox type is restored by variable id'
+            );
+
+            t.equal(
+                list.easybloxValueType,
+                'TEXT',
+                'list EasyBlox item type is restored by list id'
+            );
+
+            t.equal(
+                list.easybloxListCapacity,
+                10,
+                'list EasyBlox capacity is restored by list id'
+            );
+
+            t.end();
+        });
+});
+
+test('deserialize keeps legacy Scratch variables untyped when EasyBlox metadata is absent', t => {
+    const vm = new VirtualMachine();
+
+    return vm.loadProject(readFileToBuffer(exampleProjectPath))
+        .then(() => {
+            const stage = vm.runtime.targets[0];
+
+            stage.createVariable(
+                'legacy-scalar-id',
+                'contador',
+                Variable.SCALAR_TYPE
+            );
+
+            const scalar = stage.variables['legacy-scalar-id'];
+            scalar.value = 5;
+
+            stage.createVariable(
+                'legacy-list-id',
+                'valores',
+                Variable.LIST_TYPE
+            );
+
+            const list = stage.variables['legacy-list-id'];
+            list.value = [1, 2, 3];
+
+            const serialized = JSON.parse(JSON.stringify(sb3.serialize(vm.runtime)));
+            const serializedStage = serialized.targets[0];
+
+            delete serializedStage.easybloxData;
+
+            return sb3.deserialize(serialized, new Runtime());
+        })
+        .then(({targets}) => {
+            const stage = targets[0];
+
+            const scalar = stage.variables['legacy-scalar-id'];
+            const list = stage.variables['legacy-list-id'];
+
+            t.equal(
+                scalar.value,
+                5,
+                'legacy Scratch scalar value is preserved'
+            );
+
+            t.same(
+                list.value,
+                [1, 2, 3],
+                'legacy Scratch list contents are preserved'
+            );
+
+            t.equal(
+                scalar.easybloxValueType,
+                null,
+                'legacy scalar remains without an inferred EasyBlox type'
+            );
+
+            t.equal(
+                scalar.easybloxListCapacity,
+                null,
+                'legacy scalar has no EasyBlox list capacity'
+            );
+
+            t.equal(
+                list.easybloxValueType,
+                null,
+                'legacy list remains without an inferred EasyBlox item type'
+            );
+
+            t.equal(
+                list.easybloxListCapacity,
+                null,
+                'legacy list remains without an inferred EasyBlox capacity'
+            );
+
+            t.end();
+        });
+});
+
 test('deserialize', t => {
     const vm = new VirtualMachine();
     sb3.deserialize('', vm.runtime).then(({targets}) => {
@@ -34,7 +249,6 @@ test('deserialize', t => {
         t.end();
     });
 });
-
 
 test('serialize sb2 project with comments as sb3', t => {
     const vm = new VirtualMachine();

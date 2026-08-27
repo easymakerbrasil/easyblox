@@ -484,8 +484,30 @@ const serializeVariables = function (variables) {
     obj.variables = Object.create(null);
     obj.lists = Object.create(null);
     obj.broadcasts = Object.create(null);
+    obj.easybloxData = Object.create(null);
+
     for (const varId in variables) {
         const v = variables[varId];
+
+        if (v.type !== Variable.BROADCAST_MESSAGE_TYPE) {
+            const easybloxMetadata = Object.create(null);
+
+            if (v.easybloxValueType !== null &&
+                typeof v.easybloxValueType !== 'undefined') {
+                easybloxMetadata.valueType = v.easybloxValueType;
+            }
+
+            if (v.type === Variable.LIST_TYPE &&
+                v.easybloxListCapacity !== null &&
+                typeof v.easybloxListCapacity !== 'undefined') {
+                easybloxMetadata.capacity = v.easybloxListCapacity;
+            }
+
+            if (Object.keys(easybloxMetadata).length > 0) {
+                obj.easybloxData[varId] = easybloxMetadata;
+            }
+        }
+
         if (v.type === Variable.BROADCAST_MESSAGE_TYPE) {
             obj.broadcasts[varId] = v.value; // name and value is the same for broadcast msgs
             continue;
@@ -539,6 +561,11 @@ const serializeTarget = function (target, extensions) {
     obj.variables = vars.variables;
     obj.lists = vars.lists;
     obj.broadcasts = vars.broadcasts;
+
+    if (Object.keys(vars.easybloxData).length > 0) {
+        obj.easybloxData = vars.easybloxData;
+    }
+
     [obj.blocks, targetExtensions] = serializeBlocks(target.blocks);
     obj.comments = serializeComments(target.comments);
 
@@ -1201,6 +1228,13 @@ const parseScratchObject = function (object, runtime, extensions, zip, assets) {
             );
             if (isCloud) runtime.addCloudVariable();
             newVariable.value = variable[1];
+
+            const easybloxMetadata = object.easybloxData && object.easybloxData[varId];
+            if (easybloxMetadata &&
+                Object.prototype.hasOwnProperty.call(easybloxMetadata, 'valueType')) {
+                newVariable.easybloxValueType = easybloxMetadata.valueType;
+            }
+
             target.variables[newVariable.id] = newVariable;
         }
     }
@@ -1214,6 +1248,17 @@ const parseScratchObject = function (object, runtime, extensions, zip, assets) {
                 false
             );
             newList.value = list[1];
+
+            const easybloxMetadata = object.easybloxData && object.easybloxData[listId];
+            if (easybloxMetadata &&
+                Object.prototype.hasOwnProperty.call(easybloxMetadata, 'valueType')) {
+                newList.easybloxValueType = easybloxMetadata.valueType;
+            }
+            if (easybloxMetadata &&
+                Object.prototype.hasOwnProperty.call(easybloxMetadata, 'capacity')) {
+                newList.easybloxListCapacity = easybloxMetadata.capacity;
+            }
+
             target.variables[newList.id] = newList;
         }
     }
