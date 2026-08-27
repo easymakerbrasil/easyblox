@@ -41,6 +41,26 @@ const ROUND_OPCODE = 'operator_round';
 const MATHOP_OPCODE = 'operator_mathop';
 const IF_ELSE_OPCODE = 'control_if_else';
 const TEXT_OPCODE = 'text';
+const SET_VARIABLE_OPCODE = 'data_setvariableto';
+const CHANGE_VARIABLE_OPCODE = 'data_changevariableby';
+const VARIABLE_REPORTER_OPCODE = 'data_variable';
+const ADD_TO_LIST_OPCODE = 'data_addtolist';
+const DELETE_FROM_LIST_OPCODE = 'data_deleteoflist';
+const DELETE_ALL_FROM_LIST_OPCODE = 'data_deletealloflist';
+const INSERT_AT_LIST_OPCODE = 'data_insertatlist';
+const REPLACE_ITEM_OF_LIST_OPCODE = 'data_replaceitemoflist';
+const ITEM_OF_LIST_OPCODE = 'data_itemoflist';
+const ITEM_NUM_OF_LIST_OPCODE = 'data_itemnumoflist';
+const LENGTH_OF_LIST_OPCODE = 'data_lengthoflist';
+const LIST_CONTENTS_OPCODE = 'data_listcontents';
+const LIST_CONTAINS_ITEM_OPCODE = 'data_listcontainsitem';
+const PROCEDURE_DEFINITION_OPCODE = 'procedures_definition';
+const PROCEDURE_PROTOTYPE_OPCODE = 'procedures_prototype';
+const PROCEDURE_CALL_OPCODE = 'procedures_call';
+const PROCEDURE_ARGUMENT_STRING_NUMBER_OPCODE =
+    'argument_reporter_string_number';
+const PROCEDURE_ARGUMENT_BOOLEAN_OPCODE =
+    'argument_reporter_boolean';
 
 /**
  * Extract an EasyBlox Upload program from the canonical Scratch VM state.
@@ -116,11 +136,242 @@ class UploadProgramExtractor {
             loop
         };
 
+        const globals = this._extractGlobals(entryPoint.target);
+
+        if (
+            globals.variables.length > 0 ||
+            globals.lists.length > 0
+        ) {
+            ir.globals = globals;
+        }
+
+        const procedures = this._extractProcedures(entryPoint.target);
+
+        if (procedures.length > 0) {
+            ir.procedures = procedures;
+        }
+
         if (unreachable.length > 0) {
             ir.unreachable = unreachable;
         }
 
         return ir;
+    }
+
+    /**
+     * Extract typed global data definitions from one canonical Scratch target.
+     * Untyped Scratch data is deliberately ignored until a reachable Upload
+     * block requires it; Upload types must never be inferred from current values.
+     * @param {Target} target Scratch target containing canonical variables.
+     * @returns {object} Typed global Variable/List IR.
+     * @private
+     */
+    _extractGlobals (target) {
+        const globals = {
+            variables: [],
+            lists: []
+        };
+
+        const targetVariables = target && target.variables ?
+            target.variables :
+            {};
+
+        for (const variableId of Object.keys(targetVariables)) {
+            const variable = targetVariables[variableId];
+
+            if (
+                !variable ||
+                variable.easybloxValueType === null ||
+                typeof variable.easybloxValueType === 'undefined'
+            ) {
+                continue;
+            }
+
+            if (variable.type === 'list') {
+                globals.lists.push({
+                    id: variableId,
+                    name: variable.name,
+                    itemType: variable.easybloxValueType,
+                    capacity: variable.easybloxListCapacity,
+                    initialValues: Array.isArray(variable.value) ?
+                        variable.value.map(value =>
+                            this._createTypedLiteral(
+                                variable.easybloxValueType,
+                                value
+                            )
+                        ) :
+                        []
+                });
+
+                continue;
+            }
+
+            if (variable.type === '') {
+                globals.variables.push({
+                    id: variableId,
+                    name: variable.name,
+                    valueType: variable.easybloxValueType,
+                    initialValue: this._createTypedLiteral(
+                        variable.easybloxValueType,
+                        variable.value
+                    )
+                });
+            }
+        }
+
+        return globals;
+    }
+
+    /**
+     * Convert one canonical VM value to literal IR according to its explicit
+     * EasyBlox Upload type. The JavaScript value itself is not used to infer
+     * the pedagogical type.
+     * @param {string} valueType Explicit EasyBlox value type.
+     * @param {*} value Canonical VM value.
+     * @returns {object} Typed literal IR.
+     * @private
+     */
+    _createTypedLiteral (valueType, value) {
+        switch (valueType) {
+        case 'INTEGER':
+            return {
+                type: 'IntegerLiteral',
+                value
+            };
+
+        case 'DECIMAL':
+            return {
+                type: 'DecimalLiteral',
+                value
+            };
+
+        case 'TEXT':
+            return {
+                type: 'TextLiteral',
+                value
+            };
+
+        case 'BOOLEAN':
+            return {
+                type: 'BooleanLiteral',
+                value
+            };
+
+        default:
+            throw new Error(
+                `Unsupported EasyBlox Upload value type: ${valueType}`
+            );
+        }
+    }
+
+    /**
+     * Extract canonical My Block definitions from one Scratch target.
+     * The outer procedures_definition block ID is the stable procedure ID.
+     * @param {Target} target Scratch target containing procedure definitions.
+     * @returns {Array<object>} EasyBlox procedure IR definitions.
+     * @private
+     */
+    _extractProcedures (target) {
+        if (!target || !target.blocks) {
+            return [];
+        }
+
+        const blocks = target.blocks;
+        const procedures = [];
+
+        for (const blockId of blocks.getScripts()) {
+            const definition = blocks.getBlock(blockId);
+
+            if (
+                !definition ||
+                definition.opcode !== PROCEDURE_DEFINITION_OPCODE
+            ) {
+                continue;
+            }
+
+            const customBlockInput = definition.inputs &&
+                definition.inputs.custom_block;
+
+            if (!customBlockInput || !customBlockInput.block) {
+                throw new Error(
+                    `Missing procedure prototype for definition: ${blockId}`
+                );
+            }
+
+            const prototype = blocks.getBlock(customBlockInput.block);
+
+            if (
+                !prototype ||
+                prototype.opcode !== PROCEDURE_PROTOTYPE_OPCODE
+            ) {
+                throw new Error(
+                    `Invalid procedure prototype for definition: ${blockId}`
+                );
+            }
+
+            const mutation = prototype.mutation;
+
+            if (!mutation || !mutation.proccode) {
+                throw new Error(
+                    `Missing procedure mutation for definition: ${blockId}`
+                );
+            }
+
+            const argumentIds = JSON.parse(
+                mutation.argumentids || '[]'
+            );
+            const argumentNames = JSON.parse(
+                mutation.argumentnames || '[]'
+            );
+            const argumentTypes = JSON.parse(
+                mutation.easybloxargumenttypes || '[]'
+            );
+
+            const parameters = argumentIds.map((parameterId, index) => ({
+                id: parameterId,
+                name: argumentNames[index],
+                valueType: argumentTypes[index]
+            }));
+
+            const procedureName = mutation.proccode
+                .replace(/%[sbn]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            const body = [];
+
+            const previousProcedureContext = this._procedureContext;
+
+            this._procedureContext = {
+                id: blockId,
+                parametersByName: new Map(
+                    parameters.map(parameter => [
+                        parameter.name,
+                        parameter.id
+                    ])
+                )
+            };
+
+            try {
+                this._extractBranchStatements(
+                    blocks,
+                    definition.next,
+                    body
+                );
+            } finally {
+                this._procedureContext = previousProcedureContext;
+            }
+
+            procedures.push({
+                id: blockId,
+                name: procedureName,
+                proccode: mutation.proccode,
+                parameters,
+                body
+            });
+        }
+
+        return procedures;
     }
 
     /**
@@ -192,6 +443,158 @@ class UploadProgramExtractor {
      */
     _extractStatement (blocks, block) {
         switch (block.opcode) {
+        case SET_VARIABLE_OPCODE: {
+            const fields = blocks.getFields(block);
+            const variableField = fields && fields.VARIABLE;
+
+            if (!variableField || !variableField.id) {
+                throw new Error(
+                    'Missing VARIABLE field in data_setvariableto'
+                );
+            }
+
+            return {
+                type: 'VariableSet',
+                variableId: variableField.id,
+                value: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'VALUE'
+                )
+            };
+        }
+
+        case CHANGE_VARIABLE_OPCODE: {
+            const fields = blocks.getFields(block);
+            const variableField = fields && fields.VARIABLE;
+
+            if (!variableField || !variableField.id) {
+                throw new Error(
+                    'Missing VARIABLE field in data_changevariableby'
+                );
+            }
+
+            return {
+                type: 'VariableChange',
+                variableId: variableField.id,
+                value: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'VALUE'
+                )
+            };
+        }
+
+        case ADD_TO_LIST_OPCODE: {
+            const fields = blocks.getFields(block);
+            const listField = fields && fields.LIST;
+
+            if (!listField || !listField.id) {
+                throw new Error(
+                    'Missing LIST field in data_addtolist'
+                );
+            }
+
+            return {
+                type: 'ListAdd',
+                listId: listField.id,
+                item: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'ITEM'
+                )
+            };
+        }
+
+        case DELETE_FROM_LIST_OPCODE: {
+            const fields = blocks.getFields(block);
+            const listField = fields && fields.LIST;
+
+            if (!listField || !listField.id) {
+                throw new Error(
+                    'Missing LIST field in data_deleteoflist'
+                );
+            }
+
+            return {
+                type: 'ListDelete',
+                listId: listField.id,
+                index: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'INDEX'
+                )
+            };
+        }
+
+        case DELETE_ALL_FROM_LIST_OPCODE: {
+            const fields = blocks.getFields(block);
+            const listField = fields && fields.LIST;
+
+            if (!listField || !listField.id) {
+                throw new Error(
+                    'Missing LIST field in data_deletealloflist'
+                );
+            }
+
+            return {
+                type: 'ListDeleteAll',
+                listId: listField.id
+            };
+        }
+
+        case INSERT_AT_LIST_OPCODE: {
+            const fields = blocks.getFields(block);
+            const listField = fields && fields.LIST;
+
+            if (!listField || !listField.id) {
+                throw new Error(
+                    'Missing LIST field in data_insertatlist'
+                );
+            }
+
+            return {
+                type: 'ListInsert',
+                listId: listField.id,
+                index: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'INDEX'
+                ),
+                item: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'ITEM'
+                )
+            };
+        }
+
+        case REPLACE_ITEM_OF_LIST_OPCODE: {
+            const fields = blocks.getFields(block);
+            const listField = fields && fields.LIST;
+
+            if (!listField || !listField.id) {
+                throw new Error(
+                    'Missing LIST field in data_replaceitemoflist'
+                );
+            }
+
+            return {
+                type: 'ListReplace',
+                listId: listField.id,
+                index: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'INDEX'
+                ),
+                item: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'ITEM'
+                )
+            };
+        }
+
         case DIGITAL_WRITE_OPCODE:
             return {
                 type: 'DigitalWrite',
@@ -369,15 +772,15 @@ class UploadProgramExtractor {
                 )
             };
 
-            case WAIT_UNTIL_OPCODE:
-                return {
-                    type: 'WaitUntil',
-                    condition: this._extractBooleanConditionInput(
-                        blocks,
-                        block,
-                        'CONDITION'
-                    )
-                };
+        case WAIT_UNTIL_OPCODE:
+            return {
+                type: 'WaitUntil',
+                condition: this._extractBooleanConditionInput(
+                    blocks,
+                    block,
+                    'CONDITION'
+                )
+            };
 
         case REPEAT_UNTIL_OPCODE: {
             const body = [];
@@ -460,6 +863,45 @@ class UploadProgramExtractor {
                 ),
                 thenBody,
                 elseBody
+            };
+        }
+
+        case PROCEDURE_CALL_OPCODE: {
+            const mutation = block.mutation;
+
+            if (!mutation || !mutation.proccode) {
+                throw new Error(
+                    'Missing procedure mutation in procedures_call'
+                );
+            }
+
+            const procedureId = blocks.getProcedureDefinition(
+                mutation.proccode
+            );
+
+            if (!procedureId) {
+                throw new Error(
+                    `Procedure definition not found: ${mutation.proccode}`
+                );
+            }
+
+            const argumentIds = JSON.parse(
+                mutation.argumentids || '[]'
+            );
+
+            const argumentsList = argumentIds.map(parameterId => ({
+                parameterId,
+                value: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    parameterId
+                )
+            }));
+
+            return {
+                type: 'ProcedureCall',
+                procedureId,
+                arguments: argumentsList
             };
         }
 
@@ -596,6 +1038,117 @@ class UploadProgramExtractor {
         }
 
         switch (block.opcode) {
+        case VARIABLE_REPORTER_OPCODE: {
+            const fields = blocks.getFields(block);
+            const variableField = fields && fields.VARIABLE;
+
+            if (!variableField || !variableField.id) {
+                throw new Error(
+                    'Missing VARIABLE field in data_variable'
+                );
+            }
+
+            return {
+                type: 'VariableReference',
+                variableId: variableField.id
+            };
+        }
+
+        case ITEM_OF_LIST_OPCODE: {
+            const fields = blocks.getFields(block);
+            const listField = fields && fields.LIST;
+
+            if (!listField || !listField.id) {
+                throw new Error(
+                    'Missing LIST field in data_itemoflist'
+                );
+            }
+
+            return {
+                type: 'ListItemExpression',
+                listId: listField.id,
+                index: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'INDEX'
+                )
+            };
+        }
+
+        case ITEM_NUM_OF_LIST_OPCODE: {
+            const fields = blocks.getFields(block);
+            const listField = fields && fields.LIST;
+
+            if (!listField || !listField.id) {
+                throw new Error(
+                    'Missing LIST field in data_itemnumoflist'
+                );
+            }
+
+            return {
+                type: 'ListIndexOfExpression',
+                listId: listField.id,
+                item: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'ITEM'
+                )
+            };
+        }
+
+        case LENGTH_OF_LIST_OPCODE: {
+            const fields = blocks.getFields(block);
+            const listField = fields && fields.LIST;
+
+            if (!listField || !listField.id) {
+                throw new Error(
+                    'Missing LIST field in data_lengthoflist'
+                );
+            }
+
+            return {
+                type: 'ListLengthExpression',
+                listId: listField.id
+            };
+        }
+
+        case LIST_CONTENTS_OPCODE: {
+            const fields = blocks.getFields(block);
+            const listField = fields && fields.LIST;
+
+            if (!listField || !listField.id) {
+                throw new Error(
+                    'Missing LIST field in data_listcontents'
+                );
+            }
+
+            return {
+                type: 'ListContentsExpression',
+                listId: listField.id
+            };
+        }
+
+        case LIST_CONTAINS_ITEM_OPCODE: {
+            const fields = blocks.getFields(block);
+            const listField = fields && fields.LIST;
+
+            if (!listField || !listField.id) {
+                throw new Error(
+                    'Missing LIST field in data_listcontainsitem'
+                );
+            }
+
+            return {
+                type: 'ListContainsExpression',
+                listId: listField.id,
+                item: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'ITEM'
+                )
+            };
+        }
+
         case ADD_OPCODE:
             return {
                 type: 'BinaryExpression',
@@ -897,6 +1450,36 @@ class UploadProgramExtractor {
                     block,
                     'NUM'
                 )
+            };
+        }
+
+        case PROCEDURE_ARGUMENT_STRING_NUMBER_OPCODE:
+        case PROCEDURE_ARGUMENT_BOOLEAN_OPCODE: {
+            const fields = blocks.getFields(block);
+            const valueField = fields && fields.VALUE;
+            const parameterName = valueField && valueField.value;
+
+            if (!parameterName) {
+                throw new Error(
+                    `Missing VALUE field in ${block.opcode}`
+                );
+            }
+
+            const context = this._procedureContext;
+
+            if (
+                !context ||
+                !context.parametersByName ||
+                !context.parametersByName.has(parameterName)
+            ) {
+                throw new Error(
+                    `Procedure argument not found: ${parameterName}`
+                );
+            }
+
+            return {
+                type: 'ProcedureArgumentReference',
+                parameterId: context.parametersByName.get(parameterName)
             };
         }
 

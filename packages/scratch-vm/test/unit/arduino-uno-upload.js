@@ -3,6 +3,8 @@ const tap = require('tap');
 const Blocks = require('../../src/engine/blocks');
 const Runtime = require('../../src/engine/runtime');
 
+const Variable = require('../../src/engine/variable');
+
 const UploadProgramExtractor = require('../../src/upload/upload-program-extractor');
 const ArduinoUnoGenerator = require('../../src/upload/arduino-uno-generator');
 
@@ -11431,6 +11433,2098 @@ tap.test('Arduino UNO generator infers OUTPUT pinMode inside both IfElse branche
         '}',
         ''
     ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts typed Variable and List globals from canonical VM metadata', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat()
+    ]);
+
+    const scalar = new Variable(
+        'var_score',
+        'pontuação',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    scalar.value = 7;
+    scalar.easybloxValueType = 'INTEGER';
+
+    const list = new Variable(
+        'list_names',
+        'nomes',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = ['Ana', 'Bia'];
+    list.easybloxValueType = 'TEXT';
+    list.easybloxListCapacity = 10;
+
+    runtime.targets[0].variables = {
+        [scalar.id]: scalar,
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_score',
+                name: 'pontuação',
+                valueType: 'INTEGER',
+                initialValue: {
+                    type: 'IntegerLiteral',
+                    value: 7
+                }
+            }],
+            lists: [{
+                id: 'list_names',
+                name: 'nomes',
+                itemType: 'TEXT',
+                capacity: 10,
+                initialValues: [
+                    {
+                        type: 'TextLiteral',
+                        value: 'Ana'
+                    },
+                    {
+                        type: 'TextLiteral',
+                        value: 'Bia'
+                    }
+                ]
+            }]
+        },
+        setup: [],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts VariableSet by canonical variable id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('set_variable'),
+        {
+            id: 'set_variable',
+            opcode: 'data_setvariableto',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'set_variable_value',
+                    shadow: 'set_variable_value'
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'nome visível desatualizado',
+                    id: 'var_score',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'set_variable_value',
+            opcode: 'text',
+            next: null,
+            parent: 'set_variable',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'EasyBlox'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const variable = new Variable(
+        'var_score',
+        'título',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = '';
+    variable.easybloxValueType = 'TEXT';
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_score',
+                name: 'título',
+                valueType: 'TEXT',
+                initialValue: {
+                    type: 'TextLiteral',
+                    value: ''
+                }
+            }],
+            lists: []
+        },
+        setup: [{
+            type: 'VariableSet',
+            variableId: 'var_score',
+            value: {
+                type: 'TextLiteral',
+                value: 'EasyBlox'
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts VariableChange by canonical variable id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('change_variable'),
+        {
+            id: 'change_variable',
+            opcode: 'data_changevariableby',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'change_variable_value',
+                    shadow: 'change_variable_value'
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'nome visível desatualizado',
+                    id: 'var_score',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'change_variable_value',
+            'change_variable',
+            5
+        )
+    ]);
+
+    const variable = new Variable(
+        'var_score',
+        'pontuação',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = 10;
+    variable.easybloxValueType = 'INTEGER';
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_score',
+                name: 'pontuação',
+                valueType: 'INTEGER',
+                initialValue: {
+                    type: 'IntegerLiteral',
+                    value: 10
+                }
+            }],
+            lists: []
+        },
+        setup: [{
+            type: 'VariableChange',
+            variableId: 'var_score',
+            value: {
+                type: 'IntegerLiteral',
+                value: 5
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts VariableReference by canonical variable id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('set_variable'),
+        {
+            id: 'set_variable',
+            opcode: 'data_setvariableto',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'source_variable',
+                    shadow: null
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'destino visível desatualizado',
+                    id: 'var_destination',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'source_variable',
+            opcode: 'data_variable',
+            next: null,
+            parent: 'set_variable',
+            inputs: {},
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'origem visível desatualizada',
+                    id: 'var_source',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const destination = new Variable(
+        'var_destination',
+        'destino',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    destination.value = 0;
+    destination.easybloxValueType = 'INTEGER';
+
+    const source = new Variable(
+        'var_source',
+        'origem',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    source.value = 42;
+    source.easybloxValueType = 'INTEGER';
+
+    runtime.targets[0].variables = {
+        [destination.id]: destination,
+        [source.id]: source
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [
+                {
+                    id: 'var_destination',
+                    name: 'destino',
+                    valueType: 'INTEGER',
+                    initialValue: {
+                        type: 'IntegerLiteral',
+                        value: 0
+                    }
+                },
+                {
+                    id: 'var_source',
+                    name: 'origem',
+                    valueType: 'INTEGER',
+                    initialValue: {
+                        type: 'IntegerLiteral',
+                        value: 42
+                    }
+                }
+            ],
+            lists: []
+        },
+        setup: [{
+            type: 'VariableSet',
+            variableId: 'var_destination',
+            value: {
+                type: 'VariableReference',
+                variableId: 'var_source'
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ListAdd by canonical list id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('add_to_list'),
+        {
+            id: 'add_to_list',
+            opcode: 'data_addtolist',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                ITEM: {
+                    name: 'ITEM',
+                    block: 'list_item',
+                    shadow: 'list_item'
+                }
+            },
+            fields: {
+                LIST: {
+                    name: 'LIST',
+                    value: 'nome visível desatualizado',
+                    id: 'list_names',
+                    variableType: Variable.LIST_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'list_item',
+            opcode: 'text',
+            next: null,
+            parent: 'add_to_list',
+            inputs: {},
+            fields: {
+                TEXT: {
+                    name: 'TEXT',
+                    value: 'Carlos'
+                }
+            },
+            topLevel: false,
+            shadow: true
+        }
+    ]);
+
+    const list = new Variable(
+        'list_names',
+        'nomes',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = ['Ana'];
+    list.easybloxValueType = 'TEXT';
+    list.easybloxListCapacity = 10;
+
+    runtime.targets[0].variables = {
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [],
+            lists: [{
+                id: 'list_names',
+                name: 'nomes',
+                itemType: 'TEXT',
+                capacity: 10,
+                initialValues: [{
+                    type: 'TextLiteral',
+                    value: 'Ana'
+                }]
+            }]
+        },
+        setup: [{
+            type: 'ListAdd',
+            listId: 'list_names',
+            item: {
+                type: 'TextLiteral',
+                value: 'Carlos'
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ListDelete by canonical list id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('delete_from_list'),
+        {
+            id: 'delete_from_list',
+            opcode: 'data_deleteoflist',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                INDEX: {
+                    name: 'INDEX',
+                    block: 'delete_index',
+                    shadow: 'delete_index'
+                }
+            },
+            fields: {
+                LIST: {
+                    name: 'LIST',
+                    value: 'nome visível desatualizado',
+                    id: 'list_names',
+                    variableType: Variable.LIST_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'delete_index',
+            'delete_from_list',
+            2
+        )
+    ]);
+
+    const list = new Variable(
+        'list_names',
+        'nomes',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = ['Ana', 'Bia', 'Carlos'];
+    list.easybloxValueType = 'TEXT';
+    list.easybloxListCapacity = 10;
+
+    runtime.targets[0].variables = {
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [],
+            lists: [{
+                id: 'list_names',
+                name: 'nomes',
+                itemType: 'TEXT',
+                capacity: 10,
+                initialValues: [
+                    {
+                        type: 'TextLiteral',
+                        value: 'Ana'
+                    },
+                    {
+                        type: 'TextLiteral',
+                        value: 'Bia'
+                    },
+                    {
+                        type: 'TextLiteral',
+                        value: 'Carlos'
+                    }
+                ]
+            }]
+        },
+        setup: [{
+            type: 'ListDelete',
+            listId: 'list_names',
+            index: {
+                type: 'IntegerLiteral',
+                value: 2
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ListDeleteAll by canonical list id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('delete_all_from_list'),
+        {
+            id: 'delete_all_from_list',
+            opcode: 'data_deletealloflist',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {
+                LIST: {
+                    name: 'LIST',
+                    value: 'nome visível desatualizado',
+                    id: 'list_names',
+                    variableType: Variable.LIST_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const list = new Variable(
+        'list_names',
+        'nomes',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = ['Ana', 'Bia'];
+    list.easybloxValueType = 'TEXT';
+    list.easybloxListCapacity = 10;
+
+    runtime.targets[0].variables = {
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [],
+            lists: [{
+                id: 'list_names',
+                name: 'nomes',
+                itemType: 'TEXT',
+                capacity: 10,
+                initialValues: [
+                    {
+                        type: 'TextLiteral',
+                        value: 'Ana'
+                    },
+                    {
+                        type: 'TextLiteral',
+                        value: 'Bia'
+                    }
+                ]
+            }]
+        },
+        setup: [{
+            type: 'ListDeleteAll',
+            listId: 'list_names'
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ListInsert by canonical list id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('insert_into_list'),
+        {
+            id: 'insert_into_list',
+            opcode: 'data_insertatlist',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                INDEX: {
+                    name: 'INDEX',
+                    block: 'insert_index',
+                    shadow: 'insert_index'
+                },
+                ITEM: {
+                    name: 'ITEM',
+                    block: 'insert_item',
+                    shadow: 'insert_item'
+                }
+            },
+            fields: {
+                LIST: {
+                    name: 'LIST',
+                    value: 'nome visível desatualizado',
+                    id: 'list_samples',
+                    variableType: Variable.LIST_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'insert_index',
+            'insert_into_list',
+            1
+        ),
+        createNumberShadow(
+            'insert_item',
+            'insert_into_list',
+            5
+        )
+    ]);
+
+    const list = new Variable(
+        'list_samples',
+        'amostras',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = [10, 20];
+    list.easybloxValueType = 'INTEGER';
+    list.easybloxListCapacity = 5;
+
+    runtime.targets[0].variables = {
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [],
+            lists: [{
+                id: 'list_samples',
+                name: 'amostras',
+                itemType: 'INTEGER',
+                capacity: 5,
+                initialValues: [
+                    {
+                        type: 'IntegerLiteral',
+                        value: 10
+                    },
+                    {
+                        type: 'IntegerLiteral',
+                        value: 20
+                    }
+                ]
+            }]
+        },
+        setup: [{
+            type: 'ListInsert',
+            listId: 'list_samples',
+            index: {
+                type: 'IntegerLiteral',
+                value: 1
+            },
+            item: {
+                type: 'IntegerLiteral',
+                value: 5
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ListReplace by canonical list id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('replace_list_item'),
+        {
+            id: 'replace_list_item',
+            opcode: 'data_replaceitemoflist',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                INDEX: {
+                    name: 'INDEX',
+                    block: 'replace_index',
+                    shadow: 'replace_index'
+                },
+                ITEM: {
+                    name: 'ITEM',
+                    block: 'replace_item',
+                    shadow: 'replace_item'
+                }
+            },
+            fields: {
+                LIST: {
+                    name: 'LIST',
+                    value: 'nome visível desatualizado',
+                    id: 'list_samples',
+                    variableType: Variable.LIST_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'replace_index',
+            'replace_list_item',
+            2
+        ),
+        createNumberShadow(
+            'replace_item',
+            'replace_list_item',
+            99
+        )
+    ]);
+
+    const list = new Variable(
+        'list_samples',
+        'amostras',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = [10, 20];
+    list.easybloxValueType = 'INTEGER';
+    list.easybloxListCapacity = 5;
+
+    runtime.targets[0].variables = {
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [],
+            lists: [{
+                id: 'list_samples',
+                name: 'amostras',
+                itemType: 'INTEGER',
+                capacity: 5,
+                initialValues: [
+                    {
+                        type: 'IntegerLiteral',
+                        value: 10
+                    },
+                    {
+                        type: 'IntegerLiteral',
+                        value: 20
+                    }
+                ]
+            }]
+        },
+        setup: [{
+            type: 'ListReplace',
+            listId: 'list_samples',
+            index: {
+                type: 'IntegerLiteral',
+                value: 2
+            },
+            item: {
+                type: 'IntegerLiteral',
+                value: 99
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ListItemExpression by canonical list id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('set_from_list_item'),
+        {
+            id: 'set_from_list_item',
+            opcode: 'data_setvariableto',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'list_item_expression',
+                    shadow: null
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'destino visível desatualizado',
+                    id: 'var_score',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'list_item_expression',
+            opcode: 'data_itemoflist',
+            next: null,
+            parent: 'set_from_list_item',
+            inputs: {
+                INDEX: {
+                    name: 'INDEX',
+                    block: 'list_item_index',
+                    shadow: 'list_item_index'
+                }
+            },
+            fields: {
+                LIST: {
+                    name: 'LIST',
+                    value: 'nome visível desatualizado',
+                    id: 'list_samples',
+                    variableType: Variable.LIST_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'list_item_index',
+            'list_item_expression',
+            1
+        )
+    ]);
+
+    const variable = new Variable(
+        'var_score',
+        'pontuação',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = 0;
+    variable.easybloxValueType = 'INTEGER';
+
+    const list = new Variable(
+        'list_samples',
+        'amostras',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = [10, 20];
+    list.easybloxValueType = 'INTEGER';
+    list.easybloxListCapacity = 5;
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable,
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_score',
+                name: 'pontuação',
+                valueType: 'INTEGER',
+                initialValue: {
+                    type: 'IntegerLiteral',
+                    value: 0
+                }
+            }],
+            lists: [{
+                id: 'list_samples',
+                name: 'amostras',
+                itemType: 'INTEGER',
+                capacity: 5,
+                initialValues: [
+                    {
+                        type: 'IntegerLiteral',
+                        value: 10
+                    },
+                    {
+                        type: 'IntegerLiteral',
+                        value: 20
+                    }
+                ]
+            }]
+        },
+        setup: [{
+            type: 'VariableSet',
+            variableId: 'var_score',
+            value: {
+                type: 'ListItemExpression',
+                listId: 'list_samples',
+                index: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ListIndexOfExpression by canonical list id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('set_from_list_index'),
+        {
+            id: 'set_from_list_index',
+            opcode: 'data_setvariableto',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'list_index_expression',
+                    shadow: null
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'destino visível desatualizado',
+                    id: 'var_score',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'list_index_expression',
+            opcode: 'data_itemnumoflist',
+            next: null,
+            parent: 'set_from_list_index',
+            inputs: {
+                ITEM: {
+                    name: 'ITEM',
+                    block: 'list_index_item',
+                    shadow: 'list_index_item'
+                }
+            },
+            fields: {
+                LIST: {
+                    name: 'LIST',
+                    value: 'nome visível desatualizado',
+                    id: 'list_samples',
+                    variableType: Variable.LIST_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'list_index_item',
+            'list_index_expression',
+            20
+        )
+    ]);
+
+    const variable = new Variable(
+        'var_score',
+        'posição',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = 0;
+    variable.easybloxValueType = 'INTEGER';
+
+    const list = new Variable(
+        'list_samples',
+        'amostras',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = [10, 20];
+    list.easybloxValueType = 'INTEGER';
+    list.easybloxListCapacity = 5;
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable,
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_score',
+                name: 'posição',
+                valueType: 'INTEGER',
+                initialValue: {
+                    type: 'IntegerLiteral',
+                    value: 0
+                }
+            }],
+            lists: [{
+                id: 'list_samples',
+                name: 'amostras',
+                itemType: 'INTEGER',
+                capacity: 5,
+                initialValues: [
+                    {
+                        type: 'IntegerLiteral',
+                        value: 10
+                    },
+                    {
+                        type: 'IntegerLiteral',
+                        value: 20
+                    }
+                ]
+            }]
+        },
+        setup: [{
+            type: 'VariableSet',
+            variableId: 'var_score',
+            value: {
+                type: 'ListIndexOfExpression',
+                listId: 'list_samples',
+                item: {
+                    type: 'IntegerLiteral',
+                    value: 20
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ListLengthExpression by canonical list id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('set_from_list_length'),
+        {
+            id: 'set_from_list_length',
+            opcode: 'data_setvariableto',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'list_length_expression',
+                    shadow: null
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'destino visível desatualizado',
+                    id: 'var_score',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'list_length_expression',
+            opcode: 'data_lengthoflist',
+            next: null,
+            parent: 'set_from_list_length',
+            inputs: {},
+            fields: {
+                LIST: {
+                    name: 'LIST',
+                    value: 'nome visível desatualizado',
+                    id: 'list_samples',
+                    variableType: Variable.LIST_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const variable = new Variable(
+        'var_score',
+        'quantidade',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = 0;
+    variable.easybloxValueType = 'INTEGER';
+
+    const list = new Variable(
+        'list_samples',
+        'amostras',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = [10, 20];
+    list.easybloxValueType = 'INTEGER';
+    list.easybloxListCapacity = 5;
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable,
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_score',
+                name: 'quantidade',
+                valueType: 'INTEGER',
+                initialValue: {
+                    type: 'IntegerLiteral',
+                    value: 0
+                }
+            }],
+            lists: [{
+                id: 'list_samples',
+                name: 'amostras',
+                itemType: 'INTEGER',
+                capacity: 5,
+                initialValues: [
+                    {
+                        type: 'IntegerLiteral',
+                        value: 10
+                    },
+                    {
+                        type: 'IntegerLiteral',
+                        value: 20
+                    }
+                ]
+            }]
+        },
+        setup: [{
+            type: 'VariableSet',
+            variableId: 'var_score',
+            value: {
+                type: 'ListLengthExpression',
+                listId: 'list_samples'
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ListContentsExpression by canonical list id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('set_from_list_contents'),
+        {
+            id: 'set_from_list_contents',
+            opcode: 'data_setvariableto',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'list_contents_expression',
+                    shadow: null
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'destino visível desatualizado',
+                    id: 'var_text',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'list_contents_expression',
+            opcode: 'data_listcontents',
+            next: null,
+            parent: 'set_from_list_contents',
+            inputs: {},
+            fields: {
+                LIST: {
+                    name: 'LIST',
+                    value: 'nome visível desatualizado',
+                    id: 'list_names',
+                    variableType: Variable.LIST_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const variable = new Variable(
+        'var_text',
+        'resultado',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = '';
+    variable.easybloxValueType = 'TEXT';
+
+    const list = new Variable(
+        'list_names',
+        'nomes',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = ['Ana', 'Bia'];
+    list.easybloxValueType = 'TEXT';
+    list.easybloxListCapacity = 10;
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable,
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_text',
+                name: 'resultado',
+                valueType: 'TEXT',
+                initialValue: {
+                    type: 'TextLiteral',
+                    value: ''
+                }
+            }],
+            lists: [{
+                id: 'list_names',
+                name: 'nomes',
+                itemType: 'TEXT',
+                capacity: 10,
+                initialValues: [
+                    {
+                        type: 'TextLiteral',
+                        value: 'Ana'
+                    },
+                    {
+                        type: 'TextLiteral',
+                        value: 'Bia'
+                    }
+                ]
+            }]
+        },
+        setup: [{
+            type: 'VariableSet',
+            variableId: 'var_text',
+            value: {
+                type: 'ListContentsExpression',
+                listId: 'list_names'
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ListContainsExpression by canonical list id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('set_from_list_contains'),
+        {
+            id: 'set_from_list_contains',
+            opcode: 'data_setvariableto',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'list_contains_expression',
+                    shadow: null
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'destino visível desatualizado',
+                    id: 'var_found',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'list_contains_expression',
+            opcode: 'data_listcontainsitem',
+            next: null,
+            parent: 'set_from_list_contains',
+            inputs: {
+                ITEM: {
+                    name: 'ITEM',
+                    block: 'list_contains_item',
+                    shadow: 'list_contains_item'
+                }
+            },
+            fields: {
+                LIST: {
+                    name: 'LIST',
+                    value: 'nome visível desatualizado',
+                    id: 'list_samples',
+                    variableType: Variable.LIST_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'list_contains_item',
+            'list_contains_expression',
+            20
+        )
+    ]);
+
+    const variable = new Variable(
+        'var_found',
+        'encontrado',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = false;
+    variable.easybloxValueType = 'BOOLEAN';
+
+    const list = new Variable(
+        'list_samples',
+        'amostras',
+        Variable.LIST_TYPE,
+        false
+    );
+    list.value = [10, 20];
+    list.easybloxValueType = 'INTEGER';
+    list.easybloxListCapacity = 5;
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable,
+        [list.id]: list
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_found',
+                name: 'encontrado',
+                valueType: 'BOOLEAN',
+                initialValue: {
+                    type: 'BooleanLiteral',
+                    value: false
+                }
+            }],
+            lists: [{
+                id: 'list_samples',
+                name: 'amostras',
+                itemType: 'INTEGER',
+                capacity: 5,
+                initialValues: [
+                    {
+                        type: 'IntegerLiteral',
+                        value: 10
+                    },
+                    {
+                        type: 'IntegerLiteral',
+                        value: 20
+                    }
+                ]
+            }]
+        },
+        setup: [{
+            type: 'VariableSet',
+            variableId: 'var_found',
+            value: {
+                type: 'ListContainsExpression',
+                listId: 'list_samples',
+                item: {
+                    type: 'IntegerLiteral',
+                    value: 20
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts My Block definition by canonical definition id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat(),
+        {
+            id: 'procedure_hello',
+            opcode: 'procedures_definition',
+            next: null,
+            parent: null,
+            inputs: {
+                custom_block: {
+                    name: 'custom_block',
+                    block: 'procedure_hello_prototype',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'procedure_hello_prototype',
+            opcode: 'procedures_prototype',
+            next: null,
+            parent: 'procedure_hello',
+            inputs: {},
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'saudação',
+                argumentids: '[]',
+                argumentnames: '[]',
+                argumentdefaults: '[]',
+                easybloxargumenttypes: '[]',
+                warp: 'false'
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        procedures: [{
+            id: 'procedure_hello',
+            name: 'saudação',
+            proccode: 'saudação',
+            parameters: [],
+            body: []
+        }],
+        setup: [],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts typed My Block parameters from prototype metadata', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat(),
+        {
+            id: 'procedure_add_score',
+            opcode: 'procedures_definition',
+            next: null,
+            parent: null,
+            inputs: {
+                custom_block: {
+                    name: 'custom_block',
+                    block: 'procedure_add_score_prototype',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'procedure_add_score_prototype',
+            opcode: 'procedures_prototype',
+            next: null,
+            parent: 'procedure_add_score',
+            inputs: {},
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'somar ao contador %s %b',
+                argumentids: '["arg_amount","arg_enabled"]',
+                argumentnames: '["valor","habilitado"]',
+                argumentdefaults: '["",false]',
+                easybloxargumenttypes: '["INTEGER","BOOLEAN"]',
+                warp: 'false'
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        procedures: [{
+            id: 'procedure_add_score',
+            name: 'somar ao contador',
+            proccode: 'somar ao contador %s %b',
+            parameters: [
+                {
+                    id: 'arg_amount',
+                    name: 'valor',
+                    valueType: 'INTEGER'
+                },
+                {
+                    id: 'arg_enabled',
+                    name: 'habilitado',
+                    valueType: 'BOOLEAN'
+                }
+            ],
+            body: []
+        }],
+        setup: [],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts My Block body from definition next chain', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat(),
+        {
+            id: 'procedure_initialize',
+            opcode: 'procedures_definition',
+            next: 'procedure_set_score',
+            parent: null,
+            inputs: {
+                custom_block: {
+                    name: 'custom_block',
+                    block: 'procedure_initialize_prototype',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'procedure_initialize_prototype',
+            opcode: 'procedures_prototype',
+            next: null,
+            parent: 'procedure_initialize',
+            inputs: {},
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'inicializar contador',
+                argumentids: '[]',
+                argumentnames: '[]',
+                argumentdefaults: '[]',
+                easybloxargumenttypes: '[]',
+                warp: 'false'
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'procedure_set_score',
+            opcode: 'data_setvariableto',
+            next: null,
+            parent: 'procedure_initialize',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'procedure_score_value',
+                    shadow: 'procedure_score_value'
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'nome visível desatualizado',
+                    id: 'var_score',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'procedure_score_value',
+            'procedure_set_score',
+            10
+        )
+    ]);
+
+    const variable = new Variable(
+        'var_score',
+        'pontuação',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = 0;
+    variable.easybloxValueType = 'INTEGER';
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_score',
+                name: 'pontuação',
+                valueType: 'INTEGER',
+                initialValue: {
+                    type: 'IntegerLiteral',
+                    value: 0
+                }
+            }],
+            lists: []
+        },
+        procedures: [{
+            id: 'procedure_initialize',
+            name: 'inicializar contador',
+            proccode: 'inicializar contador',
+            parameters: [],
+            body: [{
+                type: 'VariableSet',
+                variableId: 'var_score',
+                value: {
+                    type: 'IntegerLiteral',
+                    value: 10
+                }
+            }]
+        }],
+        setup: [],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ProcedureCall by canonical definition id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('call_procedure'),
+        {
+            id: 'call_procedure',
+            opcode: 'procedures_call',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'saudação',
+                argumentids: '[]'
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'procedure_hello',
+            opcode: 'procedures_definition',
+            next: null,
+            parent: null,
+            inputs: {
+                custom_block: {
+                    name: 'custom_block',
+                    block: 'procedure_hello_prototype',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'procedure_hello_prototype',
+            opcode: 'procedures_prototype',
+            next: null,
+            parent: 'procedure_hello',
+            inputs: {},
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'saudação',
+                argumentids: '[]',
+                argumentnames: '[]',
+                argumentdefaults: '[]',
+                easybloxargumenttypes: '[]',
+                warp: 'false'
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        procedures: [{
+            id: 'procedure_hello',
+            name: 'saudação',
+            proccode: 'saudação',
+            parameters: [],
+            body: []
+        }],
+        setup: [{
+            type: 'ProcedureCall',
+            procedureId: 'procedure_hello',
+            arguments: []
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ProcedureCall arguments by canonical parameter id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('call_procedure_with_arguments'),
+        {
+            id: 'call_procedure_with_arguments',
+            opcode: 'procedures_call',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                arg_amount: {
+                    name: 'arg_amount',
+                    block: 'call_amount',
+                    shadow: 'call_amount'
+                },
+                arg_bonus: {
+                    name: 'arg_bonus',
+                    block: 'call_bonus',
+                    shadow: 'call_bonus'
+                }
+            },
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'somar valores %s %s',
+                argumentids: '["arg_amount","arg_bonus"]'
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'call_amount',
+            'call_procedure_with_arguments',
+            2
+        ),
+        createNumberShadow(
+            'call_bonus',
+            'call_procedure_with_arguments',
+            3
+        ),
+        {
+            id: 'procedure_add_values',
+            opcode: 'procedures_definition',
+            next: null,
+            parent: null,
+            inputs: {
+                custom_block: {
+                    name: 'custom_block',
+                    block: 'procedure_add_values_prototype',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'procedure_add_values_prototype',
+            opcode: 'procedures_prototype',
+            next: null,
+            parent: 'procedure_add_values',
+            inputs: {},
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'somar valores %s %s',
+                argumentids: '["arg_amount","arg_bonus"]',
+                argumentnames: '["valor","bônus"]',
+                argumentdefaults: '["",""]',
+                easybloxargumenttypes: '["INTEGER","INTEGER"]',
+                warp: 'false'
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        procedures: [{
+            id: 'procedure_add_values',
+            name: 'somar valores',
+            proccode: 'somar valores %s %s',
+            parameters: [
+                {
+                    id: 'arg_amount',
+                    name: 'valor',
+                    valueType: 'INTEGER'
+                },
+                {
+                    id: 'arg_bonus',
+                    name: 'bônus',
+                    valueType: 'INTEGER'
+                }
+            ],
+            body: []
+        }],
+        setup: [{
+            type: 'ProcedureCall',
+            procedureId: 'procedure_add_values',
+            arguments: [
+                {
+                    parameterId: 'arg_amount',
+                    value: {
+                        type: 'IntegerLiteral',
+                        value: 2
+                    }
+                },
+                {
+                    parameterId: 'arg_bonus',
+                    value: {
+                        type: 'IntegerLiteral',
+                        value: 3
+                    }
+                }
+            ]
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resolves string-number procedure argument reporter to canonical parameter id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat(),
+        {
+            id: 'procedure_add_score',
+            opcode: 'procedures_definition',
+            next: 'procedure_change_score',
+            parent: null,
+            inputs: {
+                custom_block: {
+                    name: 'custom_block',
+                    block: 'procedure_add_score_prototype',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'procedure_add_score_prototype',
+            opcode: 'procedures_prototype',
+            next: null,
+            parent: 'procedure_add_score',
+            inputs: {},
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'somar ao contador %s',
+                argumentids: '["arg_amount"]',
+                argumentnames: '["valor"]',
+                argumentdefaults: '[""]',
+                easybloxargumenttypes: '["INTEGER"]',
+                warp: 'false'
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'procedure_change_score',
+            opcode: 'data_changevariableby',
+            next: null,
+            parent: 'procedure_add_score',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'procedure_amount_reporter',
+                    shadow: null
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'nome visível desatualizado',
+                    id: 'var_score',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'procedure_amount_reporter',
+            opcode: 'argument_reporter_string_number',
+            next: null,
+            parent: 'procedure_change_score',
+            inputs: {},
+            fields: {
+                VALUE: {
+                    name: 'VALUE',
+                    value: 'valor'
+                }
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const variable = new Variable(
+        'var_score',
+        'pontuação',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = 0;
+    variable.easybloxValueType = 'INTEGER';
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_score',
+                name: 'pontuação',
+                valueType: 'INTEGER',
+                initialValue: {
+                    type: 'IntegerLiteral',
+                    value: 0
+                }
+            }],
+            lists: []
+        },
+        procedures: [{
+            id: 'procedure_add_score',
+            name: 'somar ao contador',
+            proccode: 'somar ao contador %s',
+            parameters: [{
+                id: 'arg_amount',
+                name: 'valor',
+                valueType: 'INTEGER'
+            }],
+            body: [{
+                type: 'VariableChange',
+                variableId: 'var_score',
+                value: {
+                    type: 'ProcedureArgumentReference',
+                    parameterId: 'arg_amount'
+                }
+            }]
+        }],
+        setup: [],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resolves Boolean procedure argument reporter to canonical parameter id', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat(),
+        {
+            id: 'procedure_set_enabled',
+            opcode: 'procedures_definition',
+            next: 'procedure_set_flag',
+            parent: null,
+            inputs: {
+                custom_block: {
+                    name: 'custom_block',
+                    block: 'procedure_set_enabled_prototype',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'procedure_set_enabled_prototype',
+            opcode: 'procedures_prototype',
+            next: null,
+            parent: 'procedure_set_enabled',
+            inputs: {},
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'definir estado %b',
+                argumentids: '["arg_enabled"]',
+                argumentnames: '["habilitado"]',
+                argumentdefaults: '[false]',
+                easybloxargumenttypes: '["BOOLEAN"]',
+                warp: 'false'
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'procedure_set_flag',
+            opcode: 'data_setvariableto',
+            next: null,
+            parent: 'procedure_set_enabled',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'procedure_enabled_reporter',
+                    shadow: null
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'estado visível',
+                    id: 'var_enabled',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'procedure_enabled_reporter',
+            opcode: 'argument_reporter_boolean',
+            next: null,
+            parent: 'procedure_set_flag',
+            inputs: {},
+            fields: {
+                VALUE: {
+                    name: 'VALUE',
+                    value: 'habilitado'
+                }
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const variable = new Variable(
+        'var_enabled',
+        'estado',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = false;
+    variable.easybloxValueType = 'BOOLEAN';
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(extractor.extract(), {
+        globals: {
+            variables: [{
+                id: 'var_enabled',
+                name: 'estado',
+                valueType: 'BOOLEAN',
+                initialValue: {
+                    type: 'BooleanLiteral',
+                    value: false
+                }
+            }],
+            lists: []
+        },
+        procedures: [{
+            id: 'procedure_set_enabled',
+            name: 'definir estado',
+            proccode: 'definir estado %b',
+            parameters: [{
+                id: 'arg_enabled',
+                name: 'habilitado',
+                valueType: 'BOOLEAN'
+            }],
+            body: [{
+                type: 'VariableSet',
+                variableId: 'var_enabled',
+                value: {
+                    type: 'ProcedureArgumentReference',
+                    parameterId: 'arg_enabled'
+                }
+            }]
+        }],
+        setup: [],
+        loop: []
+    });
 
     t.end();
 });
