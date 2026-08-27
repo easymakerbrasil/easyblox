@@ -33,7 +33,7 @@ describe('filterVariableCategoryForProgramMode', () => {
         expect(getBlockExecutionMode).not.toHaveBeenCalled();
     });
 
-    test('removes list creation and Stage-only list blocks in Upload mode', () => {
+    test('keeps Upload-compatible variables and lists while removing Stage-only monitors', () => {
         const createVariableButton = createElement(
             'button',
             {callbackKey: 'CREATE_VARIABLE'}
@@ -45,6 +45,10 @@ describe('filterVariableCategoryForProgramMode', () => {
         const setVariable = createElement(
             'block',
             {type: 'data_setvariableto'}
+        );
+        const showVariable = createElement(
+            'block',
+            {type: 'data_showvariable'}
         );
         const createListButton = createElement(
             'button',
@@ -58,20 +62,24 @@ describe('filterVariableCategoryForProgramMode', () => {
             'block',
             {type: 'data_addtolist'}
         );
+        const listLength = createElement(
+            'block',
+            {type: 'data_lengthoflist'}
+        );
+        const showList = createElement(
+            'block',
+            {type: 'data_showlist'}
+        );
 
         const getBlockExecutionMode = jest.fn(blockType => {
             if (
-                blockType === 'data_listcontents' ||
-                blockType === 'data_addtolist'
+                blockType === 'data_showvariable' ||
+                blockType === 'data_showlist'
             ) {
                 return 'stage';
             }
 
-            if (blockType === 'data_setvariableto') {
-                return 'both';
-            }
-
-            return null;
+            return 'both';
         });
 
         const result = filterVariableCategoryForProgramMode(
@@ -79,9 +87,12 @@ describe('filterVariableCategoryForProgramMode', () => {
                 createVariableButton,
                 scalarReporter,
                 setVariable,
+                showVariable,
                 createListButton,
                 listReporter,
-                addToList
+                addToList,
+                listLength,
+                showList
             ],
             'upload',
             getBlockExecutionMode
@@ -90,7 +101,11 @@ describe('filterVariableCategoryForProgramMode', () => {
         expect(result).toEqual([
             createVariableButton,
             scalarReporter,
-            setVariable
+            setVariable,
+            createListButton,
+            listReporter,
+            addToList,
+            listLength
         ]);
 
         expect(getBlockExecutionMode)
@@ -98,8 +113,14 @@ describe('filterVariableCategoryForProgramMode', () => {
         expect(getBlockExecutionMode)
             .toHaveBeenCalledWith('data_setvariableto');
         expect(getBlockExecutionMode)
+            .toHaveBeenCalledWith('data_showvariable');
+        expect(getBlockExecutionMode)
             .toHaveBeenCalledWith('data_listcontents');
         expect(getBlockExecutionMode)
             .toHaveBeenCalledWith('data_addtolist');
+        expect(getBlockExecutionMode)
+            .toHaveBeenCalledWith('data_lengthoflist');
+        expect(getBlockExecutionMode)
+            .toHaveBeenCalledWith('data_showlist');
     });
 });

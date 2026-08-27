@@ -1,6 +1,9 @@
 const InternalIdentifierAllocator =
     require('./internal-identifier-allocator');
 
+const VALUE_TYPES =
+    require('./upload-type-validator').VALUE_TYPES;
+
 const ArduinoUnoBoardProfile =
     require('./board-profiles/arduino-uno-board-profile');
 
@@ -17,67 +20,112 @@ class ArduinoUnoGenerator {
         const setupStatements = Array.isArray(ir.setup) ? ir.setup : [];
         const loopStatements = Array.isArray(ir.loop) ? ir.loop : [];
 
+        const globals =
+            ir && ir.globals && typeof ir.globals === 'object' ?
+                ir.globals :
+                {};
+
+        const variables = Array.isArray(globals.variables) ?
+            globals.variables :
+            [];
+
+        const lists = Array.isArray(globals.lists) ?
+            globals.lists :
+            [];
+
+        const procedures = Array.isArray(ir.procedures) ?
+            ir.procedures :
+            [];
+
+        const reservedIdentifiers = this._initializeDataSymbols(
+            variables,
+            lists,
+            procedures
+        );
+
+        const procedureStatements = [];
+
+        for (const procedure of procedures) {
+            procedureStatements.push(
+                ...(
+                    Array.isArray(procedure.body) ?
+                        procedure.body :
+                        []
+                )
+            );
+        }
+
+        /*
+        * Hardware/dependency analysis must also see code inside My Blocks.
+        */
+        const analysisSetupStatements = setupStatements.concat(
+            procedureStatements
+        );
+
         const motorConfigurations = this._collectMotorConfigurations(
-            setupStatements,
+            analysisSetupStatements,
             loopStatements
         );
 
         const usesTimer = this._usesTimer(
-            setupStatements,
+            analysisSetupStatements,
             loopStatements
         );
 
         const usesUnicodeLetterOf = this._usesUnicodeLetterOf(
-            setupStatements,
+            analysisSetupStatements,
             loopStatements
         );
 
         const usesStringContainsIgnoreCase =
             this._usesStringContainsIgnoreCase(
-                setupStatements,
+                analysisSetupStatements,
                 loopStatements
             );
 
         const usesScratchMod = this._programUsesExpressionOperator(
-            setupStatements,
+            analysisSetupStatements,
             loopStatements,
             'Mod'
         );
 
         const usesScratchRandom = this._programUsesExpressionOperator(
-            setupStatements,
+            analysisSetupStatements,
             loopStatements,
             'Random'
         );
 
         const usesUnicodeStringLength = (
             this._usesUnicodeStringLength(
-                setupStatements,
+                analysisSetupStatements,
                 loopStatements
             ) ||
-            usesUnicodeLetterOf
+            usesUnicodeLetterOf ||
+            lists.length > 0
         );
 
         const inputPins = this._collectInputPins(
-            setupStatements,
+            analysisSetupStatements,
             loopStatements
         );
 
         const outputPins = this._collectOutputPins(
-            setupStatements,
+            analysisSetupStatements,
             loopStatements
         );
 
         const servoPins = this._collectServoPins(
-            setupStatements,
+            analysisSetupStatements,
             loopStatements
         );
 
         /*
-         * A fresh allocator per generation guarantees deterministic output.
-         * Future user-defined identifiers can be supplied as reserved names.
-         */
-        const identifiers = new InternalIdentifierAllocator();
+        * Internal temporary identifiers must never collide with normalized
+        * identifiers defined by the student.
+        */
+        const identifiers = new InternalIdentifierAllocator(
+            reservedIdentifiers
+        );
 
         const lines = [];
 
@@ -112,6 +160,17 @@ class ArduinoUnoGenerator {
                 ''
             );
         }
+
+        this._generateDataGlobals(
+            variables,
+            lists,
+            lines
+        );
+
+        this._generateProcedurePrototypes(
+            procedures,
+            lines
+        );
 
         if (usesUnicodeStringLength) {
             lines.push(
@@ -292,6 +351,16 @@ class ArduinoUnoGenerator {
                 ''
             );
         }
+
+        if (lists.length > 0) {
+            this._generateListRuntimeHelpers(lines);
+        }
+
+        this._generateProcedureDefinitions(
+            procedures,
+            identifiers,
+            lines
+        );
 
         lines.push('void setup() {');
 
@@ -1322,6 +1391,555 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Initialize deterministic C++ identifiers for user-defined data symbols.
+     * @param {Array<object>} variables Variable declarations.
+     * @param {Array<object>} lists List declarations.
+     * @param {Array<object>} procedures Procedure declarations.
+     * @returns {Array<string>} Identifiers reserved from internal allocation.
+     * @private
+     */
+    _initializeDataSymbols (variables, lists, procedures) {
+        this._variablesById = new Map();
+        this._listsById = new Map();
+        this._proceduresById = new Map();
+        this._currentProcedureParameterIdentifiers = null;
+
+        const globalUsed = this._createCppReservedIdentifierSet();
+        const reservedForInternals = new Set(globalUsed);
+
+        for (const variable of variables) {
+            const identifier = this._allocateUserCppIdentifier(
+                variable.name,
+                'variable',
+                globalUsed
+            );
+
+            reservedForInternals.add(identifier);
+
+            this._variablesById.set(variable.id, {
+                declaration: variable,
+                identifier
+            });
+        }
+
+        for (const list of lists) {
+            const identifier = this._allocateUserCppIdentifier(
+                list.name,
+                'lista',
+                globalUsed
+            );
+
+            const lengthIdentifier = this._allocateUserCppIdentifier(
+                `${identifier}_length`,
+                'list_length',
+                globalUsed
+            );
+
+            reservedForInternals.add(identifier);
+            reservedForInternals.add(lengthIdentifier);
+
+            this._listsById.set(list.id, {
+                declaration: list,
+                identifier,
+                lengthIdentifier
+            });
+        }
+
+        for (const procedure of procedures) {
+            const identifier = this._allocateUserCppIdentifier(
+                procedure.name,
+                'procedimento',
+                globalUsed
+            );
+
+            reservedForInternals.add(identifier);
+
+            const parameterIdentifiers = new Map();
+            const localUsed = new Set(globalUsed);
+
+            for (
+                const parameter of
+                Array.isArray(procedure.parameters) ?
+                    procedure.parameters :
+                    []
+            ) {
+                const parameterIdentifier =
+                    this._allocateUserCppIdentifier(
+                        parameter.name,
+                        'argumento',
+                        localUsed
+                    );
+
+                parameterIdentifiers.set(
+                    parameter.id,
+                    parameterIdentifier
+                );
+
+                reservedForInternals.add(parameterIdentifier);
+            }
+
+            this._proceduresById.set(procedure.id, {
+                declaration: procedure,
+                identifier,
+                parameterIdentifiers
+            });
+        }
+
+        return Array.from(reservedForInternals);
+    }
+
+    /**
+     * Build the set of C++/Arduino identifiers unavailable to student symbols.
+     * @returns {Set<string>} Reserved identifiers.
+     * @private
+     */
+    _createCppReservedIdentifierSet () {
+        const keywords = (
+            'alignas alignof and and_eq asm atomic_cancel atomic_commit ' +
+            'atomic_noexcept auto bitand bitor bool break case catch char ' +
+            'char8_t char16_t char32_t class compl concept const consteval ' +
+            'constexpr constinit const_cast continue co_await co_return ' +
+            'co_yield decltype default delete do double dynamic_cast else ' +
+            'enum explicit export extern false float for friend goto if ' +
+            'inline int long mutable namespace new noexcept not not_eq ' +
+            'nullptr operator or or_eq private protected public reflexpr ' +
+            'register reinterpret_cast requires return short signed sizeof ' +
+            'static static_assert static_cast struct switch synchronized ' +
+            'template this thread_local throw true try typedef typeid ' +
+            'typename union unsigned using virtual void volatile wchar_t ' +
+            'while xor xor_eq'
+        ).split(' ');
+
+        const reserved = new Set(keywords);
+
+        [
+            'setup',
+            'loop',
+            'Serial',
+            'String',
+            'PI',
+            'HIGH',
+            'LOW',
+            'INPUT',
+            'OUTPUT',
+            'unicodeStringLength',
+            'unicodeLetterOf',
+            'unicodeLatin1ToLower',
+            'stringContainsIgnoreCase',
+            'scratchMod',
+            'scratchRandom',
+            'easybloxScratchListIndex',
+            'easybloxListItem',
+            'easybloxListIndexOf',
+            'easybloxListContains',
+            'easybloxListContents',
+            'easybloxListValuesEqual',
+            'easybloxListItemText'
+        ].forEach(identifier => reserved.add(identifier));
+
+        for (let pin = 0; pin <= 19; pin++) {
+            reserved.add(`servo${pin}`);
+        }
+
+        for (let motor = 1; motor <= 2; motor++) {
+            reserved.add(`MOTOR${motor}_IN1`);
+            reserved.add(`MOTOR${motor}_IN2`);
+            reserved.add(`MOTOR${motor}_PWM`);
+        }
+
+        return reserved;
+    }
+
+    /**
+     * Normalize and allocate one deterministic user-facing C++ identifier.
+     * @param {*} rawName Pedagogical visible name.
+     * @param {string} fallback Safe fallback base.
+     * @param {Set<string>} used Identifiers already occupied in this scope.
+     * @returns {string} Unique C++ identifier.
+     * @private
+     */
+    _allocateUserCppIdentifier (rawName, fallback, used) {
+        let base = String(rawName || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^A-Za-z0-9_]+/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_+|_+$/g, '');
+
+        if (!base) {
+            base = fallback;
+        }
+
+        if (/^[0-9]/.test(base)) {
+            base = `${fallback}_${base}`;
+        }
+
+        if (base.toLowerCase().startsWith('easyblox_')) {
+            base = `user_${base}`;
+        }
+
+        let identifier = base;
+        let suffix = 2;
+
+        while (used.has(identifier)) {
+            identifier = `${base}_${suffix}`;
+            suffix++;
+        }
+
+        used.add(identifier);
+
+        return identifier;
+    }
+
+    /**
+     * Convert a pedagogical type into the Arduino C++ backend type.
+     * @param {string} valueType EasyBlox pedagogical type.
+     * @returns {string} C++ type.
+     * @private
+     */
+    _generateCppType (valueType) {
+        switch (valueType) {
+        case VALUE_TYPES.INTEGER:
+            return 'long';
+
+        case VALUE_TYPES.DECIMAL:
+            return 'float';
+
+        case VALUE_TYPES.TEXT:
+            return 'String';
+
+        case VALUE_TYPES.BOOLEAN:
+            return 'bool';
+
+        default:
+            throw new Error(
+                `Unsupported Arduino UNO value type: ${valueType}`
+            );
+        }
+    }
+
+    /**
+     * Emit global variable and fixed-capacity list declarations.
+     * @param {Array<object>} variables Variable declarations.
+     * @param {Array<object>} lists List declarations.
+     * @param {Array<string>} lines Destination source lines.
+     * @private
+     */
+    _generateDataGlobals (variables, lists, lines) {
+        let emitted = false;
+
+        for (const variable of variables) {
+            const info = this._getVariableGeneratorInfo(variable.id);
+
+            lines.push(
+                `${this._generateCppType(variable.valueType)} ` +
+                `${info.identifier} = ` +
+                `${this._generateExpression(variable.initialValue)};`
+            );
+
+            emitted = true;
+        }
+
+        for (const list of lists) {
+            const info = this._getListGeneratorInfo(list.id);
+
+            const initialValues = Array.isArray(list.initialValues) ?
+                list.initialValues :
+                [];
+
+            const generatedInitialValues = initialValues.map(value =>
+                this._generateExpression(value)
+            );
+
+            let declaration =
+                `${this._generateCppType(list.itemType)} ` +
+                `${info.identifier}[${list.capacity}]`;
+
+            if (generatedInitialValues.length > 0) {
+                declaration += ` = {${generatedInitialValues.join(', ')}}`;
+            }
+
+            declaration += ';';
+
+            lines.push(
+                declaration,
+                `size_t ${info.lengthIdentifier} = ${initialValues.length};`
+            );
+
+            emitted = true;
+        }
+
+        if (emitted) {
+            lines.push('');
+        }
+    }
+
+    /**
+     * Emit forward declarations for all My Blocks.
+     * @param {Array<object>} procedures Procedure declarations.
+     * @param {Array<string>} lines Destination source lines.
+     * @private
+     */
+    _generateProcedurePrototypes (procedures, lines) {
+        if (procedures.length === 0) {
+            return;
+        }
+
+        for (const procedure of procedures) {
+            lines.push(
+                `${this._generateProcedureSignature(procedure)};`
+            );
+        }
+
+        lines.push('');
+    }
+
+    /**
+     * Emit complete C++ functions for My Blocks.
+     * @param {Array<object>} procedures Procedure declarations.
+     * @param {InternalIdentifierAllocator} identifiers Internal allocator.
+     * @param {Array<string>} lines Destination source lines.
+     * @private
+     */
+    _generateProcedureDefinitions (
+        procedures,
+        identifiers,
+        lines
+    ) {
+        for (const procedure of procedures) {
+            const info = this._getProcedureGeneratorInfo(
+                procedure.id
+            );
+
+            const previousParameters =
+                this._currentProcedureParameterIdentifiers;
+
+            this._currentProcedureParameterIdentifiers =
+                info.parameterIdentifiers;
+
+            lines.push(
+                `${this._generateProcedureSignature(procedure)} {`
+            );
+
+            try {
+                this._generateStatements(
+                    Array.isArray(procedure.body) ?
+                        procedure.body :
+                        [],
+                    1,
+                    identifiers,
+                    lines
+                );
+            } finally {
+                this._currentProcedureParameterIdentifiers =
+                    previousParameters;
+            }
+
+            lines.push(
+                '}',
+                ''
+            );
+        }
+    }
+
+    /**
+     * Generate one My Blocks C++ function signature.
+     * @param {object} procedure Procedure declaration.
+     * @returns {string} C++ function signature.
+     * @private
+     */
+    _generateProcedureSignature (procedure) {
+        const info = this._getProcedureGeneratorInfo(
+            procedure.id
+        );
+
+        const parameters = (
+            Array.isArray(procedure.parameters) ?
+                procedure.parameters :
+                []
+        ).map(parameter => {
+            const parameterIdentifier =
+                info.parameterIdentifiers.get(parameter.id);
+
+            return (
+                `${this._generateCppType(parameter.valueType)} ` +
+                `${parameterIdentifier}`
+            );
+        });
+
+        return `void ${info.identifier}(${parameters.join(', ')})`;
+    }
+
+    /**
+     * Emit helpers shared by fixed-capacity typed lists.
+     * @param {Array<string>} lines Destination source lines.
+     * @private
+     */
+    _generateListRuntimeHelpers (lines) {
+        lines.push(
+            'long easybloxScratchListIndex(double index) {',
+            '    return static_cast<long>(index);',
+            '}',
+            '',
+            'template <typename T>',
+            'T easybloxListItem(const T *list, size_t length, double index) {',
+            '    const long scratchIndex = easybloxScratchListIndex(index);',
+            '',
+            '    if (',
+            '        scratchIndex < 1 ||',
+            '        scratchIndex > static_cast<long>(length)',
+            '    ) {',
+            '        return T();',
+            '    }',
+            '',
+            '    return list[scratchIndex - 1];',
+            '}',
+            '',
+            'template <typename A, typename B>',
+            'bool easybloxListValuesEqual(const A &left, const B &right) {',
+            '    return left == right;',
+            '}',
+            '',
+            'bool easybloxListValuesEqual(const String &left, const String &right) {',
+            '    return left.equalsIgnoreCase(right);',
+            '}',
+            '',
+            'template <typename T, typename U>',
+            'long easybloxListIndexOf(',
+            '    const T *list,',
+            '    size_t length,',
+            '    const U &item',
+            ') {',
+            '    for (size_t index = 0; index < length; ++index) {',
+            '        if (easybloxListValuesEqual(list[index], item)) {',
+            '            return static_cast<long>(index) + 1;',
+            '        }',
+            '    }',
+            '',
+            '    return 0;',
+            '}',
+            '',
+            'template <typename T, typename U>',
+            'bool easybloxListContains(',
+            '    const T *list,',
+            '    size_t length,',
+            '    const U &item',
+            ') {',
+            '    return easybloxListIndexOf(list, length, item) != 0;',
+            '}',
+            '',
+            'template <typename T>',
+            'String easybloxListItemText(const T &value) {',
+            '    return String(value);',
+            '}',
+            '',
+            'String easybloxListItemText(const bool &value) {',
+            '    return value ? "true" : "false";',
+            '}',
+            '',
+            'String easybloxListItemText(const String &value) {',
+            '    return value;',
+            '}',
+            '',
+            'template <typename T>',
+            'String easybloxListContents(const T *list, size_t length) {',
+            '    String result;',
+            '',
+            '    for (size_t index = 0; index < length; ++index) {',
+            '        if (index > 0) {',
+            '            result += " ";',
+            '        }',
+            '',
+            '        result += easybloxListItemText(list[index]);',
+            '    }',
+            '',
+            '    return result;',
+            '}',
+            '',
+            'String easybloxListContents(const String *list, size_t length) {',
+            '    bool allSingleLetters = true;',
+            '',
+            '    for (size_t index = 0; index < length; ++index) {',
+            '        if (unicodeStringLength(list[index]) != 1) {',
+            '            allSingleLetters = false;',
+            '            break;',
+            '        }',
+            '    }',
+            '',
+            '    String result;',
+            '',
+            '    for (size_t index = 0; index < length; ++index) {',
+            '        if (!allSingleLetters && index > 0) {',
+            '            result += " ";',
+            '        }',
+            '',
+            '        result += list[index];',
+            '    }',
+            '',
+            '    return result;',
+            '}',
+            ''
+        );
+    }
+
+    /**
+     * Resolve generated variable metadata.
+     * @param {string} variableId Variable ID.
+     * @returns {object} Generator metadata.
+     * @private
+     */
+    _getVariableGeneratorInfo (variableId) {
+        if (
+            !this._variablesById ||
+            !this._variablesById.has(variableId)
+        ) {
+            throw new Error(
+                `Unknown Arduino UNO generator variable: ${variableId}`
+            );
+        }
+
+        return this._variablesById.get(variableId);
+    }
+
+    /**
+     * Resolve generated list metadata.
+     * @param {string} listId List ID.
+     * @returns {object} Generator metadata.
+     * @private
+     */
+    _getListGeneratorInfo (listId) {
+        if (
+            !this._listsById ||
+            !this._listsById.has(listId)
+        ) {
+            throw new Error(
+                `Unknown Arduino UNO generator list: ${listId}`
+            );
+        }
+
+        return this._listsById.get(listId);
+    }
+
+    /**
+     * Resolve generated procedure metadata.
+     * @param {string} procedureId Procedure ID.
+     * @returns {object} Generator metadata.
+     * @private
+     */
+    _getProcedureGeneratorInfo (procedureId) {
+        if (
+            !this._proceduresById ||
+            !this._proceduresById.has(procedureId)
+        ) {
+            throw new Error(
+                `Unknown Arduino UNO generator procedure: ${procedureId}`
+            );
+        }
+
+        return this._proceduresById.get(procedureId);
+    }
+
+    /**
      * Generate structured Arduino C++ statements recursively.
      * @param {Array<object>} statements Semantic IR statements.
      * @param {number} indentLevel Current indentation depth.
@@ -1453,6 +2071,256 @@ class ArduinoUnoGenerator {
                     `${indent}Serial.begin(${statement.baud});`
                 );
                 break;
+
+            case 'VariableSet': {
+                const variable = this._getVariableGeneratorInfo(
+                    statement.variableId
+                );
+
+                lines.push(
+                    `${indent}${variable.identifier} = ${
+                        this._generateExpression(statement.value)
+                    };`
+                );
+
+                break;
+            }
+
+            case 'VariableChange': {
+                const variable = this._getVariableGeneratorInfo(
+                    statement.variableId
+                );
+
+                lines.push(
+                    `${indent}${variable.identifier} += ${
+                        this._generateExpression(statement.value)
+                    };`
+                );
+
+                break;
+            }
+
+            case 'ListAdd': {
+                const list = this._getListGeneratorInfo(
+                    statement.listId
+                );
+
+                const item = this._generateExpression(
+                    statement.item
+                );
+
+                lines.push(
+                    `${indent}if (${list.lengthIdentifier} < ${
+                        list.declaration.capacity
+                    }) {`,
+                    `${indent}    ${list.identifier}[${
+                        list.lengthIdentifier
+                    }] = ${item};`,
+                    `${indent}    ++${list.lengthIdentifier};`,
+                    `${indent}}`
+                );
+
+                break;
+            }
+
+            case 'ListInsert': {
+                const list = this._getListGeneratorInfo(
+                    statement.listId
+                );
+
+                const indexIdentifier = identifiers.allocate(
+                    'listIndex'
+                );
+
+                const shiftIdentifier = identifiers.allocate(
+                    'listShift'
+                );
+
+                const index = this._generateExpression(
+                    statement.index
+                );
+
+                const item = this._generateExpression(
+                    statement.item
+                );
+
+                lines.push(
+                    `${indent}{`,
+                    `${indent}    long ${indexIdentifier} = ` +
+                    `easybloxScratchListIndex(${index});`,
+                    `${indent}    if (`,
+                    `${indent}        ${list.lengthIdentifier} < ${
+                        list.declaration.capacity
+                    } &&`,
+                    `${indent}        ${indexIdentifier} >= 1 &&`,
+                    `${indent}        ${indexIdentifier} <= ` +
+                    `static_cast<long>(${list.lengthIdentifier}) + 1`,
+                    `${indent}    ) {`,
+                    `${indent}        for (`,
+                    `${indent}            size_t ${shiftIdentifier} = ${
+                        list.lengthIdentifier
+                    };`,
+                    `${indent}            ${shiftIdentifier} > ` +
+                    `static_cast<size_t>(${indexIdentifier} - 1);`,
+                    `${indent}            --${shiftIdentifier}`,
+                    `${indent}        ) {`,
+                    `${indent}            ${list.identifier}[${
+                        shiftIdentifier
+                    }] = ${list.identifier}[${shiftIdentifier} - 1];`,
+                    `${indent}        }`,
+                    `${indent}        ${list.identifier}[${
+                        indexIdentifier
+                    } - 1] = ${item};`,
+                    `${indent}        ++${list.lengthIdentifier};`,
+                    `${indent}    }`,
+                    `${indent}}`
+                );
+
+                break;
+            }
+
+            case 'ListReplace': {
+                const list = this._getListGeneratorInfo(
+                    statement.listId
+                );
+
+                const indexIdentifier = identifiers.allocate(
+                    'listIndex'
+                );
+
+                const index = this._generateExpression(
+                    statement.index
+                );
+
+                const item = this._generateExpression(
+                    statement.item
+                );
+
+                lines.push(
+                    `${indent}{`,
+                    `${indent}    long ${indexIdentifier} = ` +
+                    `easybloxScratchListIndex(${index});`,
+                    `${indent}    if (`,
+                    `${indent}        ${indexIdentifier} >= 1 &&`,
+                    `${indent}        ${indexIdentifier} <= ` +
+                    `static_cast<long>(${list.lengthIdentifier})`,
+                    `${indent}    ) {`,
+                    `${indent}        ${list.identifier}[${
+                        indexIdentifier
+                    } - 1] = ${item};`,
+                    `${indent}    }`,
+                    `${indent}}`
+                );
+
+                break;
+            }
+
+            case 'ListDelete': {
+                const list = this._getListGeneratorInfo(
+                    statement.listId
+                );
+
+                const indexIdentifier = identifiers.allocate(
+                    'listIndex'
+                );
+
+                const shiftIdentifier = identifiers.allocate(
+                    'listShift'
+                );
+
+                const index = this._generateExpression(
+                    statement.index
+                );
+
+                lines.push(
+                    `${indent}{`,
+                    `${indent}    long ${indexIdentifier} = ` +
+                    `easybloxScratchListIndex(${index});`,
+                    `${indent}    if (`,
+                    `${indent}        ${indexIdentifier} >= 1 &&`,
+                    `${indent}        ${indexIdentifier} <= ` +
+                    `static_cast<long>(${list.lengthIdentifier})`,
+                    `${indent}    ) {`,
+                    `${indent}        for (`,
+                    `${indent}            size_t ${shiftIdentifier} = ` +
+                    `static_cast<size_t>(${indexIdentifier} - 1);`,
+                    `${indent}            ${shiftIdentifier} + 1 < ${
+                        list.lengthIdentifier
+                    };`,
+                    `${indent}            ++${shiftIdentifier}`,
+                    `${indent}        ) {`,
+                    `${indent}            ${list.identifier}[${
+                        shiftIdentifier
+                    }] = ${list.identifier}[${shiftIdentifier} + 1];`,
+                    `${indent}        }`,
+                    `${indent}        --${list.lengthIdentifier};`,
+                    `${indent}    }`,
+                    `${indent}}`
+                );
+
+                break;
+            }
+
+            case 'ListDeleteAll': {
+                const list = this._getListGeneratorInfo(
+                    statement.listId
+                );
+
+                lines.push(
+                    `${indent}${list.lengthIdentifier} = 0;`
+                );
+
+                break;
+            }
+
+            case 'ProcedureCall': {
+                const procedure = this._getProcedureGeneratorInfo(
+                    statement.procedureId
+                );
+
+                const argumentsByParameterId = new Map();
+
+                for (
+                    const argument of
+                    Array.isArray(statement.arguments) ?
+                        statement.arguments :
+                        []
+                ) {
+                    argumentsByParameterId.set(
+                        argument.parameterId,
+                        argument
+                    );
+                }
+
+                const generatedArguments = (
+                    Array.isArray(procedure.declaration.parameters) ?
+                        procedure.declaration.parameters :
+                        []
+                ).map(parameter => {
+                    const argument = argumentsByParameterId.get(
+                        parameter.id
+                    );
+
+                    if (!argument) {
+                        throw new Error(
+                            `Missing Arduino UNO procedure argument: ${
+                                parameter.id
+                            }`
+                        );
+                    }
+
+                    return this._generateExpression(
+                        argument.value
+                    );
+                });
+
+                lines.push(
+                    `${indent}${procedure.identifier}(` +
+                    `${generatedArguments.join(', ')});`
+                );
+
+                break;
+            }
 
             case 'SerialWrite':
                 lines.push(
@@ -1727,6 +2595,82 @@ class ArduinoUnoGenerator {
         case 'TimerReadExpression':
             return '((millis() - easyblox_timer_reset_at) / 1000.0)';
 
+        case 'VariableReference':
+            return this._getVariableGeneratorInfo(
+                expression.variableId
+            ).identifier;
+
+        case 'ProcedureArgumentReference': {
+            if (
+                !this._currentProcedureParameterIdentifiers ||
+                !this._currentProcedureParameterIdentifiers.has(
+                    expression.parameterId
+                )
+            ) {
+                throw new Error(
+                    `Unknown Arduino UNO procedure argument: ${
+                        expression.parameterId
+                    }`
+                );
+            }
+
+            return this._currentProcedureParameterIdentifiers.get(
+                expression.parameterId
+            );
+        }
+
+        case 'ListItemExpression': {
+            const list = this._getListGeneratorInfo(
+                expression.listId
+            );
+
+            return `easybloxListItem(` +
+                `${list.identifier}, ` +
+                `${list.lengthIdentifier}, ` +
+                `${this._generateExpression(expression.index)}` +
+                `)`;
+        }
+
+        case 'ListIndexOfExpression': {
+            const list = this._getListGeneratorInfo(
+                expression.listId
+            );
+
+            return `easybloxListIndexOf(` +
+                `${list.identifier}, ` +
+                `${list.lengthIdentifier}, ` +
+                `${this._generateExpression(expression.item)}` +
+                `)`;
+        }
+
+        case 'ListLengthExpression':
+            return this._getListGeneratorInfo(
+                expression.listId
+            ).lengthIdentifier;
+
+        case 'ListContainsExpression': {
+            const list = this._getListGeneratorInfo(
+                expression.listId
+            );
+
+            return `easybloxListContains(` +
+                `${list.identifier}, ` +
+                `${list.lengthIdentifier}, ` +
+                `${this._generateExpression(expression.item)}` +
+                `)`;
+        }
+
+        case 'ListContentsExpression': {
+            const list = this._getListGeneratorInfo(
+                expression.listId
+            );
+
+            return `easybloxListContents(` +
+                `${list.identifier}, ` +
+                `${list.lengthIdentifier}` +
+                `)`;
+        }
+
         case 'BinaryExpression': {
             const left = this._generateExpression(expression.left);
             const right = this._generateExpression(expression.right);
@@ -1912,9 +2856,56 @@ class ArduinoUnoGenerator {
 
         if (
             expression.type === 'BooleanLiteral' ||
-            expression.type === 'DigitalReadExpression'
+            expression.type === 'DigitalReadExpression' ||
+            expression.type === 'ListContainsExpression'
         ) {
             return true;
+        }
+
+        if (expression.type === 'VariableReference') {
+            const variable = this._getVariableGeneratorInfo(
+                expression.variableId
+            );
+
+            return (
+                variable.declaration.valueType ===
+                VALUE_TYPES.BOOLEAN
+            );
+        }
+
+        if (expression.type === 'ListItemExpression') {
+            const list = this._getListGeneratorInfo(
+                expression.listId
+            );
+
+            return (
+                list.declaration.itemType ===
+                VALUE_TYPES.BOOLEAN
+            );
+        }
+
+        if (
+            expression.type === 'ProcedureArgumentReference' &&
+            this._currentProcedureParameterIdentifiers
+        ) {
+            /*
+            * Argument type is resolved from the active procedure declaration.
+            */
+            for (const procedure of this._proceduresById.values()) {
+                for (
+                    const parameter of
+                    Array.isArray(procedure.declaration.parameters) ?
+                        procedure.declaration.parameters :
+                        []
+                ) {
+                    if (
+                        parameter.id === expression.parameterId &&
+                        parameter.valueType === VALUE_TYPES.BOOLEAN
+                    ) {
+                        return true;
+                    }
+                }
+            }
         }
 
         if (expression.type === 'BinaryExpression') {

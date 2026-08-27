@@ -1512,16 +1512,10 @@ class Runtime extends EventEmitter {
             return BlockExecutionMode.BOTH;
         }
 
-        const bothModeVariableBlocks = new Set([
+        const bothModeDataBlocks = new Set([
+            'data_variable',
             'data_setvariableto',
-            'data_changevariableby'
-        ]);
-
-        if (bothModeVariableBlocks.has(blockType)) {
-            return BlockExecutionMode.BOTH;
-        }
-
-        const stageOnlyListBlocks = new Set([
+            'data_changevariableby',
             'data_listcontents',
             'data_addtolist',
             'data_deleteoflist',
@@ -1531,13 +1525,31 @@ class Runtime extends EventEmitter {
             'data_itemoflist',
             'data_itemnumoflist',
             'data_lengthoflist',
-            'data_listcontainsitem',
-            'data_hidelist',
-            'data_showlist'
+            'data_listcontainsitem'
         ]);
 
-        if (stageOnlyListBlocks.has(blockType)) {
+        if (bothModeDataBlocks.has(blockType)) {
+            return BlockExecutionMode.BOTH;
+        }
+
+        const stageOnlyDataMonitorBlocks = new Set([
+            'data_showvariable',
+            'data_hidevariable',
+            'data_showlist',
+            'data_hidelist'
+        ]);
+
+        if (stageOnlyDataMonitorBlocks.has(blockType)) {
             return BlockExecutionMode.STAGE_ONLY;
+        }
+
+        const bothModeProcedureArgumentBlocks = new Set([
+            'argument_reporter_string_number',
+            'argument_reporter_boolean'
+        ]);
+
+        if (bothModeProcedureArgumentBlocks.has(blockType)) {
+            return BlockExecutionMode.BOTH;
         }
 
         return null;

@@ -11434,3 +11434,471 @@ tap.test('Arduino UNO generator infers OUTPUT pinMode inside both IfElse branche
 
     t.end();
 });
+
+const createTypedDataProcedureIrFixture = () => {
+    const types = UploadTypeValidator.VALUE_TYPES;
+
+    return {
+        globals: {
+            variables: [
+                {
+                    id: 'var_score',
+                    name: 'pontuação',
+                    valueType: types.INTEGER,
+                    initialValue: {
+                        type: 'IntegerLiteral',
+                        value: 0
+                    }
+                },
+                {
+                    id: 'var_rate',
+                    name: 'taxa',
+                    valueType: types.DECIMAL,
+                    initialValue: {
+                        type: 'DecimalLiteral',
+                        value: 1.5
+                    }
+                },
+                {
+                    id: 'var_title',
+                    name: 'título',
+                    valueType: types.TEXT,
+                    initialValue: {
+                        type: 'TextLiteral',
+                        value: 'Easy'
+                    }
+                },
+                {
+                    id: 'var_enabled',
+                    name: 'ativo',
+                    valueType: types.BOOLEAN,
+                    initialValue: {
+                        type: 'BooleanLiteral',
+                        value: true
+                    }
+                }
+            ],
+            lists: [
+                {
+                    id: 'list_samples',
+                    name: 'amostras',
+                    itemType: types.INTEGER,
+                    capacity: 5,
+                    initialValues: [
+                        {
+                            type: 'IntegerLiteral',
+                            value: 10
+                        },
+                        {
+                            type: 'IntegerLiteral',
+                            value: 20
+                        }
+                    ]
+                },
+                {
+                    id: 'list_rates',
+                    name: 'taxas',
+                    itemType: types.DECIMAL,
+                    capacity: 3,
+                    initialValues: []
+                },
+                {
+                    id: 'list_labels',
+                    name: 'rótulos',
+                    itemType: types.TEXT,
+                    capacity: 3,
+                    initialValues: []
+                },
+                {
+                    id: 'list_flags',
+                    name: 'estados',
+                    itemType: types.BOOLEAN,
+                    capacity: 3,
+                    initialValues: []
+                }
+            ]
+        },
+
+        procedures: [
+            {
+                id: 'procedure_add_score',
+                name: 'somar ao contador',
+                proccode: 'somar ao contador %s %b',
+                parameters: [
+                    {
+                        id: 'arg_amount',
+                        name: 'valor',
+                        valueType: types.INTEGER
+                    },
+                    {
+                        id: 'arg_enabled',
+                        name: 'habilitado',
+                        valueType: types.BOOLEAN
+                    }
+                ],
+                body: [
+                    {
+                        type: 'If',
+                        condition: {
+                            type: 'ProcedureArgumentReference',
+                            parameterId: 'arg_enabled'
+                        },
+                        body: [
+                            {
+                                type: 'VariableChange',
+                                variableId: 'var_score',
+                                value: {
+                                    type: 'ProcedureArgumentReference',
+                                    parameterId: 'arg_amount'
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+
+        setup: [
+            {
+                type: 'VariableSet',
+                variableId: 'var_score',
+                value: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                }
+            },
+            {
+                type: 'ListAdd',
+                listId: 'list_samples',
+                item: {
+                    type: 'IntegerLiteral',
+                    value: 30
+                }
+            },
+            {
+                type: 'ListInsert',
+                listId: 'list_samples',
+                index: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                item: {
+                    type: 'IntegerLiteral',
+                    value: 5
+                }
+            },
+            {
+                type: 'ListReplace',
+                listId: 'list_samples',
+                index: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                },
+                item: {
+                    type: 'IntegerLiteral',
+                    value: 15
+                }
+            },
+            {
+                type: 'VariableSet',
+                variableId: 'var_score',
+                value: {
+                    type: 'ListItemExpression',
+                    listId: 'list_samples',
+                    index: {
+                        type: 'IntegerLiteral',
+                        value: 1
+                    }
+                }
+            },
+            {
+                type: 'VariableSet',
+                variableId: 'var_score',
+                value: {
+                    type: 'ListIndexOfExpression',
+                    listId: 'list_samples',
+                    item: {
+                        type: 'IntegerLiteral',
+                        value: 20
+                    }
+                }
+            },
+            {
+                type: 'VariableSet',
+                variableId: 'var_score',
+                value: {
+                    type: 'ListLengthExpression',
+                    listId: 'list_samples'
+                }
+            },
+            {
+                type: 'SerialWriteLine',
+                value: {
+                    type: 'ListContentsExpression',
+                    listId: 'list_samples'
+                }
+            },
+            {
+                type: 'If',
+                condition: {
+                    type: 'ListContainsExpression',
+                    listId: 'list_samples',
+                    item: {
+                        type: 'IntegerLiteral',
+                        value: 20
+                    }
+                },
+                body: [
+                    {
+                        type: 'ProcedureCall',
+                        procedureId: 'procedure_add_score',
+                        arguments: [
+                            {
+                                parameterId: 'arg_amount',
+                                value: {
+                                    type: 'IntegerLiteral',
+                                    value: 2
+                                }
+                            },
+                            {
+                                parameterId: 'arg_enabled',
+                                value: {
+                                    type: 'BooleanLiteral',
+                                    value: true
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                type: 'ListDelete',
+                listId: 'list_samples',
+                index: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                }
+            }
+        ],
+
+        loop: [
+            {
+                type: 'Repeat',
+                times: {
+                    type: 'VariableReference',
+                    variableId: 'var_score'
+                },
+                body: [
+                    {
+                        type: 'ListDeleteAll',
+                        listId: 'list_samples'
+                    }
+                ]
+            }
+        ]
+    };
+};
+
+tap.test(
+    'Arduino UNO Upload validates typed Variables Lists and My Blocks IR batch',
+    t => {
+        const validator = new UploadTypeValidator();
+        const ir = createTypedDataProcedureIrFixture();
+
+        t.doesNotThrow(
+            () => validator.validate(ir),
+            'accepts a valid typed data and procedures program'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload rejects incompatible Variable assignment',
+    t => {
+        const validator = new UploadTypeValidator();
+        const ir = createTypedDataProcedureIrFixture();
+
+        ir.setup.unshift({
+            type: 'VariableSet',
+            variableId: 'var_score',
+            value: {
+                type: 'TextLiteral',
+                value: 'inválido'
+            }
+        });
+
+        t.throws(
+            () => validator.validate(ir),
+            /Variable.*INTEGER/,
+            'does not silently assign TEXT to INTEGER variable'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload rejects incompatible typed List item',
+    t => {
+        const validator = new UploadTypeValidator();
+        const ir = createTypedDataProcedureIrFixture();
+
+        ir.setup.unshift({
+            type: 'ListAdd',
+            listId: 'list_samples',
+            item: {
+                type: 'TextLiteral',
+                value: 'inválido'
+            }
+        });
+
+        t.throws(
+            () => validator.validate(ir),
+            /List.*INTEGER/,
+            'does not silently insert TEXT into INTEGER list'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload rejects List initial values beyond capacity',
+    t => {
+        const validator = new UploadTypeValidator();
+        const ir = createTypedDataProcedureIrFixture();
+
+        ir.globals.lists[0].capacity = 1;
+
+        t.throws(
+            () => validator.validate(ir),
+            /List.*capacity/,
+            'rejects initial list content larger than fixed capacity'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload rejects incompatible My Block argument',
+    t => {
+        const validator = new UploadTypeValidator();
+        const ir = createTypedDataProcedureIrFixture();
+
+        ir.setup.unshift({
+            type: 'ProcedureCall',
+            procedureId: 'procedure_add_score',
+            arguments: [
+                {
+                    parameterId: 'arg_amount',
+                    value: {
+                        type: 'TextLiteral',
+                        value: 'inválido'
+                    }
+                },
+                {
+                    parameterId: 'arg_enabled',
+                    value: {
+                        type: 'BooleanLiteral',
+                        value: true
+                    }
+                }
+            ]
+        });
+
+        t.throws(
+            () => validator.validate(ir),
+            /Procedure argument.*INTEGER/,
+            'does not silently pass TEXT to INTEGER parameter'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO generator emits typed Variables Lists and My Blocks batch',
+    t => {
+        const generator = new ArduinoUnoGenerator();
+        const code = generator.generate(
+            createTypedDataProcedureIrFixture()
+        );
+
+        t.match(
+            code,
+            /long pontuacao = 0;/,
+            'generates INTEGER variable and normalizes its name'
+        );
+
+        t.match(
+            code,
+            /float taxa = 1\.5;/,
+            'generates DECIMAL variable'
+        );
+
+        t.match(
+            code,
+            /String titulo = "Easy";/,
+            'generates TEXT variable and normalizes its name'
+        );
+
+        t.match(
+            code,
+            /bool ativo = true;/,
+            'generates BOOLEAN variable'
+        );
+
+        t.match(
+            code,
+            /long amostras\[5\] = \{10, 20\};/,
+            'generates fixed-capacity INTEGER list'
+        );
+
+        t.match(
+            code,
+            /float taxas\[3\];/,
+            'generates DECIMAL list'
+        );
+
+        t.match(
+            code,
+            /String rotulos\[3\];/,
+            'generates TEXT list and normalizes its name'
+        );
+
+        t.match(
+            code,
+            /bool estados\[3\];/,
+            'generates BOOLEAN list'
+        );
+
+        t.match(
+            code,
+            /amostras_length = 2;/,
+            'tracks current list length independently from capacity'
+        );
+
+        t.match(
+            code,
+            /void somar_ao_contador\(long valor, bool habilitado\)/,
+            'generates typed My Block function'
+        );
+
+        t.match(
+            code,
+            /pontuacao = 1;/,
+            'generates VariableSet'
+        );
+
+        t.match(
+            code,
+            /somar_ao_contador\(2, true\);/,
+            'generates typed ProcedureCall'
+        );
+
+        t.end();
+    }
+);

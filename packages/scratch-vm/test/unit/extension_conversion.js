@@ -540,13 +540,34 @@ test('getBlockExecutionMode keeps Upload-compatible native blocks in both modes'
         'My Blocks calls remain BOTH'
     );
 
+    t.equal(
+    runtime.getBlockExecutionMode('data_variable'),
+    BlockExecutionMode.BOTH,
+    'variable reporter remains BOTH'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('argument_reporter_string_number'),
+        BlockExecutionMode.BOTH,
+        'string/number procedure argument remains BOTH'
+    );
+
+    t.equal(
+        runtime.getBlockExecutionMode('argument_reporter_boolean'),
+        BlockExecutionMode.BOTH,
+        'boolean procedure argument remains BOTH'
+    );
+
     t.end();
 });
 
-test('getBlockExecutionMode keeps Scratch lists stage only in Upload v1', t => {
+test('getBlockExecutionMode supports Scratch data blocks in Upload mode', t => {
     const runtime = new Runtime();
 
-    const stageOnlyListBlocks = [
+    const bothBlocks = [
+        'data_variable',
+        'data_setvariableto',
+        'data_changevariableby',
         'data_listcontents',
         'data_addtolist',
         'data_deleteoflist',
@@ -556,16 +577,29 @@ test('getBlockExecutionMode keeps Scratch lists stage only in Upload v1', t => {
         'data_itemoflist',
         'data_itemnumoflist',
         'data_lengthoflist',
-        'data_listcontainsitem',
-        'data_hidelist',
-        'data_showlist'
+        'data_listcontainsitem'
     ];
 
-    for (const blockType of stageOnlyListBlocks) {
+    for (const blockType of bothBlocks) {
+        t.equal(
+            runtime.getBlockExecutionMode(blockType),
+            BlockExecutionMode.BOTH,
+            `${blockType} is BOTH`
+        );
+    }
+
+    const stageOnlyBlocks = [
+        'data_showvariable',
+        'data_hidevariable',
+        'data_showlist',
+        'data_hidelist'
+    ];
+
+    for (const blockType of stageOnlyBlocks) {
         t.equal(
             runtime.getBlockExecutionMode(blockType),
             BlockExecutionMode.STAGE_ONLY,
-            `${blockType} is STAGE_ONLY in Upload v1`
+            `${blockType} is STAGE_ONLY`
         );
     }
 
