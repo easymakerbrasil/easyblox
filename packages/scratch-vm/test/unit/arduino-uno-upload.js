@@ -13529,6 +13529,151 @@ tap.test('Arduino UNO Upload resolves Boolean procedure argument reporter to can
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts validates and generates typed My Block end to end', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('call_add_score'),
+        {
+            id: 'call_add_score',
+            opcode: 'procedures_call',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                arg_amount: {
+                    name: 'arg_amount',
+                    block: 'call_add_score_value',
+                    shadow: 'call_add_score_value'
+                }
+            },
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'somar ao contador %s',
+                argumentids: '["arg_amount"]'
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'call_add_score_value',
+            'call_add_score',
+            5
+        ),
+        {
+            id: 'procedure_add_score',
+            opcode: 'procedures_definition',
+            next: 'procedure_change_score',
+            parent: null,
+            inputs: {
+                custom_block: {
+                    name: 'custom_block',
+                    block: 'procedure_add_score_prototype',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        {
+            id: 'procedure_add_score_prototype',
+            opcode: 'procedures_prototype',
+            next: null,
+            parent: 'procedure_add_score',
+            inputs: {},
+            fields: {},
+            mutation: {
+                tagName: 'mutation',
+                children: [],
+                proccode: 'somar ao contador %s',
+                argumentids: '["arg_amount"]',
+                argumentnames: '["valor"]',
+                argumentdefaults: '[""]',
+                easybloxargumenttypes: '["INTEGER"]',
+                warp: 'false'
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'procedure_change_score',
+            opcode: 'data_changevariableby',
+            next: null,
+            parent: 'procedure_add_score',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'procedure_amount_reporter',
+                    shadow: null
+                }
+            },
+            fields: {
+                VARIABLE: {
+                    name: 'VARIABLE',
+                    value: 'pontuação',
+                    id: 'var_score',
+                    variableType: Variable.SCALAR_TYPE
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'procedure_amount_reporter',
+            opcode: 'argument_reporter_string_number',
+            next: null,
+            parent: 'procedure_change_score',
+            inputs: {},
+            fields: {
+                VALUE: {
+                    name: 'VALUE',
+                    value: 'valor'
+                }
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const variable = new Variable(
+        'var_score',
+        'pontuação',
+        Variable.SCALAR_TYPE,
+        false
+    );
+    variable.value = 0;
+    variable.easybloxValueType = 'INTEGER';
+
+    runtime.targets[0].variables = {
+        [variable.id]: variable
+    };
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const ir = extractor.extract();
+
+    const typeValidator = new UploadTypeValidator();
+    typeValidator.validate(ir);
+
+    const generator = new ArduinoUnoGenerator();
+    const cpp = generator.generate(ir);
+
+    t.match(cpp, /long pontuacao = 0;/);
+    t.match(
+        cpp,
+        /void somar_ao_contador\(long valor\)/
+    );
+    t.match(
+        cpp,
+        /pontuacao \+= valor;/
+    );
+    t.match(
+        cpp,
+        /somar_ao_contador\(5\);/
+    );
+
+    t.end();
+});
+
 const createTypedDataProcedureIrFixture = () => {
     const types = UploadTypeValidator.VALUE_TYPES;
 
