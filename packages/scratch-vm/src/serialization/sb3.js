@@ -1549,5 +1549,6 @@ module.exports = {
     deserialize: deserialize,
     deserializeBlocks: deserializeBlocks,
     serializeBlocks: serializeBlocks,
+    serializeVariables: serializeVariables,
     getExtensionIdForOpcode: getExtensionIdForOpcode
 };

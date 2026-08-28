@@ -21,6 +21,8 @@ const newBlockIds = require('./util/new-block-ids');
 
 const UploadProgramExtractor =
     require('./upload/upload-program-extractor');
+const EasyBloxUploadProgram =
+    require('./upload/easyblox-upload-program');
 const UploadContextValidator =
     require('./upload/upload-context-validator');
 const UploadTypeValidator =
@@ -241,6 +243,7 @@ class VirtualMachine extends EventEmitter {
     clear () {
         this.runtime.dispose();
         this.editingTarget = null;
+        this._easybloxUploadPrograms = null;
         this.emitTargetsUpdate(false /* Don't emit project change */);
     }
 
@@ -479,7 +482,58 @@ class VirtualMachine extends EventEmitter {
      */
     toJSON (optTargetId) {
         const sb3 = require('./serialization/sb3');
-        return StringUtil.stringify(sb3.serialize(this.runtime, optTargetId));
+        const serializedProject = sb3.serialize(
+            this.runtime,
+            optTargetId
+        );
+
+        if (!optTargetId &&
+            this._easybloxUploadPrograms &&
+            this._easybloxUploadPrograms.size > 0) {
+            const serializedUploadPrograms = Object.create(null);
+            const serializedExtensionIds =
+                new Set(serializedProject.extensions || []);
+
+            this._easybloxUploadPrograms.forEach((program, boardId) => {
+                const serializedProgram = Object.create(null);
+                const serializedVariables =
+                    sb3.serializeVariables(program.variables);
+
+                const [
+                    serializedBlocks,
+                    uploadExtensionIds
+                ] = sb3.serializeBlocks(program.blocks._blocks);
+
+                serializedProgram.blocks =
+                    serializedBlocks;
+
+                uploadExtensionIds.forEach(extensionId => {
+                    serializedExtensionIds.add(extensionId);
+                });
+
+                serializedProgram.variables =
+                    serializedVariables.variables;
+
+                serializedProgram.lists =
+                    serializedVariables.lists;
+
+                if (Object.keys(serializedVariables.easybloxData).length > 0) {
+                    serializedProgram.easybloxData =
+                        serializedVariables.easybloxData;
+                }
+
+                serializedUploadPrograms[boardId] =
+                    serializedProgram;
+            });
+
+            serializedProject.easybloxUploadPrograms =
+                serializedUploadPrograms;
+
+            serializedProject.extensions =
+                Array.from(serializedExtensionIds);
+        }
+
+        return StringUtil.stringify(serializedProject);
     }
 
     // TODO do we still need this function? Keeping it here so as not to introduce
@@ -529,6 +583,136 @@ class VirtualMachine extends EventEmitter {
                     performance.measure('scratch-vm-deserialize',
                         'scratch-vm-deserialize-start', 'scratch-vm-deserialize-end');
                 }
+                const sb3 = require('./serialization/sb3');
+                const serializedUploadPrograms =
+                    projectJSON.easybloxUploadPrograms;
+
+                if (serializedUploadPrograms &&
+                    typeof serializedUploadPrograms === 'object') {
+                    Object.keys(serializedUploadPrograms).forEach(boardId => {
+                        const serializedProgram =
+                            serializedUploadPrograms[boardId];
+
+                        if (!serializedProgram ||
+                            typeof serializedProgram !== 'object') {
+                            return;
+                        }
+
+                        const uploadProgram =
+                            this.getOrCreateUploadProgram(boardId);
+
+                        const serializedBlocks = JSON.parse(JSON.stringify(
+                            serializedProgram.blocks || {}
+                        ));
+
+                        sb3.deserializeBlocks(serializedBlocks);
+
+                        Object.keys(serializedBlocks).forEach(blockId => {
+                            const blockJSON =
+                                serializedBlocks[blockId];
+
+                            uploadProgram.blocks.createBlock(
+                                blockJSON
+                            );
+
+                            const extensionId =
+                                sb3.getExtensionIdForOpcode(
+                                    blockJSON.opcode
+                                );
+
+                            if (extensionId) {
+                                extensions.extensionIDs.add(
+                                    extensionId
+                                );
+                            }
+                        });
+
+                        const serializedVariables =
+                            serializedProgram.variables || {};
+
+                        Object.keys(serializedVariables).forEach(variableId => {
+                            const serializedVariable =
+                                serializedVariables[variableId];
+
+                            if (!Array.isArray(serializedVariable) ||
+                                serializedVariable.length < 2) {
+                                return;
+                            }
+
+                            uploadProgram.createVariable(
+                                variableId,
+                                serializedVariable[0],
+                                ''
+                            );
+
+                            const variable =
+                                uploadProgram.lookupVariableById(variableId);
+
+                            variable.value = serializedVariable[1];
+
+                            const easybloxMetadata =
+                                serializedProgram.easybloxData &&
+                                serializedProgram.easybloxData[variableId];
+
+                            if (easybloxMetadata &&
+                                Object.prototype.hasOwnProperty.call(
+                                    easybloxMetadata,
+                                    'valueType'
+                                )) {
+                                variable.easybloxValueType =
+                                    easybloxMetadata.valueType;
+                            }
+                        });
+
+                        const serializedLists =
+                            serializedProgram.lists || {};
+
+                        Object.keys(serializedLists).forEach(listId => {
+                            const serializedList =
+                                serializedLists[listId];
+
+                            if (!Array.isArray(serializedList) ||
+                                serializedList.length < 2) {
+                                return;
+                            }
+
+                            uploadProgram.createVariable(
+                                listId,
+                                serializedList[0],
+                                'list'
+                            );
+
+                            const list =
+                                uploadProgram.lookupVariableById(listId);
+
+                            list.value = serializedList[1];
+
+                            const easybloxMetadata =
+                                serializedProgram.easybloxData &&
+                                serializedProgram.easybloxData[listId];
+
+                            if (easybloxMetadata &&
+                                Object.prototype.hasOwnProperty.call(
+                                    easybloxMetadata,
+                                    'valueType'
+                                )) {
+                                list.easybloxValueType =
+                                    easybloxMetadata.valueType;
+                            }
+
+                            if (easybloxMetadata &&
+                                Object.prototype.hasOwnProperty.call(
+                                    easybloxMetadata,
+                                    'capacity'
+                                )) {
+                                list.easybloxListCapacity =
+                                    easybloxMetadata.capacity;
+                            }
+                        });
+
+                    });
+                }
+
                 return this.installTargets(targets, extensions, true);
             });
     }
@@ -1603,6 +1787,39 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Set a variable's canonical EasyBlox value type metadata.
+     * @param {!string} targetId ID of the target which owns the variable.
+     * @param {!string} variableId ID of the variable to update.
+     * @param {!string} valueType Canonical EasyBlox value type.
+     * @returns {boolean} whether the target, variable and value type were valid.
+     */
+    setVariableEasyBloxValueType (targetId, variableId, valueType) {
+        if (![
+            'INTEGER',
+            'DECIMAL',
+            'TEXT',
+            'BOOLEAN'
+        ].includes(valueType)) {
+            return false;
+        }
+
+        const target = this.runtime.getTargetById(targetId);
+        if (!target) {
+            return false;
+        }
+
+        const variable = target.lookupVariableById(variableId);
+        if (!variable) {
+            return false;
+        }
+
+        variable.easybloxValueType = valueType;
+        this.runtime.emitProjectChanged();
+
+        return true;
+    }
+
+    /**
      * Get a target's variable's value. Return null if the target or variable does not exist.
      * @param {!string} targetId ID of the target which owns the variable.
      * @param {!string} variableId ID of the variable to set.
@@ -1632,6 +1849,30 @@ class VirtualMachine extends EventEmitter {
      */
     configureSerialTransportFactory (factory) {
         this.runtime.configureSerialTransportFactory(factory);
+    }
+
+    /**
+     * Get the canonical EasyBlox Upload program for a board, creating it when
+     * it does not exist yet.
+     * @param {!string} boardId Board which owns the Upload program.
+     * @returns {!EasyBloxUploadProgram} Canonical Upload program instance.
+     */
+    getOrCreateUploadProgram (boardId) {
+        if (!this._easybloxUploadPrograms) {
+            this._easybloxUploadPrograms = new Map();
+        }
+
+        if (!this._easybloxUploadPrograms.has(boardId)) {
+            this._easybloxUploadPrograms.set(
+                boardId,
+                new EasyBloxUploadProgram(
+                    this.runtime,
+                    boardId
+                )
+            );
+        }
+
+        return this._easybloxUploadPrograms.get(boardId);
     }
 
     /**

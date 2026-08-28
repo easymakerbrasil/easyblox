@@ -717,6 +717,105 @@ test('getVariableValue', t => {
     t.end();
 });
 
+test('setVariableEasyBloxValueType', t => {
+    const vm = new VirtualMachine();
+    const spr = new Sprite(null, vm.runtime);
+    const target = spr.createClone();
+
+    target.createVariable(
+        'a-variable',
+        'a-name',
+        Variable.SCALAR_TYPE
+    );
+
+    vm.runtime.targets = [target];
+
+    const variable =
+        target.lookupVariableById('a-variable');
+
+    t.equal(
+        variable.easybloxValueType,
+        null,
+        'starts without EasyBlox type metadata'
+    );
+
+    t.equal(
+        typeof vm.setVariableEasyBloxValueType,
+        'function',
+        'exposes an EasyBlox variable type setter'
+    );
+
+    if (typeof vm.setVariableEasyBloxValueType !== 'function') {
+        t.end();
+        return;
+    }
+
+    t.equal(
+        vm.setVariableEasyBloxValueType(
+            target.id,
+            'not-a-variable',
+            'INTEGER'
+        ),
+        false,
+        'rejects an unknown variable ID'
+    );
+
+    t.equal(
+        vm.setVariableEasyBloxValueType(
+            'not-a-target',
+            'a-variable',
+            'INTEGER'
+        ),
+        false,
+        'rejects an unknown target ID'
+    );
+
+    t.equal(
+        vm.setVariableEasyBloxValueType(
+            target.id,
+            'a-variable',
+            'NOT_A_TYPE'
+        ),
+        false,
+        'rejects an unsupported EasyBlox value type'
+    );
+
+    t.equal(
+        variable.easybloxValueType,
+        null,
+        'invalid operations do not change the metadata'
+    );
+
+    let projectChangedCount = 0;
+    vm.runtime.emitProjectChanged = () => {
+        projectChangedCount += 1;
+    };
+
+    t.equal(
+        vm.setVariableEasyBloxValueType(
+            target.id,
+            'a-variable',
+            'DECIMAL'
+        ),
+        true,
+        'updates a variable found by target ID and variable ID'
+    );
+
+    t.equal(
+        variable.easybloxValueType,
+        'DECIMAL',
+        'stores the canonical EasyBlox value type'
+    );
+
+    t.equal(
+        projectChangedCount,
+        1,
+        'marks the project as changed after metadata update'
+    );
+
+    t.end();
+});
+
 // Block Listener tests for comment
 test('comment_create event updates comment with null position', t => {
     const vm = new VirtualMachine();
