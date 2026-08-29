@@ -62,6 +62,16 @@
     margin-left: 1rem;
 }
 
+.label-row {
+    margin-top: 1rem;
+    justify-content: flex-start;
+}
+
+.label-row .option-card {
+    flex-grow: 0;
+    flex-basis: 140px;
+}
+
 .option-icon {
     max-height: 48px;
     margin-bottom: 0.5rem;

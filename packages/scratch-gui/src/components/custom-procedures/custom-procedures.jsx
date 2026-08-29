@@ -36,7 +36,7 @@ const CustomProcedures = props => {
                         className={styles.optionCard}
                         role="button"
                         tabIndex="0"
-                        onClick={props.onAddTextNumber}
+                        onClick={props.onAddInteger}
                     >
                         <img
                             className={styles.optionIcon}
@@ -44,19 +44,72 @@ const CustomProcedures = props => {
                         />
                         <div className={styles.optionTitle}>
                             <FormattedMessage
-                                defaultMessage="Add an input"
-                                description="Label for button to add a number/text input"
-                                id="gui.customProcedures.addAnInputNumberText"
+                                defaultMessage="Adicionar entrada"
+                                description="Label for button to add an integer input"
+                                id="gui.customProcedures.easybloxAddIntegerInput"
                             />
                         </div>
                         <div className={styles.optionDescription}>
                             <FormattedMessage
-                                defaultMessage="number or text"
-                                description="Description of the number/text input type"
-                                id="gui.customProcedures.numberTextType"
+                                defaultMessage="Número inteiro"
+                                description="Description of the EasyBlox integer input type"
+                                id="gui.customProcedures.easybloxIntegerType"
                             />
                         </div>
                     </div>
+
+                    <div
+                        className={styles.optionCard}
+                        role="button"
+                        tabIndex="0"
+                        onClick={props.onAddDecimal}
+                    >
+                        <img
+                            className={styles.optionIcon}
+                            src={textInputIcon}
+                        />
+                        <div className={styles.optionTitle}>
+                            <FormattedMessage
+                                defaultMessage="Adicionar entrada"
+                                description="Label for button to add a decimal input"
+                                id="gui.customProcedures.easybloxAddDecimalInput"
+                            />
+                        </div>
+                        <div className={styles.optionDescription}>
+                            <FormattedMessage
+                                defaultMessage="Número decimal"
+                                description="Description of the EasyBlox decimal input type"
+                                id="gui.customProcedures.easybloxDecimalType"
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        className={styles.optionCard}
+                        role="button"
+                        tabIndex="0"
+                        onClick={props.onAddText}
+                    >
+                        <img
+                            className={styles.optionIcon}
+                            src={textInputIcon}
+                        />
+                        <div className={styles.optionTitle}>
+                            <FormattedMessage
+                                defaultMessage="Adicionar entrada"
+                                description="Label for button to add a text input"
+                                id="gui.customProcedures.easybloxAddTextInput"
+                            />
+                        </div>
+                        <div className={styles.optionDescription}>
+                            <FormattedMessage
+                                defaultMessage="Texto"
+                                description="Description of the EasyBlox text input type"
+                                id="gui.customProcedures.easybloxTextType"
+                            />
+                        </div>
+                    </div>
+
                     <div
                         className={styles.optionCard}
                         role="button"
@@ -69,19 +122,22 @@ const CustomProcedures = props => {
                         />
                         <div className={styles.optionTitle}>
                             <FormattedMessage
-                                defaultMessage="Add an input"
+                                defaultMessage="Adicionar entrada"
                                 description="Label for button to add a boolean input"
-                                id="gui.customProcedures.addAnInputBoolean"
+                                id="gui.customProcedures.easybloxAddBooleanInput"
                             />
                         </div>
                         <div className={styles.optionDescription}>
                             <FormattedMessage
-                                defaultMessage="boolean"
-                                description="Description of the boolean input type"
-                                id="gui.customProcedures.booleanType"
+                                defaultMessage="Verdadeiro/Falso"
+                                description="Description of the EasyBlox boolean input type"
+                                id="gui.customProcedures.easybloxBooleanType"
                             />
                         </div>
                     </div>
+                </div>
+
+                <div className={`${styles.optionsRow} ${styles.labelRow}`}>
                     <div
                         className={styles.optionCard}
                         role="button"
@@ -94,9 +150,9 @@ const CustomProcedures = props => {
                         />
                         <div className={styles.optionTitle}>
                             <FormattedMessage
-                                defaultMessage="Add a label"
+                                defaultMessage="Adicionar rótulo"
                                 description="Label for button to add a label"
-                                id="gui.customProcedures.addALabel"
+                                id="gui.customProcedures.easybloxAddLabel"
                             />
                         </div>
                     </div>
@@ -145,8 +201,10 @@ const CustomProcedures = props => {
 CustomProcedures.propTypes = {
     componentRef: PropTypes.func.isRequired,
     onAddBoolean: PropTypes.func.isRequired,
+    onAddDecimal: PropTypes.func.isRequired,
+    onAddInteger: PropTypes.func.isRequired,
     onAddLabel: PropTypes.func.isRequired,
-    onAddTextNumber: PropTypes.func.isRequired,
+    onAddText: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
     onOk: PropTypes.func.isRequired,
     onToggleWarp: PropTypes.func.isRequired,

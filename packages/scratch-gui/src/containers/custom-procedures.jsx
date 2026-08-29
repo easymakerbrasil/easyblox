@@ -17,12 +17,37 @@ class CustomProcedures extends React.Component {
             'handleToggleWarp',
             'handleCancel',
             'handleOk',
+            'handleAddDecimal',
+            'handleAddInteger',
+            'handleAddText',
             'setBlocks'
         ]);
         this.state = {
             rtlOffset: 0,
             warp: false
         };
+
+        this._easybloxArgumentTypesById = new Map();
+
+        if (props.mutator) {
+            const argumentIds = JSON.parse(
+                props.mutator.getAttribute('argumentids') || '[]'
+            );
+            const argumentTypes = JSON.parse(
+                props.mutator.getAttribute('easybloxargumenttypes') || '[]'
+            );
+
+            argumentIds.forEach((argumentId, index) => {
+                const argumentType = argumentTypes[index];
+
+                if (argumentType) {
+                    this._easybloxArgumentTypesById.set(
+                        argumentId,
+                        argumentType
+                    );
+                }
+            });
+        }
     }
     componentWillUnmount () {
         if (this.workspace) {
@@ -131,6 +156,22 @@ class CustomProcedures extends React.Component {
     }
     handleOk () {
         const newMutation = this.mutationRoot ? this.mutationRoot.mutationToDom(true) : null;
+
+        if (
+            newMutation &&
+        this.mutationRoot &&
+        this._easybloxArgumentTypesById
+        ) {
+            const argumentTypes = this.mutationRoot.argumentIds_.map(
+                argumentId => this._easybloxArgumentTypesById.get(argumentId)
+            );
+
+            newMutation.setAttribute(
+                'easybloxargumenttypes',
+                JSON.stringify(argumentTypes)
+            );
+        }
+
         this.props.onRequestClose(newMutation);
     }
     handleAddLabel () {
@@ -138,14 +179,67 @@ class CustomProcedures extends React.Component {
             this.mutationRoot.addLabelExternal();
         }
     }
+
     handleAddBoolean () {
         if (this.mutationRoot) {
+            const existingArgumentIds = new Set(
+                this.mutationRoot.argumentIds_
+            );
+
             this.mutationRoot.addBooleanExternal();
+
+            const newArgumentId =
+                this.mutationRoot.argumentIds_.find(
+                    argumentId => !existingArgumentIds.has(argumentId)
+                );
+
+            if (newArgumentId) {
+                this._easybloxArgumentTypesById.set(
+                    newArgumentId,
+                    'BOOLEAN'
+                );
+            }
         }
     }
-    handleAddTextNumber () {
+
+    handleAddInteger () {
+        this.handleAddTextNumber('INTEGER');
+    }
+
+    handleAddDecimal () {
+        this.handleAddTextNumber('DECIMAL');
+    }
+
+    handleAddText () {
+        this.handleAddTextNumber('TEXT');
+    }
+
+    handleAddTextNumber (valueType) {
         if (this.mutationRoot) {
+            const existingArgumentIds = new Set(
+                this.mutationRoot.argumentIds_
+            );
+
             this.mutationRoot.addStringNumberExternal();
+
+            const newArgumentId =
+                this.mutationRoot.argumentIds_.find(
+                    argumentId => !existingArgumentIds.has(argumentId)
+                );
+
+            if (
+                newArgumentId &&
+            (
+                valueType === 'INTEGER' ||
+                valueType === 'DECIMAL' ||
+                valueType === 'TEXT'
+            )
+            ) {
+                this._easybloxArgumentTypesById.set(
+                    newArgumentId,
+                    valueType
+                );
+            }
         }
     }
     handleToggleWarp () {
@@ -161,8 +255,10 @@ class CustomProcedures extends React.Component {
                 componentRef={this.setBlocks}
                 warp={this.state.warp}
                 onAddBoolean={this.handleAddBoolean}
+                onAddDecimal={this.handleAddDecimal}
+                onAddInteger={this.handleAddInteger}
                 onAddLabel={this.handleAddLabel}
-                onAddTextNumber={this.handleAddTextNumber}
+                onAddText={this.handleAddText}
                 onCancel={this.handleCancel}
                 onOk={this.handleOk}
                 onToggleWarp={this.handleToggleWarp}

@@ -1,5 +1,6 @@
 import registerEasyBloxRangeNumberField from './easyblox-range-number-field';
 import registerEasyBloxMatrix8x8Field from './easyblox-matrix-8x8-field';
+import registerEasyBloxProcedureArgumentTypes from './easyblox-procedure-argument-types';
 import {
     registerEasyBloxConnectionChecker
 } from './easyblox-connection-checker';
@@ -12,6 +13,7 @@ import {
 export default function (vm) {
     const ScratchBlocks = require('scratch-blocks');
     registerEasyBloxConnectionChecker(ScratchBlocks);
+    registerEasyBloxProcedureArgumentTypes(ScratchBlocks);
 
     registerEasyBloxMatrix8x8Field(ScratchBlocks);
 
