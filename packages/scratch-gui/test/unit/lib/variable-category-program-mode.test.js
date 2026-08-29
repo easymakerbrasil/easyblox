@@ -33,7 +33,7 @@ describe('filterVariableCategoryForProgramMode', () => {
         expect(getBlockExecutionMode).not.toHaveBeenCalled();
     });
 
-    test('keeps Upload-compatible variables and lists while removing Stage-only monitors', () => {
+    test('removes Stage-only lists and monitors in Upload mode', () => {
         const createVariableButton = createElement(
             'button',
             {callbackKey: 'CREATE_VARIABLE'}
@@ -74,6 +74,9 @@ describe('filterVariableCategoryForProgramMode', () => {
         const getBlockExecutionMode = jest.fn(blockType => {
             if (
                 blockType === 'data_showvariable' ||
+                blockType === 'data_listcontents' ||
+                blockType === 'data_addtolist' ||
+                blockType === 'data_lengthoflist' ||
                 blockType === 'data_showlist'
             ) {
                 return 'stage';
@@ -101,11 +104,7 @@ describe('filterVariableCategoryForProgramMode', () => {
         expect(result).toEqual([
             createVariableButton,
             scalarReporter,
-            setVariable,
-            createListButton,
-            listReporter,
-            addToList,
-            listLength
+            setVariable
         ]);
 
         expect(getBlockExecutionMode)

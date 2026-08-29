@@ -1515,7 +1515,14 @@ class Runtime extends EventEmitter {
         const bothModeDataBlocks = new Set([
             'data_variable',
             'data_setvariableto',
-            'data_changevariableby',
+            'data_changevariableby'
+        ]);
+
+        if (bothModeDataBlocks.has(blockType)) {
+            return BlockExecutionMode.BOTH;
+        }
+
+        const stageOnlyDataBlocks = new Set([
             'data_listcontents',
             'data_addtolist',
             'data_deleteoflist',
@@ -1525,21 +1532,14 @@ class Runtime extends EventEmitter {
             'data_itemoflist',
             'data_itemnumoflist',
             'data_lengthoflist',
-            'data_listcontainsitem'
-        ]);
-
-        if (bothModeDataBlocks.has(blockType)) {
-            return BlockExecutionMode.BOTH;
-        }
-
-        const stageOnlyDataMonitorBlocks = new Set([
+            'data_listcontainsitem',
             'data_showvariable',
             'data_hidevariable',
             'data_showlist',
             'data_hidelist'
         ]);
 
-        if (stageOnlyDataMonitorBlocks.has(blockType)) {
+        if (stageOnlyDataBlocks.has(blockType)) {
             return BlockExecutionMode.STAGE_ONLY;
         }
 

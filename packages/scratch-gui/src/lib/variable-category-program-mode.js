@@ -16,6 +16,12 @@ export const filterVariableCategoryForProgramMode = (
     }
 
     return elements.filter(element => {
+        const callbackKey = element.getAttribute('callbackKey');
+
+        if (callbackKey === 'CREATE_LIST') {
+            return false;
+        }
+
         const blockType = element.getAttribute('type');
 
         if (!blockType) {

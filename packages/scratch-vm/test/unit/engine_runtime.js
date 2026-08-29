@@ -3,6 +3,7 @@ const path = require('path');
 const readFileToBuffer = require('../fixtures/readProjectFile').readFileToBuffer;
 const VirtualMachine = require('../../src/virtual-machine');
 const Runtime = require('../../src/engine/runtime');
+const BlockExecutionMode = require('../../src/extension-support/block-execution-mode');
 const MonitorRecord = require('../../src/engine/monitor-record');
 const {Map} = require('immutable');
 
@@ -21,6 +22,47 @@ test('spec', t => {
     t.type(r.removeCloudVariable, 'function');
 
     t.ok(r instanceof Runtime);
+
+    t.end();
+});
+
+test('getBlockExecutionMode classifies native data blocks by EasyBlox program mode', t => {
+    const r = new Runtime();
+
+    const bothModeVariableBlocks = [
+        'data_variable',
+        'data_setvariableto',
+        'data_changevariableby'
+    ];
+
+    const stageOnlyListBlocks = [
+        'data_listcontents',
+        'data_addtolist',
+        'data_deleteoflist',
+        'data_deletealloflist',
+        'data_insertatlist',
+        'data_replaceitemoflist',
+        'data_itemoflist',
+        'data_itemnumoflist',
+        'data_lengthoflist',
+        'data_listcontainsitem'
+    ];
+
+    for (const blockType of bothModeVariableBlocks) {
+        t.equal(
+            r.getBlockExecutionMode(blockType),
+            BlockExecutionMode.BOTH,
+            `${blockType} remains available in Stage and Upload`
+        );
+    }
+
+    for (const blockType of stageOnlyListBlocks) {
+        t.equal(
+            r.getBlockExecutionMode(blockType),
+            BlockExecutionMode.STAGE_ONLY,
+            `${blockType} is Stage-only`
+        );
+    }
 
     t.end();
 });
