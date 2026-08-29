@@ -259,6 +259,23 @@ class UploadTypeValidator {
                     statement.value
                 );
 
+                /*
+                 * EasyBlox Number variables are represented internally as
+                 * DECIMAL. If the student supplies a non-numeric value,
+                 * use zero instead of invalidating the program.
+                 */
+                if (
+                    variable.valueType === VALUE_TYPES.DECIMAL &&
+                    valueType !== VALUE_TYPES.INTEGER &&
+                    valueType !== VALUE_TYPES.DECIMAL
+                ) {
+                    statement.value = {
+                        type: 'IntegerLiteral',
+                        value: 0
+                    };
+                    break;
+                }
+
                 this._assertAssignableType(
                     variable.valueType,
                     valueType,

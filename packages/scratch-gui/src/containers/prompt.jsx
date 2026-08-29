@@ -13,12 +13,14 @@ class Prompt extends React.Component {
             'handleCancel',
             'handleChange',
             'handleKeyPress',
-            'handleCloudVariableOptionChange'
+            'handleCloudVariableOptionChange',
+            'handleEasyBloxVariableTypeChange'
         ]);
         this.state = {
             inputValue: '',
             globalSelected: true,
             cloudSelected: false,
+            easybloxValueType: 'DECIMAL',
             canAddCloudVariable: (props.vm && props.vm.runtime.canAddCloudVariable()) || false
         };
     }
@@ -29,10 +31,20 @@ class Prompt extends React.Component {
         event.target.select();
     }
     handleOk () {
-        this.props.onOk(this.state.inputValue, {
+        const variableOptions = {
             scope: this.state.globalSelected ? 'global' : 'local',
             isCloud: this.state.cloudSelected
-        });
+        };
+
+        if (this.props.showEasyBloxVariableTypeOptions) {
+            variableOptions.easybloxValueType =
+                this.state.easybloxValueType;
+        }
+
+        this.props.onOk(
+            this.state.inputValue,
+            variableOptions
+        );
     }
     handleCancel () {
         this.props.onCancel();
@@ -52,22 +64,34 @@ class Prompt extends React.Component {
             this.setState({globalSelected: true});
         }
     }
+    handleEasyBloxVariableTypeChange (e) {
+        this.setState({
+            easybloxValueType: e.target.value
+        });
+    }
     render () {
         return (
             <PromptComponent
                 canAddCloudVariable={this.state.canAddCloudVariable}
                 cloudSelected={this.state.cloudSelected}
                 defaultValue={this.props.defaultValue}
+                easybloxValueType={this.state.easybloxValueType}
                 globalSelected={this.state.globalSelected}
                 isStage={this.props.isStage}
                 showListMessage={this.props.showListMessage}
                 label={this.props.label}
                 showCloudOption={this.props.showCloudOption}
+                showEasyBloxVariableTypeOptions={
+                    this.props.showEasyBloxVariableTypeOptions
+                }
                 showVariableOptions={this.props.showVariableOptions}
                 title={this.props.title}
                 onCancel={this.handleCancel}
                 onChange={this.handleChange}
                 onCloudVarOptionChange={this.handleCloudVariableOptionChange}
+                onEasyBloxVariableTypeChange={
+                    this.handleEasyBloxVariableTypeChange
+                }
                 onFocus={this.handleFocus}
                 onKeyPress={this.handleKeyPress}
                 onOk={this.handleOk}
@@ -87,6 +111,7 @@ Prompt.propTypes = {
     showCloudOption: PropTypes.bool.isRequired,
     showVariableOptions: PropTypes.bool.isRequired,
     title: PropTypes.string.isRequired,
+    showEasyBloxVariableTypeOptions: PropTypes.bool,
     vm: PropTypes.instanceOf(VM)
 };
 

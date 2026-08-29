@@ -136,7 +136,7 @@ class UploadProgramExtractor {
             loop
         };
 
-        const globals = this._extractGlobals(entryPoint.target);
+        const globals = this._extractGlobals();
 
         if (
             globals.variables.length > 0 ||
@@ -166,56 +166,77 @@ class UploadProgramExtractor {
      * @returns {object} Typed global Variable/List IR.
      * @private
      */
-    _extractGlobals (target) {
+    _extractGlobals () {
         const globals = {
             variables: [],
             lists: []
         };
 
-        const targetVariables = target && target.variables ?
-            target.variables :
-            {};
+        const variableIds = new Set();
 
-        for (const variableId of Object.keys(targetVariables)) {
-            const variable = targetVariables[variableId];
+        const targets = Array.isArray(this.runtime.targets) ?
+            this.runtime.targets :
+            [];
 
+        for (const target of targets) {
             if (
-                !variable ||
-                variable.easybloxValueType === null ||
-                typeof variable.easybloxValueType === 'undefined'
+                !target ||
+                !target.variables ||
+                (Object.prototype.hasOwnProperty.call(
+                    target,
+                    'isOriginal'
+                ) && !target.isOriginal)
             ) {
                 continue;
             }
 
-            if (variable.type === 'list') {
-                globals.lists.push({
-                    id: variableId,
-                    name: variable.name,
-                    itemType: variable.easybloxValueType,
-                    capacity: variable.easybloxListCapacity,
-                    initialValues: Array.isArray(variable.value) ?
-                        variable.value.map(value =>
-                            this._createTypedLiteral(
-                                variable.easybloxValueType,
-                                value
-                            )
-                        ) :
-                        []
-                });
+            for (const variableId of Object.keys(target.variables)) {
+                if (variableIds.has(variableId)) {
+                    continue;
+                }
 
-                continue;
-            }
+                const variable = target.variables[variableId];
 
-            if (variable.type === '') {
-                globals.variables.push({
-                    id: variableId,
-                    name: variable.name,
-                    valueType: variable.easybloxValueType,
-                    initialValue: this._createTypedLiteral(
-                        variable.easybloxValueType,
-                        variable.value
-                    )
-                });
+                if (
+                    !variable ||
+                    variable.easybloxValueType === null ||
+                    typeof variable.easybloxValueType === 'undefined'
+                ) {
+                    continue;
+                }
+
+                variableIds.add(variableId);
+
+                if (variable.type === 'list') {
+                    globals.lists.push({
+                        id: variableId,
+                        name: variable.name,
+                        itemType: variable.easybloxValueType,
+                        capacity: variable.easybloxListCapacity,
+                        initialValues: Array.isArray(variable.value) ?
+                            variable.value.map(value =>
+                                this._createTypedLiteral(
+                                    variable.easybloxValueType,
+                                    value
+                                )
+                            ) :
+                            []
+                    });
+
+                    continue;
+                }
+
+                if (variable.type === '') {
+                    globals.variables.push({
+                        id: variableId,
+                        name: variable.name,
+                        valueType: variable.easybloxValueType,
+                        initialValue: this._createTypedLiteral(
+                            variable.easybloxValueType,
+                            variable.value
+                        )
+                    });
+                }
             }
         }
 
@@ -456,10 +477,11 @@ class UploadProgramExtractor {
             return {
                 type: 'VariableSet',
                 variableId: variableField.id,
-                value: this._extractExpressionInput(
+                value: this._extractVariableAssignmentInput(
                     blocks,
                     block,
-                    'VALUE'
+                    'VALUE',
+                    variableField.id
                 )
             };
         }
@@ -1541,6 +1563,103 @@ class UploadProgramExtractor {
             blocks,
             input.block
         );
+    }
+
+    _extractVariableAssignmentInput (
+        blocks,
+        block,
+        inputName,
+        variableId
+    ) {
+        const inputs = blocks.getInputs(block);
+        const input = inputs && inputs[inputName];
+
+        if (!input || !input.block) {
+            throw new Error(
+                `Missing expression input ${inputName} in ${block.opcode}`
+            );
+        }
+
+        const inputBlock = blocks.getBlock(input.block);
+        const variable = this._findVariableById(variableId);
+        const isNumericVariable =
+            variable &&
+            (
+                variable.easybloxValueType === 'INTEGER' ||
+                variable.easybloxValueType === 'DECIMAL'
+            );
+
+        /*
+         * Scratch uses a text shadow in the editable slot of
+         * data_setvariableto. For EasyBlox numeric variables, interpret
+         * that native shadow as a number and use zero for invalid content.
+         */
+        if (
+            isNumericVariable &&
+            inputBlock &&
+            input.shadow &&
+            input.block === input.shadow &&
+            inputBlock.opcode === TEXT_OPCODE
+        ) {
+            const fields = blocks.getFields(inputBlock);
+            const textField = fields && fields.TEXT;
+            const rawValue =
+                textField ? String(textField.value).trim() : '';
+
+            const numericValue = Number(rawValue);
+            const safeValue =
+                rawValue !== '' && Number.isFinite(numericValue) ?
+                    numericValue :
+                    0;
+
+            return Number.isInteger(safeValue) ?
+                {
+                    type: 'IntegerLiteral',
+                    value: safeValue
+                } :
+                {
+                    type: 'DecimalLiteral',
+                    value: safeValue
+                };
+        }
+
+        return this._extractExpression(
+            blocks,
+            input.block
+        );
+    }
+
+    _findVariableById (variableId) {
+        const targets = Array.isArray(this.runtime.targets) ?
+            this.runtime.targets :
+            [];
+
+        for (const target of targets) {
+            if (
+                !target ||
+                !target.variables ||
+                (
+                    Object.prototype.hasOwnProperty.call(
+                        target,
+                        'isOriginal'
+                    ) &&
+                    !target.isOriginal
+                )
+            ) {
+                continue;
+            }
+
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    target.variables,
+                    variableId
+                )
+            ) {
+                return target.variables[variableId];
+            }
+        }
+
+        return null;
     }
 
     _isNumericLiteralOpcode (opcode) {

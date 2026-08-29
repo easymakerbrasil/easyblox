@@ -21,6 +21,53 @@
     margin: 0 0 0.75rem;
 }
 
+.variable-type-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.variable-type-label {
+    flex-shrink: 0;
+    font-weight: 500;
+    margin-right: 0.75rem;
+}
+
+.variable-type-selector {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid $ui-black-transparent;
+    border-radius: 0.25rem;
+}
+
+.variable-type-option {
+    position: relative;
+    padding: 0.4rem 0.75rem;
+    background: $ui-white;
+    color: $text-primary-transparent;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.variable-type-option + .variable-type-option {
+    border-left: 1px solid $ui-black-transparent;
+}
+
+.variable-type-option-selected {
+    background: $easyblox-yellow;
+    color: $easyblox-graphite;
+}
+
+.variable-type-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .disabled-label {
     opacity: 0.5;
 }

@@ -36,6 +36,21 @@ const messages = defineMessages({
         description: 'A message that displays in a list modal when the stage is selected indicating ' +
             'that the list being created will available to all sprites.',
         id: 'gui.gui.listPromptAllSpritesMessage'
+    },
+    easybloxVariableTypeLabel: {
+        defaultMessage: 'Tipo de dados:',
+        description: 'Label for selecting the EasyBlox variable type',
+        id: 'gui.prompt.easybloxVariableTypeLabel'
+    },
+    easybloxVariableTypeNumber: {
+        defaultMessage: 'Número',
+        description: 'EasyBlox numeric variable type',
+        id: 'gui.prompt.easybloxVariableTypeNumber'
+    },
+    easybloxVariableTypeText: {
+        defaultMessage: 'Texto',
+        description: 'EasyBlox text variable type',
+        id: 'gui.prompt.easybloxVariableTypeText'
     }
 });
 
@@ -60,6 +75,51 @@ const PromptComponent = props => (
                     onKeyPress={props.onKeyPress}
                 />
             </Box>
+            {props.showEasyBloxVariableTypeOptions ? (
+                <div className={styles.variableTypeRow}>
+                    <Box className={styles.variableTypeLabel}>
+                        <FormattedMessage
+                            {...messages.easybloxVariableTypeLabel}
+                        />
+                    </Box>
+
+                    <div className={styles.variableTypeSelector}>
+                        <label
+                            className={`${styles.variableTypeOption} ${
+                                props.easybloxValueType === 'DECIMAL' ?
+                                    styles.variableTypeOptionSelected : ''
+                            }`}
+                        >
+                            <input
+                                checked={props.easybloxValueType === 'DECIMAL'}
+                                className={styles.variableTypeInput}
+                                name="easybloxVariableType"
+                                type="radio"
+                                value="DECIMAL"
+                                onChange={props.onEasyBloxVariableTypeChange}
+                            />
+                            <FormattedMessage {...messages.easybloxVariableTypeNumber} />
+                        </label>
+
+                        <label
+                            className={`${styles.variableTypeOption} ${
+                                props.easybloxValueType === 'TEXT' ?
+                                    styles.variableTypeOptionSelected : ''
+                            }`}
+                        >
+                            <input
+                                checked={props.easybloxValueType === 'TEXT'}
+                                className={styles.variableTypeInput}
+                                name="easybloxVariableType"
+                                type="radio"
+                                value="TEXT"
+                                onChange={props.onEasyBloxVariableTypeChange}
+                            />
+                            <FormattedMessage {...messages.easybloxVariableTypeText} />
+                        </label>
+                    </div>
+                </div>
+            ) : null}
             {props.showVariableOptions ?
                 <div>
                     {props.isStage ?
@@ -163,6 +223,12 @@ PromptComponent.propTypes = {
     onOk: PropTypes.func.isRequired,
     onScopeOptionSelection: PropTypes.func.isRequired,
     showCloudOption: PropTypes.bool.isRequired,
+    easybloxValueType: PropTypes.oneOf([
+        'DECIMAL',
+        'TEXT'
+    ]),
+    onEasyBloxVariableTypeChange: PropTypes.func,
+    showEasyBloxVariableTypeOptions: PropTypes.bool,
     showVariableOptions: PropTypes.bool.isRequired,
     title: PropTypes.string.isRequired
 };

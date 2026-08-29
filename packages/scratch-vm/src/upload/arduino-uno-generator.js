@@ -2571,14 +2571,17 @@ class ArduinoUnoGenerator {
 
         switch (expression.type) {
         case 'IntegerLiteral':
-        case 'DecimalLiteral':
-            if (!Number.isFinite(expression.value)) {
+        case 'DecimalLiteral': {
+            const numericValue = Number(expression.value);
+
+            if (!Number.isFinite(numericValue)) {
                 throw new Error(
                     'Invalid Arduino UNO numeric literal'
                 );
             }
 
-            return String(expression.value);
+            return String(numericValue);
+        }
 
         case 'TextLiteral':
             return `"${this._escapeCppStringLiteral(expression.value)}"`;

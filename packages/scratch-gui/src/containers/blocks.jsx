@@ -80,6 +80,7 @@ class Blocks extends React.Component {
             'handleDrop',
             'handleStatusButtonUpdate',
             'handleOpenSoundRecorder',
+            'handleVariableCreated',
             'handlePromptStart',
             'handlePromptCallback',
             'handlePromptClose',
@@ -154,6 +155,14 @@ class Blocks extends React.Component {
             ) {
                 this.requestToolboxUpdate();
             }
+            if (
+                event.type === this.ScratchBlocks.Events.VAR_CREATE &&
+                this._pendingEasyBloxVariableType
+            ) {
+                setTimeout(() => {
+                    this.handleVariableCreated(event.varId);
+                }, 0);
+            }
         };
         this.workspace.addChangeListener(this.toolboxUpdateChangeListener);
 
@@ -163,7 +172,11 @@ class Blocks extends React.Component {
         const toolboxWorkspace = this.workspace.getFlyout().getWorkspace();
 
         const varListButtonCallback = type =>
-            (() => this.ScratchBlocks.ScratchVariables.createVariable(this.workspace, null, type));
+            (() => this.ScratchBlocks.ScratchVariables.createVariable(
+                this.workspace,
+                null,
+                type
+            ));
         const procButtonCallback = () => {
             this.ScratchBlocks.ScratchProcedures.createProcedureDefCallback(this.workspace);
         };
@@ -820,12 +833,48 @@ class Blocks extends React.Component {
     setBlocks (blocks) {
         this.blocks = blocks;
     }
+
+    handleVariableCreated (variableId) {
+        const valueType = this._pendingEasyBloxVariableType;
+        this._pendingEasyBloxVariableType = null;
+
+        if (!variableId || !valueType) {
+            return;
+        }
+
+        const ownerTarget =
+            this.props.vm.runtime.targets.find(target =>
+                target &&
+                target.variables &&
+                Object.prototype.hasOwnProperty.call(
+                    target.variables,
+                    variableId
+                )
+            );
+
+        if (!ownerTarget) {
+            return;
+        }
+
+        this.props.vm.setVariableEasyBloxValueType(
+            ownerTarget.id,
+            variableId,
+            valueType
+        );
+    }
+
     handlePromptStart (message, defaultValue, callback, optTitle, optVarType) {
+        this._pendingEasyBloxVariableType = null;
         const p = {prompt: {callback, message, defaultValue}};
         p.prompt.title = optTitle ? optTitle :
             this.ScratchBlocks.Msg.VARIABLE_MODAL_TITLE;
         p.prompt.varType = typeof optVarType === 'string' ?
             optVarType : this.ScratchBlocks.SCALAR_VARIABLE_TYPE;
+
+        p.prompt.showEasyBloxVariableTypeOptions =
+            optVarType === this.ScratchBlocks.SCALAR_VARIABLE_TYPE &&
+            p.prompt.title === this.ScratchBlocks.Msg.VARIABLE_MODAL_TITLE;
+
         p.prompt.showVariableOptions = // This flag means that we should show variable/list options about scope
             optVarType !== this.ScratchBlocks.BROADCAST_MESSAGE_VARIABLE_TYPE &&
             p.prompt.title !== this.ScratchBlocks.Msg.RENAME_VARIABLE_MODAL_TITLE &&
@@ -848,7 +897,12 @@ class Blocks extends React.Component {
      * and additional potentially conflicting variable names from the VM
      * to the variable validation prompt callback used in scratch-blocks.
      */
-    handlePromptCallback (input, variableOptions) {
+    handlePromptCallback (input, variableOptions = {}) {
+        this._pendingEasyBloxVariableType =
+            this.state.prompt.showEasyBloxVariableTypeOptions ?
+                variableOptions.easybloxValueType :
+                null;
+
         this.state.prompt.callback(
             input,
             this.props.vm.runtime.getAllVarNamesOfType(this.state.prompt.varType),
@@ -913,6 +967,9 @@ class Blocks extends React.Component {
                         showListMessage={this.state.prompt.varType === this.ScratchBlocks.LIST_VARIABLE_TYPE}
                         label={this.state.prompt.message}
                         showCloudOption={this.state.prompt.showCloudOption}
+                        showEasyBloxVariableTypeOptions={
+                            this.state.prompt.showEasyBloxVariableTypeOptions
+                        }
                         showVariableOptions={this.state.prompt.showVariableOptions}
                         title={this.state.prompt.title}
                         vm={vm}

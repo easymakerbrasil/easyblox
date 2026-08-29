@@ -1814,6 +1814,20 @@ class VirtualMachine extends EventEmitter {
         }
 
         variable.easybloxValueType = valueType;
+
+        /*
+         * Scratch initializes newly created variables with numeric zero.
+         * EasyBlox TEXT variables should instead start as an empty string.
+         * Only normalize the original numeric zero so that a legitimate
+         * text value such as "0" is never discarded.
+         */
+        if (
+            valueType === 'TEXT' &&
+            variable.value === 0
+        ) {
+            variable.value = '';
+        }
+
         this.runtime.emitProjectChanged();
 
         return true;
