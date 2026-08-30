@@ -26,6 +26,40 @@ class UploadResourceValidator {
             ir.loop :
             [];
 
+        const procedures = Array.isArray(ir.procedures) ?
+            ir.procedures :
+            [];
+
+        const procedureStatements = [];
+
+        for (const procedure of procedures) {
+            procedureStatements.push(
+                ...(
+                    Array.isArray(procedure.body) ?
+                        procedure.body :
+                        []
+                )
+            );
+        }
+
+        const analysisStatements = [
+            ...setup,
+            ...loop,
+            ...procedureStatements
+        ];
+
+        const joystickInitialization =
+            setup.find(statement =>
+                statement &&
+                statement.type === 'JoystickInit'
+            ) || null;
+
+        if (joystickInitialization) {
+            this._validateJoystickInitialization(
+                joystickInitialization
+            );
+        }
+
         const configuredMotors = new Set();
 
         const motorPins = new Set();
@@ -75,7 +109,7 @@ class UploadResourceValidator {
         }
 
         this._collectUsedMotors(
-            [...setup, ...loop],
+            analysisStatements,
             usedMotors
         );
 
@@ -119,21 +153,23 @@ class UploadResourceValidator {
         const pwmWritePins = new Set();
         const digitalWritePins = new Set();
         const digitalReadPins = new Set();
+        const ultrasonicPins = new Set();
+        const dhtPins = new Set();
 
         this._collectServoAndTonePins(
-            [...setup, ...loop],
+            analysisStatements,
             servoPins,
             tonePins,
             relayPins
         );
 
         this._collectPwmWritePins(
-            [...setup, ...loop],
+            analysisStatements,
             pwmWritePins
         );
 
         this._collectDigitalWritePins(
-            [...setup, ...loop],
+            analysisStatements,
             digitalWritePins
         );
 
@@ -272,12 +308,78 @@ class UploadResourceValidator {
         }
 
         this._validateStatementExpressions(
-            [
-                ...setup,
-                ...loop
-            ],
-            digitalReadPins
+            analysisStatements,
+            digitalReadPins,
+            ultrasonicPins,
+            dhtPins
         );
+
+        for (const pin of ultrasonicPins) {
+            if (servoPins.has(pin)) {
+                throw new Error(
+                    'Ultrasonic and Servo cannot use the same pin'
+                );
+            }
+        }
+
+        for (const pin of ultrasonicPins) {
+            if (tonePins.has(pin)) {
+                throw new Error(
+                    'Ultrasonic and Tone cannot use the same pin'
+                );
+            }
+        }
+
+        for (const pin of dhtPins) {
+            if (servoPins.has(pin)) {
+                throw new Error(
+                    'DHT and Servo cannot use the same pin'
+                );
+            }
+
+            if (tonePins.has(pin)) {
+                throw new Error(
+                    'DHT and Tone cannot use the same pin'
+                );
+            }
+        }
+
+        if (joystickInitialization) {
+            const joystickPins = [
+                joystickInitialization.xPin,
+                joystickInitialization.yPin,
+                joystickInitialization.clickPin
+            ];
+
+            const clickPin =
+                joystickInitialization.clickPin;
+
+            if (servoPins.has(clickPin)) {
+                throw new Error(
+                    'Joystick CLICK and Servo cannot use the same pin'
+                );
+            }
+
+            if (tonePins.has(clickPin)) {
+                throw new Error(
+                    'Joystick CLICK and Tone cannot use the same pin'
+                );
+            }
+
+            if (dhtPins.has(clickPin)) {
+                throw new Error(
+                    'DHT and Joystick CLICK cannot use the same pin'
+                );
+            }
+
+            for (const pin of joystickPins) {
+                if (digitalWritePins.has(pin)) {
+                    throw new Error(
+                        'Joystick and DigitalWrite cannot use the same pin'
+                    );
+                }
+            }
+        }
 
         for (const pin of digitalReadPins) {
             if (servoPins.has(pin)) {
@@ -296,52 +398,19 @@ class UploadResourceValidator {
      * @returns {void}
      * @private
      */
-    _validateStatementExpressions (statements, digitalReadPins) {
+    _validateStatementExpressions (
+        statements,
+        digitalReadPins,
+        ultrasonicPins,
+        dhtPins
+    ) {
         for (const statement of statements) {
-            if (
-                (
-                    statement.type === 'WaitUntil' ||
-                    statement.type === 'RepeatUntil' ||
-                    statement.type === 'If' ||
-                    statement.type === 'IfElse'
-                ) &&
-                statement.condition
-            ) {
-                this._validateExpression(
-                    statement.condition,
-                    digitalReadPins
-                );
-            }
-
-            if (
-                (
-                    statement.type === 'Repeat' ||
-                    statement.type === 'RepeatUntil' ||
-                    statement.type === 'If'
-                ) &&
-                Array.isArray(statement.body)
-            ) {
-                this._validateStatementExpressions(
-                    statement.body,
-                    digitalReadPins
-                );
-            }
-
-            if (statement.type === 'IfElse') {
-                if (Array.isArray(statement.thenBody)) {
-                    this._validateStatementExpressions(
-                        statement.thenBody,
-                        digitalReadPins
-                    );
-                }
-
-                if (Array.isArray(statement.elseBody)) {
-                    this._validateStatementExpressions(
-                        statement.elseBody,
-                        digitalReadPins
-                    );
-                }
-            }
+            this._validateExpression(
+                statement,
+                digitalReadPins,
+                ultrasonicPins,
+                dhtPins
+            );
         }
     }
 
@@ -351,7 +420,12 @@ class UploadResourceValidator {
      * @returns {void}
      * @private
      */
-    _validateExpression (expression, digitalReadPins) {
+    _validateExpression (
+        expression,
+        digitalReadPins,
+        ultrasonicPins,
+        dhtPins
+    ) {
         if (!expression || typeof expression !== 'object') {
             return;
         }
@@ -384,20 +458,115 @@ class UploadResourceValidator {
             }
         }
 
+        if (expression.type === 'UltrasonicReadExpression') {
+            ultrasonicPins.add(expression.trigPin);
+            ultrasonicPins.add(expression.echoPin);
+            const supportedUltrasonicPins =
+                Array.isArray(this.boardProfile.digitalPins) ?
+                    this.boardProfile.digitalPins :
+                    [];
+
+            if (!supportedUltrasonicPins.includes(expression.trigPin)) {
+                throw new Error(
+                    'Ultrasonic TRIG pin is not supported by the selected board'
+                );
+            }
+
+            if (!supportedUltrasonicPins.includes(expression.echoPin)) {
+                throw new Error(
+                    'Ultrasonic ECHO pin is not supported by the selected board'
+                );
+            }
+
+            if (expression.trigPin === expression.echoPin) {
+                throw new Error(
+                    'Ultrasonic TRIG and ECHO pins must be different'
+                );
+            }
+        }
+
         for (const value of Object.values(expression)) {
             if (Array.isArray(value)) {
                 for (const item of value) {
                     this._validateExpression(
                         item,
-                        digitalReadPins
+                        digitalReadPins,
+                        ultrasonicPins,
+                        dhtPins
                     );
                 }
             } else if (value && typeof value === 'object') {
                 this._validateExpression(
                     value,
-                    digitalReadPins
+                    digitalReadPins,
+                    ultrasonicPins,
+                    dhtPins
                 );
             }
+        }
+
+        if (expression.type === 'DhtReadExpression') {
+            dhtPins.add(expression.pin);
+
+            const supportedDhtPins =
+                Array.isArray(this.boardProfile.digitalPins) ?
+                    this.boardProfile.digitalPins.filter(pin =>
+                        pin >= 2 &&
+                        pin <= 13
+                    ) :
+                    [];
+
+            if (!supportedDhtPins.includes(expression.pin)) {
+                throw new Error(
+                    'DHT pin is not supported by the selected board'
+                );
+            }
+        }
+    }
+
+    /**
+     * Validate one Arduino joystick hardware configuration.
+     * @param {object} statement JoystickInit statement.
+     * @returns {void}
+     * @private
+     */
+    _validateJoystickInitialization (statement) {
+        const supportedAnalogPins =
+            Array.isArray(this.boardProfile.analogPins) ?
+                this.boardProfile.analogPins :
+                [];
+
+        const supportedDigitalPins =
+            Array.isArray(this.boardProfile.digitalPins) ?
+                this.boardProfile.digitalPins :
+                [];
+
+        if (!supportedAnalogPins.includes(statement.xPin)) {
+            throw new Error(
+                'Joystick X pin is not supported by the selected board'
+            );
+        }
+
+        if (!supportedAnalogPins.includes(statement.yPin)) {
+            throw new Error(
+                'Joystick Y pin is not supported by the selected board'
+            );
+        }
+
+        if (
+            !supportedDigitalPins.includes(statement.clickPin) ||
+            statement.clickPin < 2 ||
+            statement.clickPin > 13
+        ) {
+            throw new Error(
+                'Joystick CLICK pin is not supported by the selected board'
+            );
+        }
+
+        if (statement.xPin === statement.yPin) {
+            throw new Error(
+                'Joystick X and Y pins must be different'
+            );
         }
     }
 

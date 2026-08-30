@@ -72,6 +72,27 @@ class ArduinoUnoGenerator {
             loopStatements
         );
 
+        const usesUltrasonic = (
+            this._irUsesExpressionType(
+                analysisSetupStatements,
+                'UltrasonicReadExpression'
+            ) ||
+            this._irUsesExpressionType(
+                loopStatements,
+                'UltrasonicReadExpression'
+            )
+        );
+
+        const dhtPins = this._collectDhtPins([
+            ...analysisSetupStatements,
+            ...loopStatements
+        ]);
+
+        this._joystickConfiguration =
+            this._collectJoystickConfiguration(
+                setupStatements
+            );
+
         const usesUnicodeLetterOf = this._usesUnicodeLetterOf(
             analysisSetupStatements,
             loopStatements
@@ -157,6 +178,253 @@ class ArduinoUnoGenerator {
         if (usesTimer) {
             lines.push(
                 'unsigned long easyblox_timer_reset_at = 0;',
+                ''
+            );
+        }
+
+        if (usesUltrasonic) {
+            lines.push(
+                'float easybloxUltrasonicRead(uint8_t trigPin, uint8_t echoPin) {',
+                '    pinMode(trigPin, OUTPUT);',
+                '    pinMode(echoPin, INPUT);',
+                '',
+                '    digitalWrite(trigPin, LOW);',
+                '    delayMicroseconds(2);',
+                '    digitalWrite(trigPin, HIGH);',
+                '    delayMicroseconds(10);',
+                '    digitalWrite(trigPin, LOW);',
+                '',
+                '    const unsigned long duration = pulseIn(echoPin, HIGH, 30000UL);',
+                '',
+                '    if (duration == 0) {',
+                '        return 0.0f;',
+                '    }',
+                '',
+                '    const uint16_t distanceMm = static_cast<uint16_t>(',
+                '        (duration * 343UL) / 2000UL',
+                '    );',
+                '',
+                '    return static_cast<float>(distanceMm) / 10.0f;',
+                '}',
+                ''
+            );
+        }
+
+        if (dhtPins.length > 0) {
+            lines.push(
+                'constexpr unsigned long EASYBLOX_DHT_CACHE_INTERVAL_MS = 2000UL;',
+                'constexpr uint8_t EASYBLOX_DHT_FIRST_PIN = 2;',
+                'constexpr uint8_t EASYBLOX_DHT_LAST_PIN = 13;',
+                'constexpr uint8_t EASYBLOX_DHT_PIN_COUNT = ' +
+                    'EASYBLOX_DHT_LAST_PIN - EASYBLOX_DHT_FIRST_PIN + 1;',
+                '',
+                'struct EasyBloxDhtCacheEntry {',
+                '    uint8_t humidity;',
+                '    uint8_t temperature;',
+                '    unsigned long timestamp;',
+                '    bool valid;',
+                '};',
+                '',
+                'EasyBloxDhtCacheEntry easybloxDhtCache[' +
+                    'EASYBLOX_DHT_PIN_COUNT] = {};',
+                '',
+                'uint16_t easybloxMeasureDhtPulse(',
+                '    volatile uint8_t *inputRegister,',
+                '    uint8_t bitMask,',
+                '    bool level',
+                ') {',
+                '    const uint8_t expectedState =',
+                '        level ? bitMask : 0;',
+                '',
+                '    const uint16_t maxCycles =',
+                '        static_cast<uint16_t>(',
+                '            microsecondsToClockCycles(1000)',
+                '        );',
+                '',
+                '    uint16_t cycles = 0;',
+                '',
+                '    while (',
+                '        (*inputRegister & bitMask) == expectedState',
+                '    ) {',
+                '        cycles++;',
+                '',
+                '        if (cycles >= maxCycles) {',
+                '            return 0;',
+                '        }',
+                '    }',
+                '',
+                '    return cycles;',
+                '}',
+                '',
+                'bool easybloxReadDht11Raw(',
+                '    uint8_t pin,',
+                '    uint8_t &humidity,',
+                '    uint8_t &temperature',
+                ') {',
+                '    uint8_t data[5] = {0, 0, 0, 0, 0};',
+                '',
+                '    const uint8_t port = digitalPinToPort(pin);',
+                '    const uint8_t bitMask = digitalPinToBitMask(pin);',
+                '',
+                '    if (port == NOT_A_PIN) {',
+                '        return false;',
+                '    }',
+                '',
+                '    volatile uint8_t *inputRegister =',
+                '        portInputRegister(port);',
+                '',
+                '    pinMode(pin, INPUT_PULLUP);',
+                '    delay(1);',
+                '',
+                '    pinMode(pin, OUTPUT);',
+                '    digitalWrite(pin, LOW);',
+                '    delay(20);',
+                '',
+                '    pinMode(pin, INPUT_PULLUP);',
+                '    delayMicroseconds(55);',
+                '',
+                '    uint16_t lowCycles[40];',
+                '    uint16_t highCycles[40];',
+                '    bool timingValid = true;',
+                '',
+                '    noInterrupts();',
+                '',
+                '    if (',
+                '        easybloxMeasureDhtPulse(',
+                '            inputRegister,',
+                '            bitMask,',
+                '            LOW',
+                '        ) == 0',
+                '    ) {',
+                '        timingValid = false;',
+                '    }',
+                '',
+                '    if (',
+                '        timingValid &&',
+                '        easybloxMeasureDhtPulse(',
+                '            inputRegister,',
+                '            bitMask,',
+                '            HIGH',
+                '        ) == 0',
+                '    ) {',
+                '        timingValid = false;',
+                '    }',
+                '',
+                '    if (timingValid) {',
+                '        for (uint8_t bitIndex = 0; bitIndex < 40; bitIndex++) {',
+                '            lowCycles[bitIndex] = easybloxMeasureDhtPulse(',
+                '                inputRegister,',
+                '                bitMask,',
+                '                LOW',
+                '            );',
+                '',
+                '            highCycles[bitIndex] = easybloxMeasureDhtPulse(',
+                '                inputRegister,',
+                '                bitMask,',
+                '                HIGH',
+                '            );',
+                '',
+                '            if (',
+                '                lowCycles[bitIndex] == 0 ||',
+                '                highCycles[bitIndex] == 0',
+                '            ) {',
+                '                timingValid = false;',
+                '                break;',
+                '            }',
+                '        }',
+                '    }',
+                '',
+                '    interrupts();',
+                '',
+                '    if (!timingValid) {',
+                '        return false;',
+                '    }',
+                '',
+                '    for (uint8_t bitIndex = 0; bitIndex < 40; bitIndex++) {',
+                '        data[bitIndex / 8] <<= 1;',
+                '',
+                '        if (highCycles[bitIndex] > lowCycles[bitIndex]) {',
+                '            data[bitIndex / 8] |= 1;',
+                '        }',
+                '    }',
+                '',
+                '    const uint8_t expectedChecksum =',
+                '        static_cast<uint8_t>(',
+                '            data[0] +',
+                '            data[1] +',
+                '            data[2] +',
+                '            data[3]',
+                '        );',
+                '',
+                '    if (expectedChecksum != data[4]) {',
+                '        return false;',
+                '    }',
+                '',
+                '    humidity = data[0];',
+                '    temperature = data[2];',
+                '',
+                '    return true;',
+                '}',
+                '',
+                'bool easybloxReadDht11(',
+                '    uint8_t pin,',
+                '    uint8_t &humidity,',
+                '    uint8_t &temperature',
+                ') {',
+                '    if (',
+                '        pin < EASYBLOX_DHT_FIRST_PIN ||',
+                '        pin > EASYBLOX_DHT_LAST_PIN',
+                '    ) {',
+                '        return false;',
+                '    }',
+                '',
+                '    EasyBloxDhtCacheEntry &cache =',
+                '        easybloxDhtCache[pin - EASYBLOX_DHT_FIRST_PIN];',
+                '',
+                '    if (',
+                '        cache.valid &&',
+                '        millis() - cache.timestamp <',
+                '            EASYBLOX_DHT_CACHE_INTERVAL_MS',
+                '    ) {',
+                '        humidity = cache.humidity;',
+                '        temperature = cache.temperature;',
+                '        return true;',
+                '    }',
+                '',
+                '    if (!easybloxReadDht11Raw(pin, humidity, temperature)) {',
+                '        cache.valid = false;',
+                '        return false;',
+                '    }',
+                '',
+                '    cache.humidity = humidity;',
+                '    cache.temperature = temperature;',
+                '    cache.timestamp = millis();',
+                '    cache.valid = true;',
+                '',
+                '    return true;',
+                '}',
+                '',
+                'float easybloxDhtTemperature(uint8_t pin) {',
+                '    uint8_t humidity = 0;',
+                '    uint8_t temperature = 0;',
+                '',
+                '    if (!easybloxReadDht11(pin, humidity, temperature)) {',
+                '        return 0.0f;',
+                '    }',
+                '',
+                '    return static_cast<float>(temperature);',
+                '}',
+                '',
+                'float easybloxDhtHumidity(uint8_t pin) {',
+                '    uint8_t humidity = 0;',
+                '    uint8_t temperature = 0;',
+                '',
+                '    if (!easybloxReadDht11(pin, humidity, temperature)) {',
+                '        return 0.0f;',
+                '    }',
+                '',
+                '    return static_cast<float>(humidity);',
+                '}',
                 ''
             );
         }
@@ -847,6 +1115,97 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Recursively inspect EasyBlox IR for an expression type.
+     * @param {*} value IR value.
+     * @param {string} expressionType Expression IR type.
+     * @returns {boolean} True when found.
+     * @private
+     */
+    _irUsesExpressionType (value, expressionType) {
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._irUsesExpressionType(
+                    item,
+                    expressionType
+                )
+            );
+        }
+
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        if (value.type === expressionType) {
+            return true;
+        }
+
+        return Object.keys(value).some(key =>
+            this._irUsesExpressionType(
+                value[key],
+                expressionType
+            )
+        );
+    }
+
+    /**
+     * Collect unique DHT pins referenced anywhere in EasyBlox IR.
+     * @param {*} value IR value.
+     * @returns {Array<number>} Unique DHT pins in deterministic order.
+     * @private
+     */
+    _collectDhtPins (value) {
+        const pins = new Set();
+
+        const visit = item => {
+            if (Array.isArray(item)) {
+                for (const child of item) {
+                    visit(child);
+                }
+                return;
+            }
+
+            if (
+                !item ||
+                typeof item !== 'object'
+            ) {
+                return;
+            }
+
+            if (item.type === 'DhtReadExpression') {
+                pins.add(item.pin);
+            }
+
+            for (const child of Object.values(item)) {
+                visit(child);
+            }
+        };
+
+        visit(value);
+
+        return Array.from(pins)
+            .sort((a, b) => a - b);
+    }
+
+    /**
+     * Find the explicit joystick configuration declared in setup.
+     * @param {Array<object>} setupStatements Setup IR statements.
+     * @returns {?object} JoystickInit statement or null.
+     * @private
+     */
+    _collectJoystickConfiguration (setupStatements) {
+        for (const statement of setupStatements) {
+            if (
+                statement &&
+                statement.type === 'JoystickInit'
+            ) {
+                return statement;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Check whether the program requires Unicode-aware letter support.
      * @param {Array<object>} setupStatements Setup IR statements.
      * @param {Array<object>} loopStatements Loop IR statements.
@@ -1406,6 +1765,31 @@ class ArduinoUnoGenerator {
 
         const globalUsed = this._createCppReservedIdentifierSet();
         const reservedForInternals = new Set(globalUsed);
+
+        /*
+        * Internal EasyBlox helper emitted by the Ultrasonic reporter.
+        * Reserve it from student variables, lists, procedures and parameters.
+        */
+        globalUsed.add('easybloxUltrasonicRead');
+        reservedForInternals.add('easybloxUltrasonicRead');
+        const dhtInternalIdentifiers = [
+            'EASYBLOX_DHT_CACHE_INTERVAL_MS',
+            'EASYBLOX_DHT_FIRST_PIN',
+            'EASYBLOX_DHT_LAST_PIN',
+            'EASYBLOX_DHT_PIN_COUNT',
+            'EasyBloxDhtCacheEntry',
+            'easybloxDhtCache',
+            'easybloxMeasureDhtPulse',
+            'easybloxReadDht11Raw',
+            'easybloxReadDht11',
+            'easybloxDhtTemperature',
+            'easybloxDhtHumidity'
+        ];
+
+        for (const identifier of dhtInternalIdentifiers) {
+            globalUsed.add(identifier);
+            reservedForInternals.add(identifier);
+        }
 
         for (const variable of variables) {
             const identifier = this._allocateUserCppIdentifier(
@@ -1988,6 +2372,24 @@ class ArduinoUnoGenerator {
             case 'TimerReset':
                 lines.push(
                     `${indent}easyblox_timer_reset_at = millis();`
+                );
+                break;
+
+            case 'JoystickInit':
+                lines.push(
+                    `${indent}pinMode(${
+                        this._generateAnalogPin(statement.xPin)
+                    }, INPUT);`,
+                    `${indent}digitalWrite(${
+                        this._generateAnalogPin(statement.xPin)
+                    }, LOW);`,
+                    `${indent}pinMode(${
+                        this._generateAnalogPin(statement.yPin)
+                    }, INPUT);`,
+                    `${indent}digitalWrite(${
+                        this._generateAnalogPin(statement.yPin)
+                    }, LOW);`,
+                    `${indent}pinMode(${statement.clickPin}, INPUT_PULLUP);`
                 );
                 break;
 
@@ -2594,6 +2996,63 @@ class ArduinoUnoGenerator {
 
         case 'AnalogReadExpression':
             return `analogRead(${this._generateAnalogPin(expression.pin)})`;
+
+        case 'UltrasonicReadExpression':
+            return `easybloxUltrasonicRead(${
+                expression.trigPin
+            }, ${expression.echoPin})`;
+
+        case 'DhtReadExpression':
+            if (expression.reading === 'temperature') {
+                return `easybloxDhtTemperature(${expression.pin})`;
+            }
+
+            if (expression.reading === 'humidity') {
+                return `easybloxDhtHumidity(${expression.pin})`;
+            }
+
+            throw new Error(
+                `Unsupported Arduino UNO DHT reading: ${
+                    expression.reading
+                }`
+            );
+
+        case 'JoystickValueExpression': {
+            if (!this._joystickConfiguration) {
+                throw new Error(
+                    'Joystick must be initialized before use'
+                );
+            }
+
+            let pin;
+
+            if (expression.axis === 'X') {
+                pin = this._joystickConfiguration.xPin;
+            } else if (expression.axis === 'Y') {
+                pin = this._joystickConfiguration.yPin;
+            } else {
+                throw new Error(
+                    `Unsupported Arduino UNO joystick axis: ${
+                        expression.axis
+                    }`
+                );
+            }
+
+            return `analogRead(${
+                this._generateAnalogPin(pin)
+            })`;
+        }
+
+        case 'JoystickClickedExpression':
+            if (!this._joystickConfiguration) {
+                throw new Error(
+                    'Joystick must be initialized before use'
+                );
+            }
+
+            return `(digitalRead(${
+                this._joystickConfiguration.clickPin
+            }) == LOW)`;
 
         case 'TimerReadExpression':
             return '((millis() - easyblox_timer_reset_at) / 1000.0)';

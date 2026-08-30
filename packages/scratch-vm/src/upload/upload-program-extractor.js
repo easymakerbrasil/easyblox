@@ -2,6 +2,11 @@ const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
 const DIGITAL_READ_OPCODE = 'arduinoUno_digitalRead';
 const ANALOG_READ_OPCODE = 'arduinoUno_analogRead';
+const ULTRASONIC_READ_OPCODE = 'sensors_ultrasonicRead';
+const DHT_READ_OPCODE = 'sensors_dhtRead';
+const JOYSTICK_INIT_OPCODE = 'sensors_joystickInit';
+const JOYSTICK_VALUE_OPCODE = 'sensors_joystickValue';
+const JOYSTICK_CLICKED_OPCODE = 'sensors_joystickClicked';
 const PWM_WRITE_OPCODE = 'arduinoUno_pwmWrite';
 const TONE_START_OPCODE = 'arduinoUno_toneStart';
 const TONE_STOP_OPCODE = 'arduinoUno_toneStop';
@@ -669,6 +674,26 @@ class UploadProgramExtractor {
                 type: 'TimerReset'
             };
 
+        case JOYSTICK_INIT_OPCODE:
+            return {
+                type: 'JoystickInit',
+                xPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'X'
+                ),
+                yPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'Y'
+                ),
+                clickPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'CLICK'
+                )
+            };
+
         case MOTOR_CONFIGURE_OPCODE:
             return {
                 type: 'MotorConfigure',
@@ -1207,6 +1232,77 @@ class UploadProgramExtractor {
                 )
             };
 
+        case ULTRASONIC_READ_OPCODE:
+            return {
+                type: 'UltrasonicReadExpression',
+                trigPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'TRIG'
+                ),
+                echoPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'ECHO'
+                )
+            };
+
+        case DHT_READ_OPCODE: {
+            const readingType = this._readNumberInput(
+                blocks,
+                block,
+                'TYPE'
+            );
+
+            if (
+                readingType !== 0 &&
+                readingType !== 1
+            ) {
+                throw new Error(
+                    'DHT reading type must be temperature or humidity'
+                );
+            }
+
+            return {
+                type: 'DhtReadExpression',
+                pin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'PIN'
+                ),
+                reading: readingType === 0 ?
+                    'temperature' :
+                    'humidity'
+            };
+        }
+
+        case JOYSTICK_VALUE_OPCODE: {
+            const axis = this._readMenuValue(
+                blocks,
+                block,
+                'AXIS'
+            );
+
+            if (
+                axis !== 'X' &&
+                axis !== 'Y'
+            ) {
+                throw new Error(
+                    'Joystick axis must be X or Y'
+                );
+            }
+
+            return {
+                type: 'JoystickValueExpression',
+                axis
+            };
+        }
+
+        case JOYSTICK_CLICKED_OPCODE:
+            return {
+                type: 'JoystickClickedExpression'
+            };
+
         case TIMER_READ_OPCODE:
             return {
                 type: 'TimerReadExpression'
@@ -1689,6 +1785,51 @@ class UploadProgramExtractor {
         }
 
         return value;
+    }
+
+    /**
+     * Read one Scratch menu input preserving its semantic value.
+     * @param {Blocks} blocks Scratch Blocks storage.
+     * @param {object} block Parent block.
+     * @param {string} inputName Scratch input name.
+     * @returns {string} Menu value.
+     * @private
+     */
+    _readMenuValue (blocks, block, inputName) {
+        const inputs = blocks.getInputs(block);
+        const input = inputs && inputs[inputName];
+
+        if (!input || !input.block) {
+            throw new Error(
+                `Missing menu input ${inputName} in ${block.opcode}`
+            );
+        }
+
+        const inputBlock = blocks.getBlock(input.block);
+
+        if (
+            !inputBlock ||
+            !inputBlock.opcode.includes('_menu_')
+        ) {
+            throw new Error(
+                `Unsupported menu input ${inputName} in ${block.opcode}`
+            );
+        }
+
+        const fields = blocks.getFields(inputBlock);
+        const fieldNames = fields ?
+            Object.keys(fields) :
+            [];
+
+        if (fieldNames.length !== 1) {
+            throw new Error(
+                `Invalid menu input ${inputName} in ${block.opcode}`
+            );
+        }
+
+        return String(
+            fields[fieldNames[0]].value
+        );
     }
 
     /**

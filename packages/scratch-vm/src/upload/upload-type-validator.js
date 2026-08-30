@@ -242,6 +242,7 @@ class UploadTypeValidator {
             case 'ToneStart':
             case 'ToneStop':
             case 'TimerReset':
+            case 'JoystickInit':
             case 'MotorConfigure':
             case 'MotorWrite':
             case 'MotorStop':
@@ -544,6 +545,36 @@ class UploadTypeValidator {
 
         case 'AnalogReadExpression':
             return VALUE_TYPES.INTEGER;
+
+        case 'UltrasonicReadExpression':
+            return VALUE_TYPES.DECIMAL;
+
+        case 'DhtReadExpression':
+            if (
+                expression.reading !== 'temperature' &&
+                expression.reading !== 'humidity'
+            ) {
+                throw new Error(
+                    'DHT reading must be temperature or humidity'
+                );
+            }
+
+            return VALUE_TYPES.DECIMAL;
+
+        case 'JoystickValueExpression':
+            if (
+                expression.axis !== 'X' &&
+                expression.axis !== 'Y'
+            ) {
+                throw new Error(
+                    'Joystick axis must be X or Y'
+                );
+            }
+
+            return VALUE_TYPES.INTEGER;
+
+        case 'JoystickClickedExpression':
+            return VALUE_TYPES.BOOLEAN;
 
         case 'VariableReference': {
             const variable = this._getVariable(

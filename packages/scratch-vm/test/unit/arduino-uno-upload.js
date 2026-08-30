@@ -2659,6 +2659,90 @@ tap.test('Arduino UNO Upload context validator rejects MotorConfigure in loop', 
     t.end();
 });
 
+tap.test('Arduino UNO Upload context validator rejects MotorConfigure inside procedure body', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        procedures: [{
+            id: 'procedure_motor',
+            name: 'configurar motor',
+            proccode: 'configurar motor',
+            parameters: [],
+            body: [{
+                type: 'MotorConfigure',
+                motor: 1,
+                in1Pin: 2,
+                in2Pin: 4,
+                pwmPin: 3
+            }]
+        }],
+        setup: [],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor configuration must be declared directly in Arduino UNO setup/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator rejects SerialBegin inside procedure body', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        procedures: [{
+            id: 'procedure_serial',
+            name: 'iniciar serial',
+            proccode: 'iniciar serial',
+            parameters: [],
+            body: [{
+                type: 'SerialBegin',
+                baud: 9600
+            }]
+        }],
+        setup: [],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial initialization must be declared directly in Arduino UNO setup/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload context validator requires SerialBegin for SerialWrite inside procedure body', t => {
+    const validator = new UploadContextValidator();
+
+    const ir = {
+        procedures: [{
+            id: 'procedure_print',
+            name: 'mostrar valor',
+            proccode: 'mostrar valor',
+            parameters: [],
+            body: [{
+                type: 'SerialWrite',
+                value: {
+                    type: 'TextLiteral',
+                    value: 'Olá'
+                }
+            }]
+        }],
+        setup: [],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Serial must be initialized before use/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload context validator rejects MotorConfigure inside IF', t => {
     const validator = new UploadContextValidator();
 
@@ -9929,6 +10013,932 @@ tap.test('Arduino UNO Upload generates analogRead numeric expression', t => {
         '}',
         ''
     ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts ultrasonic sensor expression', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_block'),
+        {
+            id: 'if_block',
+            opcode: 'control_if',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'greater_than',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'greater_than',
+            opcode: 'operator_gt',
+            next: null,
+            parent: 'if_block',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'ultrasonic_read',
+                    shadow: null
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'threshold',
+                    shadow: 'threshold'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'ultrasonic_read',
+            opcode: 'sensors_ultrasonicRead',
+            next: null,
+            parent: 'greater_than',
+            inputs: {
+                TRIG: {
+                    name: 'TRIG',
+                    block: 'trig_pin',
+                    shadow: 'trig_pin'
+                },
+                ECHO: {
+                    name: 'ECHO',
+                    block: 'echo_pin',
+                    shadow: 'echo_pin'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'trig_pin',
+            'ultrasonic_read',
+            16
+        ),
+        createNumberShadow(
+            'echo_pin',
+            'ultrasonic_read',
+            17
+        ),
+        createNumberShadow(
+            'threshold',
+            'greater_than',
+            20
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: 16,
+                    echoPin: 17
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 20
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload treats ultrasonic sensor expression as decimal', t => {
+    const validator = new UploadTypeValidator();
+
+    const ir = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'UltrasonicReadExpression',
+                trigPin: 16,
+                echoPin: 17
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Número inteiro/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates ultrasonic sensor expression', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: 16,
+                    echoPin: 17
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 20
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.equal(generator.generate(ir), [
+        'float easybloxUltrasonicRead(uint8_t trigPin, uint8_t echoPin) {',
+        '    pinMode(trigPin, OUTPUT);',
+        '    pinMode(echoPin, INPUT);',
+        '',
+        '    digitalWrite(trigPin, LOW);',
+        '    delayMicroseconds(2);',
+        '    digitalWrite(trigPin, HIGH);',
+        '    delayMicroseconds(10);',
+        '    digitalWrite(trigPin, LOW);',
+        '',
+        '    const unsigned long duration = pulseIn(echoPin, HIGH, 30000UL);',
+        '',
+        '    if (duration == 0) {',
+        '        return 0.0f;',
+        '    }',
+        '',
+        '    const uint16_t distanceMm = static_cast<uint16_t>(',
+        '        (duration * 343UL) / 2000UL',
+        '    );',
+        '',
+        '    return static_cast<float>(distanceMm) / 10.0f;',
+        '}',
+        '',
+        'void setup() {',
+        '    if ((easybloxUltrasonicRead(16, 17) > 20)) {',
+        '    }',
+        '}',
+        '',
+        'void loop() {',
+        '}',
+        ''
+    ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts DHT and joystick sensor IR', t => {
+    const extractor = new UploadProgramExtractor({
+        targets: []
+    });
+
+    const blockMap = {
+        dht: {
+            opcode: 'sensors_dhtRead',
+            inputs: {
+                TYPE: {
+                    block: 'dhtType'
+                },
+                PIN: {
+                    block: 'dhtPin'
+                }
+            }
+        },
+        dhtType: {
+            opcode: 'sensors_menu_dhtTypes',
+            fields: {
+                TYPE: {
+                    value: '0'
+                }
+            }
+        },
+        dhtPin: {
+            opcode: 'math_number',
+            fields: {
+                NUM: {
+                    value: 12
+                }
+            }
+        },
+        joystickInit: {
+            opcode: 'sensors_joystickInit',
+            inputs: {
+                X: {
+                    block: 'joystickX'
+                },
+                Y: {
+                    block: 'joystickY'
+                },
+                CLICK: {
+                    block: 'joystickClick'
+                }
+            }
+        },
+        joystickX: {
+            opcode: 'math_number',
+            fields: {
+                NUM: {
+                    value: 18
+                }
+            }
+        },
+        joystickY: {
+            opcode: 'math_number',
+            fields: {
+                NUM: {
+                    value: 19
+                }
+            }
+        },
+        joystickClick: {
+            opcode: 'math_number',
+            fields: {
+                NUM: {
+                    value: 13
+                }
+            }
+        },
+        joystickValue: {
+            opcode: 'sensors_joystickValue',
+            inputs: {
+                AXIS: {
+                    block: 'joystickAxis'
+                }
+            }
+        },
+        joystickAxis: {
+            opcode: 'sensors_menu_joystickAxes',
+            fields: {
+                AXIS: {
+                    value: 'X'
+                }
+            }
+        },
+        joystickClicked: {
+            opcode: 'sensors_joystickClicked',
+            inputs: {}
+        }
+    };
+
+    const blocks = {
+        getBlock: blockId => blockMap[blockId],
+        getInputs: block => block.inputs || {},
+        getFields: block => block.fields || {}
+    };
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'dht'
+        ),
+        {
+            type: 'DhtReadExpression',
+            pin: 12,
+            reading: 'temperature'
+        }
+    );
+
+    t.same(
+        extractor._extractStatement(
+            blocks,
+            blockMap.joystickInit
+        ),
+        {
+            type: 'JoystickInit',
+            xPin: 18,
+            yPin: 19,
+            clickPin: 13
+        }
+    );
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'joystickValue'
+        ),
+        {
+            type: 'JoystickValueExpression',
+            axis: 'X'
+        }
+    );
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'joystickClicked'
+        ),
+        {
+            type: 'JoystickClickedExpression'
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload validates DHT and joystick value types', t => {
+    const validator = new UploadTypeValidator();
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'Repeat',
+                times: {
+                    type: 'DhtReadExpression',
+                    pin: 12,
+                    reading: 'temperature'
+                },
+                body: []
+            }],
+            loop: []
+        }),
+        /Número inteiro/
+    );
+
+    const joystickValueIr = {
+        setup: [{
+            type: 'Repeat',
+            times: {
+                type: 'JoystickValueExpression',
+                axis: 'X'
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(joystickValueIr),
+        joystickValueIr
+    );
+
+    const joystickClickedIr = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'JoystickClickedExpression'
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(joystickClickedIr),
+        joystickClickedIr
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload enforces joystick initialization context', t => {
+    const validator = new UploadContextValidator();
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'If',
+                condition: {
+                    type: 'JoystickClickedExpression'
+                },
+                body: []
+            }],
+            loop: []
+        }),
+        /Joystick must be initialized before use/
+    );
+
+    t.throws(
+        () => validator.validate({
+            setup: [],
+            loop: [{
+                type: 'JoystickInit',
+                xPin: 18,
+                yPin: 19,
+                clickPin: 13
+            }]
+        }),
+        /Joystick initialization must be declared directly in Arduino UNO setup/
+    );
+
+    t.throws(
+        () => validator.validate({
+            setup: [
+                {
+                    type: 'JoystickInit',
+                    xPin: 18,
+                    yPin: 19,
+                    clickPin: 13
+                },
+                {
+                    type: 'JoystickInit',
+                    xPin: 14,
+                    yPin: 15,
+                    clickPin: 12
+                }
+            ],
+            loop: []
+        }),
+        /Joystick can only be initialized once/
+    );
+
+    const validIr = {
+        setup: [{
+            type: 'JoystickInit',
+            xPin: 18,
+            yPin: 19,
+            clickPin: 13
+        }],
+        loop: [{
+            type: 'If',
+            condition: {
+                type: 'JoystickClickedExpression'
+            },
+            body: []
+        }]
+    };
+
+    t.equal(
+        validator.validate(validIr),
+        validIr
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload validates DHT and joystick hardware resources', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'Wait',
+                duration: {
+                    type: 'DhtReadExpression',
+                    pin: 14,
+                    reading: 'temperature'
+                }
+            }],
+            loop: []
+        }),
+        /DHT pin is not supported by the selected board/
+    );
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'JoystickInit',
+                xPin: 13,
+                yPin: 19,
+                clickPin: 12
+            }],
+            loop: []
+        }),
+        /Joystick X pin is not supported by the selected board/
+    );
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'JoystickInit',
+                xPin: 18,
+                yPin: 18,
+                clickPin: 13
+            }],
+            loop: []
+        }),
+        /Joystick X and Y pins must be different/
+    );
+
+    t.throws(
+        () => validator.validate({
+            setup: [
+                {
+                    type: 'ServoWrite',
+                    pin: 9,
+                    angle: 90
+                },
+                {
+                    type: 'Wait',
+                    duration: {
+                        type: 'DhtReadExpression',
+                        pin: 9,
+                        reading: 'humidity'
+                    }
+                }
+            ],
+            loop: []
+        }),
+        /DHT and Servo cannot use the same pin/
+    );
+
+    t.throws(
+        () => validator.validate({
+            setup: [
+                {
+                    type: 'JoystickInit',
+                    xPin: 18,
+                    yPin: 19,
+                    clickPin: 6
+                },
+                {
+                    type: 'ToneStart',
+                    pin: 6,
+                    frequency: 440
+                }
+            ],
+            loop: []
+        }),
+        /Joystick CLICK and Tone cannot use the same pin/
+    );
+
+    t.throws(
+        () => validator.validate({
+            setup: [
+                {
+                    type: 'JoystickInit',
+                    xPin: 18,
+                    yPin: 19,
+                    clickPin: 13
+                },
+                {
+                    type: 'DigitalWrite',
+                    pin: 13,
+                    value: 1
+                }
+            ],
+            loop: []
+        }),
+        /Joystick and DigitalWrite cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates DHT and joystick C++ together', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [
+            {
+                type: 'JoystickInit',
+                xPin: 18,
+                yPin: 19,
+                clickPin: 13
+            },
+            {
+                type: 'Wait',
+                duration: {
+                    type: 'DhtReadExpression',
+                    pin: 12,
+                    reading: 'temperature'
+                }
+            },
+            {
+                type: 'If',
+                condition: {
+                    type: 'JoystickClickedExpression'
+                },
+                body: []
+            }
+        ],
+        loop: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'JoystickValueExpression',
+                    axis: 'Y'
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 500
+                }
+            },
+            body: [{
+                type: 'Wait',
+                duration: {
+                    type: 'DhtReadExpression',
+                    pin: 12,
+                    reading: 'humidity'
+                }
+            }]
+        }]
+    });
+
+    t.equal(
+        code.includes('#include <DHT.h>'),
+        false
+    );
+
+    t.equal(
+        (
+            code.match(
+                /struct EasyBloxDhtCacheEntry/g
+            ) || []
+        ).length,
+        1
+    );
+
+    t.match(
+        code,
+        'EASYBLOX_DHT_CACHE_INTERVAL_MS = 2000UL'
+    );
+
+    t.match(
+        code,
+        'easybloxDhtTemperature(12)'
+    );
+
+    t.match(
+        code,
+        'easybloxDhtHumidity(12)'
+    );
+
+    t.match(
+        code,
+        'pinMode(A4, INPUT);'
+    );
+
+    t.match(
+        code,
+        'pinMode(A5, INPUT);'
+    );
+
+    t.match(
+        code,
+        'pinMode(13, INPUT_PULLUP);'
+    );
+
+    t.match(
+        code,
+        'analogRead(A5)'
+    );
+
+    t.match(
+        code,
+        '(digitalRead(13) == LOW)'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported ultrasonic TRIG pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: 1,
+                    echoPin: 17
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 20
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Ultrasonic TRIG pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects unsupported ultrasonic ECHO pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: 16,
+                    echoPin: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 20
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Ultrasonic ECHO pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects equal ultrasonic TRIG and ECHO pins', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: 16,
+                    echoPin: 16
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 20
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Ultrasonic TRIG and ECHO pins must be different/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Ultrasonic TRIG and Servo on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: 90
+        }, {
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: 5,
+                    echoPin: 17
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 20
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Ultrasonic and Servo cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Ultrasonic ECHO and Tone on the same pin', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 440
+        }, {
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: 16,
+                    echoPin: 6
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 20
+                }
+            },
+            body: []
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Ultrasonic and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator validates ultrasonic expression inside VariableSet', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'VariableSet',
+            variableId: 'distance',
+            value: {
+                type: 'UltrasonicReadExpression',
+                trigPin: 1,
+                echoPin: 17
+            }
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Ultrasonic TRIG pin is not supported by the selected board/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator validates ultrasonic expression inside procedure body', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        procedures: [{
+            id: 'procedure_measure',
+            name: 'medir',
+            proccode: 'medir',
+            parameters: [],
+            body: [{
+                type: 'VariableSet',
+                variableId: 'distance',
+                value: {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: 1,
+                    echoPin: 17
+                }
+            }]
+        }],
+        setup: [],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Ultrasonic TRIG pin is not supported by the selected board/
+    );
 
     t.end();
 });

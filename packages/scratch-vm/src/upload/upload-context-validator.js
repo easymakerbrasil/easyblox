@@ -14,6 +14,11 @@ class UploadContextValidator {
         const loop = Array.isArray(ir.loop) ?
             ir.loop :
             [];
+
+        const procedures = Array.isArray(ir.procedures) ?
+            ir.procedures :
+            [];
+
         const unreachable = Array.isArray(ir.unreachable) ?
             ir.unreachable :
             [];
@@ -27,9 +32,13 @@ class UploadContextValidator {
         const invalidLoopMotorConfiguration =
             this._containsMotorConfigure(loop);
 
+        const invalidProcedureMotorConfiguration =
+            this._containsMotorConfigure(procedures);
+
         if (
             invalidSetupMotorConfiguration ||
-            invalidLoopMotorConfiguration
+            invalidLoopMotorConfiguration ||
+            invalidProcedureMotorConfiguration
         ) {
             throw new Error(
                 'Motor configuration must be declared directly in Arduino UNO setup'
@@ -45,9 +54,13 @@ class UploadContextValidator {
         const invalidLoopSerialInitialization =
             this._containsSerialBegin(loop);
 
+        const invalidProcedureSerialInitialization =
+            this._containsSerialBegin(procedures);
+
         if (
             invalidSetupSerialInitialization ||
-            invalidLoopSerialInitialization
+            invalidLoopSerialInitialization ||
+            invalidProcedureSerialInitialization
         ) {
             throw new Error(
                 'Serial initialization must be declared directly in Arduino UNO setup'
@@ -67,7 +80,8 @@ class UploadContextValidator {
 
         const usesSerialOutput = this._containsSerialOutput([
             ...setup,
-            ...loop
+            ...loop,
+            ...procedures
         ]);
 
         if (
@@ -93,6 +107,78 @@ class UploadContextValidator {
         if (usesSerialOutputBeforeInitialization) {
             throw new Error(
                 'Serial must be initialized before use'
+            );
+        }
+
+        const invalidSetupJoystickInitialization =
+            setup.some(statement =>
+                statement &&
+                statement.type !== 'JoystickInit' &&
+                this._containsJoystickInit(statement)
+            );
+
+        const invalidLoopJoystickInitialization =
+            this._containsJoystickInit(loop);
+
+        const invalidProcedureJoystickInitialization =
+            this._containsJoystickInit(procedures);
+
+        if (
+            invalidSetupJoystickInitialization ||
+            invalidLoopJoystickInitialization ||
+            invalidProcedureJoystickInitialization
+        ) {
+            throw new Error(
+                'Joystick initialization must be declared directly in Arduino UNO setup'
+            );
+        }
+
+        const joystickInitializationCount =
+            setup.filter(statement =>
+                statement &&
+                statement.type === 'JoystickInit'
+            ).length;
+
+        if (joystickInitializationCount > 1) {
+            throw new Error(
+                'Joystick can only be initialized once'
+            );
+        }
+
+        const usesJoystick =
+            this._containsJoystickReporter([
+                ...setup,
+                ...loop,
+                ...procedures
+            ]);
+
+        if (
+            usesJoystick &&
+            joystickInitializationCount === 0
+        ) {
+            throw new Error(
+                'Joystick must be initialized before use'
+            );
+        }
+
+        const joystickInitializationIndex =
+            setup.findIndex(statement =>
+                statement &&
+                statement.type === 'JoystickInit'
+            );
+
+        const usesJoystickBeforeInitialization =
+            joystickInitializationIndex > 0 &&
+            this._containsJoystickReporter(
+                setup.slice(
+                    0,
+                    joystickInitializationIndex
+                )
+            );
+
+        if (usesJoystickBeforeInitialization) {
+            throw new Error(
+                'Joystick must be initialized before use'
             );
         }
 
@@ -187,6 +273,49 @@ class UploadContextValidator {
 
         return Object.keys(value).some(key =>
             this._containsSerialOutput(value[key])
+        );
+    }
+
+_containsJoystickInit (value) {
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        if (value.type === 'JoystickInit') {
+            return true;
+        }
+
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._containsJoystickInit(item)
+            );
+        }
+
+        return Object.keys(value).some(key =>
+            this._containsJoystickInit(value[key])
+        );
+    }
+
+    _containsJoystickReporter (value) {
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        if (
+            value.type === 'JoystickValueExpression' ||
+            value.type === 'JoystickClickedExpression'
+        ) {
+            return true;
+        }
+
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._containsJoystickReporter(item)
+            );
+        }
+
+        return Object.keys(value).some(key =>
+            this._containsJoystickReporter(value[key])
         );
     }
 }
