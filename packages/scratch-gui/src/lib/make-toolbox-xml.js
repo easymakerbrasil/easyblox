@@ -641,7 +641,7 @@ const operators = function (isInitialSetup, isStage, targetId, colors) {
         <block type="operator_lt">
             <value name="OPERAND1">
                 <shadow type="math_number">
-                    <field name="NUM">0</field>
+                    <field name="NUM"></field>
                 </shadow>
             </value>
             <value name="OPERAND2">

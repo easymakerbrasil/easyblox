@@ -69,6 +69,26 @@ const createNumberShadow = (
     shadow: true
 });
 
+const createTextShadow = (
+    id,
+    parent,
+    value
+) => ({
+    id,
+    opcode: 'text',
+    next: null,
+    parent,
+    inputs: {},
+    fields: {
+        TEXT: {
+            name: 'TEXT',
+            value: String(value)
+        }
+    },
+    topLevel: false,
+    shadow: true
+});
+
 const createExtensionMenuShadow = (
     id,
     parent,
@@ -7613,12 +7633,12 @@ tap.test('Arduino UNO Upload extracts operator_equals as expression IR', t => {
             topLevel: true,
             shadow: false
         },
-        createNumberShadow(
+        createTextShadow(
             'equals_left',
             'equals',
             1
         ),
-        createNumberShadow(
+        createTextShadow(
             'equals_right',
             'equals',
             1
@@ -7792,12 +7812,12 @@ tap.test('Arduino UNO Upload extracts operator_gt as expression IR', t => {
             topLevel: true,
             shadow: false
         },
-        createNumberShadow(
+        createTextShadow(
             'greater_than_left',
             'greater_than',
             2
         ),
-        createNumberShadow(
+        createTextShadow(
             'greater_than_right',
             'greater_than',
             1
@@ -7822,6 +7842,66 @@ tap.test('Arduino UNO Upload extracts operator_gt as expression IR', t => {
             right: {
                 type: 'IntegerLiteral',
                 value: 1
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload treats empty native comparison text shadow as zero', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'greater_than',
+            opcode: 'operator_gt',
+            next: null,
+            parent: null,
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'greater_than_left',
+                    shadow: 'greater_than_left'
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'greater_than_right',
+                    shadow: 'greater_than_right'
+                }
+            },
+            fields: {},
+            topLevel: true,
+            shadow: false
+        },
+        createTextShadow(
+            'greater_than_left',
+            'greater_than',
+            ''
+        ),
+        createTextShadow(
+            'greater_than_right',
+            'greater_than',
+            50
+        )
+    ]);
+
+    const blocks = runtime.targets[0].blocks;
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'greater_than'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'GreaterThan',
+            left: {
+                type: 'IntegerLiteral',
+                value: 0
+            },
+            right: {
+                type: 'IntegerLiteral',
+                value: 50
             }
         }
     );

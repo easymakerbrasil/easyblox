@@ -1524,12 +1524,12 @@ class UploadProgramExtractor {
             return {
                 type: 'BinaryExpression',
                 operator: 'LessThan',
-                left: this._extractExpressionInput(
+                left: this._extractNumericComparisonInput(
                     blocks,
                     block,
                     'OPERAND1'
                 ),
-                right: this._extractExpressionInput(
+                right: this._extractNumericComparisonInput(
                     blocks,
                     block,
                     'OPERAND2'
@@ -1540,12 +1540,12 @@ class UploadProgramExtractor {
             return {
                 type: 'BinaryExpression',
                 operator: 'Equals',
-                left: this._extractExpressionInput(
+                left: this._extractNumericComparisonInput(
                     blocks,
                     block,
                     'OPERAND1'
                 ),
-                right: this._extractExpressionInput(
+                right: this._extractNumericComparisonInput(
                     blocks,
                     block,
                     'OPERAND2'
@@ -1556,12 +1556,12 @@ class UploadProgramExtractor {
             return {
                 type: 'BinaryExpression',
                 operator: 'GreaterThan',
-                left: this._extractExpressionInput(
+                left: this._extractNumericComparisonInput(
                     blocks,
                     block,
                     'OPERAND1'
                 ),
-                right: this._extractExpressionInput(
+                right: this._extractNumericComparisonInput(
                     blocks,
                     block,
                     'OPERAND2'
@@ -1792,6 +1792,77 @@ class UploadProgramExtractor {
                 type: 'BooleanLiteral',
                 value: false
             };
+        }
+
+        return this._extractExpressionInput(
+            blocks,
+            block,
+            inputName
+        );
+    }
+
+    /**
+     * Extract one numeric comparison operand using Scratch block semantics.
+     * Native text shadows used by comparison slots are interpreted as
+     * numeric literals when possible. An empty native text shadow is zero.
+     * Real text expressions remain text and are validated downstream.
+     * @param {Blocks} blocks Scratch Blocks storage.
+     * @param {object} block Parent comparison block.
+     * @param {string} inputName Scratch input name.
+     * @returns {object} Expression IR.
+     * @private
+     */
+    _extractNumericComparisonInput (blocks, block, inputName) {
+        const inputs = blocks.getInputs(block);
+        const input = inputs && inputs[inputName];
+
+        if (!input || !input.block) {
+            return this._extractExpressionInput(
+                blocks,
+                block,
+                inputName
+            );
+        }
+
+        const inputBlock = blocks.getBlock(input.block);
+
+        if (
+            inputBlock &&
+            input.shadow &&
+            input.block === input.shadow &&
+            inputBlock.opcode === TEXT_OPCODE
+        ) {
+            const fields = blocks.getFields(inputBlock);
+            const textField = fields && fields.TEXT;
+
+            if (!textField) {
+                throw new Error(
+                    `Missing TEXT field in comparison input ${inputName}`
+                );
+            }
+
+            const rawValue = String(textField.value).trim();
+
+            if (rawValue === '') {
+                return {
+                    type: 'IntegerLiteral',
+                    value: 0
+                };
+            }
+
+            const numericValue = Number(rawValue);
+
+            if (Number.isFinite(numericValue)) {
+                return Number.isInteger(numericValue) ?
+                    {
+                        type: 'IntegerLiteral',
+                        value: numericValue
+                    } :
+                    {
+                        type: 'DecimalLiteral',
+                        value: numericValue
+                    };
+            }
         }
 
         return this._extractExpressionInput(
