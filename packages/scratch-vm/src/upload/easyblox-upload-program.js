@@ -117,6 +117,18 @@ class EasyBloxUploadProgram {
 
         default:
             this.blocks.blocklyListen(e);
+
+            // Upload Blocks intentionally use forceNoGlow, which also suppresses
+            // Blocks.emitProjectChanged(). Persistent block mutations must still
+            // invalidate the canonical Upload project state and C++ preview.
+            if ([
+                'create',
+                'change',
+                'move',
+                'delete'
+            ].includes(e.type)) {
+                this.runtime.emitProjectChanged();
+            }
         }
     }
 

@@ -255,6 +255,91 @@ test('Upload program survives Scratch editing target changes', t => {
     t.end();
 });
 
+test('EasyBlox Upload block mutations notify project changes without enabling block glow', t => {
+    const vm = new VirtualMachine();
+
+    const uploadProgram =
+        vm.getOrCreateUploadProgram('arduino-uno');
+
+    const delegatedEvents = [];
+    let projectChangedCount = 0;
+
+    uploadProgram.blocks.blocklyListen = event => {
+        delegatedEvents.push(event);
+    };
+
+    vm.runtime.emitProjectChanged = () => {
+        projectChangedCount++;
+    };
+
+    const persistentEvents = [
+        {
+            type: 'create',
+            blockId: 'upload-created'
+        },
+        {
+            type: 'change',
+            blockId: 'upload-changed'
+        },
+        {
+            type: 'move',
+            blockId: 'upload-moved'
+        },
+        {
+            type: 'delete',
+            blockId: 'upload-deleted'
+        }
+    ];
+
+    const transientEvents = [
+        {
+            type: 'block_field_intermediate_change',
+            blockId: 'upload-changed',
+            name: 'TEXT',
+            newValue: 'abc'
+        },
+        {
+            type: 'dragOutside',
+            blockId: 'upload-moved',
+            isOutside: false
+        },
+        {
+            type: 'endDrag',
+            blockId: 'upload-moved',
+            isOutside: false
+        },
+        {
+            type: 'click',
+            blockId: 'upload-created',
+            targetType: 'block'
+        }
+    ];
+
+    persistentEvents
+        .concat(transientEvents)
+        .forEach(event => uploadProgram.blocklyListen(event));
+
+    t.same(
+        delegatedEvents,
+        persistentEvents.concat(transientEvents),
+        'delegates block events to the canonical Upload Blocks container'
+    );
+
+    t.equal(
+        projectChangedCount,
+        persistentEvents.length,
+        'persistent Upload block mutations mark the project changed'
+    );
+
+    t.equal(
+        uploadProgram.blocks.forceNoGlow,
+        true,
+        'Upload Blocks remain no-glow while project changes are notified'
+    );
+
+    t.end();
+});
+
 test('clearing the VM discards Upload programs from the previous project', t => {
     const vm = new VirtualMachine();
 
