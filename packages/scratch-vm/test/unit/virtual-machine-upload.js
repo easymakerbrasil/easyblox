@@ -148,24 +148,16 @@ test('VirtualMachine generates Arduino UNO Serial Upload C++ from current runtim
             opcode: 'serial_serialBegin',
             next: 'serial_write_line',
             parent: 'upload_hat',
-            inputs: {
+            inputs: {},
+            fields: {
                 BAUD: {
                     name: 'BAUD',
-                    block: 'serial_baud',
-                    shadow: 'serial_baud'
+                    value: '9600'
                 }
             },
-            fields: {},
             topLevel: false,
             shadow: false
         },
-        createExtensionMenuShadow(
-            'serial_baud',
-            'serial_begin',
-            'serial_menu_baudRates',
-            'baudRates',
-            9600
-        ),
         {
             id: 'serial_write_line',
             opcode: 'serial_serialWriteLine',
