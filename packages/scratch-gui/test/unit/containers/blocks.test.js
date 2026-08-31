@@ -135,6 +135,93 @@ describe('Blocks EasyBlox variable prompt program mode', () => {
     });
 });
 
+describe('Blocks EasyBlox variable prompt callback', () => {
+    test('preserves the selected EasyBlox type until variable creation', () => {
+        const promptCallback = jest.fn();
+        const handlePromptClose = jest.fn();
+
+        const instance = {
+            _pendingEasyBloxVariableType: null,
+            state: {
+                prompt: {
+                    callback: promptCallback,
+                    varType: '',
+                    showEasyBloxVariableTypeOptions: true
+                }
+            },
+            props: {
+                vm: {
+                    runtime: {
+                        getAllVarNamesOfType: jest.fn()
+                            .mockReturnValue(['existente'])
+                    }
+                }
+            },
+            handlePromptClose
+        };
+
+        const variableOptions = {
+            scope: 'global',
+            isCloud: false,
+            easybloxValueType: 'TEXT'
+        };
+
+        Blocks.prototype.handlePromptCallback.call(
+            instance,
+            'mensagem',
+            variableOptions
+        );
+
+        expect(instance._pendingEasyBloxVariableType).toBe('TEXT');
+
+        expect(
+            instance.props.vm.runtime.getAllVarNamesOfType
+        ).toHaveBeenCalledWith('');
+
+        expect(promptCallback).toHaveBeenCalledWith(
+            'mensagem',
+            ['existente'],
+            variableOptions
+        );
+
+        expect(handlePromptClose).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not retain an EasyBlox type for prompts without type selection', () => {
+        const instance = {
+            _pendingEasyBloxVariableType: 'DECIMAL',
+            state: {
+                prompt: {
+                    callback: jest.fn(),
+                    varType: '',
+                    showEasyBloxVariableTypeOptions: false
+                }
+            },
+            props: {
+                vm: {
+                    runtime: {
+                        getAllVarNamesOfType: jest.fn()
+                            .mockReturnValue([])
+                    }
+                }
+            },
+            handlePromptClose: jest.fn()
+        };
+
+        Blocks.prototype.handlePromptCallback.call(
+            instance,
+            'mensagem',
+            {
+                scope: 'global',
+                isCloud: false,
+                easybloxValueType: 'TEXT'
+            }
+        );
+
+        expect(instance._pendingEasyBloxVariableType).toBeNull();
+    });
+});
+
 describe('Blocks EasyBlox variable ownership', () => {
     test('keeps Stage variable typing on the owning Scratch target', () => {
         const setVariableEasyBloxValueType = jest.fn();
