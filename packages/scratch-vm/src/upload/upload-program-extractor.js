@@ -929,15 +929,29 @@ class UploadProgramExtractor {
                 )
             };
 
-        case SERIAL_BEGIN_OPCODE:
+        case SERIAL_BEGIN_OPCODE: {
+            const fields = blocks.getFields(block);
+            const baudField = fields && fields.BAUD;
+
+            if (!baudField) {
+                throw new Error(
+                    `Missing BAUD field in ${block.opcode}`
+                );
+            }
+
+            const baud = Number(baudField.value);
+
+            if (!Number.isFinite(baud)) {
+                throw new Error(
+                    `Invalid BAUD field in ${block.opcode}`
+                );
+            }
+
             return {
                 type: 'SerialBegin',
-                baud: this._readNumberInput(
-                    blocks,
-                    block,
-                    'BAUD'
-                )
+                baud
             };
+        }
 
         case SERIAL_WRITE_OPCODE:
             return {

@@ -3154,24 +3154,16 @@ tap.test('Arduino UNO Upload extracts SerialBegin into semantic IR', t => {
             opcode: 'serial_serialBegin',
             next: null,
             parent: 'upload_hat',
-            inputs: {
+            inputs: {},
+            fields: {
                 BAUD: {
                     name: 'BAUD',
-                    block: 'serial_baud',
-                    shadow: 'serial_baud'
+                    value: '9600'
                 }
             },
-            fields: {},
             topLevel: false,
             shadow: false
-        },
-        createExtensionMenuShadow(
-            'serial_baud',
-            'serial_begin',
-            'serial_menu_baudRates',
-            'baudRates',
-            9600
-        )
+        }
     ]);
 
     const extractor = new UploadProgramExtractor(runtime);
@@ -3632,21 +3624,19 @@ tap.test('Arduino UNO Upload generates SerialWrite from Scratch blocks end to en
             opcode: 'serial_serialBegin',
             next: 'serial_write',
             parent: 'upload_hat',
-            inputs: {
+            inputs: {},
+            fields: {
                 BAUD: {
                     name: 'BAUD',
-                    block: 'serial_baud',
-                    shadow: 'serial_baud'
+                    value: '9600'
                 }
             },
-            fields: {},
             topLevel: false,
             shadow: false
         },
         createExtensionMenuShadow(
             'serial_baud',
             'serial_begin',
-            'serial_menu_baudRates',
             'baudRates',
             9600
         ),
@@ -3715,21 +3705,19 @@ tap.test('Arduino UNO Upload generates SerialWriteLine from Scratch blocks end t
             opcode: 'serial_serialBegin',
             next: 'serial_write_line',
             parent: 'upload_hat',
-            inputs: {
+            inputs: {},
+            fields: {
                 BAUD: {
                     name: 'BAUD',
-                    block: 'serial_baud',
-                    shadow: 'serial_baud'
+                    value: '9600'
                 }
             },
-            fields: {},
             topLevel: false,
             shadow: false
         },
         createExtensionMenuShadow(
             'serial_baud',
             'serial_begin',
-            'serial_menu_baudRates',
             'baudRates',
             9600
         ),
@@ -3798,21 +3786,19 @@ tap.test('Arduino UNO Upload generates operator_join from Scratch blocks end to 
             opcode: 'serial_serialBegin',
             next: 'serial_write_line',
             parent: 'upload_hat',
-            inputs: {
+            inputs: {},
+            fields: {
                 BAUD: {
                     name: 'BAUD',
-                    block: 'serial_baud',
-                    shadow: 'serial_baud'
+                    value: '9600'
                 }
             },
-            fields: {},
             topLevel: false,
             shadow: false
         },
         createExtensionMenuShadow(
             'serial_baud',
             'serial_begin',
-            'serial_menu_baudRates',
             'baudRates',
             9600
         ),
@@ -5409,21 +5395,19 @@ tap.test('Arduino UNO Upload generates operator_letter_of from Scratch blocks en
             opcode: 'serial_serialBegin',
             next: 'serial_write_line',
             parent: 'upload_hat',
-            inputs: {
+            inputs: {},
+            fields: {
                 BAUD: {
                     name: 'BAUD',
-                    block: 'serial_baud',
-                    shadow: 'serial_baud'
+                    value: '9600'
                 }
             },
-            fields: {},
             topLevel: false,
             shadow: false
         },
         createExtensionMenuShadow(
             'serial_baud',
             'serial_begin',
-            'serial_menu_baudRates',
             'baudRates',
             9600
         ),
