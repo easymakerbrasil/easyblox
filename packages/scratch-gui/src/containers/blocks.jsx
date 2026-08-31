@@ -842,6 +842,15 @@ class Blocks extends React.Component {
             return;
         }
 
+        if (this.props.programMode === 'upload') {
+            this.props.vm.setVariableEasyBloxValueType(
+                null,
+                variableId,
+                valueType
+            );
+            return;
+        }
+
         const ownerTarget =
             this.props.vm.runtime.targets.find(target =>
                 target &&

@@ -244,6 +244,8 @@ class VirtualMachine extends EventEmitter {
         this.runtime.dispose();
         this.editingTarget = null;
         this._easybloxUploadPrograms = null;
+        this._easybloxProgramMode = 'stage';
+        this._easybloxActiveBoardId = null;
         this.emitTargetsUpdate(false /* Don't emit project change */);
     }
 
@@ -1389,10 +1391,53 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Set the active EasyBlox programming context.
+     * Stage mode continues to use the current Scratch editing target.
+     * Upload mode uses the canonical program owned by the selected board.
+     * @param {!string} mode Active program mode: stage or upload.
+     * @param {?string} boardId Board which owns the Upload program.
+     */
+    setProgramContext (mode, boardId) {
+        if (mode !== 'stage' && mode !== 'upload') {
+            throw new Error(
+                `Unsupported EasyBlox program mode: ${mode}`
+            );
+        }
+
+        if (
+            mode === 'upload' &&
+            (
+                typeof boardId !== 'string' ||
+                boardId.length === 0
+            )
+        ) {
+            throw new Error(
+                'EasyBlox Upload mode requires a board ID'
+            );
+        }
+
+        this._easybloxProgramMode = mode;
+        this._easybloxActiveBoardId =
+            mode === 'upload' ? boardId : null;
+    }
+
+    /**
      * Handle a Blockly event for the current editing target.
      * @param {!Blockly.Event} e Any Blockly event.
      */
     blockListener (e) {
+        if (
+            this._easybloxProgramMode === 'upload' &&
+            this._easybloxActiveBoardId
+        ) {
+            const uploadProgram = this.getOrCreateUploadProgram(
+                this._easybloxActiveBoardId
+            );
+
+            uploadProgram.blocklyListen(e);
+            return;
+        }
+
         if (this.editingTarget) {
             this.editingTarget.blocks.blocklyListen(e);
         }
@@ -1554,6 +1599,14 @@ class VirtualMachine extends EventEmitter {
      * allows us to get around bugs like gui#413.
      */
     refreshWorkspace () {
+        if (
+            this._easybloxProgramMode === 'upload' &&
+            this._easybloxActiveBoardId
+        ) {
+            this.emitWorkspaceUpdate();
+            return;
+        }
+
         if (this.editingTarget) {
             this.emitWorkspaceUpdate();
             this.runtime.setEditingTarget(this.editingTarget);
@@ -1589,10 +1642,42 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
-     * Emit an Blockly/scratch-blocks compatible XML representation
-     * of the current editing target's blocks.
+     * Emit a Blockly/scratch-blocks compatible XML representation
+     * of the active EasyBlox programming context.
      */
     emitWorkspaceUpdate () {
+        if (
+            this._easybloxProgramMode === 'upload' &&
+            this._easybloxActiveBoardId
+        ) {
+            const uploadProgram = this.getOrCreateUploadProgram(
+                this._easybloxActiveBoardId
+            );
+
+            const uploadVariables =
+                Object.keys(uploadProgram.variables)
+                    .map(variableId =>
+                        uploadProgram.variables[variableId]
+                    );
+
+            const xmlString =
+                `<xml xmlns="http://www.w3.org/1999/xhtml">
+                    <variables>
+                        ${uploadVariables.map(variable =>
+                            variable.toXML()
+                        ).join()}
+                    </variables>
+                    ${uploadProgram.blocks.toXML()}
+                </xml>`;
+
+            this.emit(
+                'workspaceUpdate',
+                {xml: xmlString}
+            );
+
+            return;
+        }
+
         // Create a list of broadcast message Ids according to the stage variables
         const stageVariables = this.runtime.getTargetForStage().variables;
         let messageIds = [];
@@ -1803,12 +1888,31 @@ class VirtualMachine extends EventEmitter {
             return false;
         }
 
-        const target = this.runtime.getTargetById(targetId);
-        if (!target) {
-            return false;
+        let variable = null;
+
+        if (
+            this._easybloxProgramMode === 'upload' &&
+            this._easybloxActiveBoardId
+        ) {
+            const uploadProgram = this.getOrCreateUploadProgram(
+                this._easybloxActiveBoardId
+            );
+
+            variable = uploadProgram.lookupVariableById(
+                variableId
+            );
+        } else {
+            const target = this.runtime.getTargetById(targetId);
+
+            if (!target) {
+                return false;
+            }
+
+            variable = target.lookupVariableById(
+                variableId
+            );
         }
 
-        const variable = target.lookupVariableById(variableId);
         if (!variable) {
             return false;
         }

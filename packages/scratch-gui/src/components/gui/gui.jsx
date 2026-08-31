@@ -274,6 +274,43 @@ export const GUIComponent = props => {
     useEffect(() => {
         if (
             !vm ||
+            typeof vm.setProgramContext !== 'function'
+        ) {
+            return;
+        }
+
+        if (
+            programMode === 'upload' &&
+            selectedBoard
+        ) {
+            vm.setProgramContext(
+                'upload',
+                selectedBoard
+            );
+
+            if (typeof vm.refreshWorkspace === 'function') {
+                vm.refreshWorkspace();
+            }
+
+            return;
+        }
+
+        vm.setProgramContext(
+            'stage',
+            null
+        );
+
+        if (typeof vm.refreshWorkspace === 'function') {
+            vm.refreshWorkspace();
+        }
+    }, [
+        vm,
+        programMode,
+        selectedBoard
+    ]);
+    useEffect(() => {
+        if (
+            !vm ||
             programMode !== 'upload' ||
             selectedBoard !== 'arduino-uno'
         ) {

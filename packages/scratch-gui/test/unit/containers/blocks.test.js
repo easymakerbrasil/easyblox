@@ -65,6 +65,91 @@ describe('Blocks variable category program mode', () => {
     });
 });
 
+describe('Blocks EasyBlox variable ownership', () => {
+    test('keeps Stage variable typing on the owning Scratch target', () => {
+        const setVariableEasyBloxValueType = jest.fn();
+
+        const instance = {
+            _pendingEasyBloxVariableType: 'DECIMAL',
+            props: {
+                programMode: 'stage',
+                vm: {
+                    runtime: {
+                        targets: [{
+                            id: 'stage',
+                            variables: {
+                                stage_variable: {
+                                    id: 'stage_variable'
+                                }
+                            }
+                        }]
+                    },
+                    setVariableEasyBloxValueType
+                }
+            }
+        };
+
+        Blocks.prototype.handleVariableCreated.call(
+            instance,
+            'stage_variable'
+        );
+
+        expect(
+            setVariableEasyBloxValueType
+        ).toHaveBeenCalledWith(
+            'stage',
+            'stage_variable',
+            'DECIMAL'
+        );
+
+        expect(
+            instance._pendingEasyBloxVariableType
+        ).toBeNull();
+    });
+
+    test('delegates Upload variable ownership to the VM without a Scratch target ID', () => {
+        const setVariableEasyBloxValueType = jest.fn();
+
+        const instance = {
+            _pendingEasyBloxVariableType: 'TEXT',
+            props: {
+                activeBoardId: 'arduino-uno',
+                programMode: 'upload',
+                vm: {
+                    runtime: {
+                        targets: [{
+                            id: 'stage',
+                            variables: {
+                                shared_variable: {
+                                    id: 'shared_variable'
+                                }
+                            }
+                        }]
+                    },
+                    setVariableEasyBloxValueType
+                }
+            }
+        };
+
+        Blocks.prototype.handleVariableCreated.call(
+            instance,
+            'shared_variable'
+        );
+
+        expect(
+            setVariableEasyBloxValueType
+        ).toHaveBeenCalledWith(
+            null,
+            'shared_variable',
+            'TEXT'
+        );
+
+        expect(
+            instance._pendingEasyBloxVariableType
+        ).toBeNull();
+    });
+});
+
 describe('Blocks container onWorkspaceUpdate', () => {
     let instance;
 

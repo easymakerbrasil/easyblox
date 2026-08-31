@@ -48,6 +48,78 @@ class EasyBloxUploadProgram {
 
         return null;
     }
+
+    /**
+     * Rename a variable owned exclusively by this Upload program.
+     * Keep canonical Upload block references synchronized with the new name.
+     * @param {!string} id Variable ID.
+     * @param {!string} newName New visible variable name.
+     */
+    renameVariable (id, newName) {
+        const variable = this.lookupVariableById(id);
+
+        if (!variable) {
+            return;
+        }
+
+        variable.name = newName;
+
+        this.blocks.updateBlocksAfterVarRename(
+            id,
+            newName
+        );
+    }
+
+    /**
+     * Delete a variable owned exclusively by this Upload program.
+     * Upload variables do not own Scratch Stage/cloud monitors.
+     * @param {!string} id Variable ID.
+     */
+    deleteVariable (id) {
+        if (Object.prototype.hasOwnProperty.call(this.variables, id)) {
+            delete this.variables[id];
+        }
+    }
+
+    /**
+     * Handle a Blockly event owned by this Upload program.
+     * Variable lifecycle events operate on the Upload program's canonical
+     * variable map instead of Scratch runtime targets.
+     * All other Blockly events are delegated to the canonical Blocks container.
+     * @param {!Blockly.Event} e Blockly event.
+     */
+    blocklyListen (e) {
+        switch (e.type) {
+        case 'var_create':
+            this.createVariable(
+                e.varId,
+                e.varName,
+                e.varType
+            );
+
+            this.runtime.emitProjectChanged();
+            return;
+
+        case 'var_rename':
+            this.renameVariable(
+                e.varId,
+                e.newName
+            );
+
+            this.runtime.emitProjectChanged();
+            return;
+
+        case 'var_delete':
+            this.deleteVariable(e.varId);
+
+            this.runtime.emitProjectChanged();
+            return;
+
+        default:
+            this.blocks.blocklyListen(e);
+        }
+    }
+
 }
 
 module.exports = EasyBloxUploadProgram;

@@ -32,12 +32,20 @@ jest.mock('../../../src/contexts/modal-focus-context.jsx', () => ({
 
 jest.mock('../../../src/components/menu-bar/menu-bar.jsx', () => (
     ({onProgramModeChange}) => (
-        <button
-            data-testid="request-upload-mode"
-            onClick={() => onProgramModeChange('upload')}
-        >
-            Upload
-        </button>
+        <div>
+            <button
+                data-testid="request-upload-mode"
+                onClick={() => onProgramModeChange('upload')}
+            >
+                Upload
+            </button>
+            <button
+                data-testid="request-stage-mode"
+                onClick={() => onProgramModeChange('stage')}
+            >
+                Stage
+            </button>
+        </div>
     )
 ));
 
@@ -74,12 +82,30 @@ jest.mock('../../../src/components/debug-modal/debug-modal.jsx', () => () => nul
 
 describe('GUI program mode propagation', () => {
 
-    test('passes upload program mode to Blocks after selecting Arduino UNO', () => {
+    test('synchronizes Stage and Upload program contexts with the VM', () => {
+        const contextAndRefreshCalls = [];
+
+        const setProgramContext = jest.fn((mode, boardId) => {
+            contextAndRefreshCalls.push([
+                'context',
+                mode,
+                boardId
+            ]);
+        });
+
+        const refreshWorkspace = jest.fn(() => {
+            contextAndRefreshCalls.push([
+                'refresh'
+            ]);
+        });
+
         const vm = {
             generateArduinoUnoUploadCode: jest.fn().mockReturnValue(''),
             getPeripheralIsConnected: jest.fn().mockReturnValue(false),
             on: jest.fn(),
-            removeListener: jest.fn()
+            removeListener: jest.fn(),
+            setProgramContext,
+            refreshWorkspace
         };
 
         const {getByTestId} = renderWithIntl(
@@ -94,6 +120,27 @@ describe('GUI program mode propagation', () => {
         expect(getByTestId('blocks'))
             .toHaveAttribute('data-program-mode', 'stage');
 
+        expect(setProgramContext)
+            .toHaveBeenLastCalledWith(
+                'stage',
+                null
+            );
+
+        expect(refreshWorkspace)
+            .toHaveBeenCalledTimes(1);
+
+        expect(contextAndRefreshCalls)
+            .toEqual([
+                [
+                    'context',
+                    'stage',
+                    null
+                ],
+                [
+                    'refresh'
+                ]
+            ]);
+
         fireEvent.click(
             getByTestId('request-upload-mode')
         );
@@ -104,6 +151,53 @@ describe('GUI program mode propagation', () => {
 
         expect(getByTestId('blocks'))
             .toHaveAttribute('data-program-mode', 'upload');
+
+        expect(setProgramContext)
+            .toHaveBeenLastCalledWith(
+                'upload',
+                'arduino-uno'
+            );
+        expect(refreshWorkspace)
+            .toHaveBeenCalledTimes(2);
+
+        expect(contextAndRefreshCalls.slice(-2))
+            .toEqual([
+                [
+                    'context',
+                    'upload',
+                    'arduino-uno'
+                ],
+                [
+                    'refresh'
+                ]
+            ]);
+
+        fireEvent.click(
+            getByTestId('request-stage-mode')
+        );
+
+        expect(getByTestId('blocks'))
+            .toHaveAttribute('data-program-mode', 'stage');
+
+        expect(setProgramContext)
+            .toHaveBeenLastCalledWith(
+                'stage',
+                null
+            );
+        expect(refreshWorkspace)
+            .toHaveBeenCalledTimes(3);
+
+        expect(contextAndRefreshCalls.slice(-2))
+            .toEqual([
+                [
+                    'context',
+                    'stage',
+                    null
+                ],
+                [
+                    'refresh'
+                ]
+            ]);
     });
 
     test('passes the initial stage program mode to Blocks', () => {
@@ -113,7 +207,10 @@ describe('GUI program mode propagation', () => {
                 menuBarHidden
                 setTheme={jest.fn()}
                 theme="default"
-                vm={{}}
+                vm={{
+                    setProgramContext: jest.fn(),
+                    refreshWorkspace: jest.fn()
+                }}
             />
         );
 
