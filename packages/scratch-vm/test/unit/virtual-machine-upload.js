@@ -247,7 +247,7 @@ test('VirtualMachine creates Upload variables in the canonical Upload program', 
     t.end();
 });
 
-test('VirtualMachine renames and deletes variables only in the canonical Upload program', t => {
+test('VirtualMachine keeps Upload variable block references consistent across rename and delete', t => {
     const vm = new VirtualMachine();
     const stageVariables = Object.create(null);
 
@@ -298,9 +298,12 @@ test('VirtualMachine renames and deletes variables only in the canonical Upload 
         ''
     );
 
-    uploadProgram.blocks.createBlock({
-        id: 'upload_variable_reporter',
-        opcode: 'data_variable',
+    const createUploadVariableBlock = (
+        id,
+        opcode
+    ) => ({
+        id,
+        opcode,
         next: null,
         parent: null,
         inputs: {},
@@ -315,6 +318,23 @@ test('VirtualMachine renames and deletes variables only in the canonical Upload 
         topLevel: true,
         shadow: false
     });
+
+    [
+        createUploadVariableBlock(
+            'upload_variable_reporter',
+            'data_variable'
+        ),
+        createUploadVariableBlock(
+            'upload_variable_set',
+            'data_setvariableto'
+        ),
+        createUploadVariableBlock(
+            'upload_variable_change',
+            'data_changevariableby'
+        )
+    ].forEach(block =>
+        uploadProgram.blocks.createBlock(block)
+    );
 
     vm.setProgramContext(
         'upload',
@@ -334,19 +354,51 @@ test('VirtualMachine renames and deletes variables only in the canonical Upload 
         'Upload variable is renamed inside the canonical Upload program'
     );
 
-    t.equal(
-        uploadProgram.blocks
-            .getBlock('upload_variable_reporter')
-            .fields.VARIABLE.value,
-        'total',
-        'Upload variable references are updated after rename'
-    );
+    [
+        'upload_variable_reporter',
+        'upload_variable_set',
+        'upload_variable_change'
+    ].forEach(blockId => {
+        const variableField =
+            uploadProgram.blocks
+                .getBlock(blockId)
+                .fields.VARIABLE;
+
+        t.equal(
+            variableField.id,
+            'upload_counter',
+            `${blockId} preserves the canonical variable ID after rename`
+        );
+
+        t.equal(
+            variableField.value,
+            'total',
+            `${blockId} updates the visible variable name after rename`
+        );
+    });
 
     t.equal(
         stageVariables.upload_counter.name,
         'contador_palco',
         'renaming an Upload variable does not mutate the Scratch Stage'
     );
+
+    [
+        'upload_variable_reporter',
+        'upload_variable_set',
+        'upload_variable_change'
+    ].forEach(blockId => {
+        vm.blockListener({
+            type: 'delete',
+            blockId
+        });
+
+        t.equal(
+            uploadProgram.blocks.getBlock(blockId),
+            undefined,
+            `${blockId} is removed by its Blockly delete event`
+        );
+    });
 
     vm.blockListener({
         type: 'var_delete',
