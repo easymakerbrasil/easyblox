@@ -9,7 +9,9 @@ const createRuntimeWithBlocks = blockDefinitions => {
     const runtime = new Runtime();
     const blocks = new Blocks(runtime);
 
-    blockDefinitions.forEach(block => blocks.createBlock(block));
+    blockDefinitions.forEach(block =>
+        blocks.createBlock(block)
+    );
 
     runtime.targets = [{
         isOriginal: true,
@@ -17,6 +19,20 @@ const createRuntimeWithBlocks = blockDefinitions => {
     }];
 
     return runtime;
+};
+
+const loadCanonicalArduinoUnoUploadProgram = (
+    vm,
+    blockDefinitions
+) => {
+    const uploadProgram =
+        vm.getOrCreateUploadProgram('arduino-uno');
+
+    blockDefinitions.forEach(block =>
+        uploadProgram.blocks.createBlock(block)
+    );
+
+    return uploadProgram;
 };
 
 const createUploadHat = (next = null) => ({
@@ -640,26 +656,30 @@ test('VirtualMachine exposes Arduino UNO Upload code generation', t => {
     t.end();
 });
 
-test('VirtualMachine generates Arduino UNO Upload C++ from current runtime', t => {
+test('VirtualMachine generates Arduino UNO Upload C++ only from the canonical Upload program', t => {
     const vm = new VirtualMachine();
 
+    /*
+     * Deliberately keep a different valid firmware in the Scratch Stage.
+     * Upload generation must ignore it completely.
+     */
     vm.runtime = createRuntimeWithBlocks([
-        createUploadHat('digital_write'),
+        createUploadHat('stage_digital_write'),
         {
-            id: 'digital_write',
+            id: 'stage_digital_write',
             opcode: 'arduinoUno_digitalWrite',
             next: null,
             parent: 'upload_hat',
             inputs: {
                 PIN: {
                     name: 'PIN',
-                    block: 'pin',
-                    shadow: 'pin'
+                    block: 'stage_pin',
+                    shadow: 'stage_pin'
                 },
                 VALUE: {
                     name: 'VALUE',
-                    block: 'value',
-                    shadow: 'value'
+                    block: 'stage_value',
+                    shadow: 'stage_value'
                 }
             },
             fields: {},
@@ -667,29 +687,160 @@ test('VirtualMachine generates Arduino UNO Upload C++ from current runtime', t =
             shadow: false
         },
         createNumberShadow(
-            'pin',
-            'digital_write',
-            13
+            'stage_pin',
+            'stage_digital_write',
+            12
         ),
         createNumberShadow(
-            'value',
-            'digital_write',
-            1
+            'stage_value',
+            'stage_digital_write',
+            0
         )
     ]);
 
+    vm.runtime.targets[0].variables = {
+        stage_counter: {
+            id: 'stage_counter',
+            name: 'stageCounter',
+            type: '',
+            value: 99,
+            easybloxValueType: 'DECIMAL'
+        }
+    };
+
+    const uploadProgram =
+        loadCanonicalArduinoUnoUploadProgram(
+            vm,
+            [
+                createUploadHat('upload_set_variable'),
+                {
+                    id: 'upload_set_variable',
+                    opcode: 'data_setvariableto',
+                    next: 'upload_digital_write',
+                    parent: 'upload_hat',
+                    inputs: {
+                        VALUE: {
+                            name: 'VALUE',
+                            block: 'upload_variable_value',
+                            shadow: 'upload_variable_value'
+                        }
+                    },
+                    fields: {
+                        VARIABLE: {
+                            name: 'VARIABLE',
+                            value: 'uploadCounter',
+                            id: 'upload_counter'
+                        }
+                    },
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'upload_variable_value',
+                    opcode: 'text',
+                    next: null,
+                    parent: 'upload_set_variable',
+                    inputs: {},
+                    fields: {
+                        TEXT: {
+                            name: 'TEXT',
+                            value: '7'
+                        }
+                    },
+                    topLevel: false,
+                    shadow: true
+                },
+                {
+                    id: 'upload_digital_write',
+                    opcode: 'arduinoUno_digitalWrite',
+                    next: null,
+                    parent: 'upload_set_variable',
+                    inputs: {
+                        PIN: {
+                            name: 'PIN',
+                            block: 'upload_pin',
+                            shadow: 'upload_pin'
+                        },
+                        VALUE: {
+                            name: 'VALUE',
+                            block: 'upload_value',
+                            shadow: 'upload_value'
+                        }
+                    },
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                createNumberShadow(
+                    'upload_pin',
+                    'upload_digital_write',
+                    13
+                ),
+                createNumberShadow(
+                    'upload_value',
+                    'upload_digital_write',
+                    1
+                )
+            ]
+        );
+
+    uploadProgram.createVariable(
+        'upload_counter',
+        'uploadCounter',
+        ''
+    );
+
+    const uploadVariable =
+        uploadProgram.lookupVariableById(
+            'upload_counter'
+        );
+
+    uploadVariable.easybloxValueType = 'DECIMAL';
+    uploadVariable.value = 2.5;
+
     const code = vm.generateArduinoUnoUploadCode();
 
-    t.equal(code, [
-        'void setup() {',
-        '    pinMode(13, OUTPUT);',
-        '    digitalWrite(13, HIGH);',
-        '}',
-        '',
-        'void loop() {',
-        '}',
-        ''
-    ].join('\n'));
+    t.match(
+        code,
+        /uploadCounter/,
+        'generated code contains the canonical Upload variable'
+    );
+
+    t.match(
+        code,
+        /uploadCounter\s*=\s*7;/,
+        'variable assignment resolves against the canonical Upload variable'
+    );
+
+    t.match(
+        code,
+        /pinMode\(13, OUTPUT\);/,
+        'generated code configures the canonical Upload pin'
+    );
+
+    t.match(
+        code,
+        /digitalWrite\(13, HIGH\);/,
+        'generated code contains the canonical Upload statement'
+    );
+
+    t.notMatch(
+        code,
+        /stageCounter/,
+        'generated code does not leak Stage variables'
+    );
+
+    t.notMatch(
+        code,
+        /pinMode\(12, OUTPUT\);/,
+        'generated code does not configure the Stage-only pin'
+    );
+
+    t.notMatch(
+        code,
+        /digitalWrite\(12, LOW\);/,
+        'generated code does not leak Stage statements'
+    );
 
     t.end();
 });
@@ -697,7 +848,7 @@ test('VirtualMachine generates Arduino UNO Upload C++ from current runtime', t =
 test('VirtualMachine generates Arduino UNO Serial Upload C++ from current runtime', t => {
     const vm = new VirtualMachine();
 
-    vm.runtime = createRuntimeWithBlocks([
+    loadCanonicalArduinoUnoUploadProgram(vm, [
         createUploadHat('serial_begin'),
         {
             id: 'serial_begin',
@@ -766,7 +917,7 @@ test('VirtualMachine generates Arduino UNO Serial Upload C++ from current runtim
 test('VirtualMachine rejects Arduino UNO Upload resource conflicts', t => {
     const vm = new VirtualMachine();
 
-    vm.runtime = createRuntimeWithBlocks([
+    loadCanonicalArduinoUnoUploadProgram(vm, [
         createUploadHat('servo_write'),
         {
             id: 'servo_write',

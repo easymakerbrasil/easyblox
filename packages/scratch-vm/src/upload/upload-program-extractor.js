@@ -88,10 +88,41 @@ const PROCEDURE_ARGUMENT_BOOLEAN_OPCODE =
  */
 class UploadProgramExtractor {
     /**
-     * @param {Runtime} runtime Scratch runtime containing project targets.
+     * @param {Runtime|EasyBloxUploadProgram} source Upload source.
      */
-    constructor (runtime) {
-        this.runtime = runtime;
+    constructor (source) {
+        const isUploadProgram =
+            source &&
+            source.blocks &&
+            source.variables;
+
+        this.program = isUploadProgram ?
+            source :
+            null;
+
+        this.runtime = isUploadProgram ?
+            null :
+            source;
+    }
+
+    /**
+     * Get the containers visible to Upload extraction.
+     * Production owns exactly one canonical EasyBloxUploadProgram.
+     * Runtime support is retained for existing extractor fixtures.
+     * @returns {Array<object>} Upload extraction containers.
+     * @private
+     */
+    _getSourceTargets () {
+        if (this.program) {
+            return [this.program];
+        }
+
+        return (
+            this.runtime &&
+            Array.isArray(this.runtime.targets)
+        ) ?
+            this.runtime.targets :
+            [];
     }
 
     /**
@@ -192,9 +223,7 @@ class UploadProgramExtractor {
 
         const variableIds = new Set();
 
-        const targets = Array.isArray(this.runtime.targets) ?
-            this.runtime.targets :
-            [];
+        const targets = this._getSourceTargets();
 
         for (const target of targets) {
             if (
@@ -420,13 +449,15 @@ class UploadProgramExtractor {
      * @private
      */
     _findEntryPoints () {
-        const targets = Array.isArray(this.runtime.targets) ?
-            this.runtime.targets.filter(target =>
+        const targets = this._getSourceTargets()
+            .filter(target =>
                 target &&
-                target.isOriginal &&
-                target.blocks
-            ) :
-            [];
+                target.blocks &&
+                (
+                    target === this.program ||
+                    target.isOriginal
+                )
+            );
 
         const entryPoints = [];
 
@@ -1961,9 +1992,7 @@ class UploadProgramExtractor {
     }
 
     _findVariableById (variableId) {
-        const targets = Array.isArray(this.runtime.targets) ?
-            this.runtime.targets :
-            [];
+        const targets = this._getSourceTargets();
 
         for (const target of targets) {
             if (

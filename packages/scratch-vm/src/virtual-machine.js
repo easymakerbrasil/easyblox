@@ -1998,7 +1998,13 @@ class VirtualMachine extends EventEmitter {
      * @returns {string} Complete deterministic Arduino UNO sketch.
      */
     generateArduinoUnoUploadCode () {
-        const extractor = new UploadProgramExtractor(this.runtime);
+        const uploadProgram = this.getOrCreateUploadProgram(
+            'arduino-uno'
+        );
+
+        const extractor =
+            new UploadProgramExtractor(uploadProgram);
+
         const contextValidator = new UploadContextValidator();
         const typeValidator = new UploadTypeValidator();
         const resourceValidator = new UploadResourceValidator(
