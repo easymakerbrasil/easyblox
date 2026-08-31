@@ -93,6 +93,33 @@ class ArduinoUnoGenerator {
                 setupStatements
             );
 
+        const matrixInitialization =
+            setupStatements.find(statement =>
+                statement &&
+                statement.type === 'MatrixInit'
+            ) || null;
+
+        const lcdInitialization =
+            setupStatements.find(statement =>
+                statement &&
+                statement.type === 'LcdInit'
+            ) || null;
+
+        const tm1637Initialization =
+            setupStatements.find(statement =>
+                statement &&
+                statement.type === 'Tm1637Init'
+            ) || null;
+
+        this._matrixInitialization =
+            matrixInitialization;
+
+        this._lcdInitialization =
+            lcdInitialization;
+
+        this._tm1637Initialization =
+            tm1637Initialization;
+
         const usesUnicodeLetterOf = this._usesUnicodeLetterOf(
             analysisSetupStatements,
             loopStatements
@@ -149,6 +176,15 @@ class ArduinoUnoGenerator {
         );
 
         const lines = [];
+
+        if (lcdInitialization) {
+            lines.push(
+                '#include <Wire.h>',
+                '',
+                'uint8_t easyblox_lcd_address = 0;',
+                ''
+            );
+        }
 
         if (servoPins.length > 0) {
             lines.push(
@@ -424,6 +460,519 @@ class ArduinoUnoGenerator {
                 '    }',
                 '',
                 '    return static_cast<float>(humidity);',
+                '}',
+                ''
+            );
+        }
+
+        if (matrixInitialization) {
+            lines.push(
+                'void easybloxMatrixWriteByte(',
+                '    uint8_t dinPin,',
+                '    uint8_t clkPin,',
+                '    uint8_t value',
+                ') {',
+                '    for (int8_t bit = 7; bit >= 0; --bit) {',
+                '        digitalWrite(clkPin, LOW);',
+                '        digitalWrite(',
+                '            dinPin,',
+                '            (value & (1 << bit)) ? HIGH : LOW',
+                '        );',
+                '        digitalWrite(clkPin, HIGH);',
+                '    }',
+                '}',
+                '',
+                'void easybloxMatrixWriteRegister(',
+                '    uint8_t dinPin,',
+                '    uint8_t csPin,',
+                '    uint8_t clkPin,',
+                '    uint8_t reg,',
+                '    uint8_t value',
+                ') {',
+                '    digitalWrite(csPin, LOW);',
+                '    easybloxMatrixWriteByte(dinPin, clkPin, reg);',
+                '    easybloxMatrixWriteByte(dinPin, clkPin, value);',
+                '    digitalWrite(csPin, HIGH);',
+                '}',
+                '',
+                'void easybloxMatrixInit(',
+                '    uint8_t dinPin,',
+                '    uint8_t csPin,',
+                '    uint8_t clkPin',
+                ') {',
+                '    pinMode(dinPin, OUTPUT);',
+                '    pinMode(csPin, OUTPUT);',
+                '    pinMode(clkPin, OUTPUT);',
+                '',
+                '    digitalWrite(csPin, HIGH);',
+                '    digitalWrite(clkPin, LOW);',
+                '',
+                '    easybloxMatrixWriteRegister(',
+                '        dinPin, csPin, clkPin, 0x0F, 0x00',
+                '    );',
+                '    easybloxMatrixWriteRegister(',
+                '        dinPin, csPin, clkPin, 0x09, 0x00',
+                '    );',
+                '    easybloxMatrixWriteRegister(',
+                '        dinPin, csPin, clkPin, 0x0B, 0x07',
+                '    );',
+                '    easybloxMatrixWriteRegister(',
+                '        dinPin, csPin, clkPin, 0x0A, 0x08',
+                '    );',
+                '    easybloxMatrixWriteRegister(',
+                '        dinPin, csPin, clkPin, 0x0C, 0x01',
+                '    );',
+                '',
+                '    for (uint8_t row = 1; row <= 8; ++row) {',
+                '        easybloxMatrixWriteRegister(',
+                '            dinPin, csPin, clkPin, row, 0x00',
+                '        );',
+                '    }',
+                '}',
+                ''
+            );
+        }
+
+        if (lcdInitialization) {
+            lines.push(
+                'uint8_t easyblox_lcd_display_control = 0x04;',
+                'uint8_t easyblox_lcd_entry_mode = 0x02;',
+                '',
+                'void easybloxLcdWrite(',
+                '    const char *text,',
+                '    float rowValue,',
+                '    float columnValue',
+                ') {',
+                '    if (easyblox_lcd_address == 0) {',
+                '        return;',
+                '    }',
+                '',
+                '    int row = (int)round(rowValue);',
+                '    int column = (int)round(columnValue);',
+                '',
+                '    if (row < 1) {',
+                '        row = 1;',
+                '    } else if (row > 2) {',
+                '        row = 2;',
+                '    }',
+                '',
+                '    if (column < 1) {',
+                '        column = 1;',
+                '    } else if (column > 16) {',
+                '        column = 16;',
+                '    }',
+                '',
+                '    const uint8_t rowOffsets[2] = {0x00, 0x40};',
+                '    const uint8_t address =',
+                '        rowOffsets[row - 1] + (column - 1);',
+                '',
+                '    easybloxLcdCommand(0x80 | address);',
+                '',
+                '    for (uint16_t index = 0; text[index] != \'\\0\'; ++index) {',
+                '        easybloxLcdSend((uint8_t)text[index], 0x01);',
+                '    }',
+                '}',
+                '',
+                'void easybloxLcdClear() {',
+                '    easybloxLcdCommand(0x01);',
+                '    delayMicroseconds(2000);',
+                '}',
+                '',
+                'void easybloxLcdMode(uint8_t mode) {',
+                '    switch (mode) {',
+                '    case 0:',
+                '        easyblox_lcd_display_control |= 0x01;',
+                '        easybloxLcdCommand(',
+                '            0x08 | easyblox_lcd_display_control',
+                '        );',
+                '        break;',
+                '',
+                '    case 1:',
+                '        easyblox_lcd_display_control &= ~0x01;',
+                '        easybloxLcdCommand(',
+                '            0x08 | easyblox_lcd_display_control',
+                '        );',
+                '        break;',
+                '',
+                '    case 2:',
+                '        easyblox_lcd_display_control |= 0x02;',
+                '        easybloxLcdCommand(',
+                '            0x08 | easyblox_lcd_display_control',
+                '        );',
+                '        break;',
+                '',
+                '    case 3:',
+                '        easyblox_lcd_display_control &= ~0x02;',
+                '        easybloxLcdCommand(',
+                '            0x08 | easyblox_lcd_display_control',
+                '        );',
+                '        break;',
+                '',
+                '    case 4:',
+                '        easyblox_lcd_display_control |= 0x04;',
+                '        easybloxLcdCommand(',
+                '            0x08 | easyblox_lcd_display_control',
+                '        );',
+                '        break;',
+                '',
+                '    case 5:',
+                '        easyblox_lcd_display_control &= ~0x04;',
+                '        easybloxLcdCommand(',
+                '            0x08 | easyblox_lcd_display_control',
+                '        );',
+                '        break;',
+                '',
+                '    case 6:',
+                '        easyblox_lcd_entry_mode |= 0x01;',
+                '        easybloxLcdCommand(',
+                '            0x04 | easyblox_lcd_entry_mode',
+                '        );',
+                '        break;',
+                '',
+                '    case 7:',
+                '        easyblox_lcd_entry_mode &= ~0x01;',
+                '        easybloxLcdCommand(',
+                '            0x04 | easyblox_lcd_entry_mode',
+                '        );',
+                '        break;',
+                '',
+                '    case 8:',
+                '        easybloxLcdCommand(0x18);',
+                '        break;',
+                '',
+                '    case 9:',
+                '        easybloxLcdCommand(0x1C);',
+                '        break;',
+                '',
+                '    default:',
+                '        break;',
+                '    }',
+                '}',
+                ''
+            );
+        }
+
+        if (tm1637Initialization) {
+            lines.push(
+                'void easybloxTm1637Init(',
+                '    uint8_t clkPin,',
+                '    uint8_t dioPin',
+                ') {',
+                '    pinMode(clkPin, OUTPUT);',
+                '    pinMode(dioPin, OUTPUT);',
+                '',
+                '    digitalWrite(clkPin, HIGH);',
+                '    digitalWrite(dioPin, HIGH);',
+                '}',
+                ''
+            );
+        }
+
+        if (tm1637Initialization) {
+            lines.push(
+                'const uint8_t EASYBLOX_TM1637_DIGITS[10] = {',
+                '    0x3F, 0x06, 0x5B, 0x4F, 0x66,',
+                '    0x6D, 0x7D, 0x07, 0x7F, 0x6F',
+                '};',
+                '',
+                'void easybloxTm1637Start(',
+                '    uint8_t clkPin,',
+                '    uint8_t dioPin',
+                ') {',
+                '    digitalWrite(dioPin, HIGH);',
+                '    digitalWrite(clkPin, HIGH);',
+                '    delayMicroseconds(2);',
+                '    digitalWrite(dioPin, LOW);',
+                '    delayMicroseconds(2);',
+                '    digitalWrite(clkPin, LOW);',
+                '}',
+                '',
+                'void easybloxTm1637Stop(',
+                '    uint8_t clkPin,',
+                '    uint8_t dioPin',
+                ') {',
+                '    digitalWrite(clkPin, LOW);',
+                '    digitalWrite(dioPin, LOW);',
+                '    delayMicroseconds(2);',
+                '    digitalWrite(clkPin, HIGH);',
+                '    delayMicroseconds(2);',
+                '    digitalWrite(dioPin, HIGH);',
+                '}',
+                '',
+                'void easybloxTm1637WriteByte(',
+                '    uint8_t clkPin,',
+                '    uint8_t dioPin,',
+                '    uint8_t value',
+                ') {',
+                '    for (uint8_t bit = 0; bit < 8; ++bit) {',
+                '        digitalWrite(clkPin, LOW);',
+                '        digitalWrite(',
+                '            dioPin,',
+                '            (value & 0x01) ? HIGH : LOW',
+                '        );',
+                '        delayMicroseconds(3);',
+                '        value >>= 1;',
+                '        digitalWrite(clkPin, HIGH);',
+                '        delayMicroseconds(3);',
+                '    }',
+                '',
+                '    digitalWrite(clkPin, LOW);',
+                '    pinMode(dioPin, INPUT_PULLUP);',
+                '    delayMicroseconds(3);',
+                '    digitalWrite(clkPin, HIGH);',
+                '    delayMicroseconds(3);',
+                '    digitalWrite(clkPin, LOW);',
+                '    pinMode(dioPin, OUTPUT);',
+                '}',
+                '',
+                'void easybloxTm1637WriteFrame(',
+                '    uint8_t clkPin,',
+                '    uint8_t dioPin,',
+                '    const uint8_t segments[4]',
+                ') {',
+                '    easybloxTm1637Start(clkPin, dioPin);',
+                '    easybloxTm1637WriteByte(clkPin, dioPin, 0x40);',
+                '    easybloxTm1637Stop(clkPin, dioPin);',
+                '',
+                '    easybloxTm1637Start(clkPin, dioPin);',
+                '    easybloxTm1637WriteByte(clkPin, dioPin, 0xC0);',
+                '',
+                '    for (uint8_t index = 0; index < 4; ++index) {',
+                '        easybloxTm1637WriteByte(',
+                '            clkPin, dioPin, segments[index]',
+                '        );',
+                '    }',
+                '',
+                '    easybloxTm1637Stop(clkPin, dioPin);',
+                '',
+                '    easybloxTm1637Start(clkPin, dioPin);',
+                '    easybloxTm1637WriteByte(clkPin, dioPin, 0x8F);',
+                '    easybloxTm1637Stop(clkPin, dioPin);',
+                '}',
+                '',
+                'void easybloxTm1637Show(',
+                '    uint8_t clkPin,',
+                '    uint8_t dioPin,',
+                '    long value,',
+                '    float lengthValue,',
+                '    float positionValue,',
+                '    bool point,',
+                '    bool leadingZeros',
+                ') {',
+                '    if (value < 0) {',
+                '        value = 0;',
+                '    }',
+                '',
+                '    int requestedLength = (int)round(lengthValue);',
+                '    int position = (int)round(positionValue);',
+                '',
+                '    if (requestedLength < 1) {',
+                '        requestedLength = 1;',
+                '    } else if (requestedLength > 4) {',
+                '        requestedLength = 4;',
+                '    }',
+                '',
+                '    if (position < 1) {',
+                '        position = 1;',
+                '    } else if (position > 4) {',
+                '        position = 4;',
+                '    }',
+                '',
+                '    const uint8_t start = position - 1;',
+                '    const uint8_t available = 4 - start;',
+                '    const uint8_t length =',
+                '        requestedLength < available ?',
+                '            requestedLength : available;',
+                '',
+                '    uint8_t segments[4] = {0, 0, 0, 0};',
+                '    uint8_t digits[4] = {0, 0, 0, 0};',
+                '    long remaining = value;',
+                '',
+                '    if (remaining == 0) {',
+                '        if (leadingZeros) {',
+                '            for (uint8_t index = 0; index < length; ++index) {',
+                '                digits[index] = EASYBLOX_TM1637_DIGITS[0];',
+                '            }',
+                '        } else {',
+                '            digits[length - 1] = EASYBLOX_TM1637_DIGITS[0];',
+                '        }',
+                '    } else {',
+                '        for (int8_t index = length - 1; index >= 0; --index) {',
+                '            if (remaining > 0) {',
+                '                const uint8_t digit = remaining % 10;',
+                '                digits[index] = EASYBLOX_TM1637_DIGITS[digit];',
+                '                remaining /= 10;',
+                '            } else if (leadingZeros) {',
+                '                digits[index] = EASYBLOX_TM1637_DIGITS[0];',
+                '            }',
+                '        }',
+                '    }',
+                '',
+                '    for (uint8_t index = 0; index < length; ++index) {',
+                '        segments[start + index] = digits[index];',
+                '    }',
+                '',
+                '    if (point) {',
+                '        segments[1] |= 0x80;',
+                '    }',
+                '',
+                '    easybloxTm1637WriteFrame(clkPin, dioPin, segments);',
+                '}',
+                '',
+                'void easybloxTm1637Clear(',
+                '    uint8_t clkPin,',
+                '    uint8_t dioPin',
+                ') {',
+                '    const uint8_t segments[4] = {0, 0, 0, 0};',
+                '    easybloxTm1637WriteFrame(clkPin, dioPin, segments);',
+                '}',
+                ''
+            );
+        }
+
+        if (matrixInitialization) {
+            lines.push(
+                'void easybloxMatrixWrite(',
+                '    uint8_t dinPin,',
+                '    uint8_t csPin,',
+                '    uint8_t clkPin,',
+                '    uint8_t row0,',
+                '    uint8_t row1,',
+                '    uint8_t row2,',
+                '    uint8_t row3,',
+                '    uint8_t row4,',
+                '    uint8_t row5,',
+                '    uint8_t row6,',
+                '    uint8_t row7',
+                ') {',
+                '    const uint8_t rows[8] = {',
+                '        row0, row1, row2, row3,',
+                '        row4, row5, row6, row7',
+                '    };',
+                '',
+                '    for (uint8_t row = 0; row < 8; ++row) {',
+                '        easybloxMatrixWriteRegister(',
+                '            dinPin,',
+                '            csPin,',
+                '            clkPin,',
+                '            row + 1,',
+                '            rows[row]',
+                '        );',
+                '    }',
+                '}',
+                '',
+                'void easybloxMatrixBrightness(',
+                '    uint8_t dinPin,',
+                '    uint8_t csPin,',
+                '    uint8_t clkPin,',
+                '    float brightnessPercent',
+                ') {',
+                '    int brightness = (int)round(brightnessPercent);',
+                '',
+                '    if (brightness < 0) {',
+                '        brightness = 0;',
+                '    } else if (brightness > 100) {',
+                '        brightness = 100;',
+                '    }',
+                '',
+                '    const uint8_t intensity =',
+                '        (uint8_t)((brightness * 15L + 50L) / 100L);',
+                '',
+                '    easybloxMatrixWriteRegister(',
+                '        dinPin,',
+                '        csPin,',
+                '        clkPin,',
+                '        0x0A,',
+                '        intensity',
+                '    );',
+                '}',
+                '',
+                'void easybloxMatrixClear(',
+                '    uint8_t dinPin,',
+                '    uint8_t csPin,',
+                '    uint8_t clkPin',
+                ') {',
+                '    for (uint8_t row = 1; row <= 8; ++row) {',
+                '        easybloxMatrixWriteRegister(',
+                '            dinPin, csPin, clkPin, row, 0x00',
+                '        );',
+                '    }',
+                '}',
+                ''
+            );
+        }
+
+        if (lcdInitialization) {
+            lines.push(
+                'uint8_t easybloxLcdDetectAddress() {',
+                '    const uint8_t addresses[] = {0x27, 0x3F};',
+                '',
+                '    for (uint8_t index = 0; index < 2; ++index) {',
+                '        Wire.beginTransmission(addresses[index]);',
+                '',
+                '        if (Wire.endTransmission() == 0) {',
+                '            return addresses[index];',
+                '        }',
+                '    }',
+                '',
+                '    return 0;',
+                '}',
+                '',
+                'void easybloxLcdExpanderWrite(uint8_t value) {',
+                '    if (easyblox_lcd_address == 0) {',
+                '        return;',
+                '    }',
+                '',
+                '    Wire.beginTransmission(easyblox_lcd_address);',
+                '    Wire.write(value | 0x08);',
+                '    Wire.endTransmission();',
+                '}',
+                '',
+                'void easybloxLcdPulseEnable(uint8_t value) {',
+                '    easybloxLcdExpanderWrite(value | 0x04);',
+                '    delayMicroseconds(1);',
+                '    easybloxLcdExpanderWrite(value & ~0x04);',
+                '    delayMicroseconds(50);',
+                '}',
+                '',
+                'void easybloxLcdWrite4Bits(uint8_t value) {',
+                '    easybloxLcdExpanderWrite(value);',
+                '    easybloxLcdPulseEnable(value);',
+                '}',
+                '',
+                'void easybloxLcdSend(uint8_t value, uint8_t mode) {',
+                '    easybloxLcdWrite4Bits((value & 0xF0) | mode);',
+                '    easybloxLcdWrite4Bits((value << 4) | mode);',
+                '}',
+                '',
+                'void easybloxLcdCommand(uint8_t value) {',
+                '    easybloxLcdSend(value, 0x00);',
+                '}',
+                '',
+                'void easybloxLcdInit() {',
+                '    Wire.begin();',
+                '    easyblox_lcd_address = easybloxLcdDetectAddress();',
+                '',
+                '    if (easyblox_lcd_address == 0) {',
+                '        return;',
+                '    }',
+                '',
+                '    delay(50);',
+                '',
+                '    easybloxLcdWrite4Bits(0x30);',
+                '    delayMicroseconds(4500);',
+                '    easybloxLcdWrite4Bits(0x30);',
+                '    delayMicroseconds(4500);',
+                '    easybloxLcdWrite4Bits(0x30);',
+                '    delayMicroseconds(150);',
+                '    easybloxLcdWrite4Bits(0x20);',
+                '',
+                '    easybloxLcdCommand(0x28);',
+                '    easybloxLcdCommand(0x08);',
+                '    easybloxLcdCommand(0x01);',
+                '    delayMicroseconds(2000);',
+                '    easybloxLcdCommand(0x06);',
+                '    easybloxLcdCommand(0x0C);',
                 '}',
                 ''
             );
@@ -2324,6 +2873,37 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Normalize one serialized MAX7219 8x8 bitmap exactly as Stage mode does.
+     * @param {*} bitmap Serialized matrix value.
+     * @returns {Array<number>} Eight row bytes.
+     * @private
+     */
+    _normalizeMatrixBitmap (bitmap) {
+        const normalized =
+            String(bitmap || '')
+                .replace(/[^0-9a-f]/gi, '')
+                .toUpperCase()
+                .slice(0, 16)
+                .padEnd(16, '0');
+
+        const rows = [];
+
+        for (let row = 0; row < 8; row++) {
+            rows.push(
+                parseInt(
+                    normalized.slice(
+                        row * 2,
+                        (row + 1) * 2
+                    ),
+                    16
+                )
+            );
+        }
+
+        return rows;
+    }
+
+    /**
      * Generate structured Arduino C++ statements recursively.
      * @param {Array<object>} statements Semantic IR statements.
      * @param {number} indentLevel Current indentation depth.
@@ -2372,6 +2952,184 @@ class ArduinoUnoGenerator {
             case 'TimerReset':
                 lines.push(
                     `${indent}easyblox_timer_reset_at = millis();`
+                );
+                break;
+
+            case 'MatrixInit':
+                lines.push(
+                    `${indent}easybloxMatrixInit(` +
+                    `${statement.dinPin}, ` +
+                    `${statement.csPin}, ` +
+                    `${statement.clkPin}` +
+                    ');'
+                );
+                break;
+
+            case 'LcdInit':
+                lines.push(
+                    `${indent}easybloxLcdInit();`
+                );
+                break;
+
+            case 'Tm1637Init':
+                lines.push(
+                    `${indent}easybloxTm1637Init(` +
+                    `${statement.clkPin}, ` +
+                    `${statement.dioPin}` +
+                    ');'
+                );
+                break;
+
+            case 'MatrixWrite': {
+                if (!this._matrixInitialization) {
+                    throw new Error(
+                        'Matrix must be initialized before use'
+                    );
+                }
+
+                const rows =
+                    this._normalizeMatrixBitmap(statement.bitmap);
+
+                const rowArguments = rows.map(row =>
+                    `0x${row
+                        .toString(16)
+                        .toUpperCase()
+                        .padStart(2, '0')}`
+                );
+
+                lines.push(
+                    `${indent}easybloxMatrixWrite(` +
+                    `${this._matrixInitialization.dinPin}, ` +
+                    `${this._matrixInitialization.csPin}, ` +
+                    `${this._matrixInitialization.clkPin}, ` +
+                    `${rowArguments.join(', ')}` +
+                    ');'
+                );
+                break;
+            }
+
+            case 'MatrixBrightness':
+                if (!this._matrixInitialization) {
+                    throw new Error(
+                        'Matrix must be initialized before use'
+                    );
+                }
+
+                lines.push(
+                    `${indent}easybloxMatrixBrightness(` +
+                    `${this._matrixInitialization.dinPin}, ` +
+                    `${this._matrixInitialization.csPin}, ` +
+                    `${this._matrixInitialization.clkPin}, ` +
+                    `${statement.brightnessPercent}` +
+                    ');'
+                );
+                break;
+
+            case 'MatrixClear':
+                if (!this._matrixInitialization) {
+                    throw new Error(
+                        'Matrix must be initialized before use'
+                    );
+                }
+
+                lines.push(
+                    `${indent}easybloxMatrixClear(` +
+                    `${this._matrixInitialization.dinPin}, ` +
+                    `${this._matrixInitialization.csPin}, ` +
+                    `${this._matrixInitialization.clkPin}` +
+                    ');'
+                );
+                break;
+
+            case 'LcdWrite': {
+                if (!this._lcdInitialization) {
+                    throw new Error(
+                        'LCD must be initialized before use'
+                    );
+                }
+
+                const text =
+                    JSON.stringify(String(statement.text));
+
+                lines.push(
+                    `${indent}easybloxLcdWrite(` +
+                    `${text}, ` +
+                    `${statement.row}, ` +
+                    `${statement.column}` +
+                    ');'
+                );
+                break;
+            }
+
+            case 'LcdMode':
+                if (!this._lcdInitialization) {
+                    throw new Error(
+                        'LCD must be initialized before use'
+                    );
+                }
+
+                lines.push(
+                    `${indent}easybloxLcdMode(` +
+                    `${Number(statement.mode)}` +
+                    ');'
+                );
+                break;
+
+            case 'LcdClear':
+                if (!this._lcdInitialization) {
+                    throw new Error(
+                        'LCD must be initialized before use'
+                    );
+                }
+
+                lines.push(
+                    `${indent}easybloxLcdClear();`
+                );
+                break;
+
+            case 'Tm1637Show': {
+                if (!this._tm1637Initialization) {
+                    throw new Error(
+                        'TM1637 must be initialized before use'
+                    );
+                }
+
+                const point =
+                    String(statement.point) === '1' ?
+                        'true' :
+                        'false';
+
+                const leadingZeros =
+                    String(statement.leadingZeros) === '1' ?
+                        'true' :
+                        'false';
+
+                lines.push(
+                    `${indent}easybloxTm1637Show(` +
+                    `${this._tm1637Initialization.clkPin}, ` +
+                    `${this._tm1637Initialization.dioPin}, ` +
+                    `${statement.value}, ` +
+                    `${statement.length}, ` +
+                    `${statement.position}, ` +
+                    `${point}, ` +
+                    `${leadingZeros}` +
+                    ');'
+                );
+                break;
+            }
+
+            case 'Tm1637Clear':
+                if (!this._tm1637Initialization) {
+                    throw new Error(
+                        'TM1637 must be initialized before use'
+                    );
+                }
+
+                lines.push(
+                    `${indent}easybloxTm1637Clear(` +
+                    `${this._tm1637Initialization.clkPin}, ` +
+                    `${this._tm1637Initialization.dioPin}` +
+                    ');'
                 );
                 break;
 

@@ -14949,6 +14949,1642 @@ const createTypedDataProcedureIrFixture = () => {
 };
 
 tap.test(
+    'Arduino UNO Upload extracts explicit Display initializers as one batch',
+    t => {
+        const runtime = createRuntimeWithBlocks([
+            createUploadHat('matrix_init'),
+            {
+                id: 'matrix_init',
+                opcode: 'displays_configureMatrix',
+                next: 'lcd_init',
+                parent: 'upload_hat',
+                inputs: {
+                    DIN: {
+                        name: 'DIN',
+                        block: 'matrix_din',
+                        shadow: 'matrix_din'
+                    },
+                    CS: {
+                        name: 'CS',
+                        block: 'matrix_cs',
+                        shadow: 'matrix_cs'
+                    },
+                    CLK: {
+                        name: 'CLK',
+                        block: 'matrix_clk',
+                        shadow: 'matrix_clk'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createNumberShadow(
+                'matrix_din',
+                'matrix_init',
+                2
+            ),
+            createNumberShadow(
+                'matrix_cs',
+                'matrix_init',
+                3
+            ),
+            createNumberShadow(
+                'matrix_clk',
+                'matrix_init',
+                4
+            ),
+            {
+                id: 'lcd_init',
+                opcode: 'displays_lcdInit',
+                next: 'tm1637_init',
+                parent: 'matrix_init',
+                inputs: {},
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            {
+                id: 'tm1637_init',
+                opcode: 'displays_tm1637Init',
+                next: null,
+                parent: 'lcd_init',
+                inputs: {
+                    CLK: {
+                        name: 'CLK',
+                        block: 'tm1637_clk',
+                        shadow: 'tm1637_clk'
+                    },
+                    DIO: {
+                        name: 'DIO',
+                        block: 'tm1637_dio',
+                        shadow: 'tm1637_dio'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createNumberShadow(
+                'tm1637_clk',
+                'tm1637_init',
+                5
+            ),
+            createNumberShadow(
+                'tm1637_dio',
+                'tm1637_init',
+                6
+            )
+        ]);
+
+        const extractor = new UploadProgramExtractor(runtime);
+
+        t.same(extractor.extract(), {
+            setup: [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 3,
+                    clkPin: 4
+                },
+                {
+                    type: 'LcdInit'
+                },
+                {
+                    type: 'Tm1637Init',
+                    clkPin: 5,
+                    dioPin: 6
+                }
+            ],
+            loop: []
+        });
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload validates Display initializer resources as one batch',
+    t => {
+        const validator = new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+        const validateSetup = setup => validator.validate({
+            setup,
+            loop: []
+        });
+
+        t.same(
+            ArduinoUnoBoardProfile.i2c,
+            {
+                sdaPin: 18,
+                sclPin: 19
+            },
+            'Arduino UNO exposes canonical I2C pins'
+        );
+
+        t.doesNotThrow(
+            () => validateSetup([
+                {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 3,
+                    clkPin: 4
+                },
+                {
+                    type: 'Tm1637Init',
+                    clkPin: 5,
+                    dioPin: 6
+                },
+                {
+                    type: 'LcdInit'
+                }
+            ]),
+            'accepts non-conflicting Display initializers'
+        );
+
+        const unsupportedMatrixPins = [
+            {
+                statement: {
+                    type: 'MatrixInit',
+                    dinPin: 1,
+                    csPin: 3,
+                    clkPin: 4
+                },
+                error: /Matrix DIN pin is not supported by the selected board/
+            },
+            {
+                statement: {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 1,
+                    clkPin: 4
+                },
+                error: /Matrix CS pin is not supported by the selected board/
+            },
+            {
+                statement: {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 3,
+                    clkPin: 1
+                },
+                error: /Matrix CLK pin is not supported by the selected board/
+            }
+        ];
+
+        for (const testCase of unsupportedMatrixPins) {
+            t.throws(
+                () => validateSetup([
+                    testCase.statement
+                ]),
+                testCase.error
+            );
+        }
+
+        const sharedMatrixPins = [
+            {
+                type: 'MatrixInit',
+                dinPin: 2,
+                csPin: 2,
+                clkPin: 4
+            },
+            {
+                type: 'MatrixInit',
+                dinPin: 2,
+                csPin: 4,
+                clkPin: 2
+            },
+            {
+                type: 'MatrixInit',
+                dinPin: 2,
+                csPin: 4,
+                clkPin: 4
+            }
+        ];
+
+        for (const statement of sharedMatrixPins) {
+            t.throws(
+                () => validateSetup([
+                    statement
+                ]),
+                /Matrix DIN, CS and CLK pins must be different/
+            );
+        }
+
+        const unsupportedTm1637Pins = [
+            {
+                statement: {
+                    type: 'Tm1637Init',
+                    clkPin: 1,
+                    dioPin: 6
+                },
+                error: /TM1637 CLK pin is not supported by the selected board/
+            },
+            {
+                statement: {
+                    type: 'Tm1637Init',
+                    clkPin: 5,
+                    dioPin: 1
+                },
+                error: /TM1637 DIO pin is not supported by the selected board/
+            }
+        ];
+
+        for (const testCase of unsupportedTm1637Pins) {
+            t.throws(
+                () => validateSetup([
+                    testCase.statement
+                ]),
+                testCase.error
+            );
+        }
+
+        t.throws(
+            () => validateSetup([
+                {
+                    type: 'Tm1637Init',
+                    clkPin: 5,
+                    dioPin: 5
+                }
+            ]),
+            /TM1637 CLK and DIO pins must be different/
+        );
+
+        t.throws(
+            () => validateSetup([
+                {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 3,
+                    clkPin: 4
+                },
+                {
+                    type: 'Tm1637Init',
+                    clkPin: 4,
+                    dioPin: 5
+                }
+            ]),
+            /Display GPIO pins cannot be shared/
+        );
+
+        const i2cDisplayConflicts = [
+            {
+                type: 'MatrixInit',
+                dinPin: 18,
+                csPin: 3,
+                clkPin: 4
+            },
+            {
+                type: 'Tm1637Init',
+                clkPin: 19,
+                dioPin: 5
+            }
+        ];
+
+        for (const displayStatement of i2cDisplayConflicts) {
+            t.throws(
+                () => validateSetup([
+                    {
+                        type: 'LcdInit'
+                    },
+                    displayStatement
+                ]),
+                /Display GPIO and I2C cannot use the same pin/
+            );
+        }
+
+        const hardwareConflictCases = [
+            [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 6,
+                    clkPin: 12
+                },
+                {
+                    type: 'MotorConfigure',
+                    motor: 1,
+                    in1Pin: 2,
+                    in2Pin: 4,
+                    pwmPin: 3
+                }
+            ],
+            [
+                {
+                    type: 'Tm1637Init',
+                    clkPin: 5,
+                    dioPin: 6
+                },
+                {
+                    type: 'ServoWrite',
+                    pin: 5,
+                    angle: 90
+                }
+            ],
+            [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 6,
+                    csPin: 7,
+                    clkPin: 8
+                },
+                {
+                    type: 'ToneStart',
+                    pin: 6,
+                    frequency: 440
+                }
+            ],
+            [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 7,
+                    csPin: 8,
+                    clkPin: 12
+                },
+                {
+                    type: 'RelayWrite',
+                    pin: 7,
+                    state: 1
+                }
+            ],
+            [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 9,
+                    csPin: 7,
+                    clkPin: 8
+                },
+                {
+                    type: 'PwmWrite',
+                    pin: 9,
+                    value: 128
+                }
+            ],
+            [
+                {
+                    type: 'LcdInit'
+                },
+                {
+                    type: 'DigitalWrite',
+                    pin: 18,
+                    value: 1
+                }
+            ],
+            [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 11,
+                    csPin: 7,
+                    clkPin: 8
+                },
+                {
+                    type: 'If',
+                    condition: {
+                        type: 'DigitalReadExpression',
+                        pin: 11
+                    },
+                    body: []
+                }
+            ],
+            [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 12,
+                    csPin: 7,
+                    clkPin: 8
+                },
+                {
+                    type: 'VariableSet',
+                    variableId: 'distance',
+                    value: {
+                        type: 'UltrasonicReadExpression',
+                        trigPin: 12,
+                        echoPin: 13
+                    }
+                }
+            ],
+            [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 12,
+                    csPin: 7,
+                    clkPin: 8
+                },
+                {
+                    type: 'VariableSet',
+                    variableId: 'temperature',
+                    value: {
+                        type: 'DhtReadExpression',
+                        pin: 12,
+                        reading: 'temperature'
+                    }
+                }
+            ],
+            [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 14,
+                    csPin: 7,
+                    clkPin: 8
+                },
+                {
+                    type: 'JoystickInit',
+                    xPin: 14,
+                    yPin: 15,
+                    clickPin: 13
+                }
+            ]
+        ];
+
+        for (const setup of hardwareConflictCases) {
+            t.throws(
+                () => validateSetup(setup),
+                /Display resource conflict on pin/
+            );
+        }
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload generates explicit Display initializers as one batch',
+    t => {
+        const generator = new ArduinoUnoGenerator();
+
+        const code = generator.generate({
+            setup: [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 3,
+                    clkPin: 4
+                },
+                {
+                    type: 'LcdInit'
+                },
+                {
+                    type: 'Tm1637Init',
+                    clkPin: 5,
+                    dioPin: 6
+                }
+            ],
+            loop: []
+        });
+
+        t.match(
+            code,
+            '#include <Wire.h>',
+            'LCD uses the Arduino core Wire dependency'
+        );
+
+        t.match(
+            code,
+            'void easybloxMatrixInit(',
+            'emits internal MAX7219 initialization support'
+        );
+
+        t.match(
+            code,
+            'void easybloxLcdInit()',
+            'emits internal LCD initialization support'
+        );
+
+        t.match(
+            code,
+            'uint8_t easybloxLcdDetectAddress()',
+            'emits LCD I2C address auto-detection support'
+        );
+
+        t.match(
+            code,
+            '0x27',
+            'LCD auto-detection checks address 0x27'
+        );
+
+        t.match(
+            code,
+            '0x3F',
+            'LCD auto-detection checks address 0x3F'
+        );
+
+        t.match(
+            code,
+            'void easybloxTm1637Init(',
+            'emits internal TM1637 initialization support'
+        );
+
+        t.match(
+            code,
+            'easybloxMatrixInit(2, 3, 4);',
+            'setup initializes MAX7219 with semantic IR pins'
+        );
+
+        t.match(
+            code,
+            'easybloxLcdInit();',
+            'setup initializes the LCD explicitly'
+        );
+
+        t.match(
+            code,
+            'easybloxTm1637Init(5, 6);',
+            'setup initializes TM1637 with semantic IR pins'
+        );
+
+        t.notMatch(
+            code,
+            '#include <LedControl.h>',
+            'MAX7219 does not require a third-party library'
+        );
+
+        t.notMatch(
+            code,
+            '#include <LiquidCrystal_I2C.h>',
+            'LCD does not require a third-party library'
+        );
+
+        t.notMatch(
+            code,
+            '#include <TM1637Display.h>',
+            'TM1637 does not require a third-party library'
+        );
+
+        const emptyCode = generator.generate({
+            setup: [],
+            loop: []
+        });
+
+        t.notMatch(
+            emptyCode,
+            '#include <Wire.h>',
+            'does not emit Wire when LCD is absent'
+        );
+
+        t.notMatch(
+            emptyCode,
+            'easybloxMatrixInit',
+            'does not emit MAX7219 support when absent'
+        );
+
+        t.notMatch(
+            emptyCode,
+            'easybloxLcdInit',
+            'does not emit LCD support when absent'
+        );
+
+        t.notMatch(
+            emptyCode,
+            'easybloxTm1637Init',
+            'does not emit TM1637 support when absent'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload generates Display operations as one batch',
+    t => {
+        const generator = new ArduinoUnoGenerator();
+
+        const code = generator.generate({
+            setup: [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 3,
+                    clkPin: 4
+                },
+                {
+                    type: 'MatrixWrite',
+                    bitmap: '0066FFFF7E3C1800'
+                },
+                {
+                    type: 'MatrixBrightness',
+                    brightnessPercent: 75
+                },
+                {
+                    type: 'MatrixClear'
+                },
+                {
+                    type: 'LcdInit'
+                },
+                {
+                    type: 'LcdWrite',
+                    text: 'EasyBlox',
+                    row: 2,
+                    column: 5
+                },
+                {
+                    type: 'LcdMode',
+                    mode: '4'
+                },
+                {
+                    type: 'LcdClear'
+                },
+                {
+                    type: 'Tm1637Init',
+                    clkPin: 5,
+                    dioPin: 6
+                },
+                {
+                    type: 'Tm1637Show',
+                    value: 1234,
+                    length: 4,
+                    position: 1,
+                    point: '1',
+                    leadingZeros: '0'
+                },
+                {
+                    type: 'Tm1637Clear'
+                }
+            ],
+            loop: []
+        });
+
+        t.match(
+            code,
+            'void easybloxMatrixWrite(',
+            'emits MAX7219 write helper'
+        );
+
+        t.match(
+            code,
+            'void easybloxMatrixBrightness(',
+            'emits MAX7219 brightness helper'
+        );
+
+        t.match(
+            code,
+            'void easybloxMatrixClear(',
+            'emits MAX7219 clear helper'
+        );
+
+        t.match(
+            code,
+            'easybloxMatrixWrite(' +
+                '2, 3, 4, ' +
+                '0x00, 0x66, 0xFF, 0xFF, ' +
+                '0x7E, 0x3C, 0x18, 0x00' +
+                ');',
+            'writes the eight normalized MAX7219 rows'
+        );
+
+        t.match(
+            code,
+            'easybloxMatrixBrightness(2, 3, 4, 75);',
+            'sets MAX7219 brightness'
+        );
+
+        t.match(
+            code,
+            'easybloxMatrixClear(2, 3, 4);',
+            'clears MAX7219 matrix'
+        );
+
+        t.match(
+            code,
+            'void easybloxLcdWrite(',
+            'emits LCD write helper'
+        );
+
+        const lcdAddressDeclarationIndex =
+            code.indexOf(
+                'uint8_t easyblox_lcd_address = 0;'
+            );
+
+        const lcdWriteHelperIndex =
+            code.indexOf(
+                'void easybloxLcdWrite('
+            );
+
+        t.ok(
+            lcdAddressDeclarationIndex !== -1 &&
+            lcdAddressDeclarationIndex < lcdWriteHelperIndex,
+            'declares LCD address before helpers that use it'
+        );
+
+        t.match(
+            code,
+            'void easybloxLcdClear()',
+            'emits LCD clear helper'
+        );
+
+        t.match(
+            code,
+            'void easybloxLcdMode(',
+            'emits LCD mode helper'
+        );
+
+        t.match(
+            code,
+            'easybloxLcdWrite("EasyBlox", 2, 5);',
+            'writes text using one-based Scratch LCD coordinates'
+        );
+
+        t.match(
+            code,
+            'easybloxLcdMode(4);',
+            'emits the semantic LCD mode'
+        );
+
+        t.match(
+            code,
+            'easybloxLcdClear();',
+            'clears LCD'
+        );
+
+        t.match(
+            code,
+            'void easybloxTm1637Show(',
+            'emits TM1637 show helper'
+        );
+
+        t.match(
+            code,
+            'void easybloxTm1637Clear(',
+            'emits TM1637 clear helper'
+        );
+
+        t.match(
+            code,
+            'easybloxTm1637Show(' +
+                '5, 6, 1234, 4, 1, true, false' +
+                ');',
+            'shows the TM1637 value with semantic options'
+        );
+
+        t.match(
+            code,
+            'easybloxTm1637Clear(5, 6);',
+            'clears TM1637'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload preserves Stage Display normalization semantics',
+    t => {
+        const generator = new ArduinoUnoGenerator();
+
+        t.same(
+            generator._normalizeMatrixBitmap(
+                '0g-66 ff!!7e3c18XYZ'
+            ),
+            [
+                0x06,
+                0x6F,
+                0xF7,
+                0xE3,
+                0xC1,
+                0x80,
+                0x00,
+                0x00
+            ],
+            'normalizes MAX7219 bitmap like Stage mode'
+        );
+
+        const code = generator.generate({
+            setup: [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 3,
+                    clkPin: 4
+                },
+                {
+                    type: 'MatrixBrightness',
+                    brightnessPercent: 175.6
+                },
+                {
+                    type: 'LcdInit'
+                },
+                {
+                    type: 'LcdWrite',
+                    text: 'EasyBlox',
+                    row: 8.7,
+                    column: -3.2
+                },
+                {
+                    type: 'Tm1637Init',
+                    clkPin: 5,
+                    dioPin: 6
+                },
+                {
+                    type: 'Tm1637Show',
+                    value: -25,
+                    length: 8.6,
+                    position: -2,
+                    point: '1',
+                    leadingZeros: '1'
+                }
+            ],
+            loop: []
+        });
+
+        t.match(
+            code,
+            'int brightness = (int)round(brightnessPercent);',
+            'rounds MAX7219 brightness'
+        );
+
+        t.match(
+            code,
+            'if (brightness < 0)',
+            'clamps negative MAX7219 brightness'
+        );
+
+        t.match(
+            code,
+            'else if (brightness > 100)',
+            'clamps MAX7219 brightness above 100'
+        );
+
+        t.match(
+            code,
+            'int row = (int)round(rowValue);',
+            'rounds LCD row'
+        );
+
+        t.match(
+            code,
+            'else if (row > 2)',
+            'clamps LCD row to two lines'
+        );
+
+        t.match(
+            code,
+            'int column = (int)round(columnValue);',
+            'rounds LCD column'
+        );
+
+        t.match(
+            code,
+            'else if (column > 16)',
+            'clamps LCD column to sixteen positions'
+        );
+
+        t.match(
+            code,
+            'if (value < 0)',
+            'clamps TM1637 value to zero'
+        );
+
+        t.match(
+            code,
+            'else if (requestedLength > 4)',
+            'clamps TM1637 requested length'
+        );
+
+        t.match(
+            code,
+            'else if (position > 4)',
+            'clamps TM1637 position'
+        );
+
+        t.match(
+            code,
+            'const uint8_t available = 4 - start;',
+            'limits TM1637 length to remaining physical digits'
+        );
+
+        t.match(
+            code,
+            'segments[1] |= 0x80;',
+            'applies TM1637 point to the Stage-compatible digit'
+        );
+
+        t.match(
+            code,
+            'easybloxTm1637Show(' +
+                '5, 6, -25, 8.6, -2, true, true' +
+                ');',
+            'preserves semantic arguments for runtime normalization'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload validates Display initializer context and statement types as one batch',
+    t => {
+        const contextValidator = new UploadContextValidator();
+        const typeValidator = new UploadTypeValidator();
+
+        const initializers = [
+            {
+                type: 'MatrixInit',
+                dinPin: 2,
+                csPin: 3,
+                clkPin: 4
+            },
+            {
+                type: 'LcdInit'
+            },
+            {
+                type: 'Tm1637Init',
+                clkPin: 5,
+                dioPin: 6
+            }
+        ];
+
+        const directSetupIr = {
+            setup: initializers,
+            loop: []
+        };
+
+        t.doesNotThrow(
+            () => contextValidator.validate(directSetupIr),
+            'accepts Display initializers directly in setup'
+        );
+
+        for (const initializer of initializers) {
+            t.throws(
+                () => contextValidator.validate({
+                    setup: [],
+                    loop: [
+                        initializer
+                    ]
+                }),
+                /Display initialization must be declared directly in Arduino UNO setup/,
+                `${initializer.type} is rejected in loop`
+            );
+
+            t.throws(
+                () => contextValidator.validate({
+                    setup: [{
+                        type: 'Repeat',
+                        times: {
+                            type: 'IntegerLiteral',
+                            value: 2
+                        },
+                        body: [
+                            initializer
+                        ]
+                    }],
+                    loop: []
+                }),
+                /Display initialization must be declared directly in Arduino UNO setup/,
+                `${initializer.type} is rejected inside Repeat`
+            );
+
+            t.throws(
+                () => contextValidator.validate({
+                    setup: [{
+                        type: 'If',
+                        condition: {
+                            type: 'BooleanLiteral',
+                            value: true
+                        },
+                        body: [
+                            initializer
+                        ]
+                    }],
+                    loop: []
+                }),
+                /Display initialization must be declared directly in Arduino UNO setup/,
+                `${initializer.type} is rejected inside If`
+            );
+
+            t.throws(
+                () => contextValidator.validate({
+                    setup: [{
+                        type: 'IfElse',
+                        condition: {
+                            type: 'BooleanLiteral',
+                            value: true
+                        },
+                        body: [
+                            initializer
+                        ],
+                        elseBody: []
+                    }],
+                    loop: []
+                }),
+                /Display initialization must be declared directly in Arduino UNO setup/,
+                `${initializer.type} is rejected inside IfElse`
+            );
+
+            t.throws(
+                () => contextValidator.validate({
+                    procedures: [{
+                        id: 'display_procedure',
+                        name: 'display',
+                        proccode: 'display',
+                        parameters: [],
+                        body: [
+                            initializer
+                        ]
+                    }],
+                    setup: [],
+                    loop: []
+                }),
+                /Display initialization must be declared directly in Arduino UNO setup/,
+                `${initializer.type} is rejected inside procedure body`
+            );
+        }
+
+        t.doesNotThrow(
+            () => typeValidator.validate(directSetupIr),
+            'type validator recognizes all Display initializer statements'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload extracts Display operations as one batch',
+    t => {
+        const runtime = createRuntimeWithBlocks([
+            createUploadHat('matrix_init'),
+
+            {
+                id: 'matrix_init',
+                opcode: 'displays_configureMatrix',
+                next: 'matrix_write',
+                parent: 'upload_hat',
+                inputs: {
+                    DIN: {
+                        name: 'DIN',
+                        block: 'matrix_din',
+                        shadow: 'matrix_din'
+                    },
+                    CS: {
+                        name: 'CS',
+                        block: 'matrix_cs',
+                        shadow: 'matrix_cs'
+                    },
+                    CLK: {
+                        name: 'CLK',
+                        block: 'matrix_clk',
+                        shadow: 'matrix_clk'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+
+            createNumberShadow(
+                'matrix_din',
+                'matrix_init',
+                2
+            ),
+            createNumberShadow(
+                'matrix_cs',
+                'matrix_init',
+                3
+            ),
+            createNumberShadow(
+                'matrix_clk',
+                'matrix_init',
+                4
+            ),
+
+            {
+                id: 'matrix_write',
+                opcode: 'displays_matrixWrite',
+                next: 'matrix_brightness',
+                parent: 'matrix_init',
+                inputs: {
+                    MATRIX: {
+                        name: 'MATRIX',
+                        block: 'matrix_value',
+                        shadow: 'matrix_value'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+
+            {
+                id: 'matrix_value',
+                opcode: 'easyblox_matrix_8x8',
+                next: null,
+                parent: 'matrix_write',
+                inputs: {},
+                fields: {
+                    MATRIX: {
+                        name: 'MATRIX',
+                        value: '0066FFFF7E3C1800'
+                    }
+                },
+                topLevel: false,
+                shadow: true
+            },
+
+            {
+                id: 'matrix_brightness',
+                opcode: 'displays_matrixBrightness',
+                next: 'matrix_clear',
+                parent: 'matrix_write',
+                inputs: {
+                    BRIGHTNESS: {
+                        name: 'BRIGHTNESS',
+                        block: 'matrix_brightness_value',
+                        shadow: 'matrix_brightness_value'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+
+            createNumberShadow(
+                'matrix_brightness_value',
+                'matrix_brightness',
+                75
+            ),
+
+            {
+                id: 'matrix_clear',
+                opcode: 'displays_matrixClear',
+                next: 'lcd_init',
+                parent: 'matrix_brightness',
+                inputs: {},
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+
+            {
+                id: 'lcd_init',
+                opcode: 'displays_lcdInit',
+                next: 'lcd_write',
+                parent: 'matrix_clear',
+                inputs: {},
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+
+            {
+                id: 'lcd_write',
+                opcode: 'displays_lcdWrite',
+                next: 'lcd_mode',
+                parent: 'lcd_init',
+                inputs: {
+                    TEXT: {
+                        name: 'TEXT',
+                        block: 'lcd_text',
+                        shadow: 'lcd_text'
+                    },
+                    ROW: {
+                        name: 'ROW',
+                        block: 'lcd_row',
+                        shadow: 'lcd_row'
+                    },
+                    COLUMN: {
+                        name: 'COLUMN',
+                        block: 'lcd_column',
+                        shadow: 'lcd_column'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+
+            {
+                id: 'lcd_text',
+                opcode: 'text',
+                next: null,
+                parent: 'lcd_write',
+                inputs: {},
+                fields: {
+                    TEXT: {
+                        name: 'TEXT',
+                        value: 'EasyBlox'
+                    }
+                },
+                topLevel: false,
+                shadow: true
+            },
+
+            createExtensionMenuShadow(
+                'lcd_row',
+                'lcd_write',
+                'displays_menu_lcdRows',
+                'lcdRows',
+                2
+            ),
+
+            createExtensionMenuShadow(
+                'lcd_column',
+                'lcd_write',
+                'displays_menu_lcdColumns',
+                'lcdColumns',
+                5
+            ),
+
+            {
+                id: 'lcd_mode',
+                opcode: 'displays_lcdMode',
+                next: 'lcd_clear',
+                parent: 'lcd_write',
+                inputs: {
+                    MODE: {
+                        name: 'MODE',
+                        block: 'lcd_mode_value',
+                        shadow: 'lcd_mode_value'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+
+            createExtensionMenuShadow(
+                'lcd_mode_value',
+                'lcd_mode',
+                'displays_menu_lcdModes',
+                'lcdModes',
+                '4'
+            ),
+
+            {
+                id: 'lcd_clear',
+                opcode: 'displays_lcdClear',
+                next: 'tm1637_init',
+                parent: 'lcd_mode',
+                inputs: {},
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+
+            {
+                id: 'tm1637_init',
+                opcode: 'displays_tm1637Init',
+                next: 'tm1637_show',
+                parent: 'lcd_clear',
+                inputs: {
+                    CLK: {
+                        name: 'CLK',
+                        block: 'tm1637_clk',
+                        shadow: 'tm1637_clk'
+                    },
+                    DIO: {
+                        name: 'DIO',
+                        block: 'tm1637_dio',
+                        shadow: 'tm1637_dio'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+
+            createNumberShadow(
+                'tm1637_clk',
+                'tm1637_init',
+                5
+            ),
+
+            createNumberShadow(
+                'tm1637_dio',
+                'tm1637_init',
+                6
+            ),
+
+            {
+                id: 'tm1637_show',
+                opcode: 'displays_tm1637Show',
+                next: 'tm1637_clear',
+                parent: 'tm1637_init',
+                inputs: {
+                    VALUE: {
+                        name: 'VALUE',
+                        block: 'tm1637_value',
+                        shadow: 'tm1637_value'
+                    },
+                    LENGTH: {
+                        name: 'LENGTH',
+                        block: 'tm1637_length',
+                        shadow: 'tm1637_length'
+                    },
+                    POSITION: {
+                        name: 'POSITION',
+                        block: 'tm1637_position',
+                        shadow: 'tm1637_position'
+                    },
+                    POINT: {
+                        name: 'POINT',
+                        block: 'tm1637_point',
+                        shadow: 'tm1637_point'
+                    },
+                    LEADING_ZEROS: {
+                        name: 'LEADING_ZEROS',
+                        block: 'tm1637_leading_zeros',
+                        shadow: 'tm1637_leading_zeros'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+
+            createNumberShadow(
+                'tm1637_value',
+                'tm1637_show',
+                1234
+            ),
+
+            createExtensionMenuShadow(
+                'tm1637_length',
+                'tm1637_show',
+                'displays_menu_tm1637Lengths',
+                'tm1637Lengths',
+                4
+            ),
+
+            createExtensionMenuShadow(
+                'tm1637_position',
+                'tm1637_show',
+                'displays_menu_tm1637Positions',
+                'tm1637Positions',
+                1
+            ),
+
+            createExtensionMenuShadow(
+                'tm1637_point',
+                'tm1637_show',
+                'displays_menu_tm1637Point',
+                'tm1637Point',
+                '1'
+            ),
+
+            createExtensionMenuShadow(
+                'tm1637_leading_zeros',
+                'tm1637_show',
+                'displays_menu_tm1637LeadingZeros',
+                'tm1637LeadingZeros',
+                '0'
+            ),
+
+            {
+                id: 'tm1637_clear',
+                opcode: 'displays_tm1637Clear',
+                next: null,
+                parent: 'tm1637_show',
+                inputs: {},
+                fields: {},
+                topLevel: false,
+                shadow: false
+            }
+        ]);
+
+        const extractor = new UploadProgramExtractor(runtime);
+
+        t.same(
+            extractor.extract(),
+            {
+                setup: [
+                    {
+                        type: 'MatrixInit',
+                        dinPin: 2,
+                        csPin: 3,
+                        clkPin: 4
+                    },
+                    {
+                        type: 'MatrixWrite',
+                        bitmap: '0066FFFF7E3C1800'
+                    },
+                    {
+                        type: 'MatrixBrightness',
+                        brightnessPercent: 75
+                    },
+                    {
+                        type: 'MatrixClear'
+                    },
+                    {
+                        type: 'LcdInit'
+                    },
+                    {
+                        type: 'LcdWrite',
+                        text: 'EasyBlox',
+                        row: 2,
+                        column: 5
+                    },
+                    {
+                        type: 'LcdMode',
+                        mode: '4'
+                    },
+                    {
+                        type: 'LcdClear'
+                    },
+                    {
+                        type: 'Tm1637Init',
+                        clkPin: 5,
+                        dioPin: 6
+                    },
+                    {
+                        type: 'Tm1637Show',
+                        value: 1234,
+                        length: 4,
+                        position: 1,
+                        point: '1',
+                        leadingZeros: '0'
+                    },
+                    {
+                        type: 'Tm1637Clear'
+                    }
+                ],
+                loop: []
+            }
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload requires Display initialization before operations as one batch',
+    t => {
+        const contextValidator = new UploadContextValidator();
+        const typeValidator = new UploadTypeValidator();
+
+        const matrixOperations = [
+            {
+                type: 'MatrixWrite',
+                bitmap: '0066FFFF7E3C1800'
+            },
+            {
+                type: 'MatrixBrightness',
+                brightnessPercent: 75
+            },
+            {
+                type: 'MatrixClear'
+            }
+        ];
+
+        const lcdOperations = [
+            {
+                type: 'LcdWrite',
+                text: 'EasyBlox',
+                row: 2,
+                column: 5
+            },
+            {
+                type: 'LcdMode',
+                mode: '4'
+            },
+            {
+                type: 'LcdClear'
+            }
+        ];
+
+        const tm1637Operations = [
+            {
+                type: 'Tm1637Show',
+                value: 1234,
+                length: 4,
+                position: 1,
+                point: '1',
+                leadingZeros: '0'
+            },
+            {
+                type: 'Tm1637Clear'
+            }
+        ];
+
+        const validIr = {
+            procedures: [{
+                id: 'display_procedure',
+                name: 'display',
+                proccode: 'display',
+                parameters: [],
+                body: [
+                    matrixOperations[2],
+                    lcdOperations[2],
+                    tm1637Operations[1]
+                ]
+            }],
+            setup: [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 3,
+                    clkPin: 4
+                },
+                ...matrixOperations,
+                {
+                    type: 'LcdInit'
+                },
+                ...lcdOperations,
+                {
+                    type: 'Tm1637Init',
+                    clkPin: 5,
+                    dioPin: 6
+                },
+                ...tm1637Operations
+            ],
+            loop: [
+                matrixOperations[0],
+                lcdOperations[0],
+                tm1637Operations[0]
+            ]
+        };
+
+        t.doesNotThrow(
+            () => contextValidator.validate(validIr),
+            'accepts Display operations after their initializers'
+        );
+
+        const missingInitializationCases = [
+            {
+                operation: matrixOperations[0],
+                error: /Matrix must be initialized before use/
+            },
+            {
+                operation: lcdOperations[0],
+                error: /LCD must be initialized before use/
+            },
+            {
+                operation: tm1637Operations[0],
+                error: /TM1637 must be initialized before use/
+            }
+        ];
+
+        for (const testCase of missingInitializationCases) {
+            t.throws(
+                () => contextValidator.validate({
+                    setup: [],
+                    loop: [
+                        testCase.operation
+                    ]
+                }),
+                testCase.error
+            );
+        }
+
+        const beforeInitializationCases = [
+            {
+                operation: matrixOperations[1],
+                initializer: {
+                    type: 'MatrixInit',
+                    dinPin: 2,
+                    csPin: 3,
+                    clkPin: 4
+                },
+                error: /Matrix must be initialized before use/
+            },
+            {
+                operation: lcdOperations[1],
+                initializer: {
+                    type: 'LcdInit'
+                },
+                error: /LCD must be initialized before use/
+            },
+            {
+                operation: tm1637Operations[1],
+                initializer: {
+                    type: 'Tm1637Init',
+                    clkPin: 5,
+                    dioPin: 6
+                },
+                error: /TM1637 must be initialized before use/
+            }
+        ];
+
+        for (const testCase of beforeInitializationCases) {
+            t.throws(
+                () => contextValidator.validate({
+                    setup: [
+                        testCase.operation,
+                        testCase.initializer
+                    ],
+                    loop: []
+                }),
+                testCase.error
+            );
+        }
+
+        t.doesNotThrow(
+            () => typeValidator.validate({
+                setup: [
+                    ...matrixOperations,
+                    ...lcdOperations,
+                    ...tm1637Operations
+                ],
+                loop: []
+            }),
+            'type validator recognizes all Display operation statements'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
     'Arduino UNO Upload validates typed Variables Lists and My Blocks IR batch',
     t => {
         const validator = new UploadTypeValidator();

@@ -182,6 +182,135 @@ class UploadContextValidator {
             );
         }
 
+        const invalidSetupDisplayInitialization =
+            setup.some(statement =>
+                statement &&
+                ![
+                    'MatrixInit',
+                    'LcdInit',
+                    'Tm1637Init'
+                ].includes(statement.type) &&
+                this._containsDisplayInit(statement)
+            );
+
+        const invalidLoopDisplayInitialization =
+            this._containsDisplayInit(loop);
+
+        const invalidProcedureDisplayInitialization =
+            this._containsDisplayInit(procedures);
+
+        if (
+            invalidSetupDisplayInitialization ||
+            invalidLoopDisplayInitialization ||
+            invalidProcedureDisplayInitialization
+        ) {
+            throw new Error(
+                'Display initialization must be declared directly in Arduino UNO setup'
+            );
+        }
+
+        const matrixInitializationIndex =
+            setup.findIndex(statement =>
+                statement &&
+                statement.type === 'MatrixInit'
+            );
+
+        const lcdInitializationIndex =
+            setup.findIndex(statement =>
+                statement &&
+                statement.type === 'LcdInit'
+            );
+
+        const tm1637InitializationIndex =
+            setup.findIndex(statement =>
+                statement &&
+                statement.type === 'Tm1637Init'
+            );
+
+        const usesMatrix =
+            this._containsMatrixOperation([
+                ...setup,
+                ...loop,
+                ...procedures
+            ]);
+
+        const usesLcd =
+            this._containsLcdOperation([
+                ...setup,
+                ...loop,
+                ...procedures
+            ]);
+
+        const usesTm1637 =
+            this._containsTm1637Operation([
+                ...setup,
+                ...loop,
+                ...procedures
+            ]);
+
+        if (
+            usesMatrix &&
+            matrixInitializationIndex === -1
+        ) {
+            throw new Error(
+                'Matrix must be initialized before use'
+            );
+        }
+
+        if (
+            usesLcd &&
+            lcdInitializationIndex === -1
+        ) {
+            throw new Error(
+                'LCD must be initialized before use'
+            );
+        }
+
+        if (
+            usesTm1637 &&
+            tm1637InitializationIndex === -1
+        ) {
+            throw new Error(
+                'TM1637 must be initialized before use'
+            );
+        }
+
+        const usesMatrixBeforeInitialization =
+            matrixInitializationIndex > 0 &&
+            this._containsMatrixOperation(
+                setup.slice(0, matrixInitializationIndex)
+            );
+
+        if (usesMatrixBeforeInitialization) {
+            throw new Error(
+                'Matrix must be initialized before use'
+            );
+        }
+
+        const usesLcdBeforeInitialization =
+            lcdInitializationIndex > 0 &&
+            this._containsLcdOperation(
+                setup.slice(0, lcdInitializationIndex)
+            );
+
+        if (usesLcdBeforeInitialization) {
+            throw new Error(
+                'LCD must be initialized before use'
+            );
+        }
+
+        const usesTm1637BeforeInitialization =
+            tm1637InitializationIndex > 0 &&
+            this._containsTm1637Operation(
+                setup.slice(0, tm1637InitializationIndex)
+            );
+
+        if (usesTm1637BeforeInitialization) {
+            throw new Error(
+                'TM1637 must be initialized before use'
+            );
+        }
+
         if (unreachable.some(item =>
             item &&
             item.type === 'UnreachableCode' &&
@@ -193,6 +322,125 @@ class UploadContextValidator {
         }
 
         return ir;
+    }
+
+    /**
+     * Check recursively whether a value contains a Display initializer.
+     * @param {*} value IR value to inspect.
+     * @returns {boolean} True when a Display initializer is present.
+     * @private
+     */
+    _containsDisplayInit (value) {
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        if (
+            value.type === 'MatrixInit' ||
+            value.type === 'LcdInit' ||
+            value.type === 'Tm1637Init'
+        ) {
+            return true;
+        }
+
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._containsDisplayInit(item)
+            );
+        }
+
+        return Object.keys(value).some(key =>
+            this._containsDisplayInit(value[key])
+        );
+    }
+
+    /**
+     * Check recursively whether a value contains a MAX7219 operation.
+     * @param {*} value IR value to inspect.
+     * @returns {boolean} True when a matrix operation is present.
+     * @private
+     */
+    _containsMatrixOperation (value) {
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        if (
+            value.type === 'MatrixWrite' ||
+            value.type === 'MatrixBrightness' ||
+            value.type === 'MatrixClear'
+        ) {
+            return true;
+        }
+
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._containsMatrixOperation(item)
+            );
+        }
+
+        return Object.keys(value).some(key =>
+            this._containsMatrixOperation(value[key])
+        );
+    }
+
+    /**
+     * Check recursively whether a value contains an LCD operation.
+     * @param {*} value IR value to inspect.
+     * @returns {boolean} True when an LCD operation is present.
+     * @private
+     */
+    _containsLcdOperation (value) {
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        if (
+            value.type === 'LcdWrite' ||
+            value.type === 'LcdMode' ||
+            value.type === 'LcdClear'
+        ) {
+            return true;
+        }
+
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._containsLcdOperation(item)
+            );
+        }
+
+        return Object.keys(value).some(key =>
+            this._containsLcdOperation(value[key])
+        );
+    }
+
+    /**
+     * Check recursively whether a value contains a TM1637 operation.
+     * @param {*} value IR value to inspect.
+     * @returns {boolean} True when a TM1637 operation is present.
+     * @private
+     */
+    _containsTm1637Operation (value) {
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        if (
+            value.type === 'Tm1637Show' ||
+            value.type === 'Tm1637Clear'
+        ) {
+            return true;
+        }
+
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._containsTm1637Operation(item)
+            );
+        }
+
+        return Object.keys(value).some(key =>
+            this._containsTm1637Operation(value[key])
+        );
     }
 
     /**

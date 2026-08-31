@@ -7,6 +7,19 @@ const DHT_READ_OPCODE = 'sensors_dhtRead';
 const JOYSTICK_INIT_OPCODE = 'sensors_joystickInit';
 const JOYSTICK_VALUE_OPCODE = 'sensors_joystickValue';
 const JOYSTICK_CLICKED_OPCODE = 'sensors_joystickClicked';
+const MATRIX_INIT_OPCODE = 'displays_configureMatrix';
+const LCD_INIT_OPCODE = 'displays_lcdInit';
+const TM1637_INIT_OPCODE = 'displays_tm1637Init';
+const MATRIX_WRITE_OPCODE = 'displays_matrixWrite';
+const MATRIX_CLEAR_OPCODE = 'displays_matrixClear';
+const MATRIX_BRIGHTNESS_OPCODE = 'displays_matrixBrightness';
+
+const LCD_WRITE_OPCODE = 'displays_lcdWrite';
+const LCD_CLEAR_OPCODE = 'displays_lcdClear';
+const LCD_MODE_OPCODE = 'displays_lcdMode';
+
+const TM1637_SHOW_OPCODE = 'displays_tm1637Show';
+const TM1637_CLEAR_OPCODE = 'displays_tm1637Clear';
 const PWM_WRITE_OPCODE = 'arduinoUno_pwmWrite';
 const TONE_START_OPCODE = 'arduinoUno_toneStart';
 const TONE_STOP_OPCODE = 'arduinoUno_toneStop';
@@ -692,6 +705,143 @@ class UploadProgramExtractor {
                     block,
                     'CLICK'
                 )
+            };
+
+        case MATRIX_INIT_OPCODE:
+            return {
+                type: 'MatrixInit',
+                dinPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'DIN'
+                ),
+                csPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'CS'
+                ),
+                clkPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'CLK'
+                )
+            };
+
+        case LCD_INIT_OPCODE:
+            return {
+                type: 'LcdInit'
+            };
+
+        case TM1637_INIT_OPCODE:
+            return {
+                type: 'Tm1637Init',
+                clkPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'CLK'
+                ),
+                dioPin: this._readNumberInput(
+                    blocks,
+                    block,
+                    'DIO'
+                )
+            };
+
+        case MATRIX_WRITE_OPCODE:
+            return {
+                type: 'MatrixWrite',
+                bitmap: this._readFieldInputValue(
+                    blocks,
+                    block,
+                    'MATRIX',
+                    'MATRIX'
+                )
+            };
+
+        case MATRIX_BRIGHTNESS_OPCODE:
+            return {
+                type: 'MatrixBrightness',
+                brightnessPercent: this._readNumberInput(
+                    blocks,
+                    block,
+                    'BRIGHTNESS'
+                )
+            };
+
+        case MATRIX_CLEAR_OPCODE:
+            return {
+                type: 'MatrixClear'
+            };
+
+        case LCD_WRITE_OPCODE:
+            return {
+                type: 'LcdWrite',
+                text: this._readFieldInputValue(
+                    blocks,
+                    block,
+                    'TEXT',
+                    'TEXT'
+                ),
+                row: this._readNumberInput(
+                    blocks,
+                    block,
+                    'ROW'
+                ),
+                column: this._readNumberInput(
+                    blocks,
+                    block,
+                    'COLUMN'
+                )
+            };
+
+        case LCD_MODE_OPCODE:
+            return {
+                type: 'LcdMode',
+                mode: this._readMenuValue(
+                    blocks,
+                    block,
+                    'MODE'
+                )
+            };
+
+        case LCD_CLEAR_OPCODE:
+            return {
+                type: 'LcdClear'
+            };
+
+        case TM1637_SHOW_OPCODE:
+            return {
+                type: 'Tm1637Show',
+                value: this._readNumberInput(
+                    blocks,
+                    block,
+                    'VALUE'
+                ),
+                length: this._readNumberInput(
+                    blocks,
+                    block,
+                    'LENGTH'
+                ),
+                position: this._readNumberInput(
+                    blocks,
+                    block,
+                    'POSITION'
+                ),
+                point: this._readMenuValue(
+                    blocks,
+                    block,
+                    'POINT'
+                ),
+                leadingZeros: this._readMenuValue(
+                    blocks,
+                    block,
+                    'LEADING_ZEROS'
+                )
+            };
+
+        case TM1637_CLEAR_OPCODE:
+            return {
+                type: 'Tm1637Clear'
             };
 
         case MOTOR_CONFIGURE_OPCODE:
@@ -1785,6 +1935,50 @@ class UploadProgramExtractor {
         }
 
         return value;
+    }
+
+    /**
+     * Read one Scratch input whose shadow stores its value in a field.
+     * @param {Blocks} blocks Scratch Blocks storage.
+     * @param {object} block Parent block.
+     * @param {string} inputName Scratch input name.
+     * @param {string} fieldName Expected shadow field name.
+     * @returns {string} Field value.
+     * @private
+     */
+    _readFieldInputValue (
+        blocks,
+        block,
+        inputName,
+        fieldName
+    ) {
+        const inputs = blocks.getInputs(block);
+        const input = inputs && inputs[inputName];
+
+        if (!input || !input.block) {
+            throw new Error(
+                `Missing field input ${inputName} in ${block.opcode}`
+            );
+        }
+
+        const inputBlock = blocks.getBlock(input.block);
+
+        if (!inputBlock) {
+            throw new Error(
+                `Unsupported field input ${inputName} in ${block.opcode}`
+            );
+        }
+
+        const fields = blocks.getFields(inputBlock);
+        const field = fields && fields[fieldName];
+
+        if (!field) {
+            throw new Error(
+                `Invalid field input ${inputName} in ${block.opcode}`
+            );
+        }
+
+        return String(field.value);
     }
 
     /**

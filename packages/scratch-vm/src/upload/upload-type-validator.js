@@ -242,6 +242,17 @@ class UploadTypeValidator {
             case 'ToneStart':
             case 'ToneStop':
             case 'TimerReset':
+            case 'MatrixInit':
+            case 'LcdInit':
+            case 'Tm1637Init':
+            case 'MatrixWrite':
+            case 'MatrixBrightness':
+            case 'MatrixClear':
+            case 'LcdWrite':
+            case 'LcdMode':
+            case 'LcdClear':
+            case 'Tm1637Show':
+            case 'Tm1637Clear':
             case 'JoystickInit':
             case 'MotorConfigure':
             case 'MotorWrite':

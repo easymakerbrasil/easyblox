@@ -156,6 +156,81 @@ class UploadResourceValidator {
         const ultrasonicPins = new Set();
         const dhtPins = new Set();
 
+        const displayGpioPins = new Set();
+        const displayI2cPins = new Set();
+
+        for (const statement of setup) {
+            if (!statement) {
+                continue;
+            }
+
+            if (statement.type === 'MatrixInit') {
+                this._validateMatrixInitialization(statement);
+
+                const matrixPins = [
+                    statement.dinPin,
+                    statement.csPin,
+                    statement.clkPin
+                ];
+
+                if (matrixPins.some(pin => displayGpioPins.has(pin))) {
+                    throw new Error(
+                        'Display GPIO pins cannot be shared'
+                    );
+                }
+
+                for (const pin of matrixPins) {
+                    displayGpioPins.add(pin);
+                }
+            }
+
+            if (statement.type === 'Tm1637Init') {
+                this._validateTm1637Initialization(statement);
+
+                const tm1637Pins = [
+                    statement.clkPin,
+                    statement.dioPin
+                ];
+
+                if (tm1637Pins.some(pin => displayGpioPins.has(pin))) {
+                    throw new Error(
+                        'Display GPIO pins cannot be shared'
+                    );
+                }
+
+                for (const pin of tm1637Pins) {
+                    displayGpioPins.add(pin);
+                }
+            }
+
+            if (statement.type === 'LcdInit') {
+                const i2c =
+                    this.boardProfile &&
+                    this.boardProfile.i2c;
+
+                if (
+                    !i2c ||
+                    !Number.isFinite(i2c.sdaPin) ||
+                    !Number.isFinite(i2c.sclPin)
+                ) {
+                    throw new Error(
+                        'I2C is not supported by the selected board'
+                    );
+                }
+
+                displayI2cPins.add(i2c.sdaPin);
+                displayI2cPins.add(i2c.sclPin);
+            }
+        }
+
+        for (const pin of displayGpioPins) {
+            if (displayI2cPins.has(pin)) {
+                throw new Error(
+                    'Display GPIO and I2C cannot use the same pin'
+                );
+            }
+        }
+
         this._collectServoAndTonePins(
             analysisStatements,
             servoPins,
@@ -314,6 +389,57 @@ class UploadResourceValidator {
             dhtPins
         );
 
+        const displayReservedPins = new Set([
+            ...displayGpioPins,
+            ...displayI2cPins
+        ]);
+
+        const displayConflictPinSets = [
+            motorPins,
+            servoPins,
+            tonePins,
+            relayPins,
+            pwmWritePins,
+            digitalWritePins,
+            digitalReadPins,
+            ultrasonicPins,
+            dhtPins
+        ];
+
+        for (const pin of displayReservedPins) {
+            if (
+                displayConflictPinSets.some(
+                    pinSet => pinSet.has(pin)
+                )
+            ) {
+                throw new Error(
+                    `Display resource conflict on pin ${pin}`
+                );
+            }
+        }
+
+        if (joystickInitialization) {
+            const joystickPins = [
+                joystickInitialization.xPin,
+                joystickInitialization.yPin,
+                joystickInitialization.clickPin
+            ];
+
+            if (
+                joystickPins.some(
+                    pin => displayReservedPins.has(pin)
+                )
+            ) {
+                const conflictPin = joystickPins.find(
+                    pin => displayReservedPins.has(pin)
+                );
+
+                throw new Error(
+                    `Display resource conflict on pin ${conflictPin}`
+                );
+            }
+        }
+
         for (const pin of ultrasonicPins) {
             if (servoPins.has(pin)) {
                 throw new Error(
@@ -390,6 +516,80 @@ class UploadResourceValidator {
         }
 
         return ir;
+    }
+
+    /**
+     * Validate MAX7219 matrix initialization resources.
+     * @param {object} statement MatrixInit statement.
+     * @returns {void}
+     * @private
+     */
+    _validateMatrixInitialization (statement) {
+        const supportedDigitalPins =
+            Array.isArray(this.boardProfile.digitalPins) ?
+                this.boardProfile.digitalPins :
+                [];
+
+        if (!supportedDigitalPins.includes(statement.dinPin)) {
+            throw new Error(
+                'Matrix DIN pin is not supported by the selected board'
+            );
+        }
+
+        if (!supportedDigitalPins.includes(statement.csPin)) {
+            throw new Error(
+                'Matrix CS pin is not supported by the selected board'
+            );
+        }
+
+        if (!supportedDigitalPins.includes(statement.clkPin)) {
+            throw new Error(
+                'Matrix CLK pin is not supported by the selected board'
+            );
+        }
+
+        const pins = [
+            statement.dinPin,
+            statement.csPin,
+            statement.clkPin
+        ];
+
+        if (new Set(pins).size !== pins.length) {
+            throw new Error(
+                'Matrix DIN, CS and CLK pins must be different'
+            );
+        }
+    }
+
+    /**
+     * Validate TM1637 initialization resources.
+     * @param {object} statement Tm1637Init statement.
+     * @returns {void}
+     * @private
+     */
+    _validateTm1637Initialization (statement) {
+        const supportedDigitalPins =
+            Array.isArray(this.boardProfile.digitalPins) ?
+                this.boardProfile.digitalPins :
+                [];
+
+        if (!supportedDigitalPins.includes(statement.clkPin)) {
+            throw new Error(
+                'TM1637 CLK pin is not supported by the selected board'
+            );
+        }
+
+        if (!supportedDigitalPins.includes(statement.dioPin)) {
+            throw new Error(
+                'TM1637 DIO pin is not supported by the selected board'
+            );
+        }
+
+        if (statement.clkPin === statement.dioPin) {
+            throw new Error(
+                'TM1637 CLK and DIO pins must be different'
+            );
+        }
     }
 
     /**

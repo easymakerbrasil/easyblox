@@ -43,6 +43,11 @@ const ArduinoUnoBoardProfile = Object.freeze({
         19
     ]),
 
+    i2c: Object.freeze({
+        sdaPin: 18,
+        sclPin: 19
+    }),
+
     tonePins: Object.freeze([
         3,
         5,
