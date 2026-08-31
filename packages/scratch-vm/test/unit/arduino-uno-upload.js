@@ -8027,6 +8027,119 @@ tap.test('Arduino UNO generator emits GreaterThan expression', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload treats empty operator_and operands as false', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'empty_and',
+            opcode: 'operator_and',
+            next: null,
+            parent: null,
+            inputs: {},
+            fields: {},
+            topLevel: true,
+            shadow: false
+        }
+    ]);
+
+    const blocks = runtime.targets[0].blocks;
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'empty_and'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'And',
+            left: {
+                type: 'BooleanLiteral',
+                value: false
+            },
+            right: {
+                type: 'BooleanLiteral',
+                value: false
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload treats empty operator_or operands as false', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'empty_or',
+            opcode: 'operator_or',
+            next: null,
+            parent: null,
+            inputs: {},
+            fields: {},
+            topLevel: true,
+            shadow: false
+        }
+    ]);
+
+    const blocks = runtime.targets[0].blocks;
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'empty_or'
+        ),
+        {
+            type: 'BinaryExpression',
+            operator: 'Or',
+            left: {
+                type: 'BooleanLiteral',
+                value: false
+            },
+            right: {
+                type: 'BooleanLiteral',
+                value: false
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload treats empty operator_not operand as false', t => {
+    const runtime = createRuntimeWithBlocks([
+        {
+            id: 'empty_not',
+            opcode: 'operator_not',
+            next: null,
+            parent: null,
+            inputs: {},
+            fields: {},
+            topLevel: true,
+            shadow: false
+        }
+    ]);
+
+    const blocks = runtime.targets[0].blocks;
+    const extractor = new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'empty_not'
+        ),
+        {
+            type: 'UnaryExpression',
+            operator: 'Not',
+            operand: {
+                type: 'BooleanLiteral',
+                value: false
+            }
+        }
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload extracts operator_and as expression IR', t => {
     const runtime = createRuntimeWithBlocks([
         {

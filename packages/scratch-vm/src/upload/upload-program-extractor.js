@@ -1572,12 +1572,12 @@ class UploadProgramExtractor {
             return {
                 type: 'BinaryExpression',
                 operator: 'And',
-                left: this._extractExpressionInput(
+                left: this._extractBooleanConditionInput(
                     blocks,
                     block,
                     'OPERAND1'
                 ),
-                right: this._extractExpressionInput(
+                right: this._extractBooleanConditionInput(
                     blocks,
                     block,
                     'OPERAND2'
@@ -1588,12 +1588,12 @@ class UploadProgramExtractor {
             return {
                 type: 'BinaryExpression',
                 operator: 'Or',
-                left: this._extractExpressionInput(
+                left: this._extractBooleanConditionInput(
                     blocks,
                     block,
                     'OPERAND1'
                 ),
-                right: this._extractExpressionInput(
+                right: this._extractBooleanConditionInput(
                     blocks,
                     block,
                     'OPERAND2'
@@ -1604,7 +1604,7 @@ class UploadProgramExtractor {
             return {
                 type: 'UnaryExpression',
                 operator: 'Not',
-                operand: this._extractExpressionInput(
+                operand: this._extractBooleanConditionInput(
                     blocks,
                     block,
                     'OPERAND'
