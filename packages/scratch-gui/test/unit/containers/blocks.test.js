@@ -65,6 +65,76 @@ describe('Blocks variable category program mode', () => {
     });
 });
 
+describe('Blocks EasyBlox variable prompt program mode', () => {
+    const createInstance = programMode => {
+        const instance = {
+            _pendingEasyBloxVariableType: 'TEXT',
+            props: {
+                programMode,
+                canUseCloud: true
+            },
+            ScratchBlocks: {
+                SCALAR_VARIABLE_TYPE: '',
+                BROADCAST_MESSAGE_VARIABLE_TYPE: 'broadcast_msg',
+                Msg: {
+                    VARIABLE_MODAL_TITLE: 'Make a Variable',
+                    RENAME_VARIABLE_MODAL_TITLE: 'Rename Variable',
+                    RENAME_LIST_MODAL_TITLE: 'Rename List'
+                }
+            },
+            setState: jest.fn()
+        };
+
+        return instance;
+    };
+
+    test('keeps Scratch scope and cloud options for Stage scalar variables', () => {
+        const instance = createInstance('stage');
+        const callback = jest.fn();
+
+        Blocks.prototype.handlePromptStart.call(
+            instance,
+            'Variable name',
+            '',
+            callback,
+            'Make a Variable',
+            ''
+        );
+
+        expect(instance.setState).toHaveBeenCalledWith({
+            prompt: expect.objectContaining({
+                callback,
+                showEasyBloxVariableTypeOptions: true,
+                showVariableOptions: true,
+                showCloudOption: true
+            })
+        });
+    });
+
+    test('hides Scratch scope and cloud options for Upload scalar variables', () => {
+        const instance = createInstance('upload');
+        const callback = jest.fn();
+
+        Blocks.prototype.handlePromptStart.call(
+            instance,
+            'Variable name',
+            '',
+            callback,
+            'Make a Variable',
+            ''
+        );
+
+        expect(instance.setState).toHaveBeenCalledWith({
+            prompt: expect.objectContaining({
+                callback,
+                showEasyBloxVariableTypeOptions: true,
+                showVariableOptions: false,
+                showCloudOption: false
+            })
+        });
+    });
+});
+
 describe('Blocks EasyBlox variable ownership', () => {
     test('keeps Stage variable typing on the owning Scratch target', () => {
         const setVariableEasyBloxValueType = jest.fn();
