@@ -232,6 +232,124 @@
     border-color: $easyblox-yellow;
 }
 
+.bottom-panel {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    background: $easyblox-white;
+    border: 1px solid $ui-black-transparent;
+    border-radius: $space;
+}
+
+.bottom-panel-toolbar {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-between;
+
+    min-height: 2.75rem;
+
+    background: $easyblox-white;
+}
+
+.bottom-panel-tabs {
+    display: flex;
+    align-items: stretch;
+}
+
+.bottom-panel-tab {
+    position: relative;
+
+    padding: 0.5rem 0.875rem;
+
+    color: $easyblox-graphite;
+    background: transparent;
+    border: 0;
+
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.bottom-panel-tab[aria-selected="true"]::after {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0;
+    left: 0.75rem;
+
+    height: 0.1875rem;
+
+    background: $easyblox-yellow;
+
+    content: "";
+}
+
+.bottom-panel-tab:hover {
+    background: $ui-secondary;
+}
+
+.bottom-panel-collapse {
+    width: 2.75rem;
+
+    color: $easyblox-graphite;
+    background: transparent;
+    border: 0;
+
+    font-size: 0.75rem;
+
+    cursor: pointer;
+}
+
+.bottom-panel-collapse:hover {
+    background: $ui-secondary;
+}
+
+.output-region {
+    min-height: 5rem;
+    max-height: 10rem;
+    padding: 0.875rem;
+
+    overflow: auto;
+
+    color: rgba(255, 255, 255, 0.82);
+    background: $easyblox-graphite;
+    border-top: 1px solid $ui-black-transparent;
+
+    font-family: Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.output-list {
+    margin: 0;
+    padding: 0;
+
+    list-style: none;
+}
+
+.output-entry {
+    padding: 0.15rem 0;
+
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.output-entry::before {
+    margin-right: 0.5rem;
+
+    content: "›";
+}
+
+.output-entry[data-state="success"] {
+    font-weight: 700;
+}
+
+.output-entry[data-state="error"] {
+    font-weight: 700;
+}
+
 .serial-monitor {
     display: flex;
     flex: 0 0 auto;

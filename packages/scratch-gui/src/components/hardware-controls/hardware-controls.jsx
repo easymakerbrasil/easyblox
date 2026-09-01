@@ -9,6 +9,7 @@ const CONNECTION_LABELS = {
     disconnected: 'Conectar placa',
     connecting: 'Conectando...',
     connected: 'Desconectar placa',
+    uploading: 'Enviando programa...',
     error: 'Erro de conexão. Tentar novamente'
 };
 
@@ -36,6 +37,11 @@ const HardwareControls = ({
 
     const connectionLabel = CONNECTION_LABELS[connectionState];
 
+    const connectionVisualState =
+        connectionState === 'uploading' ?
+            'connecting' :
+            connectionState;
+
     const handleDisconnectCancel = () => {
         setDisconnectPromptOpen(false);
     };
@@ -51,7 +57,10 @@ const HardwareControls = ({
             return;
         }
 
-        if (connectionState !== 'connecting') {
+        if (
+            connectionState !== 'connecting' &&
+            connectionState !== 'uploading'
+        ) {
             onConnect();
         }
     }, [connectionState, onConnect]);
@@ -73,8 +82,11 @@ const HardwareControls = ({
 
             <button
                 aria-label={connectionLabel}
-                className={`${styles.connectionButton} ${styles[connectionState]}`}
-                disabled={connectionState === 'connecting'}
+                className={`${styles.connectionButton} ${styles[connectionVisualState]}`}
+                disabled={
+                    connectionState === 'connecting' ||
+                    connectionState === 'uploading'
+                }
                 onClick={handleConnectionClick}
                 ref={connectionButtonRef}
                 title={connectionLabel}
@@ -111,6 +123,7 @@ HardwareControls.propTypes = {
         'disconnected',
         'connecting',
         'connected',
+        'uploading',
         'error'
     ]),
     onConnect: PropTypes.func,

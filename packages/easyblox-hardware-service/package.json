@@ -6,8 +6,9 @@
   "license": "AGPL-3.0-only",
   "main": "src/index.js",
     "scripts": {
-    "build": "node --check src/index.js && node --check src/hardware-service-error.js && node --check src/toolchain-provider.js && node --check src/process-runner.js && node --check src/build-service.js && node --check src/port-discovery.js && node --check src/upload-service.js",
+    "build": "node --check src/index.js && node --check src/hardware-service-error.js && node --check src/toolchain-provider.js && node --check src/process-runner.js && node --check src/build-service.js && node --check src/port-discovery.js && node --check src/upload-service.js && node --check src/http-server.js && node --check scripts/serve.js",
     "test": "node --test test/*.test.js",
+    "serve": "node scripts/serve.js",
     "smoke:compile": "node scripts/compile-smoke.js",
     "smoke:upload": "node scripts/upload-smoke.js"
     }

@@ -94,6 +94,99 @@ describe('UploadWorkspace', () => {
         ).toBeDisabled();
     });
 
+    test('opens Output automatically, preserves upload history and marks the upload action as busy', () => {
+        const onUpload = jest.fn();
+
+        const {rerender} = render(
+            <UploadWorkspace
+                boardName="Arduino UNO"
+                code={GENERATED_CODE}
+                error={null}
+                onUpload={onUpload}
+                outputEntries={[]}
+                uploadState="idle"
+            />
+        );
+
+        expect(
+            screen.getByRole(
+                'button',
+                {
+                    name: 'Enviar para Arduino UNO'
+                }
+            )
+        ).toBeEnabled();
+
+        expect(
+            screen.queryByRole(
+                'region',
+                {
+                    name: 'Saída do envio'
+                }
+            )
+        ).not.toBeInTheDocument();
+
+        rerender(
+            <UploadWorkspace
+                boardName="Arduino UNO"
+                code={GENERATED_CODE}
+                error={null}
+                onUpload={onUpload}
+                outputEntries={[
+                    {
+                        id: 'build',
+                        state: 'building',
+                        message: 'Compilando o programa...'
+                    },
+                    {
+                        id: 'prepare',
+                        state: 'preparing',
+                        message: 'Preparando a placa...'
+                    },
+                    {
+                        id: 'upload',
+                        state: 'uploading',
+                        message: 'Gravando na placa...'
+                    }
+                ]}
+                uploadState="uploading"
+            />
+        );
+
+        const outputRegion =
+            screen.getByRole(
+                'region',
+                {
+                    name: 'Saída do envio'
+                }
+            );
+
+        expect(outputRegion)
+            .toHaveTextContent(
+                'Compilando o programa...'
+            );
+
+        expect(outputRegion)
+            .toHaveTextContent(
+                'Preparando a placa...'
+            );
+
+        expect(outputRegion)
+            .toHaveTextContent(
+                'Gravando na placa...'
+            );
+
+        expect(
+            screen.getByRole(
+                'button',
+                {
+                    name:
+                        'Enviando para Arduino UNO...'
+                }
+            )
+        ).toBeDisabled();
+    });
+
     test('shows a pedagogical empty state when there is no generated code', () => {
         render(
             <UploadWorkspace
@@ -243,26 +336,51 @@ describe('UploadWorkspace', () => {
         ).toBeDisabled();
     });
 
-    test('keeps the Serial Monitor collapsed by default and allows expanding and collapsing it', () => {
+    test('keeps the bottom panel collapsed by default and allows switching between Output and Serial Monitor', () => {
         render(
             <UploadWorkspace
                 code={GENERATED_CODE}
                 error={null}
+                outputEntries={[]}
             />
         );
 
-        const serialButton = screen.getByRole(
-            'button',
-            {
-                name: 'Monitor Serial'
-            }
-        );
+        const outputTab =
+            screen.getByRole(
+                'tab',
+                {
+                    name: 'Saída'
+                }
+            );
 
-        expect(serialButton)
+        const serialTab =
+            screen.getByRole(
+                'tab',
+                {
+                    name: 'Monitor Serial'
+                }
+            );
+
+        expect(outputTab)
             .toHaveAttribute(
-                'aria-expanded',
+                'aria-selected',
+                'true'
+            );
+
+        expect(serialTab)
+            .toHaveAttribute(
+                'aria-selected',
                 'false'
             );
+
+        expect(
+            screen.queryByRole(
+                'region',
+                {
+                    name: 'Saída do envio'
+                }
+            )
+        ).not.toBeInTheDocument();
 
         expect(
             screen.queryByRole(
@@ -273,13 +391,39 @@ describe('UploadWorkspace', () => {
             )
         ).not.toBeInTheDocument();
 
-        fireEvent.click(serialButton);
+        fireEvent.click(outputTab);
 
-        expect(serialButton)
+        expect(
+            screen.getByRole(
+                'region',
+                {
+                    name: 'Saída do envio'
+                }
+            )
+        ).toBeInTheDocument();
+
+        fireEvent.click(serialTab);
+
+        expect(serialTab)
             .toHaveAttribute(
-                'aria-expanded',
+                'aria-selected',
                 'true'
             );
+
+        expect(outputTab)
+            .toHaveAttribute(
+                'aria-selected',
+                'false'
+            );
+
+        expect(
+            screen.queryByRole(
+                'region',
+                {
+                    name: 'Saída do envio'
+                }
+            )
+        ).not.toBeInTheDocument();
 
         expect(
             screen.getByRole(
@@ -290,13 +434,15 @@ describe('UploadWorkspace', () => {
             )
         ).toBeInTheDocument();
 
-        fireEvent.click(serialButton);
-
-        expect(serialButton)
-            .toHaveAttribute(
-                'aria-expanded',
-                'false'
-            );
+        fireEvent.click(
+            screen.getByRole(
+                'button',
+                {
+                    name:
+                        'Recolher painel inferior'
+                }
+            )
+        );
 
         expect(
             screen.queryByRole(
@@ -306,5 +452,44 @@ describe('UploadWorkspace', () => {
                 }
             )
         ).not.toBeInTheDocument();
+
+        expect(
+            screen.getByRole(
+                'button',
+                {
+                    name:
+                        'Expandir painel inferior'
+                }
+            )
+        ).toBeInTheDocument();
+
+        fireEvent.click(
+            screen.getByRole(
+                'button',
+                {
+                    name:
+                        'Expandir painel inferior'
+                }
+            )
+        );
+
+        expect(
+            screen.getByRole(
+                'region',
+                {
+                    name: 'Monitor Serial'
+                }
+            )
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole(
+                'button',
+                {
+                    name:
+                        'Recolher painel inferior'
+                }
+            )
+        ).toBeInTheDocument();
     });
 });

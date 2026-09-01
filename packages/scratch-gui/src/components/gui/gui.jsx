@@ -33,6 +33,12 @@ import ConnectionModal from '../../containers/connection-modal.jsx';
 import TelemetryModal from '../telemetry-modal/telemetry-modal.jsx';
 import BoardSelectionModal from '../board-selection-modal/board-selection-modal.jsx';
 import UploadWorkspace from '../upload-workspace/upload-workspace.jsx';
+import EasyBloxHardwareServiceClient from '../../lib/easyblox-hardware-service-client';
+import {runEasyBloxUpload} from '../../lib/easyblox-upload-workflow';
+import {
+    resolveUploadConnectionState,
+    shouldIgnorePeripheralDisconnected
+} from '../../lib/easyblox-upload-connection-state';
 import {getBoardById} from '../../lib/libraries/extensions/index.jsx';
 
 import layout, {STAGE_SIZE_MODES} from '../../lib/layout-constants';
@@ -116,6 +122,8 @@ const ariaMessages = defineMessages({
 // Cache this value to only retrieve it once the first time.
 // Assume that it doesn't change for a session.
 let isRendererSupported = null;
+const easybloxHardwareServiceClient =
+    new EasyBloxHardwareServiceClient();
 
 export const GUIComponent = props => {
     const intl = useIntl();
@@ -129,6 +137,25 @@ export const GUIComponent = props => {
     const [connectionState, setConnectionState] = useState('disconnected');
     const [uploadPreviewCode, setUploadPreviewCode] = useState('');
     const [uploadPreviewError, setUploadPreviewError] = useState(null);
+    const [uploadState, setUploadState] = useState('idle');
+    const [uploadOutputEntries, setUploadOutputEntries] = useState([]);
+    const [uploadPortHint, setUploadPortHint] = useState(null);
+
+    const uploadStateRef = React.useRef('idle');
+    const uploadOutputEntryIdRef = React.useRef(0);
+
+    const uploadOwnsSerialHandoffRef =
+        React.useRef(false);
+
+    useEffect(() => {
+        uploadStateRef.current = 'idle';
+        uploadOutputEntryIdRef.current = 0;
+        uploadOwnsSerialHandoffRef.current = false;
+
+        setUploadState('idle');
+        setUploadOutputEntries([]);
+        setUploadPortHint(null);
+    }, [selectedBoard]);
 
     const handleProgramModeChange = useCallback(nextMode => {
         if (nextMode === 'upload') {
@@ -355,20 +382,56 @@ export const GUIComponent = props => {
             );
         };
 
+        const handlePeripheralConnected = () => {
+            uploadOwnsSerialHandoffRef.current = false;
+            updateConnectionState();
+        };
+
+        const handlePeripheralDisconnected = () => {
+            if (
+                shouldIgnorePeripheralDisconnected(
+                    uploadStateRef.current,
+                    uploadOwnsSerialHandoffRef.current
+                )
+            ) {
+                return;
+            }
+
+            updateConnectionState();
+        };
+
         const handleConnectionError = () => {
             setConnectionState('error');
         };
 
         updateConnectionState();
 
-        vm.on('PERIPHERAL_CONNECTED', updateConnectionState);
-        vm.on('PERIPHERAL_DISCONNECTED', updateConnectionState);
-        vm.on('PERIPHERAL_REQUEST_ERROR', handleConnectionError);
+        vm.on(
+            'PERIPHERAL_CONNECTED',
+            handlePeripheralConnected
+        );
+        vm.on(
+            'PERIPHERAL_DISCONNECTED',
+            handlePeripheralDisconnected
+        );
+        vm.on(
+            'PERIPHERAL_REQUEST_ERROR',
+            handleConnectionError
+        );
 
         return () => {
-            vm.removeListener('PERIPHERAL_CONNECTED', updateConnectionState);
-            vm.removeListener('PERIPHERAL_DISCONNECTED', updateConnectionState);
-            vm.removeListener('PERIPHERAL_REQUEST_ERROR', handleConnectionError);
+            vm.removeListener(
+                'PERIPHERAL_CONNECTED',
+                handlePeripheralConnected
+            );
+            vm.removeListener(
+                'PERIPHERAL_DISCONNECTED',
+                handlePeripheralDisconnected
+            );
+            vm.removeListener(
+                'PERIPHERAL_REQUEST_ERROR',
+                handleConnectionError
+            );
         };
     }, [vm, selectedBoard]);
     const handleSelectBoard = useCallback(() => {
@@ -408,6 +471,83 @@ export const GUIComponent = props => {
             vm.disconnectPeripheral(board.extensionId);
         }
     }, [selectedBoard, vm]);
+    const handleUpload = useCallback(async () => {
+        const board = selectedBoard ?
+            getBoardById(selectedBoard) :
+            null;
+
+        if (!board) {
+            return;
+        }
+
+        try {
+            const uploadResult =
+                await runEasyBloxUpload({
+                    vm,
+                    board,
+                    boardId:
+                        selectedBoard,
+                    boardName:
+                        board.name,
+                    code:
+                        uploadPreviewCode,
+                    cachedPortHint:
+                        uploadPortHint,
+                    client:
+                        easybloxHardwareServiceClient,
+                    onStatus:
+                        function (status) {
+                            uploadStateRef.current =
+                                status.state;
+
+                            if (status.state === 'preparing') {
+                                uploadOwnsSerialHandoffRef.current = true;
+                            }
+
+                            setUploadState(
+                                status.state
+                            );
+
+                            uploadOutputEntryIdRef.current += 1;
+
+                            const outputEntryId =
+                                `upload-${uploadOutputEntryIdRef.current}`;
+
+                            setUploadOutputEntries(
+                                entries => [
+                                    ...entries,
+                                    {
+                                        id: outputEntryId,
+                                        state:
+                                            status.state,
+                                        message:
+                                            status.message
+                                    }
+                                ]
+                            );
+
+                            setConnectionState(
+                                currentState =>
+                                    resolveUploadConnectionState(
+                                        currentState,
+                                        status
+                                    )
+                            );
+                        }
+                });
+
+            setUploadPortHint(
+                uploadResult.portHint
+            );
+        } catch (error) {
+            // The workflow already exposes the pedagogical error through uploadStatusMessage.
+        }
+    }, [
+        selectedBoard,
+        uploadPortHint,
+        uploadPreviewCode,
+        vm
+    ]);
     const handleRemoveBoard = useCallback(() => {
         const board = selectedBoard ?
             getBoardById(selectedBoard) :
@@ -802,6 +942,9 @@ export const GUIComponent = props => {
                                     }
                                     code={uploadPreviewCode}
                                     error={uploadPreviewError}
+                                    onUpload={handleUpload}
+                                    outputEntries={uploadOutputEntries}
+                                    uploadState={uploadState}
                                 />
                             ) : (
                                 <React.Fragment>

@@ -631,6 +631,7 @@ MenuBar.propTypes = {
         'disconnected',
         'connecting',
         'connected',
+        'uploading',
         'error'
     ]),
     onSelectBoard: PropTypes.func,

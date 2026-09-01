@@ -64,16 +64,16 @@
 }
 
 .disconnected,
-.connecting {
+.error {
     background: #e53935;
+}
+
+.connecting {
+    background: #ffc800;
 }
 
 .connected {
     background: #43a047;
-}
-
-.error {
-    background: #ffc800;
 }
 
 .disconnect-confirm-button {

@@ -94,10 +94,6 @@ const copyTextToClipboard = function (text) {
     return Promise.resolve(copied);
 };
 
-const toggleBoolean = function (value) {
-    return !value;
-};
-
 const renderLineNumber = function (lineNumber) {
     return (
         <li
@@ -112,12 +108,20 @@ const renderLineNumber = function (lineNumber) {
 const UploadWorkspace = ({
     boardName,
     code,
-    error = null
+    error = null,
+    onUpload = null,
+    outputEntries = [],
+    uploadState = 'idle'
 }) => {
     const [
-        serialMonitorExpanded,
-        setSerialMonitorExpanded
+        bottomPanelExpanded,
+        setBottomPanelExpanded
     ] = useState(false);
+
+    const [
+        bottomPanelTab,
+        setBottomPanelTab
+    ] = useState('output');
 
     const [
         rawCodeVisible,
@@ -127,6 +131,11 @@ const UploadWorkspace = ({
     const hasCode =
         !error &&
         code.trim().length > 0;
+
+    const uploadBusy =
+        uploadState === 'building' ||
+        uploadState === 'preparing' ||
+        uploadState === 'uploading';
 
     const lineNumbers = useMemo(
         () => {
@@ -181,9 +190,43 @@ const UploadWorkspace = ({
         [hasCode]
     );
 
-    const handleSerialMonitorToggle = useCallback(
+    useEffect(
         () => {
-            setSerialMonitorExpanded(toggleBoolean);
+            if (
+                uploadState !== 'idle' &&
+                outputEntries.length > 0
+            ) {
+                setBottomPanelTab('output');
+                setBottomPanelExpanded(true);
+            }
+        },
+        [
+            outputEntries.length,
+            uploadState
+        ]
+    );
+
+    const handleOutputTabSelect = useCallback(
+        () => {
+            setBottomPanelTab('output');
+            setBottomPanelExpanded(true);
+        },
+        []
+    );
+
+    const handleSerialTabSelect = useCallback(
+        () => {
+            setBottomPanelTab('serial');
+            setBottomPanelExpanded(true);
+        },
+        []
+    );
+
+    const handleBottomPanelToggle = useCallback(
+        () => {
+            setBottomPanelExpanded(
+                expanded => !expanded
+            );
         },
         []
     );
@@ -285,46 +328,100 @@ const UploadWorkspace = ({
 
                     <button
                         className={`${styles.actionButton} ${styles.primaryAction}`}
-                        disabled
-                        title="A gravação na placa será ativada na próxima etapa."
+                        disabled={
+                            !hasCode ||
+                            !onUpload ||
+                            uploadBusy
+                        }
                         type="button"
+                        onClick={onUpload}
                     >
-                        Enviar para {boardName || 'a placa'}
+                        {uploadBusy ?
+                            `Enviando para ${boardName || 'a placa'}...` :
+                            `Enviar para ${boardName || 'a placa'}`
+                        }
                     </button>
                 </div>
             </section>
 
-            <section className={styles.serialMonitor}>
-                <button
-                    aria-expanded={serialMonitorExpanded}
-                    className={styles.serialMonitorToggle}
-                    type="button"
-                    onClick={handleSerialMonitorToggle}
-                >
-                    <span>
-                        Monitor Serial
-                    </span>
-                    <span
-                        aria-hidden="true"
-                        className={styles.serialMonitorIndicator}
-                    >
-                        {serialMonitorExpanded ?
-                            '▲' :
-                            '▼'
-                        }
-                    </span>
-                </button>
-
-                {serialMonitorExpanded ? (
+            <section className={styles.bottomPanel}>
+                <div className={styles.bottomPanelToolbar}>
                     <div
-                        aria-label="Monitor Serial"
-                        className={styles.serialMonitorRegion}
-                        role="region"
+                        aria-label="Painel inferior"
+                        className={styles.bottomPanelTabs}
+                        role="tablist"
                     >
-                        <p className={styles.serialMonitorPlaceholder}>
-                            O Monitor Serial será disponibilizado durante a integração com a placa.
-                        </p>
+                        <button
+                            aria-selected={bottomPanelTab === 'output'}
+                            className={styles.bottomPanelTab}
+                            role="tab"
+                            type="button"
+                            onClick={handleOutputTabSelect}
+                        >
+                            Saída
+                        </button>
+
+                        <button
+                            aria-selected={bottomPanelTab === 'serial'}
+                            className={styles.bottomPanelTab}
+                            role="tab"
+                            type="button"
+                            onClick={handleSerialTabSelect}
+                        >
+                            Monitor Serial
+                        </button>
                     </div>
+
+                    <button
+                        aria-label={
+                            bottomPanelExpanded ?
+                                'Recolher painel inferior' :
+                                'Expandir painel inferior'
+                        }
+                        className={styles.bottomPanelCollapse}
+                        type="button"
+                        onClick={handleBottomPanelToggle}
+                    >
+                        {bottomPanelExpanded ? '▼' : '▲'}
+                    </button>
+                </div>
+
+                {bottomPanelExpanded ? (
+                    bottomPanelTab === 'output' ? (
+                        <div
+                            aria-label="Saída do envio"
+                            className={styles.outputRegion}
+                            role="region"
+                        >
+                            {outputEntries.length > 0 ? (
+                                <ol className={styles.outputList}>
+                                    {outputEntries.map(entry => (
+                                        <li
+                                            className={styles.outputEntry}
+                                            data-state={entry.state}
+                                            key={entry.id}
+                                        >
+                                            {entry.message}
+                                        </li>
+                                    ))}
+                                </ol>
+                            ) : (
+                                <p className={styles.serialMonitorPlaceholder}>
+                                    Nenhuma operação de envio realizada.
+                                </p>
+                            )}
+                        </div>
+                    ) : (
+                        <div
+                            aria-label="Monitor Serial"
+                            className={styles.serialMonitorRegion}
+                            role="region"
+                        >
+                            <p className={styles.serialMonitorPlaceholder}>
+                                O Monitor Serial estará disponível para programas compatíveis.
+                            </p>
+                        </div>
+                    )
                 ) : null}
             </section>
 
@@ -366,7 +463,23 @@ const UploadWorkspace = ({
 UploadWorkspace.propTypes = {
     boardName: PropTypes.node,
     code: PropTypes.string.isRequired,
-    error: PropTypes.string
+    error: PropTypes.string,
+    onUpload: PropTypes.func,
+    outputEntries: PropTypes.arrayOf(
+        PropTypes.shape({
+            id: PropTypes.string.isRequired,
+            message: PropTypes.string.isRequired,
+            state: PropTypes.string.isRequired
+        })
+    ),
+    uploadState: PropTypes.oneOf([
+        'idle',
+        'building',
+        'preparing',
+        'uploading',
+        'success',
+        'error'
+    ])
 };
 
 export default UploadWorkspace;
