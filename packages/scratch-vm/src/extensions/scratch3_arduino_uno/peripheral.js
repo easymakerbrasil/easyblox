@@ -33,6 +33,8 @@ class ArduinoUnoPeripheral {
             baudRate: DEFAULT_BAUD_RATE
         };
 
+        this._serialMode = 'stage';
+
         this._parser = new StageProtocolParser(
             this._handleFrame.bind(this)
         );
@@ -89,7 +91,34 @@ class ArduinoUnoPeripheral {
      * @returns {void}
      */
     connect (peripheralId) {
+        this._serialMode = 'stage';
+        this._serialOptions.baudRate = DEFAULT_BAUD_RATE;
+
         this._getSerial().connect(peripheralId);
+    }
+
+    /**
+     * Connect to an uploaded sketch for raw Serial Monitor traffic.
+     * This mode deliberately bypasses the EasyBlox Stage protocol.
+     * @param {string} peripheralId Platform-specific serial peripheral id.
+     * @param {number} baudRate Baud rate declared by the Upload program.
+     * @returns {boolean} Whether the monitor connection request was accepted.
+     */
+    connectSerialMonitor (peripheralId, baudRate) {
+        if (
+            !Number.isInteger(baudRate) ||
+            baudRate <= 0 ||
+            this.isConnected()
+        ) {
+            return false;
+        }
+
+        this._serialMode = 'monitor';
+        this._serialOptions.baudRate = baudRate;
+
+        this._getSerial().connect(peripheralId);
+
+        return true;
     }
 
     /**
@@ -128,6 +157,17 @@ class ArduinoUnoPeripheral {
      */
     isStageConnected () {
         return this._stageConnected;
+    }
+
+
+    /**
+     * @returns {boolean} Whether this connection is owned by Serial Monitor.
+     */
+    isSerialMonitorConnected () {
+        return (
+            this._serialMode === 'monitor' &&
+            this.isConnected()
+        );
     }
 
     /**
@@ -905,6 +945,19 @@ class ArduinoUnoPeripheral {
     _handleConnect () {
         this._reset();
 
+        if (this._serialMode === 'monitor') {
+            this._runtime.emit(
+                this._runtime.constructor
+                    .PERIPHERAL_SERIAL_MONITOR_READY,
+                {
+                    extensionId: EXTENSION_ID,
+                    baudRate: this._serialOptions.baudRate
+                }
+            );
+
+            return;
+        }
+
         this._scheduleHandshake(
             STAGE_HANDSHAKE_INITIAL_DELAY
         );
@@ -968,6 +1021,19 @@ class ArduinoUnoPeripheral {
      * @returns {void}
      */
     _handleData (data) {
+        if (this._serialMode === 'monitor') {
+            this._runtime.emit(
+                this._runtime.constructor
+                    .PERIPHERAL_SERIAL_MONITOR_DATA,
+                {
+                    extensionId: EXTENSION_ID,
+                    data: new Uint8Array(data)
+                }
+            );
+
+            return;
+        }
+
         this._parser.push(data);
     }
 

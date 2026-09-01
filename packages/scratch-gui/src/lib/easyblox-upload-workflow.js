@@ -154,6 +154,12 @@ export const runEasyBloxUpload =
                     ) :
                     null;
 
+            const peripheralId =
+                connectionInfo &&
+                connectionInfo.peripheralId ?
+                    connectionInfo.peripheralId :
+                    null;
+
             const portHint =
                 createPortHint(
                     connectionInfo,
@@ -230,7 +236,8 @@ export const runEasyBloxUpload =
 
             return {
                 result,
-                portHint
+                portHint,
+                peripheralId
             };
         } catch (error) {
             if (buildId) {

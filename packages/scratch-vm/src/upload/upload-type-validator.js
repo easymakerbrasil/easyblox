@@ -383,9 +383,14 @@ class UploadTypeValidator {
                     statement.value
                 );
 
-                if (valueType !== VALUE_TYPES.TEXT) {
+                if (
+                    valueType !== VALUE_TYPES.TEXT &&
+                    valueType !== VALUE_TYPES.INTEGER &&
+                    valueType !== VALUE_TYPES.DECIMAL &&
+                    valueType !== VALUE_TYPES.BOOLEAN
+                ) {
                     throw new Error(
-                        'Serial write value must be Texto'
+                        'Serial write value must be a printable scalar'
                     );
                 }
 

@@ -105,12 +105,47 @@ const renderLineNumber = function (lineNumber) {
     );
 };
 
+
+const getSerialMonitorStatusMessage = function (
+    state,
+    baudRate
+) {
+    switch (state) {
+    case 'connecting':
+        return baudRate ?
+            `Conectando ao Monitor Serial em ${baudRate} baud...` :
+            'Conectando ao Monitor Serial...';
+
+    case 'connected':
+        return baudRate ?
+            `Monitor Serial conectado em ${baudRate} baud.` :
+            'Monitor Serial conectado.';
+
+    case 'connection-required':
+        return 'Conecte a placa pelo EasyBlox para usar o Monitor Serial.';
+
+    case 'disconnected':
+        return 'Monitor Serial desconectado.';
+
+    case 'error':
+        return 'Não foi possível abrir o Monitor Serial.';
+
+    case 'unavailable':
+    default:
+        return 'Este programa não inicializa a comunicação Serial.';
+    }
+};
+
 const UploadWorkspace = ({
     boardName,
     code,
     error = null,
+    onClearSerialMonitor = null,
     onUpload = null,
     outputEntries = [],
+    serialMonitorBaudRate = null,
+    serialMonitorState = 'unavailable',
+    serialMonitorText = '',
     uploadState = 'idle'
 }) => {
     const [
@@ -414,12 +449,46 @@ const UploadWorkspace = ({
                     ) : (
                         <div
                             aria-label="Monitor Serial"
+                            aria-live="polite"
                             className={styles.serialMonitorRegion}
                             role="region"
                         >
-                            <p className={styles.serialMonitorPlaceholder}>
-                                O Monitor Serial estará disponível para programas compatíveis.
-                            </p>
+                            <div>
+                                <span
+                                    aria-hidden="true"
+                                    className={styles.serialMonitorIndicator}
+                                    data-state={serialMonitorState}
+                                />
+
+                                <span>
+                                    {getSerialMonitorStatusMessage(
+                                        serialMonitorState,
+                                        serialMonitorBaudRate
+                                    )}
+                                </span>
+
+                                <button
+                                    aria-label="Limpar Monitor Serial"
+                                    className={`${styles.actionButton} ${styles.secondaryAction}`}
+                                    disabled={
+                                        !onClearSerialMonitor ||
+                                        serialMonitorText.length === 0
+                                    }
+                                    type="button"
+                                    onClick={onClearSerialMonitor}
+                                >
+                                    Limpar
+                                </button>
+                            </div>
+
+                            {serialMonitorText.length > 0 ? (
+                                <pre
+                                    className={styles.serialMonitorPlaceholder}
+                                    data-testid="serial-monitor-output"
+                                >
+                                    {serialMonitorText}
+                                </pre>
+                            ) : null}
                         </div>
                     )
                 ) : null}
@@ -464,6 +533,7 @@ UploadWorkspace.propTypes = {
     boardName: PropTypes.node,
     code: PropTypes.string.isRequired,
     error: PropTypes.string,
+    onClearSerialMonitor: PropTypes.func,
     onUpload: PropTypes.func,
     outputEntries: PropTypes.arrayOf(
         PropTypes.shape({
@@ -472,6 +542,18 @@ UploadWorkspace.propTypes = {
             state: PropTypes.string.isRequired
         })
     ),
+
+    serialMonitorBaudRate: PropTypes.number,
+    serialMonitorState: PropTypes.oneOf([
+        'unavailable',
+        'connection-required',
+        'disconnected',
+        'connecting',
+        'connected',
+        'error'
+    ]),
+    serialMonitorText: PropTypes.string,
+
     uploadState: PropTypes.oneOf([
         'idle',
         'building',

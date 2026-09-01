@@ -700,6 +700,23 @@ class Runtime extends EventEmitter {
         return 'PERIPHERAL_STAGE_HANDSHAKE_FAILED';
     }
 
+
+    /**
+     * Event emitted when a peripheral is ready for raw Serial Monitor traffic.
+     * @returns {string} Event name.
+     */
+    static get PERIPHERAL_SERIAL_MONITOR_READY () {
+        return 'PERIPHERAL_SERIAL_MONITOR_READY';
+    }
+
+    /**
+     * Event emitted when raw bytes arrive from an uploaded sketch.
+     * @returns {string} Event name.
+     */
+    static get PERIPHERAL_SERIAL_MONITOR_DATA () {
+        return 'PERIPHERAL_SERIAL_MONITOR_DATA';
+    }
+
     /**
      * Event name for reporting that a peripheral has encountered a request error.
      * This causes the peripheral connection modal to switch to an error state.
@@ -1825,6 +1842,39 @@ class Runtime extends EventEmitter {
         }
     }
 
+
+    /**
+     * Connect a peripheral for raw Serial Monitor traffic.
+     * @param {string} extensionId Extension id.
+     * @param {string} peripheralId Platform-specific peripheral id.
+     * @param {number} baudRate Monitor baud rate.
+     * @returns {boolean} Whether the request was accepted.
+     */
+    connectPeripheralSerialMonitor (
+        extensionId,
+        peripheralId,
+        baudRate
+    ) {
+        const extension =
+            this.peripheralExtensions[extensionId];
+
+        if (
+            !extension ||
+            typeof extension.connectSerialMonitor !== 'function'
+        ) {
+            return false;
+        }
+
+        try {
+            return extension.connectSerialMonitor(
+                peripheralId,
+                baudRate
+            ) !== false;
+        } catch (error) {
+            return false;
+        }
+    }
+
     /**
      * Returns whether the extension has a currently connected peripheral.
      * @param {string} extensionId - the id of the extension.
@@ -1861,6 +1911,27 @@ class Runtime extends EventEmitter {
         }
 
         return extension.isConnected();
+    }
+
+
+    /**
+     * Returns whether a peripheral is connected in raw Serial Monitor mode.
+     * @param {string} extensionId Extension id.
+     * @returns {boolean} Whether Serial Monitor owns the connection.
+     */
+    getPeripheralIsSerialMonitorConnected (extensionId) {
+        const extension =
+            this.peripheralExtensions[extensionId];
+
+        if (
+            !extension ||
+            typeof extension.isSerialMonitorConnected !==
+            'function'
+        ) {
+            return false;
+        }
+
+        return extension.isSerialMonitorConnected();
     }
 
     /**

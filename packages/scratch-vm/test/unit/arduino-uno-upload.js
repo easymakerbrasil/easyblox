@@ -3388,45 +3388,71 @@ tap.test('Arduino UNO Upload type validator accepts SerialWriteLine with TEXT', 
     t.end();
 });
 
-tap.test('Arduino UNO Upload type validator rejects SerialWriteLine without TEXT', t => {
+tap.test('Arduino UNO Upload type validator accepts SerialWriteLine with printable scalar values', t => {
     const validator = new UploadTypeValidator();
 
-    const ir = {
-        setup: [{
-            type: 'SerialWriteLine',
-            value: {
+    const values = [
+        {
+            name: 'INTEGER',
+            expression: {
                 type: 'IntegerLiteral',
                 value: 42
             }
-        }],
-        loop: []
-    };
+        },
+        {
+            name: 'DECIMAL',
+            expression: {
+                type: 'DecimalLiteral',
+                value: 27.5
+            }
+        },
+        {
+            name: 'BOOLEAN',
+            expression: {
+                type: 'BooleanLiteral',
+                value: true
+            }
+        }
+    ];
 
-    t.throws(
-        () => validator.validate(ir),
-        /Serial write value must be Texto/
-    );
+    values.forEach(entry => {
+        const ir = {
+            setup: [{
+                type: 'SerialWriteLine',
+                value: entry.expression
+            }],
+            loop: []
+        };
+
+        t.equal(
+            validator.validate(ir),
+            ir,
+            `SerialWriteLine accepts ${entry.name}`
+        );
+    });
 
     t.end();
 });
 
-tap.test('Arduino UNO Upload type validator rejects SerialWrite without TEXT', t => {
+tap.test('Arduino UNO Upload type validator accepts SerialWrite with ultrasonic DECIMAL reading', t => {
     const validator = new UploadTypeValidator();
 
     const ir = {
         setup: [{
             type: 'SerialWrite',
             value: {
-                type: 'IntegerLiteral',
-                value: 42
+                type: 'UltrasonicReadExpression',
+                trigPin: 16,
+                echoPin: 17
             }
         }],
         loop: []
     };
 
-    t.throws(
-        () => validator.validate(ir),
-        /Serial write value must be Texto/
+    t.equal(
+        validator.validate(ir),
+        ir,
+        'SerialWrite accepts an ultrasonic sensor reading'
     );
 
     t.end();

@@ -170,6 +170,26 @@ class VirtualMachine extends EventEmitter {
                     data
                 )
         );
+
+
+        this.runtime.on(
+            Runtime.PERIPHERAL_SERIAL_MONITOR_READY,
+            data =>
+                this.emit(
+                    Runtime.PERIPHERAL_SERIAL_MONITOR_READY,
+                    data
+                )
+        );
+
+        this.runtime.on(
+            Runtime.PERIPHERAL_SERIAL_MONITOR_DATA,
+            data =>
+                this.emit(
+                    Runtime.PERIPHERAL_SERIAL_MONITOR_DATA,
+                    data
+                )
+        );
+
         this.runtime.on(Runtime.PERIPHERAL_CONNECTION_LOST_ERROR, data =>
             this.emit(Runtime.PERIPHERAL_CONNECTION_LOST_ERROR, data)
         );
@@ -330,6 +350,26 @@ class VirtualMachine extends EventEmitter {
         );
     }
 
+
+    /**
+     * Connect a peripheral for raw Serial Monitor traffic.
+     * @param {string} extensionId Extension id.
+     * @param {string} peripheralId Platform-specific peripheral id.
+     * @param {number} baudRate Serial baud rate.
+     * @returns {boolean} Whether the request was accepted.
+     */
+    connectPeripheralSerialMonitor (
+        extensionId,
+        peripheralId,
+        baudRate
+    ) {
+        return this.runtime.connectPeripheralSerialMonitor(
+            extensionId,
+            peripheralId,
+            baudRate
+        );
+    }
+
     /**
      * Returns whether the extension has a currently connected peripheral.
      * @param {string} extensionId - the id of the extension.
@@ -346,6 +386,18 @@ class VirtualMachine extends EventEmitter {
      */
     getPeripheralIsStageConnected (extensionId) {
         return this.runtime.getPeripheralIsStageConnected(
+            extensionId
+        );
+    }
+
+
+    /**
+     * Returns whether the extension owns a Serial Monitor connection.
+     * @param {string} extensionId Extension id.
+     * @returns {boolean} Whether Serial Monitor is physically connected.
+     */
+    getPeripheralIsSerialMonitorConnected (extensionId) {
+        return this.runtime.getPeripheralIsSerialMonitorConnected(
             extensionId
         );
     }
@@ -2441,10 +2493,12 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
-     * Generate Arduino UNO Upload C++ from the current project.
-     * @returns {string} Complete deterministic Arduino UNO sketch.
+     * Extract and validate the canonical Arduino UNO Upload program.
+     * This is the semantic source used both for generated C++ and
+     * Upload-runtime metadata such as the Serial Monitor baud rate.
+     * @returns {object} Validated EasyBlox Arduino UNO IR.
      */
-    generateArduinoUnoUploadCode () {
+    _getValidatedArduinoUnoUploadIr () {
         const uploadProgram = this.getOrCreateUploadProgram(
             'arduino-uno'
         );
@@ -2457,13 +2511,60 @@ class VirtualMachine extends EventEmitter {
         const resourceValidator = new UploadResourceValidator(
             ArduinoUnoBoardProfile
         );
-        const generator = new ArduinoUnoGenerator();
 
         const ir = extractor.extract();
 
         contextValidator.validate(ir);
         typeValidator.validate(ir);
         resourceValidator.validate(ir);
+
+        return ir;
+    }
+
+    /**
+     * Return the Serial Monitor configuration declared by the canonical
+     * Arduino UNO Upload program.
+     *
+     * The baud rate is read from validated semantic IR. Generated C++ is
+     * deliberately not parsed to recover this information.
+     *
+     * @returns {?object} Serial Monitor configuration or null when the
+     * Upload program does not initialize Serial.
+     */
+    getArduinoUnoUploadSerialConfig () {
+        const ir =
+            this._getValidatedArduinoUnoUploadIr();
+
+        const setup =
+            Array.isArray(ir.setup) ?
+                ir.setup :
+                [];
+
+        const serialBegin = setup.find(
+            statement =>
+                statement &&
+                statement.type === 'SerialBegin'
+        );
+
+        if (!serialBegin) {
+            return null;
+        }
+
+        return {
+            baudRate: serialBegin.baud
+        };
+    }
+
+    /**
+     * Generate Arduino UNO Upload C++ from the current project.
+     * @returns {string} Complete deterministic Arduino UNO sketch.
+     */
+    generateArduinoUnoUploadCode () {
+        const ir =
+            this._getValidatedArduinoUnoUploadIr();
+
+        const generator =
+            new ArduinoUnoGenerator();
 
         return generator.generate(ir);
     }

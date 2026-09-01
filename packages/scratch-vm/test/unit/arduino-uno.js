@@ -3764,3 +3764,235 @@ tap.test('Arduino UNO rejects invalid LCD requests', t => {
 
     t.end();
 });
+
+tap.test('Arduino UNO Serial Monitor uses the requested baud and bypasses the Stage protocol', async t => {
+    let onData = null;
+    const opened = [];
+    const writtenFrames = [];
+    const emitted = [];
+
+    const transport = {
+        setOnData: callback => {
+            onData = callback;
+        },
+
+        open: async (peripheralId, options) => {
+            opened.push({
+                peripheralId,
+                options: Object.assign({}, options)
+            });
+        },
+
+        close: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+
+    Object.defineProperty(
+        runtime.constructor,
+        'PERIPHERAL_SERIAL_MONITOR_READY',
+        {
+            configurable: true,
+            value: 'PERIPHERAL_SERIAL_MONITOR_READY'
+        }
+    );
+
+    Object.defineProperty(
+        runtime.constructor,
+        'PERIPHERAL_SERIAL_MONITOR_DATA',
+        {
+            configurable: true,
+            value: 'PERIPHERAL_SERIAL_MONITOR_DATA'
+        }
+    );
+
+    runtime.emit = (event, data) => {
+        emitted.push({event, data});
+    };
+
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.connectSerialMonitor('COM3', 9600),
+        true,
+        'accepts a valid Serial Monitor connection'
+    );
+
+    await flushPromises();
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    t.equal(opened.length, 1);
+    t.equal(opened[0].peripheralId, 'COM3');
+    t.same(opened[0].options, {
+        baudRate: 9600
+    });
+
+    t.equal(
+        writtenFrames.length,
+        0,
+        'Serial Monitor does not send a Stage PING'
+    );
+
+    t.equal(
+        peripheral.isStageConnected(),
+        false,
+        'Serial Monitor is never considered Stage-ready'
+    );
+
+    t.equal(
+        peripheral.isSerialMonitorConnected(),
+        true,
+        'Serial Monitor reports its physical connection'
+    );
+
+    const readyEvent = emitted.find(entry =>
+        entry.event === 'PERIPHERAL_SERIAL_MONITOR_READY'
+    );
+
+    t.same(
+        readyEvent && readyEvent.data,
+        {
+            extensionId: 'arduinoUno',
+            baudRate: 9600
+        },
+        'Serial Monitor publishes its ready state'
+    );
+
+    const bytes = new Uint8Array([
+        0x4F,
+        0x6C,
+        0x61,
+        0x0A
+    ]);
+
+    onData(bytes);
+
+    const dataEvent = emitted.find(entry =>
+        entry.event === 'PERIPHERAL_SERIAL_MONITOR_DATA'
+    );
+
+    t.equal(
+        dataEvent.data.extensionId,
+        'arduinoUno'
+    );
+
+    t.same(
+        dataEvent.data.data,
+        bytes,
+        'raw sketch bytes are published instead of entering the Stage parser'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO returns from Serial Monitor to Stage at the canonical baud', async t => {
+    const opened = [];
+    const writtenFrames = [];
+
+    const transport = {
+        setOnData: () => {},
+
+        open: async (peripheralId, options) => {
+            opened.push({
+                peripheralId,
+                options: Object.assign({}, options)
+            });
+        },
+
+        close: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime = new MockRuntime(transport);
+
+    Object.defineProperty(
+        runtime.constructor,
+        'PERIPHERAL_SERIAL_MONITOR_READY',
+        {
+            configurable: true,
+            value: 'PERIPHERAL_SERIAL_MONITOR_READY'
+        }
+    );
+
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.connectSerialMonitor('COM3', 57600),
+        true
+    );
+
+    await flushPromises();
+
+    t.equal(
+        await peripheral.disconnect(),
+        true,
+        'Serial Monitor releases the physical port'
+    );
+
+    peripheral.connect('COM3');
+
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    t.same(
+        opened.map(connection =>
+            connection.options.baudRate
+        ),
+        [
+            57600,
+            115200
+        ],
+        'Stage reconnect restores the canonical Stage baud'
+    );
+
+    t.equal(
+        peripheral.isSerialMonitorConnected(),
+        false,
+        'Stage connection leaves Serial Monitor mode'
+    );
+
+    t.equal(
+        writtenFrames.length,
+        1,
+        'Stage reconnect resumes its handshake'
+    );
+
+    t.same(
+        writtenFrames[0],
+        encodeFrame(
+            writtenFrames[0][3],
+            COMMANDS.PING
+        ),
+        'Stage reconnect sends PING instead of monitor traffic'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO rejects invalid Serial Monitor baud values', t => {
+    const runtime = new MockRuntime(null);
+    const peripheral = new ArduinoUnoPeripheral(runtime);
+
+    t.equal(
+        peripheral.connectSerialMonitor('COM3', 0),
+        false
+    );
+
+    t.equal(
+        peripheral.connectSerialMonitor('COM3', 9600.5),
+        false
+    );
+
+    t.equal(
+        peripheral.connectSerialMonitor('COM3', '9600'),
+        false
+    );
+
+    t.end();
+});

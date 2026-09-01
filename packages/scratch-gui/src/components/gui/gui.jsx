@@ -35,6 +35,9 @@ import BoardSelectionModal from '../board-selection-modal/board-selection-modal.
 import UploadWorkspace from '../upload-workspace/upload-workspace.jsx';
 import EasyBloxHardwareServiceClient from '../../lib/easyblox-hardware-service-client';
 import {runEasyBloxUpload} from '../../lib/easyblox-upload-workflow';
+import {
+    startEasyBloxSerialMonitor
+} from '../../lib/easyblox-serial-monitor';
 import {runEasyBloxStageFirmwareRestore} from '../../lib/easyblox-stage-firmware-workflow';
 import {
     resolveUploadConnectionState,
@@ -142,11 +145,32 @@ export const GUIComponent = props => {
     const [uploadOutputEntries, setUploadOutputEntries] = useState([]);
     const [uploadPortHint, setUploadPortHint] = useState(null);
 
+    const [
+        serialMonitorState,
+        setSerialMonitorState
+    ] = useState('unavailable');
+
+    const [
+        serialMonitorText,
+        setSerialMonitorText
+    ] = useState('');
+
+    const [
+        serialMonitorBaudRate,
+        setSerialMonitorBaudRate
+    ] = useState(null);
+
     const uploadStateRef = React.useRef('idle');
     const uploadOutputEntryIdRef = React.useRef(0);
 
     const uploadOwnsSerialHandoffRef =
         React.useRef(false);
+
+    const serialMonitorStateRef =
+        React.useRef('unavailable');
+
+    const serialMonitorDecoderRef =
+        React.useRef(null);
 
     const stagePeripheralIdRef =
         React.useRef(null);
@@ -157,15 +181,38 @@ export const GUIComponent = props => {
     const stageFirmwareNeedsRestoreRef =
         React.useRef(false);
 
+
+    const updateSerialMonitorState =
+        useCallback(nextState => {
+            serialMonitorStateRef.current =
+                nextState;
+
+            setSerialMonitorState(
+                nextState
+            );
+        }, []);
+
     useEffect(() => {
         uploadStateRef.current = 'idle';
         uploadOutputEntryIdRef.current = 0;
         uploadOwnsSerialHandoffRef.current = false;
 
+        serialMonitorDecoderRef.current = null;
+
+        updateSerialMonitorState(
+            'unavailable'
+        );
+
+        setSerialMonitorText('');
+        setSerialMonitorBaudRate(null);
+
         setUploadState('idle');
         setUploadOutputEntries([]);
         setUploadPortHint(null);
-    }, [selectedBoard]);
+    }, [
+        selectedBoard,
+        updateSerialMonitorState
+    ]);
 
     const handleProgramModeChange = useCallback(nextMode => {
         if (nextMode === 'upload') {
@@ -460,6 +507,71 @@ export const GUIComponent = props => {
                 updateConnectionState();
             };
 
+
+        const handleSerialMonitorReady =
+            data => {
+                if (
+                    !data ||
+                    data.extensionId !==
+                        extensionId
+                ) {
+                    return;
+                }
+
+                if (!serialMonitorDecoderRef.current) {
+                    serialMonitorDecoderRef.current =
+                        new TextDecoder('utf-8');
+                }
+
+                setSerialMonitorBaudRate(
+                    data.baudRate
+                );
+
+                updateSerialMonitorState(
+                    'connected'
+                );
+
+                uploadOwnsSerialHandoffRef.current =
+                    false;
+
+                setConnectionState(
+                    'connected'
+                );
+            };
+
+        const handleSerialMonitorData =
+            data => {
+                if (
+                    !data ||
+                    data.extensionId !==
+                        extensionId ||
+                    !data.data
+                ) {
+                    return;
+                }
+
+                if (!serialMonitorDecoderRef.current) {
+                    serialMonitorDecoderRef.current =
+                        new TextDecoder('utf-8');
+                }
+
+                const text =
+                    serialMonitorDecoderRef.current
+                        .decode(
+                            data.data,
+                            {
+                                stream: true
+                            }
+                        );
+
+                if (text.length > 0) {
+                    setSerialMonitorText(
+                        currentText =>
+                            currentText + text
+                    );
+                }
+            };
+
         const handlePeripheralDisconnected = () => {
             if (
                 stageRestoreInFlightRef.current ||
@@ -471,10 +583,50 @@ export const GUIComponent = props => {
                 return;
             }
 
+            if (
+                programMode === 'upload' &&
+                serialMonitorStateRef.current !==
+                    'unavailable'
+            ) {
+                if (serialMonitorDecoderRef.current) {
+                    const remainingText =
+                        serialMonitorDecoderRef.current
+                            .decode();
+
+                    if (remainingText.length > 0) {
+                        setSerialMonitorText(
+                            currentText =>
+                                currentText +
+                                remainingText
+                        );
+                    }
+                }
+
+                serialMonitorDecoderRef.current =
+                    null;
+
+                updateSerialMonitorState(
+                    'disconnected'
+                );
+            }
+
             updateConnectionState();
         };
 
         const handleConnectionError = () => {
+            uploadOwnsSerialHandoffRef.current =
+                false;
+
+            if (
+                programMode === 'upload' &&
+                serialMonitorStateRef.current !==
+                    'unavailable'
+            ) {
+                updateSerialMonitorState(
+                    'error'
+                );
+            }
+
             setConnectionState('error');
         };
 
@@ -487,6 +639,15 @@ export const GUIComponent = props => {
         vm.on(
             'PERIPHERAL_STAGE_READY',
             handlePeripheralStageReady
+        );
+        vm.on(
+            'PERIPHERAL_SERIAL_MONITOR_READY',
+            handleSerialMonitorReady
+        );
+
+        vm.on(
+            'PERIPHERAL_SERIAL_MONITOR_DATA',
+            handleSerialMonitorData
         );
         vm.on(
             'PERIPHERAL_DISCONNECTED',
@@ -507,6 +668,15 @@ export const GUIComponent = props => {
                 handlePeripheralStageReady
             );
             vm.removeListener(
+                'PERIPHERAL_SERIAL_MONITOR_READY',
+                handleSerialMonitorReady
+            );
+
+            vm.removeListener(
+                'PERIPHERAL_SERIAL_MONITOR_DATA',
+                handleSerialMonitorData
+            );
+            vm.removeListener(
                 'PERIPHERAL_DISCONNECTED',
                 handlePeripheralDisconnected
             );
@@ -515,7 +685,12 @@ export const GUIComponent = props => {
                 handleConnectionError
             );
         };
-    }, [vm, selectedBoard]);
+    }, [
+        vm,
+        selectedBoard,
+        programMode,
+        updateSerialMonitorState
+    ]);
     const handleSelectBoard = useCallback(() => {
         setBoardSelectionIntent(
             selectedBoard ?
@@ -553,6 +728,11 @@ export const GUIComponent = props => {
             vm.disconnectPeripheral(board.extensionId);
         }
     }, [selectedBoard, vm]);
+
+    const handleClearSerialMonitor =
+        useCallback(() => {
+            setSerialMonitorText('');
+        }, []);
     const handleUpload = useCallback(async () => {
         const board = selectedBoard ?
             getBoardById(selectedBoard) :
@@ -563,6 +743,32 @@ export const GUIComponent = props => {
         }
 
         try {
+            const serialConfig =
+                typeof vm
+                    .getArduinoUnoUploadSerialConfig ===
+                    'function' ?
+                    vm.getArduinoUnoUploadSerialConfig() :
+                    null;
+
+            serialMonitorDecoderRef.current =
+                serialConfig ?
+                    new TextDecoder('utf-8') :
+                    null;
+
+            setSerialMonitorText('');
+
+            setSerialMonitorBaudRate(
+                serialConfig ?
+                    serialConfig.baudRate :
+                    null
+            );
+
+            updateSerialMonitorState(
+                serialConfig ?
+                    'disconnected' :
+                    'unavailable'
+            );
+
             const uploadResult =
                 await runEasyBloxUpload({
                     vm,
@@ -625,6 +831,30 @@ export const GUIComponent = props => {
             setUploadPortHint(
                 uploadResult.portHint
             );
+
+            const monitorResult =
+                await startEasyBloxSerialMonitor({
+                    vm,
+                    board,
+                    peripheralId:
+                        uploadResult.peripheralId,
+                    serialConfig,
+                    onState:
+                        function (status) {
+                            setSerialMonitorBaudRate(
+                                status.baudRate
+                            );
+
+                            updateSerialMonitorState(
+                                status.state
+                            );
+                        }
+                });
+
+            if (!monitorResult.started) {
+                uploadOwnsSerialHandoffRef.current =
+                    false;
+            }
         } catch (error) {
             // The workflow already exposes the pedagogical error through uploadStatusMessage.
         }
@@ -632,6 +862,7 @@ export const GUIComponent = props => {
         selectedBoard,
         uploadPortHint,
         uploadPreviewCode,
+        updateSerialMonitorState,
         vm
     ]);
     const handleStageFirmwareRestore =
@@ -1184,8 +1415,22 @@ export const GUIComponent = props => {
                                     }
                                     code={uploadPreviewCode}
                                     error={uploadPreviewError}
+                                    onClearSerialMonitor={
+                                        handleClearSerialMonitor
+                                    }
                                     onUpload={handleUpload}
-                                    outputEntries={uploadOutputEntries}
+                                    outputEntries={
+                                        uploadOutputEntries
+                                    }
+                                    serialMonitorBaudRate={
+                                        serialMonitorBaudRate
+                                    }
+                                    serialMonitorState={
+                                        serialMonitorState
+                                    }
+                                    serialMonitorText={
+                                        serialMonitorText
+                                    }
                                     uploadState={uploadState}
                                 />
                             ) : (
