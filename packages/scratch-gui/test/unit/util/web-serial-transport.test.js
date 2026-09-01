@@ -39,7 +39,9 @@ describe('WebSerialTransport', () => {
 
         expect(peripheral).toEqual({
             peripheralId: 'web-serial-1',
-            name: 'USB Serial (2341:0043)'
+            name: 'USB Serial (2341:0043)',
+            usbVendorId: 0x2341,
+            usbProductId: 0x0043
         });
     });
 
@@ -105,7 +107,7 @@ describe('WebSerialTransport', () => {
         );
     });
 
-            test('opens, writes and closes a selected serial port', async () => {
+    test('opens, writes and closes a selected serial port', async () => {
         let resolveRead;
 
         const reader = {

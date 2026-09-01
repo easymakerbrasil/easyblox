@@ -151,7 +151,15 @@ class WebSerialTransport {
 
         return {
             peripheralId,
-            name: this._getPortName(info)
+            name: this._getPortName(info),
+            usbVendorId:
+                typeof info.usbVendorId === 'number' ?
+                    info.usbVendorId :
+                    null,
+            usbProductId:
+                typeof info.usbProductId === 'number' ?
+                    info.usbProductId :
+                    null
         };
     }
 

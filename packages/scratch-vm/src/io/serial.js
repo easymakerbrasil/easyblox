@@ -31,6 +31,7 @@ class Serial {
 
         this._availablePeripherals = {};
         this._connected = false;
+        this._connectedPeripheral = null;
         this._writeQueue = Promise.resolve();
 
         this._transport = runtime.getSerialTransport();
@@ -115,8 +116,16 @@ class Serial {
             return;
         }
 
+        const peripheral =
+            this._availablePeripherals[peripheralId] || {
+                peripheralId
+            };
+
         Promise.resolve(this._transport.open(peripheralId, this._serialOptions))
             .then(() => {
+                this._connectedPeripheral = {
+                    ...peripheral
+                };
                 this._connected = true;
                 this._runtime.emit(this._runtime.constructor.PERIPHERAL_CONNECTED);
 
@@ -131,16 +140,49 @@ class Serial {
 
     /**
      * Disconnect the active serial peripheral.
-     * @returns {void}
+     * Resolve only after the transport has finished releasing the port.
+     * @returns {Promise<boolean>} True when the transport closed cleanly.
      */
-    disconnect () {
+    async disconnect () {
+        return this._disconnect(true);
+    }
+
+    /**
+     * Release the active serial transport.
+     * @param {boolean} waitForWrites Whether queued writes must finish first.
+     * @returns {Promise<boolean>} True when the transport closed cleanly.
+     */
+    async _disconnect (waitForWrites) {
         this._connected = false;
 
-        if (this._transport && typeof this._transport.close === 'function') {
-            Promise.resolve(this._transport.close()).catch(() => {});
+        let closedCleanly = true;
+
+        if (waitForWrites) {
+            try {
+                await this._writeQueue;
+            } catch (error) {
+                // Write failures are handled by the serial connection-loss path.
+            }
         }
 
-        this._runtime.emit(this._runtime.constructor.PERIPHERAL_DISCONNECTED);
+        if (
+            this._transport &&
+            typeof this._transport.close === 'function'
+        ) {
+            try {
+                await this._transport.close();
+            } catch (error) {
+                closedCleanly = false;
+            }
+        }
+
+        this._connectedPeripheral = null;
+
+        this._runtime.emit(
+            this._runtime.constructor.PERIPHERAL_DISCONNECTED
+        );
+
+        return closedCleanly;
     }
 
     /**
@@ -148,6 +190,18 @@ class Serial {
      */
     isConnected () {
         return this._connected;
+    }
+
+    /**
+     * Return metadata for the currently selected serial peripheral.
+     * @returns {?object} Peripheral metadata or null when disconnected.
+     */
+    getConnectedPeripheral () {
+        return this._connectedPeripheral ?
+            {
+                ...this._connectedPeripheral
+            } :
+            null;
     }
 
     /**
@@ -172,9 +226,9 @@ class Serial {
 
                 return this._transport.write(data);
             })
-            .catch(error => {
-                this.handleDisconnectError(error);
-            });
+            .catch(error =>
+                this.handleDisconnectError(error)
+            );
 
         return this._writeQueue;
     }
@@ -192,21 +246,24 @@ class Serial {
 
     /**
      * Handle an unexpected loss of the active serial connection.
-     * @returns {void}
+     * @returns {Promise<void>} Resolves after the lost connection is released.
      */
-    handleDisconnectError () {
+    async handleDisconnectError () {
         if (!this._connected) return;
 
-        this.disconnect();
+        await this._disconnect(false);
 
         if (this._resetCallback) {
             this._resetCallback();
         }
 
-        this._runtime.emit(this._runtime.constructor.PERIPHERAL_CONNECTION_LOST_ERROR, {
-            message: 'Scratch lost connection to',
-            extensionId: this._extensionId
-        });
+        this._runtime.emit(
+            this._runtime.constructor.PERIPHERAL_CONNECTION_LOST_ERROR,
+            {
+                message: 'Scratch lost connection to',
+                extensionId: this._extensionId
+            }
+        );
     }
 
     /**

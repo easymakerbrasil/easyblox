@@ -147,9 +147,13 @@ tap.test('Arduino UNO disconnects from the serial port', async t => {
 
     t.equal(peripheral.isConnected(), true);
 
-    peripheral.disconnect();
+    const disconnected =
+        await peripheral.disconnect();
 
-    await new Promise(resolve => setImmediate(resolve));
+    t.equal(
+        disconnected,
+        true
+    );
 
     t.equal(peripheral.isConnected(), false);
     t.equal(closeCalled, true);
@@ -157,6 +161,60 @@ tap.test('Arduino UNO disconnects from the serial port', async t => {
     t.equal(
         runtime.events[runtime.events.length - 1].event,
         MockRuntime.PERIPHERAL_DISCONNECTED
+    );
+});
+
+tap.test('Arduino UNO exposes USB connection metadata for upload handoff', async t => {
+    const connection = {
+        peripheralId:
+            'web-serial-1',
+        name:
+            'USB Serial (1A86:7523)',
+        usbVendorId:
+            0x1A86,
+        usbProductId:
+            0x7523
+    };
+
+    const transport = {
+        listPorts:
+            async () => [
+                connection
+            ],
+        open:
+            async () => {},
+        close:
+            async () => {}
+    };
+
+    const runtime =
+        new MockRuntime(transport);
+
+    const peripheral =
+        new ArduinoUnoPeripheral(
+            runtime
+        );
+
+    peripheral.scan();
+
+    await flushPromises();
+
+    peripheral.connect(
+        connection.peripheralId
+    );
+
+    await flushPromises();
+
+    t.same(
+        peripheral.getConnectionInfo(),
+        connection
+    );
+
+    await peripheral.disconnect();
+
+    t.equal(
+        peripheral.getConnectionInfo(),
+        null
     );
 });
 

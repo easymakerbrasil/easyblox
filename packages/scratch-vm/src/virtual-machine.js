@@ -308,7 +308,9 @@ class VirtualMachine extends EventEmitter {
      * @param {string} extensionId - the id of the extension.
      */
     disconnectPeripheral (extensionId) {
-        this.runtime.disconnectPeripheral(extensionId);
+        return this.runtime.disconnectPeripheral(
+            extensionId
+        );
     }
 
     /**
@@ -318,6 +320,17 @@ class VirtualMachine extends EventEmitter {
      */
     getPeripheralIsConnected (extensionId) {
         return this.runtime.getPeripheralIsConnected(extensionId);
+    }
+
+    /**
+     * Return metadata for the active physical peripheral connection.
+     * @param {string} extensionId Extension id.
+     * @returns {?object} Connection metadata or null when unavailable.
+     */
+    getPeripheralConnectionInfo (extensionId) {
+        return this.runtime.getPeripheralConnectionInfo(
+            extensionId
+        );
     }
 
     /**

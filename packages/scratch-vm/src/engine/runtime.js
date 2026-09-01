@@ -1788,8 +1788,23 @@ class Runtime extends EventEmitter {
      * @param {string} extensionId - the id of the extension.
      */
     disconnectPeripheral (extensionId) {
-        if (this.peripheralExtensions[extensionId]) {
-            this.peripheralExtensions[extensionId].disconnect();
+        const extension =
+            this.peripheralExtensions[extensionId];
+
+        if (!extension) {
+            return Promise.resolve(true);
+        }
+
+        try {
+            return Promise.resolve(
+                extension.disconnect()
+            )
+                .then(result =>
+                    result !== false
+                )
+                .catch(() => false);
+        } catch (error) {
+            return Promise.resolve(false);
         }
     }
 
@@ -1804,6 +1819,26 @@ class Runtime extends EventEmitter {
             isConnected = this.peripheralExtensions[extensionId].isConnected();
         }
         return isConnected;
+    }
+
+    /**
+     * Return metadata for a peripheral's active physical connection.
+     * @param {string} extensionId Extension id.
+     * @returns {?object} Connection metadata or null when unavailable.
+     */
+    getPeripheralConnectionInfo (extensionId) {
+        const extension =
+            this.peripheralExtensions[extensionId];
+
+        if (
+            !extension ||
+            typeof extension.getConnectionInfo !==
+                'function'
+        ) {
+            return null;
+        }
+
+        return extension.getConnectionInfo();
     }
 
     /**

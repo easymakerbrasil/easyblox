@@ -126,6 +126,75 @@ tap.test('Serial connects to selected peripheral', async t => {
     t.equal(connectedCallbackCalled, true);
 });
 
+tap.test('Serial preserves selected USB metadata for native upload handoff', async t => {
+    const peripheral = {
+        peripheralId: 'web-serial-1',
+        name: 'USB Serial (1A86:7523)',
+        usbVendorId: 0x1A86,
+        usbProductId: 0x7523
+    };
+
+    const transport = {
+        requestPort: async () =>
+            peripheral,
+        open: async () => {},
+        close: async () => {}
+    };
+
+    const runtime =
+        new MockRuntime(transport);
+
+    const serial =
+        new Serial(
+            runtime,
+            'arduinoUno',
+            {
+                baudRate: 115200
+            }
+        );
+
+    serial.scan();
+
+    await new Promise(resolve =>
+        setImmediate(resolve)
+    );
+
+    serial.connect(
+        peripheral.peripheralId
+    );
+
+    await new Promise(resolve =>
+        setImmediate(resolve)
+    );
+
+    t.same(
+        serial.getConnectedPeripheral(),
+        peripheral
+    );
+
+    const copy =
+        serial.getConnectedPeripheral();
+
+    copy.usbVendorId = 0;
+
+    t.equal(
+        serial.getConnectedPeripheral()
+            .usbVendorId,
+        0x1A86,
+        'connection metadata is returned defensively'
+    );
+
+    t.equal(
+        await serial.disconnect(),
+        true
+    );
+
+    t.equal(
+        serial.getConnectedPeripheral(),
+        null
+    );
+});
+
 tap.test('Serial forwards received bytes to the peripheral callback', t => {
     let onData = null;
     let received = null;
@@ -212,14 +281,134 @@ tap.test('Serial distinguishes deliberate disconnect from connection loss', asyn
 
     runtime.events = [];
 
-    serial.disconnect();
+    const disconnected =
+        await serial.disconnect();
+
     onClose();
+
+    t.equal(
+        disconnected,
+        true
+    );
 
     t.equal(serial.isConnected(), false);
     t.equal(resetCalled, false);
     t.same(runtime.events.map(event => event.event), [
         MockRuntime.PERIPHERAL_DISCONNECTED
     ]);
+});
+
+tap.test('Serial emits disconnected only after the transport releases the port', async t => {
+    let resolveClose;
+
+    let resolveCloseStarted;
+
+    const closeStarted =
+        new Promise(resolve => {
+            resolveCloseStarted = resolve;
+        });
+
+    const transport = {
+        open: async () => {},
+        close: () =>
+            new Promise(resolve => {
+                resolveClose = resolve;
+                resolveCloseStarted();
+            })
+    };
+
+    const runtime =
+        new MockRuntime(transport);
+
+    const serial =
+        new Serial(
+            runtime,
+            'arduinoUno'
+        );
+
+    serial.connect('COM11');
+
+    await new Promise(resolve =>
+        setImmediate(resolve)
+    );
+
+    runtime.events = [];
+
+    const disconnectPromise =
+        serial.disconnect();
+
+    t.equal(
+        runtime.events.length,
+        0,
+        'disconnect event waits for port.close()'
+    );
+
+    await closeStarted;
+
+    resolveClose();
+
+    t.equal(
+        await disconnectPromise,
+        true
+    );
+
+    t.same(
+        runtime.events.map(
+            event => event.event
+        ),
+        [
+            MockRuntime
+                .PERIPHERAL_DISCONNECTED
+        ]
+    );
+});
+
+tap.test('Serial reports a failed transport release without rejecting callers', async t => {
+    const transport = {
+        open: async () => {},
+        close: async () => {
+            throw new Error(
+                'Access denied'
+            );
+        }
+    };
+
+    const runtime =
+        new MockRuntime(transport);
+
+    const serial =
+        new Serial(
+            runtime,
+            'arduinoUno'
+        );
+
+    serial.connect('COM11');
+
+    await new Promise(resolve =>
+        setImmediate(resolve)
+    );
+
+    runtime.events = [];
+
+    t.equal(
+        await serial.disconnect(),
+        false
+    );
+
+    t.equal(
+        serial.isConnected(),
+        false
+    );
+
+    t.same(
+        runtime.events.map(
+            event => event.event
+        ),
+        [
+            MockRuntime
+                .PERIPHERAL_DISCONNECTED
+        ]
+    );
 });
 
 tap.test('Serial reports unexpected connection loss', async t => {
@@ -251,6 +440,10 @@ tap.test('Serial reports unexpected connection loss', async t => {
     runtime.events = [];
 
     onClose();
+
+    await new Promise(resolve =>
+        setImmediate(resolve)
+    );
 
     t.equal(serial.isConnected(), false);
     t.equal(resetCalled, true);

@@ -94,14 +94,16 @@ class ArduinoUnoPeripheral {
 
     /**
      * Disconnect from the Arduino UNO.
-     * @returns {void}
+     * @returns {Promise<boolean>} Resolves after the serial port is released.
      */
     disconnect () {
         this._reset();
 
         if (this._serial) {
-            this._serial.disconnect();
+            return this._serial.disconnect();
         }
+
+        return Promise.resolve(true);
     }
 
     /**
@@ -109,6 +111,16 @@ class ArduinoUnoPeripheral {
      */
     isConnected () {
         return this._serial ? this._serial.isConnected() : false;
+    }
+
+    /**
+     * Get metadata for the currently selected physical connection.
+     * @returns {?object} Connection metadata or null when unavailable.
+     */
+    getConnectionInfo () {
+        return this._serial ?
+            this._serial.getConnectedPeripheral() :
+            null;
     }
 
     /**
