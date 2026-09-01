@@ -15,7 +15,8 @@
   "license": "AGPL-3.0-only",
   "author": "Scratch Foundation",
   "workspaces": [
-    "packages/task-herder",
+  "packages/easyblox-hardware-service",
+  "packages/task-herder",
     "packages/scratch-storage",
     "packages/scratch-svg-renderer",
     "packages/scratch-paint",

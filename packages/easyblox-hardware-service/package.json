@@ -1,0 +1,13 @@
+{
+  "name": "@easymaker/easyblox-hardware-service",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native hardware build and upload infrastructure for EasyBlox.",
+  "license": "AGPL-3.0-only",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "node --check src/index.js && node --check src/hardware-service-error.js && node --check src/toolchain-provider.js && node --check src/process-runner.js && node --check src/build-service.js",
+    "test": "node --test test/build-pipeline.test.js",
+    "smoke:compile": "node scripts/compile-smoke.js"
+  }
+}
