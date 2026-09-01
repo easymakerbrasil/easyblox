@@ -8965,3 +8965,183 @@ A alteração local:
 packages/scratch-gui/src/components/action-menu/icon--sprite.svg
 
 continua independente desta arquitetura e não deve ser adicionada ao staging sem autorização explícita.
+
+### 19.164. B1 — UploadWorkspace final e preparação para Build/Upload
+
+Checkpoint publicado:
+
+`e1e881f2fb feat: finalize Arduino Upload workspace preview`
+
+Branch:
+
+`feat/easyblox-arduino-uno-upload-mode`
+
+O B1 encerra o acabamento funcional e visual principal do workspace do Modo Carregar.
+
+#### Contrato do preview
+
+O `UploadWorkspace` recebe o C++ já produzido pela integração canônica existente.
+
+Não gerar uma segunda versão do código para a interface.
+
+Contrato:
+
+```text
+um único C++ canônico
+        |
+        +→ preview pedagógico
+        |
+        +→ código bruto
+
+Ambas as apresentações devem representar exatamente o mesmo programa.
+
+O preview é:
+
+somente leitura;
+selecionável;
+numerado por linha;
+syntax-highlighted;
+rolável;
+legível em fonte monoespaçada.
+
+Foi adotado:
+
+PrismJS 1.30.0
+
+para tokenização C/C++.
+
+Não introduzir editor completo como Monaco ou CodeMirror enquanto o requisito permanecer somente leitura.
+
+Responsabilidade de layout
+
+A largura do UploadWorkspace é responsabilidade do layout da GUI, não do próprio componente.
+
+No Modo Carregar, stageAndTargetWrapper recebe a classe específica de Upload.
+
+O UploadWorkspace continua ocupando:
+
+width: 100%
+
+da região fornecida pela GUI.
+
+Isso evita que o componente determine sozinho a proporção entre:
+
+Blockly ↔ painel lateral
+Ação de envio para hardware
+
+O botão deve utilizar:
+
+Enviar para <nome da placa>
+
+O nome vem da placa selecionada no catálogo.
+
+Não usar textos fixos como:
+
+Enviar para o Arduino
+
+nem criar condicionais específicas para Arduino, ESP32 ou EasyDuino.
+
+Fallback defensivo permitido quando não houver nome disponível:
+
+Enviar para a placa
+
+No B1 o botão permanece desabilitado porque a infraestrutura física pertence ao B2.
+
+Monitor Serial
+
+No B1, o Monitor Serial é somente estrutural:
+
+região inferior;
+recolhível;
+expansível;
+placeholder pedagógico.
+
+Não implementar o transporte completo do Monitor Serial como pré-condição para iniciar B2.
+
+Validação mínima preservada
+
+Suítes diretamente relacionadas ao B1:
+
+test/unit/components/upload-workspace.test.jsx
+test/unit/components/gui-program-mode.test.jsx
+test/unit/lib/upload-code-preview.test.js
+
+Checkpoint B1 validado com:
+
+3 suites passed
+11 tests passed
+
+Lint focal:
+
+0 errors
+0 warnings
+
+Antes de alterar futuramente esse fluxo, preservar cobertura para:
+
+Stage
+→ Upload
+→ nome da placa propagado
+→ Enviar para <placa>
+→ Stage
+Próximo ciclo: B2
+
+O próximo incremento funcional é:
+
+Build e Upload real para Arduino UNO
+
+Separação obrigatória de responsabilidades:
+
+GUI
+→ solicita operação
+
+Scratch VM
+→ fornece programa/código e contexto
+
+EasyBlox Hardware Service
+→ infraestrutura local de hardware
+
+BuildService
+→ prepara e compila artefato
+
+UploadService
+→ grava artefato na placa
+
+Arduino CLI
+→ executável externo
+
+Não colocar:
+
+child_process
+spawn
+exec
+Arduino CLI
+
+dentro de componentes React.
+
+Não colocar subprocessos dentro de:
+
+ArduinoUnoGenerator
+
+O gerador deve continuar responsável somente pela transformação semântica:
+
+EasyBlox IR → C++
+
+B2 deverá prever estados de UX equivalentes a:
+
+pronto
+→ gerando código
+→ compilando
+→ preparando placa
+→ gravando
+→ concluído
+
+e tradução pedagógica de falhas como:
+
+placa não conectada
+porta ocupada
+Arduino UNO não encontrado
+falha de compilação
+falha de upload
+placa desconectada
+
+Nunca expor stderr bruto do Arduino CLI diretamente ao aluno.

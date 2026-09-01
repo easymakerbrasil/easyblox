@@ -10032,3 +10032,211 @@ Meus Blocos com assinatura compartilhada e corpos independentes
 Listas Stage-only
 +
 workspace visual estável entre os modos
+
+### 23.15. Checkpoint B1 — UploadWorkspace final
+
+Em 31/08/2026 foi concluído e publicado o checkpoint funcional B1 do Arduino UNO Modo Carregar.
+
+Branch:
+
+`feat/easyblox-arduino-uno-upload-mode`
+
+Baseline estrutural protegido anterior:
+
+`b0d12cc096 feat: stabilize Arduino Upload program ownership`
+
+Checkpoint B1 publicado:
+
+`e1e881f2fb feat: finalize Arduino Upload workspace preview`
+
+`HEAD` e `origin/feat/easyblox-arduino-uno-upload-mode` foram confirmados sincronizados nesse commit.
+
+#### Escopo encerrado no B1
+
+O B1 fecha a experiência visual principal do `UploadWorkspace`.
+
+Foi implementado:
+
+- preview C++ somente leitura;
+- atualização em tempo real a partir do C++ canônico gerado pela Scratch VM;
+- syntax highlighting C/C++ com PrismJS `1.30.0`;
+- numeração de linhas;
+- fonte monoespaçada;
+- seleção normal do código;
+- scroll horizontal e vertical;
+- estado vazio pedagógico;
+- estado de erro;
+- visualização de código bruto;
+- cópia do código bruto;
+- Monitor Serial estrutural recolhível/expansível;
+- área de ações preparada para o futuro fluxo físico;
+- largura própria do painel Upload, maior que a antiga região lateral de Stage;
+- integração visual com a identidade EasyBlox.
+
+O preview pedagógico e a visualização de código bruto NÃO possuem fontes de código independentes.
+
+Ambos utilizam exatamente a mesma string C++ canônica recebida da integração existente:
+
+`vm.generateArduinoUnoUploadCode()`
+
+Portanto permanece vigente:
+
+```text
+Blocks
+→ EasyBlox IR
+→ C++
+
+O C++ é artefato derivado e não uma fonte editável do programa.
+
+Destino dinâmico da gravação
+
+O botão principal do UploadWorkspace não possui nome de placa hardcoded.
+
+O contrato visual é:
+
+Enviar para <nome da placa>
+
+Exemplo atual:
+
+Enviar para Arduino UNO
+
+Futuramente o mesmo componente poderá apresentar, conforme o catálogo de placas:
+
+Enviar para ESP32
+Enviar para EasyDuino
+Enviar para EasyMaker
+
+O nome é resolvido a partir da placa selecionada e entregue ao UploadWorkspace.
+
+Não devem ser criados if específicos por família de hardware apenas para definir o texto do botão.
+
+Enquanto o backend físico ainda não está conectado, esse botão permanece desabilitado.
+
+Monitor Serial no B1
+
+O B1 fecha somente a estrutura visual do Monitor Serial.
+
+O Monitor Serial funcional de ponta a ponta não foi antecipado para este checkpoint.
+
+A região:
+
+inicia recolhida;
+pode ser expandida;
+pode ser recolhida novamente;
+permanece preparada para a futura integração com a infraestrutura física.
+Arquivos do checkpoint B1
+package-lock.json
+packages/scratch-gui/package.json
+packages/scratch-gui/src/components/gui/gui.css
+packages/scratch-gui/src/components/gui/gui.jsx
+packages/scratch-gui/src/components/upload-workspace/upload-workspace.css
+packages/scratch-gui/src/components/upload-workspace/upload-workspace.jsx
+packages/scratch-gui/test/unit/components/gui-program-mode.test.jsx
+packages/scratch-gui/test/unit/components/upload-workspace.test.jsx
+
+O PrismJS passou a ser dependência direta de runtime do scratch-gui:
+
+prismjs 1.30.0
+Validação do B1
+
+Validação focal do UploadWorkspace:
+
+5 pass
+0 fail
+1 suite
+
+Validação consolidada das fronteiras diretamente envolvidas:
+
+upload-workspace.test.jsx
+gui-program-mode.test.jsx
+upload-code-preview.test.js
+
+3 suites passed
+11 tests passed
+
+Também aprovados:
+
+ESLint focal                  0 errors / 0 warnings
+git diff --check              GREEN
+git diff --cached --check     GREEN
+
+A validação visual real confirmou:
+
+preview C++ legível;
+highlighting funcionando;
+painel ampliado para largura adequada de leitura;
+código bruto acessível;
+botão de cópia presente;
+Monitor Serial estrutural funcionando;
+ação principal exibindo Enviar para Arduino UNO.
+Working tree deliberadamente não limpo
+
+Continua fora dos checkpoints e não deve ser restaurado, staged ou commitado sem autorização explícita:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+Também permanecem diversos arquivos untracked/resíduos de comandos já conhecidos.
+
+Não executar:
+
+git clean
+git add .
+
+Não incluir automaticamente:
+
+B1-1-review.diff
+packages/scratch-gui/test/unit/components/prompt.test.jsx
+packages/scratch-gui/test/unit/containers/prompt.test.jsx
+
+ou qualquer outro untracked estranho já conhecido.
+
+Próximo checkpoint funcional — B2
+
+Com o B1 encerrado, o próximo foco passa a ser:
+
+B2 — Build e Upload real para Arduino UNO
+
+Fluxo alvo:
+
+EasyBlox Blocks
+→ EasyBlox IR
+→ C++
+→ sketch temporário
+→ Arduino CLI
+→ compile
+→ upload
+→ Arduino UNO
+
+Arquitetura desejada:
+
+Scratch GUI
+→ Scratch VM
+→ EasyBlox Hardware Service
+→ BuildService
+→ UploadService
+→ Arduino CLI
+
+Regras já aprovadas:
+
+componentes React não executam Arduino CLI diretamente;
+o ArduinoUnoGenerator não conhece subprocessos;
+Arduino CLI permanece executável externo não modificado;
+erros técnicos do CLI não devem ser despejados diretamente ao aluno;
+progresso de build/upload deve possuir estados pedagógicos;
+infraestrutura de porta, locking, progresso e erros deve ser reutilizável posteriormente pelo Stage Firmware Manager.
+
+Não reabrir antes do B2:
+
+ownership Stage/Upload;
+IR;
+Extractor;
+Type Validator;
+Context Validator;
+Resource Validator;
+Variáveis;
+Meus Blocos;
+Listas;
+persistência;
+preservação visual Palco ↔ Carregar;
+
+salvo falha funcional concreta do novo fluxo físico exigir revisão.
