@@ -8746,3 +8746,222 @@ A alteração local:
 `packages/scratch-gui/src/components/action-menu/icon--sprite.svg`
 
 continua independente e não deve ser adicionada ao staging sem autorização explícita.
+
+### Atualização normativa — arquitetura canônica Palco / Carregar após isolamento do UploadProgram
+
+Em 01/09/2026 foi consolidada a arquitetura canônica do programa Arduino UNO no Modo Carregar após a introdução do `EasyBloxUploadProgram` e a estabilização das entidades compartilhadas entre Palco e Carregar.
+
+Esta atualização substitui qualquer interpretação anterior segundo a qual Palco e Carregar utilizariam o mesmo backing store de scripts.
+
+#### Backing stores de scripts
+
+Os programas de blocos são semanticamente independentes:
+
+```text
+Modo Palco
+→ editingTarget.blocks
+
+Modo Carregar
+→ EasyBloxUploadProgram.blocks
+
+Portanto:
+
+scripts Stage continuam pertencendo aos targets Scratch;
+o programa Upload não pertence a um ator;
+trocar o ator selecionado no Palco não altera o programa Upload;
+criar, mover, alterar ou remover um bloco pertencente ao programa Stage não deve alterar o backing store Upload;
+criar, mover, alterar ou remover um bloco pertencente ao programa Upload não deve alterar o backing store Stage;
+o C++ continua sendo artefato derivado de Blocks → EasyBlox IR → C++ e não a fonte primária editável do programa.
+Variáveis são entidades compartilhadas em nível de projeto
+
+Variáveis EasyBlox não pertencem ao backing store Stage nem ao backing store Upload isoladamente.
+
+A representação canônica permanece no target Stage/projeto e o EasyBloxUploadProgram consulta e manipula essa mesma entidade.
+
+Consequências:
+
+variável criada no Palco fica disponível no Carregar;
+variável criada no Carregar fica disponível no Palco;
+nome, ID, tipo pedagógico e valor pertencem à mesma entidade lógica;
+renomear ou excluir a variável em qualquer um dos modos deve refletir no outro;
+referências de blocos de cada backing store continuam independentes;
+valor literal pertencente ao programa deve ser distinguido de valor de runtime exibido pelo monitor.
+
+A persistência nova não serializa cópias privadas de variáveis dentro de:
+
+easybloxUploadPrograms
+
+As variáveis são serializadas pela representação canônica do projeto Scratch.
+
+Meus Blocos / Procedures
+
+Meus Blocos são entidades compartilhadas no nível de definição e assinatura, mas possuem implementação independente por modo.
+
+Compartilhado entre Palco e Carregar:
+
+identidade da procedure;
+ID da definição;
+prototype;
+nome;
+parâmetros;
+tipos pedagógicos dos parâmetros;
+assinatura/mutation.
+
+Independente:
+
+definition.next
+
+ou seja, o corpo da procedure.
+
+O mesmo Meu Bloco pode, portanto, possuir:
+
+assinatura compartilhada
++
+corpo Stage
++
+corpo Upload
+
+Alterar a assinatura deve ser refletido entre os dois backing stores.
+
+Excluir a definição é uma operação compartilhada e deve remover também os respectivos corpos locais.
+
+Listas no Arduino UNO Upload v1
+
+Listas permanecem oficialmente:
+
+STAGE_ONLY
+
+no Arduino UNO Upload v1.
+
+Isso inclui os reporters e comandos nativos de Lista.
+
+Listas não devem ser reclassificadas como BOTH apenas por compartilharem a infraestrutura de data_* com Variáveis.
+
+A decisão é pedagógica e de previsibilidade e permanece vigente até uma revisão explícita do contrato do Upload.
+
+Persistência do EasyBloxUploadProgram
+
+O formato canônico atual de:
+
+easybloxUploadPrograms[boardId]
+
+serializa somente o estado independente necessário ao programa Upload, principalmente:
+
+blocks
+
+Não devem ser gravadas cópias independentes de:
+
+variables
+lists
+easybloxData
+
+dentro do programa Upload.
+
+O carregador mantém compatibilidade de leitura com o formato experimental anterior.
+
+Ao abrir um projeto legado:
+
+variáveis Upload antigas são migradas para o owner canônico compartilhado;
+listas Upload antigas são preservadas como Listas Stage;
+metadados EasyBlox compatíveis são migrados;
+quando já existir uma entidade canônica Stage com o mesmo ID, a entidade canônica vence e não deve ser sobrescrita pela cópia legada.
+
+Essa compatibilidade existe somente no leitor. Projetos novos não devem voltar a escrever o formato duplicado.
+
+Toolbox e workspace visual são responsabilidades diferentes
+
+A separação entre backing stores não altera o contrato visual do EasyBlox.
+
+Toolbox/paleta e blocos já existentes no workspace são conceitos diferentes.
+
+Um bloco incompatível com o modo atual pode ser:
+
+removido da paleta; ou
+mantido visível e desabilitado na paleta quando possuir explicitamente inactiveModeBehavior: SHOW_DISABLED.
+
+Exemplo especial aprovado:
+
+quando Arduino Uno iniciar
+
+é UPLOAD_ONLY, mas utiliza:
+
+SHOW_DISABLED
+
+Portanto:
+
+Palco
+→ permanece visível na paleta
+→ cinza/desabilitado
+
+Carregar
+→ permanece visível na paleta
+→ ativo
+
+Para blocos que já existem no workspace, a regra é diferente:
+
+bloco incompatível já existente
+→ nunca deve desaparecer apenas por causa da troca de modo
+→ permanece visualmente no workspace
+→ fica desabilitado/inativo
+→ não pode ser movido, editado, apagado ou conectado
+→ volta ativo quando seu modo compatível é restaurado
+
+A GUI preserva esses blocos incompatíveis como contexto visual inerte durante o reload causado pela troca Palco ↔ Carregar.
+
+Essa preservação visual não transfere ownership semântico do bloco para o backing store ativo.
+
+Assim:
+
+bloco Stage preservado visualmente em Carregar
+≠ bloco pertencente ao UploadProgram
+
+bloco Upload preservado visualmente em Palco
+≠ bloco pertencente ao editingTarget
+
+O roteamento semântico continua respeitando os backing stores independentes.
+
+Regra de segurança para blocos preservados visualmente
+
+Scripts preservados apenas como contexto visual devem ser carregados de modo inerte.
+
+Atualmente a GUI aplica:
+
+disabled = true
+movable = false
+deletable = false
+editable = false
+
+Isso é necessário porque o VirtualMachine.blockListener() roteia eventos Blockly de acordo com o contexto semântico ativo.
+
+Um bloco visual pertencente ao outro modo não pode produzir eventos capazes de alterar o backing store incorreto.
+
+Estado validado desta arquitetura
+
+Regressões automatizadas consolidadas após esta estabilização:
+
+virtual-machine-upload.js     69/69
+easyblox-upload-program.js    97/97
+arduino-uno-upload.js        534/534
+arduino-uno.js               500/500
+arduino-uno-protocol.js      246/246
+extension_conversion.js      150/150
+
+blocks.test.js                33/33
+gui-program-mode.test.jsx      2/2
+
+Também foram aprovados:
+
+node --check nos arquivos JavaScript alterados da Scratch VM;
+git diff --check;
+ESLint dos arquivos GUI diretamente alterados com 0 errors;
+validação visual Palco ↔ Carregar;
+permanência de blocos incompatíveis no workspace;
+reativação do bloco ao retornar ao modo compatível;
+ausência de duplicação visual no fluxo validado;
+manutenção do quando Arduino Uno iniciar visível/desabilitado na paleta do Palco.
+
+A alteração local:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+continua independente desta arquitetura e não deve ser adicionada ao staging sem autorização explícita.

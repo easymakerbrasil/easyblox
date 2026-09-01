@@ -9751,3 +9751,284 @@ Decisão:
 - implementar `control_while` em uma etapa futura de compatibilidade;
 - implementar `control_for_each` após a infraestrutura Upload de Variáveis,
 pois sua semântica depende diretamente de uma variável iteradora.
+
+### 23.14. Checkpoint — UploadProgram canônico, símbolos compartilhados e preservação visual Palco ↔ Carregar
+
+Em 01/09/2026 foi consolidado um novo checkpoint estrutural do Arduino UNO Modo Carregar v1.
+
+Este checkpoint substitui explicitamente, como contrato vigente, registros anteriores desta documentação que ainda descreviam Palco e Carregar utilizando um único backing store de scripts.
+
+Esses registros anteriores permanecem no histórico para documentar a evolução da arquitetura, mas não representam mais o comportamento canônico.
+
+#### Arquitetura vigente
+
+Os scripts são independentes:
+
+```text
+Stage
+→ editingTarget.blocks
+
+Upload
+→ EasyBloxUploadProgram.blocks
+
+O EasyBloxUploadProgram é pertencente à placa/programa Upload e não a um ator Scratch.
+
+Trocar o ator selecionado no Palco não deve trocar o programa Arduino Upload.
+
+Variáveis compartilhadas
+
+Variáveis são entidades de projeto compartilhadas entre os dois modos.
+
+Contrato aprovado:
+
+mesmo ID lógico;
+mesmo nome;
+mesmo tipo EasyBlox;
+mesmo lifecycle;
+criação compartilhada;
+rename compartilhado;
+delete compartilhado;
+referências de blocos permanecem locais ao backing store correspondente.
+
+O EasyBloxUploadProgram não mantém mais um mapa privado independente de Variáveis.
+
+Meus Blocos compartilhados
+
+Meus Blocos compartilham:
+
+definição;
+prototype;
+assinatura;
+parâmetros;
+tipos dos parâmetros.
+
+Os corpos continuam independentes.
+
+Contrato:
+
+assinatura compartilhada
+corpo Stage independente
+corpo Upload independente
+
+A exclusão da definição é compartilhada.
+
+Listas
+
+Listas permanecem:
+
+STAGE_ONLY
+
+no Upload v1.
+
+O teste legado de extension_conversion.js que ainda esperava os blocos de Lista como BOTH foi alinhado com esse contrato.
+
+Persistência
+
+O formato novo de:
+
+easybloxUploadPrograms
+
+não duplica:
+
+variables
+lists
+easybloxData
+
+O programa Upload persiste somente seu estado independente, principalmente os blocos.
+
+Foi mantida migração de leitura para projetos gerados durante o formato experimental anterior.
+
+A migração:
+
+recupera Variáveis antigas para o owner Stage compartilhado;
+recupera Listas antigas como Listas Stage;
+preserva metadados EasyBlox compatíveis;
+não sobrescreve entidade canônica que já exista no projeto.
+Regressão visual descoberta e corrigida
+
+Após o isolamento correto dos backing stores, foi detectada uma regressão visual:
+
+Palco → Carregar
+ou
+Carregar → Palco
+
+causava reload do WorkspaceSvg através de:
+
+clearWorkspaceAndLoadFromXml(...)
+
+e o XML enviado pela VM continha apenas o backing store semanticamente ativo.
+
+Consequência:
+
+blocos pertencentes ao outro modo desapareciam visualmente
+
+mesmo que o contrato EasyBlox exigisse sua permanência desabilitada.
+
+A correção foi implementada na GUI sem voltar a compartilhar os backing stores.
+
+Durante a troca de modo, scripts incompatíveis do workspace anterior são preservados como representação visual inerte.
+
+Eles recebem:
+
+disabled = true
+movable = false
+deletable = false
+editable = false
+
+e não passam a pertencer semanticamente ao backing store ativo.
+
+Ao retornar ao modo proprietário, a versão canônica do bloco volta ativa.
+
+Contrato definitivo de toolbox versus workspace
+
+A toolbox e o workspace obedecem regras diferentes.
+
+Workspace:
+
+bloco incompatível já existente
+→ permanece visível
+→ fica inativo
+→ não desaparece
+→ volta ativo no modo compatível
+
+Paleta:
+
+comportamento depende de executionMode + inactiveModeBehavior
+
+O caso especial aprovado:
+
+quando Arduino Uno iniciar
+
+continua:
+
+executionMode = UPLOAD_ONLY
+inactiveModeBehavior = SHOW_DISABLED
+
+Logo:
+
+Palco
+→ visível na paleta, porém cinza/desabilitado
+
+Carregar
+→ visível e ativo
+
+Esse comportamento já existia antes da regressão de workspace e deve permanecer.
+
+Arquivos intencionais atualmente modificados
+
+Scratch GUI:
+
+packages/scratch-gui/src/containers/blocks.jsx
+packages/scratch-gui/test/unit/containers/blocks.test.js
+
+Scratch VM:
+
+packages/scratch-vm/src/upload/easyblox-upload-program.js
+packages/scratch-vm/src/virtual-machine.js
+packages/scratch-vm/test/unit/easyblox-upload-program.js
+packages/scratch-vm/test/unit/extension_conversion.js
+packages/scratch-vm/test/unit/virtual-machine-upload.js
+
+Documentação deste checkpoint:
+
+docs/GUIA-DE-DESENVOLVIMENTO.md
+docs/CONTINUIDADE-EASYBLOX.md
+Arquivos que não pertencem ao checkpoint
+
+Continua fora do staging:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+Também existem diversos arquivos untracked com aparência de resíduos de comandos no working tree.
+
+Esses arquivos não foram criados ou classificados como parte deste checkpoint e não devem ser:
+
+adicionados;
+removidos;
+renomeados;
+limpos;
+
+sem uma decisão explícita separada.
+
+Os testes não rastreados:
+
+packages/scratch-gui/test/unit/components/prompt.test.jsx
+packages/scratch-gui/test/unit/containers/prompt.test.jsx
+
+também não pertencem automaticamente a este checkpoint.
+
+Validação consolidada
+
+Scratch VM:
+
+virtual-machine-upload.js     69/69
+easyblox-upload-program.js    97/97
+arduino-uno-upload.js        534/534
+arduino-uno.js               500/500
+arduino-uno-protocol.js      246/246
+extension_conversion.js      150/150
+
+Scratch GUI:
+
+blocks.test.js                33/33
+gui-program-mode.test.jsx      2/2
+
+Validações adicionais:
+
+node --check                  GREEN
+git diff --check              GREEN
+ESLint GUI                    0 errors
+
+O ESLint mantém warnings já conhecidos e não bloqueantes. Não executar --fix indiscriminadamente.
+
+Validação manual Palco ↔ Carregar também aprovada para:
+
+bloco Stage ativo no Palco;
+mesmo bloco Stage visível e inativo no Carregar;
+bloco Upload ativo no Carregar;
+mesmo bloco Upload visível e inativo no Palco;
+reativação ao voltar para o modo proprietário;
+preservação das posições no fluxo observado;
+ausência de duplicação visual no fluxo observado;
+quando Arduino Uno iniciar visível/desabilitado na paleta do Palco e ativo no Carregar.
+Estado Git antes do fechamento
+
+Branch:
+
+feat/easyblox-arduino-uno-upload-mode
+
+Último checkpoint remoto anterior a este lote:
+
+4ac0526444 test: cover Arduino Upload variable lifecycle
+
+O lote atual ainda não foi staged, commitado ou enviado ao remoto.
+
+Não utilizar:
+
+git add .
+
+O staging deverá ser explícito.
+
+Próximo passo imediato
+validar os dois documentos atualizados com git diff --check;
+revisar o diff final somente dos arquivos intencionais;
+fazer staging explícito;
+conferir git diff --cached --check;
+conferir git diff --cached --stat;
+criar o commit do checkpoint;
+fazer push da branch;
+somente depois definir o próximo incremento funcional do Arduino UNO Upload v1.
+
+A prioridade arquitetural deste checkpoint é preservar simultaneamente:
+
+scripts Stage independentes
++
+scripts Upload independentes
++
+Variáveis compartilhadas
++
+Meus Blocos com assinatura compartilhada e corpos independentes
++
+Listas Stage-only
++
+workspace visual estável entre os modos

@@ -497,33 +497,30 @@ class VirtualMachine extends EventEmitter {
                 new Set(serializedProject.extensions || []);
 
             this._easybloxUploadPrograms.forEach((program, boardId) => {
-                const serializedProgram = Object.create(null);
-                const serializedVariables =
-                    sb3.serializeVariables(program.variables);
+                const serializedProgram =
+                    Object.create(null);
 
                 const [
                     serializedBlocks,
                     uploadExtensionIds
-                ] = sb3.serializeBlocks(program.blocks._blocks);
+                ] = sb3.serializeBlocks(
+                    program.blocks._blocks
+                );
 
                 serializedProgram.blocks =
                     serializedBlocks;
 
                 uploadExtensionIds.forEach(extensionId => {
-                    serializedExtensionIds.add(extensionId);
+                    serializedExtensionIds.add(
+                        extensionId
+                    );
                 });
 
-                serializedProgram.variables =
-                    serializedVariables.variables;
-
-                serializedProgram.lists =
-                    serializedVariables.lists;
-
-                if (Object.keys(serializedVariables.easybloxData).length > 0) {
-                    serializedProgram.easybloxData =
-                        serializedVariables.easybloxData;
-                }
-
+                /*
+                * Variables are project-level EasyBlox entities and are already
+                * serialized by the canonical Scratch targets. Lists remain Stage-only
+                * in Upload v1. Neither belongs to the independent Upload domain.
+                */
                 serializedUploadPrograms[boardId] =
                     serializedProgram;
             });
@@ -589,6 +586,12 @@ class VirtualMachine extends EventEmitter {
                 const serializedUploadPrograms =
                     projectJSON.easybloxUploadPrograms;
 
+                const sharedStageTarget =
+                    targets.find(target =>
+                        target &&
+                        target.isStage
+                    ) || null;
+
                 if (serializedUploadPrograms &&
                     typeof serializedUploadPrograms === 'object') {
                     Object.keys(serializedUploadPrograms).forEach(boardId => {
@@ -628,89 +631,10 @@ class VirtualMachine extends EventEmitter {
                                 );
                             }
                         });
-
-                        const serializedVariables =
-                            serializedProgram.variables || {};
-
-                        Object.keys(serializedVariables).forEach(variableId => {
-                            const serializedVariable =
-                                serializedVariables[variableId];
-
-                            if (!Array.isArray(serializedVariable) ||
-                                serializedVariable.length < 2) {
-                                return;
-                            }
-
-                            uploadProgram.createVariable(
-                                variableId,
-                                serializedVariable[0],
-                                ''
-                            );
-
-                            const variable =
-                                uploadProgram.lookupVariableById(variableId);
-
-                            variable.value = serializedVariable[1];
-
-                            const easybloxMetadata =
-                                serializedProgram.easybloxData &&
-                                serializedProgram.easybloxData[variableId];
-
-                            if (easybloxMetadata &&
-                                Object.prototype.hasOwnProperty.call(
-                                    easybloxMetadata,
-                                    'valueType'
-                                )) {
-                                variable.easybloxValueType =
-                                    easybloxMetadata.valueType;
-                            }
-                        });
-
-                        const serializedLists =
-                            serializedProgram.lists || {};
-
-                        Object.keys(serializedLists).forEach(listId => {
-                            const serializedList =
-                                serializedLists[listId];
-
-                            if (!Array.isArray(serializedList) ||
-                                serializedList.length < 2) {
-                                return;
-                            }
-
-                            uploadProgram.createVariable(
-                                listId,
-                                serializedList[0],
-                                'list'
-                            );
-
-                            const list =
-                                uploadProgram.lookupVariableById(listId);
-
-                            list.value = serializedList[1];
-
-                            const easybloxMetadata =
-                                serializedProgram.easybloxData &&
-                                serializedProgram.easybloxData[listId];
-
-                            if (easybloxMetadata &&
-                                Object.prototype.hasOwnProperty.call(
-                                    easybloxMetadata,
-                                    'valueType'
-                                )) {
-                                list.easybloxValueType =
-                                    easybloxMetadata.valueType;
-                            }
-
-                            if (easybloxMetadata &&
-                                Object.prototype.hasOwnProperty.call(
-                                    easybloxMetadata,
-                                    'capacity'
-                                )) {
-                                list.easybloxListCapacity =
-                                    easybloxMetadata.capacity;
-                            }
-                        });
+                    this._migrateLegacyEasyBloxUploadData(
+                        serializedProgram,
+                        sharedStageTarget
+                    );
 
                     });
                 }
@@ -1391,6 +1315,256 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Get every block container which participates in the shared EasyBlox
+     * My Blocks namespace.
+     *
+     * Procedure definitions/signatures are project-level EasyBlox entities.
+     * Their implementation bodies remain local to each Stage/Upload program.
+     * @returns {!Array<!Blocks>} Unique participating block containers.
+     */
+    _getEasyBloxSharedProcedureContainers () {
+        const containers = [];
+
+        const addContainer = blocks => {
+            if (
+                blocks &&
+                containers.indexOf(blocks) === -1
+            ) {
+                containers.push(blocks);
+            }
+        };
+
+        this.runtime.targets.forEach(target => {
+            if (
+                target &&
+                target.blocks &&
+                (
+                    !Object.prototype.hasOwnProperty.call(
+                        target,
+                        'isOriginal'
+                    ) ||
+                    target.isOriginal
+                )
+            ) {
+                addContainer(target.blocks);
+            }
+        });
+
+        if (this._easybloxUploadPrograms) {
+            this._easybloxUploadPrograms.forEach(uploadProgram => {
+                addContainer(uploadProgram.blocks);
+            });
+        }
+
+        return containers;
+    }
+
+    /**
+     * Clone plain VM block metadata used by shared My Block signatures.
+     * @param {!object} block Source VM block.
+     * @returns {!object} Independent metadata copy.
+     */
+    _cloneEasyBloxSharedProcedureBlock (block) {
+        return JSON.parse(JSON.stringify(block));
+    }
+
+    /**
+     * Merge shared My Block definitions/signatures from one backing Blocks
+     * container into another.
+     *
+     * Only the outer definition and its prototype are shared. The definition
+     * `next` chain is deliberately never copied because that chain is the
+     * mode-specific implementation body.
+     *
+     * @param {!Blocks} sourceBlocks Source block container.
+     * @param {!Blocks} targetBlocks Target block container.
+     */
+    _mergeEasyBloxSharedProcedureDefinitions (
+        sourceBlocks,
+        targetBlocks
+    ) {
+        if (
+            !sourceBlocks ||
+            !targetBlocks ||
+            sourceBlocks === targetBlocks ||
+            typeof sourceBlocks.getScripts !== 'function' ||
+            typeof sourceBlocks.getBlock !== 'function' ||
+            typeof targetBlocks.getBlock !== 'function' ||
+            typeof targetBlocks.createBlock !== 'function'
+        ) {
+            return;
+        }
+
+        sourceBlocks.getScripts().forEach(definitionId => {
+            const sourceDefinition =
+                sourceBlocks.getBlock(definitionId);
+
+            if (
+                !sourceDefinition ||
+                sourceDefinition.opcode !== 'procedures_definition'
+            ) {
+                return;
+            }
+
+            const customBlockInput =
+                sourceDefinition.inputs &&
+                sourceDefinition.inputs.custom_block;
+
+            const prototypeId =
+                customBlockInput &&
+                customBlockInput.block;
+
+            const sourcePrototype =
+                prototypeId ?
+                    sourceBlocks.getBlock(prototypeId) :
+                    null;
+
+            if (
+                !sourcePrototype ||
+                sourcePrototype.opcode !== 'procedures_prototype'
+            ) {
+                return;
+            }
+
+            let targetDefinition =
+                targetBlocks.getBlock(definitionId);
+
+            if (!targetDefinition) {
+                const definitionCopy =
+                    this._cloneEasyBloxSharedProcedureBlock(
+                        sourceDefinition
+                    );
+
+                /*
+                 * The procedure identity/signature is shared, but its body is
+                 * not. A newly mirrored definition therefore starts with an
+                 * empty implementation in the destination program.
+                 */
+                definitionCopy.next = null;
+                definitionCopy.parent = null;
+                definitionCopy.topLevel = true;
+
+                targetBlocks.createBlock(definitionCopy);
+
+                targetDefinition =
+                    targetBlocks.getBlock(definitionId);
+            }
+
+            let targetPrototype =
+                targetBlocks.getBlock(prototypeId);
+
+            if (!targetPrototype) {
+                const prototypeCopy =
+                    this._cloneEasyBloxSharedProcedureBlock(
+                        sourcePrototype
+                    );
+
+                prototypeCopy.next = null;
+                prototypeCopy.parent = definitionId;
+                prototypeCopy.topLevel = false;
+
+                targetBlocks.createBlock(prototypeCopy);
+
+                targetPrototype =
+                    targetBlocks.getBlock(prototypeId);
+            }
+
+            if (
+                targetDefinition &&
+                targetDefinition.inputs
+            ) {
+                targetDefinition.inputs.custom_block =
+                    this._cloneEasyBloxSharedProcedureBlock(
+                        customBlockInput
+                    );
+            }
+
+            if (targetPrototype) {
+                targetPrototype.mutation =
+                    sourcePrototype.mutation ?
+                        this._cloneEasyBloxSharedProcedureBlock(
+                            sourcePrototype.mutation
+                        ) :
+                        null;
+
+                targetBlocks.resetCache();
+            }
+        });
+    }
+
+    /**
+     * Propagate the latest shared My Block signatures from one program to
+     * every other participating Stage/Upload backing store.
+     * @param {!Blocks} sourceBlocks Source block container.
+     */
+    _syncEasyBloxSharedProcedureDefinitionsFrom (sourceBlocks) {
+        this._getEasyBloxSharedProcedureContainers()
+            .forEach(targetBlocks => {
+                this._mergeEasyBloxSharedProcedureDefinitions(
+                    sourceBlocks,
+                    targetBlocks
+                );
+            });
+    }
+
+    /**
+     * Delete one shared My Block definition from every other backing store.
+     * Each container owns its own implementation body, so deleting the local
+     * mirrored definition correctly removes that mode-specific body as well.
+     *
+     * @param {!string} definitionId Shared procedure definition ID.
+     * @param {!Blocks} sourceBlocks Container which originated the deletion.
+     */
+    _deleteEasyBloxSharedProcedureDefinition (
+        definitionId,
+        sourceBlocks
+    ) {
+        this._getEasyBloxSharedProcedureContainers()
+            .forEach(targetBlocks => {
+                if (
+                    targetBlocks === sourceBlocks ||
+                    !targetBlocks.getBlock(definitionId)
+                ) {
+                    return;
+                }
+
+                targetBlocks.deleteBlock(definitionId);
+            });
+    }
+
+    /**
+     * Propagate shared My Block state after one Blockly mutation.
+     * @param {!object} event Blockly event.
+     * @param {!Blocks} sourceBlocks Active backing block container.
+     * @param {?string} deletedProcedureId Procedure definition deleted by the
+     * current event, if any.
+     */
+    _updateEasyBloxSharedProceduresAfterBlocklyEvent (
+        event,
+        sourceBlocks,
+        deletedProcedureId
+    ) {
+        if (deletedProcedureId) {
+            this._deleteEasyBloxSharedProcedureDefinition(
+                deletedProcedureId,
+                sourceBlocks
+            );
+
+            return;
+        }
+
+        if ([
+            'create',
+            'change',
+            'move'
+        ].includes(event.type)) {
+            this._syncEasyBloxSharedProcedureDefinitionsFrom(
+                sourceBlocks
+            );
+        }
+    }
+
+    /**
      * Set the active EasyBlox programming context.
      * Stage mode continues to use the current Scratch editing target.
      * Upload mode uses the canonical program owned by the selected board.
@@ -1416,6 +1590,33 @@ class VirtualMachine extends EventEmitter {
             );
         }
 
+        /*
+         * Before leaving the current program, propagate its latest My Block
+         * definitions/signatures. Implementation bodies remain in their
+         * respective backing stores.
+         */
+        if (
+            this._easybloxProgramMode === 'upload' &&
+            this._easybloxActiveBoardId
+        ) {
+            const currentUploadProgram =
+                this.getOrCreateUploadProgram(
+                    this._easybloxActiveBoardId
+                );
+
+            this._syncEasyBloxSharedProcedureDefinitionsFrom(
+                currentUploadProgram.blocks
+            );
+        } else if (
+            this._easybloxProgramMode === 'stage' &&
+            this.editingTarget &&
+            this.editingTarget.blocks
+        ) {
+            this._syncEasyBloxSharedProcedureDefinitionsFrom(
+                this.editingTarget.blocks
+            );
+        }
+
         this._easybloxProgramMode = mode;
         this._easybloxActiveBoardId =
             mode === 'upload' ? boardId : null;
@@ -1434,12 +1635,50 @@ class VirtualMachine extends EventEmitter {
                 this._easybloxActiveBoardId
             );
 
+            const sourceBlocks = uploadProgram.blocks;
+
+            const deletedProcedureId =
+                e &&
+                e.type === 'delete' &&
+                typeof e.blockId === 'string' &&
+                sourceBlocks.getBlock(e.blockId) &&
+                sourceBlocks.getBlock(e.blockId).opcode ===
+                    'procedures_definition' ?
+                    e.blockId :
+                    null;
+
             uploadProgram.blocklyListen(e);
+
+            this._updateEasyBloxSharedProceduresAfterBlocklyEvent(
+                e,
+                sourceBlocks,
+                deletedProcedureId
+            );
+
             return;
         }
 
         if (this.editingTarget) {
-            this.editingTarget.blocks.blocklyListen(e);
+            const sourceBlocks =
+                this.editingTarget.blocks;
+
+            const deletedProcedureId =
+                e &&
+                e.type === 'delete' &&
+                typeof e.blockId === 'string' &&
+                sourceBlocks.getBlock(e.blockId) &&
+                sourceBlocks.getBlock(e.blockId).opcode ===
+                    'procedures_definition' ?
+                    e.blockId :
+                    null;
+
+            sourceBlocks.blocklyListen(e);
+
+            this._updateEasyBloxSharedProceduresAfterBlocklyEvent(
+                e,
+                sourceBlocks,
+                deletedProcedureId
+            );
         }
     }
 
@@ -1970,6 +2209,145 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Migrate variable data written by the experimental EasyBlox Upload
+     * persistence format into the canonical shared Stage owner.
+     *
+     * New projects no longer write variables, lists, or EasyBlox metadata
+     * inside easybloxUploadPrograms. This reader remains intentionally
+     * tolerant so projects created while that experimental format existed
+     * keep their user data.
+     *
+     * Existing canonical Stage variables always win over duplicate legacy
+     * Upload copies.
+     *
+     * @param {!object} serializedProgram Legacy serialized Upload program.
+     * @param {?Target} stageTarget Canonical shared variable owner.
+     */
+    _migrateLegacyEasyBloxUploadData (
+        serializedProgram,
+        stageTarget
+    ) {
+        if (
+            !serializedProgram ||
+            typeof serializedProgram !== 'object' ||
+            !stageTarget ||
+            typeof stageTarget.lookupVariableById !== 'function' ||
+            typeof stageTarget.createVariable !== 'function'
+        ) {
+            return;
+        }
+
+        const easybloxData =
+            serializedProgram.easybloxData &&
+            typeof serializedProgram.easybloxData === 'object' ?
+                serializedProgram.easybloxData :
+                Object.create(null);
+
+        const migrateCollection = (
+            serializedCollection,
+            variableType
+        ) => {
+            if (
+                !serializedCollection ||
+                typeof serializedCollection !== 'object' ||
+                Array.isArray(serializedCollection)
+            ) {
+                return;
+            }
+
+            Object.keys(serializedCollection)
+                .forEach(variableId => {
+                    const serializedVariable =
+                        serializedCollection[
+                            variableId
+                        ];
+
+                    if (
+                        !Array.isArray(serializedVariable) ||
+                        serializedVariable.length < 2
+                    ) {
+                        return;
+                    }
+
+                    /*
+                     * The Scratch target representation is canonical. Never
+                     * overwrite it with an obsolete duplicate from the old
+                     * Upload root.
+                     */
+                    if (
+                        stageTarget.lookupVariableById(
+                            variableId
+                        )
+                    ) {
+                        return;
+                    }
+
+                    stageTarget.createVariable(
+                        variableId,
+                        serializedVariable[0],
+                        variableType
+                    );
+
+                    const variable =
+                        stageTarget.lookupVariableById(
+                            variableId
+                        );
+
+                    if (!variable) {
+                        return;
+                    }
+
+                    variable.value =
+                        Array.isArray(
+                            serializedVariable[1]
+                        ) ?
+                            serializedVariable[1].slice() :
+                            serializedVariable[1];
+
+                    const metadata =
+                        easybloxData[variableId];
+
+                    if (
+                        metadata &&
+                        Object.prototype.hasOwnProperty.call(
+                            metadata,
+                            'valueType'
+                        )
+                    ) {
+                        variable.easybloxValueType =
+                            metadata.valueType;
+                    }
+
+                    if (
+                        variableType === 'list' &&
+                        metadata &&
+                        Object.prototype.hasOwnProperty.call(
+                            metadata,
+                            'capacity'
+                        )
+                    ) {
+                        variable.easybloxListCapacity =
+                            metadata.capacity;
+                    }
+                });
+        };
+
+        migrateCollection(
+            serializedProgram.variables,
+            ''
+        );
+
+        /*
+         * Lists are Stage-only in Upload v1. Legacy Upload lists are retained
+         * as Stage lists so opening an older project never discards user data.
+         */
+        migrateCollection(
+            serializedProgram.lists,
+            'list'
+        );
+    }
+
+    /**
      * Get the canonical EasyBlox Upload program for a board, creating it when
      * it does not exist yet.
      * @param {!string} boardId Board which owns the Upload program.
@@ -1981,13 +2359,41 @@ class VirtualMachine extends EventEmitter {
         }
 
         if (!this._easybloxUploadPrograms.has(boardId)) {
-            this._easybloxUploadPrograms.set(
-                boardId,
+            const uploadProgram =
                 new EasyBloxUploadProgram(
                     this.runtime,
                     boardId
-                )
+                );
+
+            this._easybloxUploadPrograms.set(
+                boardId,
+                uploadProgram
             );
+
+            /*
+             * A newly created Upload workspace starts with every project-level
+             * My Block definition/signature already known by Stage targets.
+             * Only the definition/prototype are mirrored; Stage implementation
+             * bodies are deliberately not copied.
+             */
+            this.runtime.targets.forEach(target => {
+                if (
+                    target &&
+                    target.blocks &&
+                    (
+                        !Object.prototype.hasOwnProperty.call(
+                            target,
+                            'isOriginal'
+                        ) ||
+                        target.isOriginal
+                    )
+                ) {
+                    this._mergeEasyBloxSharedProcedureDefinitions(
+                        target.blocks,
+                        uploadProgram.blocks
+                    );
+                }
+            });
         }
 
         return this._easybloxUploadPrograms.get(boardId);

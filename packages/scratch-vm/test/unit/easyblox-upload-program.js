@@ -8,8 +8,37 @@ const EasyBloxUploadProgram =
 const VirtualMachine = require('../../src/virtual-machine');
 const Sprite = require('../../src/sprites/sprite');
 
-test('EasyBloxUploadProgram owns independent Upload state', t => {
+test('EasyBloxUploadProgram owns Upload scripts and views shared project variables', t => {
     const runtime = new Runtime();
+    const sharedVariables = Object.create(null);
+
+    const stage = {
+        isStage: true,
+        variables: sharedVariables,
+
+        lookupVariableById: variableId =>
+            sharedVariables[variableId] || null,
+
+        createVariable: (
+            variableId,
+            variableName,
+            variableType,
+            isCloud
+        ) => {
+            if (!sharedVariables[variableId]) {
+                sharedVariables[variableId] =
+                    new Variable(
+                        variableId,
+                        variableName,
+                        variableType,
+                        isCloud
+                    );
+            }
+        }
+    };
+
+    runtime.targets = [stage];
+
     const originalTargets = runtime.targets.slice();
 
     const program = new EasyBloxUploadProgram(
@@ -25,7 +54,7 @@ test('EasyBloxUploadProgram owns independent Upload state', t => {
 
     t.ok(
         program.blocks instanceof Blocks,
-        'owns a canonical Blocks container'
+        'owns a canonical independent Blocks container'
     );
 
     t.equal(
@@ -34,16 +63,16 @@ test('EasyBloxUploadProgram owns independent Upload state', t => {
         'Upload blocks are not runtime execution/glow blocks'
     );
 
-    t.same(
-        Object.keys(program.variables),
-        [],
-        'starts without variables'
+    t.equal(
+        program.variables,
+        sharedVariables,
+        'views the canonical shared project variable map'
     );
 
     t.same(
-        runtime.targets,
-        originalTargets,
-        'does not register the Upload program as a Scratch target'
+        Object.keys(program.variables),
+        [],
+        'shared project starts without variables'
     );
 
     program.createVariable(
@@ -57,7 +86,13 @@ test('EasyBloxUploadProgram owns independent Upload state', t => {
 
     t.ok(
         variable instanceof Variable,
-        'creates canonical Variable instances'
+        'creates the canonical Variable through the shared project owner'
+    );
+
+    t.equal(
+        variable,
+        sharedVariables['variable-counter'],
+        'Upload resolves the exact shared Variable instance'
     );
 
     t.equal(
@@ -93,7 +128,7 @@ test('EasyBloxUploadProgram owns independent Upload state', t => {
     t.same(
         runtime.targets,
         originalTargets,
-        'creating Upload data still does not mutate Scratch targets'
+        'creating shared data does not register an Upload target'
     );
 
     t.end();
@@ -340,21 +375,24 @@ test('EasyBlox Upload block mutations notify project changes without enabling bl
     t.end();
 });
 
-test('clearing the VM discards Upload programs from the previous project', t => {
+test('clearing the VM discards independent Upload script state from the previous project', t => {
     const vm = new VirtualMachine();
 
     const firstProgram =
         vm.getOrCreateUploadProgram('arduino-uno');
 
-    firstProgram.createVariable(
-        'old-variable',
-        'variável antiga',
-        Variable.SCALAR_TYPE
-    );
-
-    firstProgram.lookupVariableById(
-        'old-variable'
-    ).easybloxValueType = 'INTEGER';
+    firstProgram.blocks.createBlock({
+        id: 'old-upload-block',
+        opcode: 'arduinoUno_whenArduinoUnoStart',
+        next: null,
+        parent: null,
+        inputs: {},
+        fields: {},
+        shadow: false,
+        topLevel: true,
+        x: 24,
+        y: 36
+    });
 
     t.equal(
         vm.getOrCreateUploadProgram('arduino-uno'),
@@ -374,35 +412,38 @@ test('clearing the VM discards Upload programs from the previous project', t => 
     );
 
     t.equal(
-        secondProgram.lookupVariableById('old-variable'),
-        null,
-        'Upload variables from the previous project do not leak into the next project'
+        secondProgram.blocks.getBlock('old-upload-block'),
+        undefined,
+        'Upload blocks from the previous project do not leak into the next project'
     );
 
     t.same(
-        Object.keys(secondProgram.variables),
+        secondProgram.blocks.getScripts(),
         [],
-        'fresh Upload program starts without data from the previous project'
+        'fresh Upload program starts with an empty independent workspace'
     );
 
     t.end();
 });
 
-test('toJSON serializes independent EasyBlox Upload programs at project root', t => {
+test('toJSON serializes only independent EasyBlox Upload script state at project root', t => {
     const vm = new VirtualMachine();
 
     const uploadProgram =
         vm.getOrCreateUploadProgram('arduino-uno');
 
-    uploadProgram.createVariable(
-        'upload-counter',
-        'contador',
-        Variable.SCALAR_TYPE
-    );
-
-    uploadProgram.lookupVariableById(
-        'upload-counter'
-    ).easybloxValueType = 'INTEGER';
+    uploadProgram.blocks.createBlock({
+        id: 'upload-entry',
+        opcode: 'arduinoUno_whenArduinoUnoStart',
+        next: null,
+        parent: null,
+        inputs: {},
+        fields: {},
+        shadow: false,
+        topLevel: true,
+        x: 48,
+        y: 72
+    });
 
     const serialized = JSON.parse(vm.toJSON());
 
@@ -411,258 +452,224 @@ test('toJSON serializes independent EasyBlox Upload programs at project root', t
         'serializes EasyBlox Upload programs at the project root'
     );
 
-    if (!serialized.easybloxUploadPrograms) {
-        t.end();
-        return;
-    }
-
-    t.ok(
-        serialized.easybloxUploadPrograms['arduino-uno'],
-        'serializes the Arduino UNO Upload program by canonical board ID'
-    );
-
     const serializedProgram =
         serialized.easybloxUploadPrograms['arduino-uno'];
 
-    t.same(
-        serializedProgram.blocks,
-        {},
+    t.ok(
+        serializedProgram,
+        'serializes the Arduino UNO Upload program by canonical board ID'
+    );
+
+    t.ok(
+        serializedProgram.blocks['upload-entry'],
         'serializes the independent Upload block workspace'
     );
 
-    t.same(
-        serializedProgram.variables,
-        {
-            'upload-counter': [
-                'contador',
-                0
-            ]
-        },
-        'uses the canonical Scratch variable representation'
+    t.notOk(
+        Object.prototype.hasOwnProperty.call(
+            serializedProgram,
+            'variables'
+        ),
+        'does not duplicate shared project variables inside the Upload program'
     );
 
-    t.same(
-        serializedProgram.lists,
-        {},
-        'serializes Upload lists independently'
+    t.notOk(
+        Object.prototype.hasOwnProperty.call(
+            serializedProgram,
+            'lists'
+        ),
+        'does not persist Stage-only lists inside the Upload program'
     );
 
-    t.same(
-        serializedProgram.easybloxData,
-        {
-            'upload-counter': {
-                valueType: 'INTEGER'
-            }
-        },
-        'serializes EasyBlox type metadata by canonical variable ID'
+    t.notOk(
+        Object.prototype.hasOwnProperty.call(
+            serializedProgram,
+            'easybloxData'
+        ),
+        'does not duplicate shared EasyBlox variable metadata inside the Upload program'
     );
 
     t.same(
         serialized.targets,
         [],
-        'serializing Upload state does not create or modify Scratch targets'
+        'serializing independent Upload scripts does not create Scratch targets'
     );
 
     t.end();
 });
 
-test('deserializeProject restores independent EasyBlox Upload program variables', t => {
+test('VirtualMachine migrates legacy Upload variables and lists into the shared Stage owner', t => {
     const vm = new VirtualMachine();
+    const sharedVariables = Object.create(null);
 
-    // Isolate this test from Scratch target installation. This contract is
-    // specifically about restoring the independent EasyBlox Upload domain.
-    vm.installTargets = () => Promise.resolve();
+    const stage = {
+        isStage: true,
+        variables: sharedVariables,
 
-    const serializedProject = {
-        projectVersion: 3,
-        targets: [],
-        monitors: [],
-        extensions: [],
-        meta: {
-            semver: '3.0.0',
-            vm: '0.0.0',
-            agent: 'test'
-        },
-        easybloxUploadPrograms: {
-            'arduino-uno': {
-                blocks: {},
-                variables: {
-                    'upload-counter': [
-                        'contador',
-                        0
-                    ]
-                },
-                lists: {},
-                easybloxData: {
-                    'upload-counter': {
-                        valueType: 'INTEGER'
-                    }
-                }
+        lookupVariableById: variableId =>
+            sharedVariables[variableId] || null,
+
+        createVariable: (
+            variableId,
+            variableName,
+            variableType,
+            isCloud
+        ) => {
+            if (!sharedVariables[variableId]) {
+                sharedVariables[variableId] =
+                    new Variable(
+                        variableId,
+                        variableName,
+                        variableType,
+                        isCloud
+                    );
             }
         }
     };
 
-    return vm.deserializeProject(serializedProject)
-        .then(() => {
-            const restoredProgram =
-                vm.getOrCreateUploadProgram('arduino-uno');
+    const canonicalVariable =
+        new Variable(
+            'already-shared',
+            'canonica',
+            Variable.SCALAR_TYPE,
+            false
+        );
 
-            const restoredVariable =
-                restoredProgram.lookupVariableById('upload-counter');
+    canonicalVariable.value = 42;
+    canonicalVariable.easybloxValueType = 'INTEGER';
 
-            t.ok(
-                restoredVariable,
-                'restores the Upload variable by canonical ID'
-            );
+    sharedVariables['already-shared'] =
+        canonicalVariable;
 
-            if (!restoredVariable) {
-                t.end();
-                return;
-            }
+    vm.runtime.targets = [stage];
 
-            t.equal(
-                restoredVariable.id,
-                'upload-counter',
-                'preserves the canonical variable ID'
-            );
-
-            t.equal(
-                restoredVariable.name,
+    const legacyProgram = {
+        variables: {
+            'legacy-counter': [
                 'contador',
-                'preserves the Upload variable name'
-            );
+                7
+            ],
 
-            t.equal(
-                restoredVariable.type,
-                Variable.SCALAR_TYPE,
-                'restores the canonical scalar variable type'
-            );
-
-            t.equal(
-                restoredVariable.value,
-                0,
-                'restores the scalar value'
-            );
-
-            t.equal(
-                restoredVariable.easybloxValueType,
-                'INTEGER',
-                'restores EasyBlox type metadata'
-            );
-
-            t.same(
-                vm.runtime.targets,
-                [],
-                'restoring Upload state does not create Scratch runtime targets'
-            );
-
-            t.end();
-        });
-});
-
-test('deserializeProject restores independent EasyBlox Upload typed lists', t => {
-    const vm = new VirtualMachine();
-
-    vm.installTargets = () => Promise.resolve();
-
-    const serializedProject = {
-        projectVersion: 3,
-        targets: [],
-        monitors: [],
-        extensions: [],
-        meta: {
-            semver: '3.0.0',
-            vm: '0.0.0',
-            agent: 'test'
+            'already-shared': [
+                'legada',
+                999
+            ]
         },
-        easybloxUploadPrograms: {
-            'arduino-uno': {
-                blocks: {},
-                variables: {},
-                lists: {
-                    'upload-names': [
-                        'nomes',
-                        [
-                            'Ana',
-                            'Beto'
-                        ]
-                    ]
-                },
-                easybloxData: {
-                    'upload-names': {
-                        valueType: 'TEXT',
-                        capacity: 10
-                    }
-                }
-            }
-        }
-    };
 
-    return vm.deserializeProject(serializedProject)
-        .then(() => {
-            const restoredProgram =
-                vm.getOrCreateUploadProgram('arduino-uno');
-
-            const restoredList =
-                restoredProgram.lookupVariableById('upload-names');
-
-            t.ok(
-                restoredList,
-                'restores the Upload list by canonical ID'
-            );
-
-            if (!restoredList) {
-                t.end();
-                return;
-            }
-
-            t.equal(
-                restoredList.id,
-                'upload-names',
-                'preserves the canonical list ID'
-            );
-
-            t.equal(
-                restoredList.name,
+        lists: {
+            'legacy-names': [
                 'nomes',
-                'preserves the Upload list name'
-            );
-
-            t.equal(
-                restoredList.type,
-                Variable.LIST_TYPE,
-                'restores the canonical list type'
-            );
-
-            t.same(
-                restoredList.value,
                 [
                     'Ana',
                     'Beto'
-                ],
-                'restores the Upload list contents'
-            );
+                ]
+            ]
+        },
 
-            t.equal(
-                restoredList.easybloxValueType,
-                'TEXT',
-                'restores the EasyBlox list item type'
-            );
+        easybloxData: {
+            'legacy-counter': {
+                valueType: 'INTEGER'
+            },
 
-            t.equal(
-                restoredList.easybloxListCapacity,
-                10,
-                'restores the EasyBlox fixed list capacity'
-            );
+            'already-shared': {
+                valueType: 'DECIMAL'
+            },
 
-            t.same(
-                vm.runtime.targets,
-                [],
-                'restoring an Upload list does not create Scratch runtime targets'
-            );
+            'legacy-names': {
+                valueType: 'TEXT',
+                capacity: 10
+            }
+        }
+    };
 
-            t.end();
-        });
+    vm._migrateLegacyEasyBloxUploadData(
+        legacyProgram,
+        stage
+    );
+
+    const migratedVariable =
+        stage.lookupVariableById('legacy-counter');
+
+    const migratedList =
+        stage.lookupVariableById('legacy-names');
+
+    t.ok(
+        migratedVariable instanceof Variable,
+        'migrates a legacy Upload scalar into the shared project owner'
+    );
+
+    t.equal(
+        migratedVariable.value,
+        7,
+        'preserves the legacy scalar value'
+    );
+
+    t.equal(
+        migratedVariable.easybloxValueType,
+        'INTEGER',
+        'preserves legacy EasyBlox scalar metadata'
+    );
+
+    t.ok(
+        migratedList instanceof Variable,
+        'migrates a legacy Upload list into the Stage owner'
+    );
+
+    t.equal(
+        migratedList.type,
+        Variable.LIST_TYPE,
+        'legacy Upload list becomes a Stage list'
+    );
+
+    t.same(
+        migratedList.value,
+        [
+            'Ana',
+            'Beto'
+        ],
+        'preserves legacy list values'
+    );
+
+    t.equal(
+        migratedList.easybloxValueType,
+        'TEXT',
+        'preserves legacy EasyBlox list type metadata'
+    );
+
+    t.equal(
+        migratedList.easybloxListCapacity,
+        10,
+        'preserves legacy EasyBlox list capacity'
+    );
+
+    t.equal(
+        canonicalVariable.name,
+        'canonica',
+        'legacy Upload data does not rename an existing canonical shared variable'
+    );
+
+    t.equal(
+        canonicalVariable.value,
+        42,
+        'legacy Upload data does not overwrite an existing canonical shared value'
+    );
+
+    t.equal(
+        canonicalVariable.easybloxValueType,
+        'INTEGER',
+        'canonical shared metadata wins over a duplicate legacy Upload copy'
+    );
+
+    const uploadProgram =
+        vm.getOrCreateUploadProgram('arduino-uno');
+
+    t.equal(
+        uploadProgram.lookupVariableById('legacy-counter'),
+        migratedVariable,
+        'Upload resolves the migrated scalar through the shared owner'
+    );
+
+    t.end();
 });
 
 test('deserializeProject restores independent EasyBlox Upload blocks', t => {
@@ -767,7 +774,7 @@ test('deserializeProject restores independent EasyBlox Upload blocks', t => {
         });
 });
 
-test('EasyBlox Upload program survives a complete VM JSON round trip', t => {
+test('independent EasyBlox Upload scripts survive a complete VM JSON round trip', t => {
     const sourceVm = new VirtualMachine();
 
     const sourceProgram =
@@ -786,49 +793,24 @@ test('EasyBlox Upload program survives a complete VM JSON round trip', t => {
         y: 72
     });
 
-    sourceProgram.createVariable(
-        'upload-counter',
-        'contador',
-        Variable.SCALAR_TYPE
-    );
-
-    const sourceVariable =
-        sourceProgram.lookupVariableById('upload-counter');
-
-    sourceVariable.value = 7;
-    sourceVariable.easybloxValueType = 'INTEGER';
-
-    sourceProgram.createVariable(
-        'upload-names',
-        'nomes',
-        Variable.LIST_TYPE
-    );
-
-    const sourceList =
-        sourceProgram.lookupVariableById('upload-names');
-
-    sourceList.value = [
-        'Ana',
-        'Beto'
-    ];
-    sourceList.easybloxValueType = 'TEXT';
-    sourceList.easybloxListCapacity = 10;
-
     const serializedProject =
         JSON.parse(sourceVm.toJSON());
 
-    // loadProject normally receives this from scratch-parser.
     serializedProject.projectVersion = 3;
 
     const restoredVm = new VirtualMachine();
 
-    // Keep this test focused on the independent Upload domain.
-    restoredVm.installTargets = () => Promise.resolve();
+    restoredVm.installTargets =
+        () => Promise.resolve();
 
-    return restoredVm.deserializeProject(serializedProject)
+    return restoredVm.deserializeProject(
+        serializedProject
+    )
         .then(() => {
             const restoredProgram =
-                restoredVm.getOrCreateUploadProgram('arduino-uno');
+                restoredVm.getOrCreateUploadProgram(
+                    'arduino-uno'
+                );
 
             t.not(
                 restoredProgram,
@@ -837,17 +819,19 @@ test('EasyBlox Upload program survives a complete VM JSON round trip', t => {
             );
 
             const restoredBlock =
-                restoredProgram.blocks.getBlock('upload-entry');
+                restoredProgram.blocks.getBlock(
+                    'upload-entry'
+                );
 
             t.ok(
                 restoredBlock,
-                'restores the Upload entry-point block'
+                'restores the independent Upload block'
             );
 
             t.equal(
                 restoredBlock.opcode,
                 'arduinoUno_whenArduinoUnoStart',
-                'preserves the Upload block opcode'
+                'preserves the Upload entry-point opcode'
             );
 
             t.same(
@@ -855,74 +839,44 @@ test('EasyBlox Upload program survives a complete VM JSON round trip', t => {
                 [
                     'upload-entry'
                 ],
-                'preserves the Upload script index'
+                'restores the independent Upload script index'
             );
 
-            const restoredVariable =
-                restoredProgram.lookupVariableById('upload-counter');
+            const reserialized =
+                JSON.parse(restoredVm.toJSON());
+
+            const reserializedProgram =
+                reserialized.easybloxUploadPrograms[
+                    'arduino-uno'
+                ];
 
             t.ok(
-                restoredVariable,
-                'restores the typed scalar variable'
+                reserializedProgram.blocks['upload-entry'],
+                're-serializes the restored independent Upload workspace'
             );
 
-            t.equal(
-                restoredVariable.name,
-                'contador',
-                'preserves the scalar variable name'
+            t.notOk(
+                Object.prototype.hasOwnProperty.call(
+                    reserializedProgram,
+                    'variables'
+                ),
+                'round trip does not recreate private Upload variables'
             );
 
-            t.equal(
-                restoredVariable.value,
-                7,
-                'preserves the scalar variable value'
+            t.notOk(
+                Object.prototype.hasOwnProperty.call(
+                    reserializedProgram,
+                    'lists'
+                ),
+                'round trip does not recreate private Upload lists'
             );
 
-            t.equal(
-                restoredVariable.easybloxValueType,
-                'INTEGER',
-                'preserves the scalar EasyBlox type'
-            );
-
-            const restoredList =
-                restoredProgram.lookupVariableById('upload-names');
-
-            t.ok(
-                restoredList,
-                'restores the typed Upload list'
-            );
-
-            t.same(
-                restoredList.value,
-                [
-                    'Ana',
-                    'Beto'
-                ],
-                'preserves the Upload list contents'
-            );
-
-            t.equal(
-                restoredList.easybloxValueType,
-                'TEXT',
-                'preserves the Upload list item type'
-            );
-
-            t.equal(
-                restoredList.easybloxListCapacity,
-                10,
-                'preserves the Upload list capacity'
-            );
-
-            t.same(
-                sourceVm.runtime.targets,
-                [],
-                'source Upload program never becomes a Scratch target'
-            );
-
-            t.same(
-                restoredVm.runtime.targets,
-                [],
-                'restored Upload program never becomes a Scratch target'
+            t.notOk(
+                Object.prototype.hasOwnProperty.call(
+                    reserializedProgram,
+                    'easybloxData'
+                ),
+                'round trip does not recreate duplicated EasyBlox data'
             );
 
             t.end();

@@ -930,6 +930,228 @@ test('updates workspace block disabled state for the program mode', () => {
     );
 });
 
+test('preserves incompatible workspace blocks visually across Stage and Upload reloads', () => {
+    const executionModes = {
+        motion_movesteps: 'stage',
+        serial_serialWrite: 'upload'
+    };
+
+    const getBlockExecutionMode = jest.fn(blockType =>
+        executionModes[blockType] || null
+    );
+
+    const createWorkspaceDom = (type, id) => {
+        const dom = document.createElement('xml');
+        dom.innerHTML =
+            `<block type="${type}" id="${id}" x="24" y="36"></block>`;
+        return dom;
+    };
+
+    const stageWorkspaceDom =
+        createWorkspaceDom(
+            'motion_movesteps',
+            'stage-only-block'
+        );
+
+    const uploadWorkspaceDom =
+        createWorkspaceDom(
+            'serial_serialWrite',
+            'upload-only-block'
+        );
+
+    const clearWorkspaceAndLoadFromXml =
+        jest.fn();
+
+    const instance = {
+        props: {
+            programMode: 'upload',
+            vm: {
+                editingTarget: null,
+                runtime: {
+                    getBlockExecutionMode
+                }
+            },
+            workspaceMetrics: {
+                targets: {}
+            },
+            updateToolboxState: jest.fn()
+        },
+
+        workspace: {
+            removeChangeListener: jest.fn(),
+            addChangeListener: jest.fn(),
+            clearUndo: jest.fn()
+        },
+
+        toolboxUpdateChangeListener: jest.fn(),
+
+        getToolboxXML: jest.fn()
+            .mockReturnValue(null),
+
+        onWorkspaceMetricsChange: jest.fn(),
+
+        updateWorkspaceExecutionMode: jest.fn(),
+
+        preserveIncompatibleWorkspaceBlocks:
+            Blocks.prototype.preserveIncompatibleWorkspaceBlocks,
+
+        ScratchBlocks: {
+            Events: {
+                disable: jest.fn(),
+                enable: jest.fn()
+            },
+
+            Xml: {
+                workspaceToDom: jest.fn()
+                    .mockReturnValue(stageWorkspaceDom)
+            },
+
+            utils: {
+                xml: {
+                    textToDom: jest.fn()
+                        .mockReturnValue(
+                            uploadWorkspaceDom
+                        )
+                }
+            },
+
+            clearWorkspaceAndLoadFromXml
+        },
+
+        /*
+         * A program-mode transition must preserve incompatible blocks from
+         * the workspace which is about to be replaced.
+         */
+        _preserveIncompatibleBlocksOnNextWorkspaceUpdate: true
+    };
+
+    const previousRequestAnimationFrame =
+        global.requestAnimationFrame;
+
+    global.requestAnimationFrame =
+        jest.fn();
+
+    try {
+        /*
+         * Stage -> Upload:
+         * the Upload workspace becomes active, but an existing Stage-only
+         * block must remain visible as inactive context.
+         */
+        Blocks.prototype.onWorkspaceUpdate.call(
+            instance,
+            {
+                xml: '<xml/>'
+            }
+        );
+
+        expect(
+            clearWorkspaceAndLoadFromXml
+        ).toHaveBeenCalledTimes(1);
+
+        const stageToUploadDom =
+            clearWorkspaceAndLoadFromXml
+                .mock.calls[0][0];
+
+        expect(
+            stageToUploadDom.querySelector(
+                '[id="upload-only-block"]'
+            )
+        ).not.toBeNull();
+
+        const preservedStageBlock =
+            stageToUploadDom.querySelector(
+                '[id="stage-only-block"]'
+            );
+
+        expect(preservedStageBlock).not.toBeNull();
+
+        expect(
+            preservedStageBlock.getAttribute('disabled')
+        ).toBe('true');
+
+        expect(
+            preservedStageBlock.getAttribute('movable')
+        ).toBe('false');
+
+        expect(
+            preservedStageBlock.getAttribute('deletable')
+        ).toBe('false');
+
+        expect(
+            preservedStageBlock.getAttribute('editable')
+        ).toBe('false');
+
+        /*
+         * Upload -> Stage:
+         * perform the inverse transition and require the Upload-only block
+         * to remain visible without becoming part of the Stage program.
+         */
+        instance.props.programMode = 'stage';
+
+        instance.ScratchBlocks.Xml.workspaceToDom
+            .mockReturnValue(
+                uploadWorkspaceDom
+            );
+
+        instance.ScratchBlocks.utils.xml.textToDom
+            .mockReturnValue(
+                stageWorkspaceDom
+            );
+
+        instance._preserveIncompatibleBlocksOnNextWorkspaceUpdate =
+            true;
+
+        clearWorkspaceAndLoadFromXml.mockClear();
+
+        Blocks.prototype.onWorkspaceUpdate.call(
+            instance,
+            {
+                xml: '<xml/>'
+            }
+        );
+
+        expect(
+            clearWorkspaceAndLoadFromXml
+        ).toHaveBeenCalledTimes(1);
+
+        const uploadToStageDom =
+            clearWorkspaceAndLoadFromXml
+                .mock.calls[0][0];
+
+        expect(
+            uploadToStageDom.querySelector(
+                '[id="stage-only-block"]'
+            )
+        ).not.toBeNull();
+
+        const preservedUploadBlock =
+            uploadToStageDom.querySelector(
+                '[id="upload-only-block"]'
+            );
+
+        expect(preservedUploadBlock).not.toBeNull();
+
+        expect(
+            preservedUploadBlock.getAttribute('disabled')
+        ).toBe('true');
+
+        expect(
+            preservedUploadBlock.getAttribute('movable')
+        ).toBe('false');
+
+        expect(
+            preservedUploadBlock.getAttribute('deletable')
+        ).toBe('false');
+
+        expect(
+            preservedUploadBlock.getAttribute('editable')
+        ).toBe('false');
+    } finally {
+        global.requestAnimationFrame =
+            previousRequestAnimationFrame;
+    }
+});
+
 describe('Blocks active extensions', () => {
     test('activates an extension without duplicating it', () => {
         const instance = {

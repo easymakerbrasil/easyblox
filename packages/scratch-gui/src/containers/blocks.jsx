@@ -234,6 +234,13 @@ class Blocks extends React.Component {
         this.handleExtensionSelectionRequest(prevProps);
 
         if (this.props.programMode !== prevProps.programMode) {
+        /*
+        * The VM intentionally owns independent Stage and Upload backing stores.
+        * Preserve incompatible blocks from the outgoing workspace only as inert
+        * visual context during the workspace reload triggered by a mode change.
+        */
+            this._preserveIncompatibleBlocksOnNextWorkspaceUpdate = true;
+
             this.updateWorkspaceExecutionMode();
             this._recreateFlyoutOnNextToolboxUpdate = true;
         }
@@ -597,6 +604,182 @@ class Blocks extends React.Component {
             return null;
         }
     }
+
+    /**
+     * Preserve scripts containing blocks which are incompatible with the
+     * newly active EasyBlox program mode.
+     *
+     * Stage and Upload continue to have independent VM backing stores. These
+     * cloned XML blocks are visual context only: they are loaded disabled and
+     * cannot be moved, deleted or edited, preventing Blockly events from
+     * mutating the active backing store incorrectly.
+     *
+     * @param {!Element} incomingDom XML for the newly active backing store.
+     * @returns {!Element} XML including any required inert visual context.
+     */
+    preserveIncompatibleWorkspaceBlocks (incomingDom) {
+        const shouldPreserve =
+            this._preserveIncompatibleBlocksOnNextWorkspaceUpdate;
+
+        /*
+         * Consume the transition marker immediately. Ordinary workspace
+         * refreshes must continue to represent only the canonical active
+         * backing store.
+         */
+        this._preserveIncompatibleBlocksOnNextWorkspaceUpdate = false;
+
+        if (
+            !shouldPreserve ||
+            !incomingDom ||
+            !this.workspace ||
+            !this.ScratchBlocks.Xml ||
+            typeof this.ScratchBlocks.Xml.workspaceToDom !== 'function'
+        ) {
+            return incomingDom;
+        }
+
+        const currentDom =
+            this.ScratchBlocks.Xml.workspaceToDom(
+                this.workspace
+            );
+
+        if (!currentDom) {
+            return incomingDom;
+        }
+
+        const currentMode =
+            this.props.programMode;
+
+        const getExecutionMode =
+            this.props.vm.runtime.getBlockExecutionMode;
+
+        if (typeof getExecutionMode !== 'function') {
+            return incomingDom;
+        }
+
+        /*
+         * IDs already present in the canonical incoming workspace always win.
+         * This is particularly important for project-level shared My Block
+         * definitions/signatures.
+         */
+        const existingBlockIds =
+            new Set(
+                Array.from(
+                    incomingDom.getElementsByTagName('block')
+                )
+                    .map(blockNode =>
+                        blockNode.getAttribute('id')
+                    )
+                    .filter(Boolean)
+            );
+
+        const topLevelBlocks =
+            Array.from(currentDom.childNodes)
+                .filter(node =>
+                    node.nodeType === 1 &&
+                    node.nodeName.toLowerCase() === 'block'
+                );
+
+        topLevelBlocks.forEach(topLevelBlock => {
+            /*
+             * Preserve the whole visual script when any block inside that
+             * script is incompatible. This covers, for example, a BOTH
+             * control block containing a STAGE_ONLY motion block.
+             */
+            const scriptBlocks = [
+                topLevelBlock,
+                ...Array.from(
+                    topLevelBlock.getElementsByTagName('block')
+                )
+            ];
+
+            const containsIncompatibleBlock =
+                scriptBlocks.some(blockNode => {
+                    const blockType =
+                        blockNode.getAttribute('type');
+
+                    const executionMode =
+                        getExecutionMode(blockType);
+
+                    return (
+                        executionMode !== null &&
+                        executionMode !== 'both' &&
+                        executionMode !== currentMode
+                    );
+                });
+
+            if (!containsIncompatibleBlock) {
+                return;
+            }
+
+            /*
+             * Never introduce duplicate Blockly IDs into the visual workspace.
+             * The canonical incoming representation takes precedence.
+             */
+            const scriptIds =
+                scriptBlocks
+                    .map(blockNode =>
+                        blockNode.getAttribute('id')
+                    )
+                    .filter(Boolean);
+
+            if (
+                scriptIds.some(blockId =>
+                    existingBlockIds.has(blockId)
+                )
+            ) {
+                return;
+            }
+
+            const preservedScript =
+                topLevelBlock.cloneNode(true);
+
+            const preservedBlocks = [
+                preservedScript,
+                ...Array.from(
+                    preservedScript.getElementsByTagName('block')
+                )
+            ];
+
+            /*
+             * These blocks do not belong to the active backing store.
+             * Make the entire preserved script inert so it cannot generate
+             * semantic Blockly changes against the wrong owner.
+             */
+            preservedBlocks.forEach(blockNode => {
+                blockNode.setAttribute(
+                    'disabled',
+                    'true'
+                );
+                blockNode.setAttribute(
+                    'movable',
+                    'false'
+                );
+                blockNode.setAttribute(
+                    'deletable',
+                    'false'
+                );
+                blockNode.setAttribute(
+                    'editable',
+                    'false'
+                );
+
+                const blockId =
+                    blockNode.getAttribute('id');
+
+                if (blockId) {
+                    existingBlockIds.add(blockId);
+                }
+            });
+
+            incomingDom.appendChild(
+                preservedScript
+            );
+        });
+
+        return incomingDom;
+    }
+
     onWorkspaceUpdate (data) {
         // When we change sprites, update the toolbox to have the new sprite's blocks
         const toolboxXML = this.getToolboxXML();
@@ -616,8 +799,25 @@ class Blocks extends React.Component {
         this.workspace.removeChangeListener(this.toolboxUpdateChangeListener);
         try {
             this.ScratchBlocks.Events.disable();
-            const dom = this.ScratchBlocks.utils.xml.textToDom(data.xml);
-            this.ScratchBlocks.clearWorkspaceAndLoadFromXml(dom, this.workspace);
+            let dom =
+                this.ScratchBlocks.utils.xml.textToDom(
+                    data.xml
+                );
+
+            if (
+                typeof this.preserveIncompatibleWorkspaceBlocks ===
+                    'function'
+            ) {
+                dom =
+                    this.preserveIncompatibleWorkspaceBlocks(
+                        dom
+                    );
+            }
+
+            this.ScratchBlocks.clearWorkspaceAndLoadFromXml(
+                dom,
+                this.workspace
+            );
         } catch (error) {
             // The workspace is likely incomplete. What did update should be
             // functional.

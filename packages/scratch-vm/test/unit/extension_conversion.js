@@ -561,23 +561,13 @@ test('getBlockExecutionMode keeps Upload-compatible native blocks in both modes'
     t.end();
 });
 
-test('getBlockExecutionMode supports Scratch data blocks in Upload mode', t => {
+test('getBlockExecutionMode classifies Scratch data blocks by EasyBlox program mode', t => {
     const runtime = new Runtime();
 
     const bothBlocks = [
         'data_variable',
         'data_setvariableto',
-        'data_changevariableby',
-        'data_listcontents',
-        'data_addtolist',
-        'data_deleteoflist',
-        'data_deletealloflist',
-        'data_insertatlist',
-        'data_replaceitemoflist',
-        'data_itemoflist',
-        'data_itemnumoflist',
-        'data_lengthoflist',
-        'data_listcontainsitem'
+        'data_changevariableby'
     ];
 
     for (const blockType of bothBlocks) {
@@ -589,6 +579,16 @@ test('getBlockExecutionMode supports Scratch data blocks in Upload mode', t => {
     }
 
     const stageOnlyBlocks = [
+        'data_listcontents',
+        'data_addtolist',
+        'data_deleteoflist',
+        'data_deletealloflist',
+        'data_insertatlist',
+        'data_replaceitemoflist',
+        'data_itemoflist',
+        'data_itemnumoflist',
+        'data_lengthoflist',
+        'data_listcontainsitem',
         'data_showvariable',
         'data_hidevariable',
         'data_showlist',
