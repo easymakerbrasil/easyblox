@@ -10622,7 +10622,7 @@ Arduino UNO
 → handshake Stage
 → Scratch GUI
 
-O Monitor Serial do Modo Carregar continua apenas como placeholder estrutural e não faz parte do B3.
+No fechamento do B3, o Monitor Serial do Modo Carregar ainda era apenas um placeholder estrutural e não fazia parte daquele checkpoint. A implementação funcional foi concluída posteriormente no commit beac67f624 e está registrada abaixo.
 
 Working tree deliberadamente não limpo
 
@@ -10663,3 +10663,346 @@ arquitetura BuildService/UploadService;
 handoff Web Serial;
 StageFirmwareProvider;
 StageFirmwareManager.
+
+
+Checkpoint — Monitor Serial funcional do Arduino UNO Upload
+
+Data de fechamento funcional:
+
+01/09/2026
+
+Commit funcional publicado:
+
+beac67f624 feat: add Arduino UNO Upload serial monitor
+
+Branch:
+
+feat/easyblox-arduino-uno-upload-mode
+
+O Monitor Serial do Modo Carregar deixou de ser apenas um placeholder estrutural e passou a funcionar fisicamente com o Arduino UNO após Upload.
+
+O checkpoint preserva a arquitetura consolidada anteriormente:
+
+Scratch GUI
+→ Scratch VM
+→ EasyBlox Hardware Service
+→ Arduino CLI
+→ Arduino UNO
+
+e reutiliza a infraestrutura Web Serial já existente para o monitor após a gravação.
+
+Não foi criado um segundo transporte serial na GUI e não foi introduzida uma ponte Serial nativa no Hardware Service.
+
+Arquitetura STAGE × MONITOR
+
+O ArduinoUnoPeripheral passou a possuir dois modos explícitos de operação:
+
+STAGE
+
+- baud canônico de 115200;
+- parser do protocolo Stage ativo;
+- PING/PONG ativo;
+- readiness depende de PERIPHERAL_STAGE_READY;
+- comandos Stage continuam utilizando o protocolo EasyBlox.
+
+MONITOR
+
+- baud definido pelo programa Upload efetivamente enviado;
+- parser do protocolo Stage desativado;
+- PING/PONG desativado;
+- bytes recebidos são encaminhados como dados brutos do programa do aluno;
+- utiliza a mesma abstração Serial e o mesmo WebSerialTransport já existentes.
+
+A Runtime e a VirtualMachine propagam os eventos:
+
+PERIPHERAL_SERIAL_MONITOR_READY
+PERIPHERAL_SERIAL_MONITOR_DATA
+
+e expõem APIs específicas para conexão e consulta do estado do Monitor Serial.
+
+Baud canônico do Monitor
+
+O baud do Monitor Serial não é obtido por parsing do C++ gerado.
+
+A Scratch VM extrai e valida normalmente o programa Upload:
+
+Scratch Blocks
+→ UploadProgramExtractor
+→ EasyBlox IR
+→ validadores
+
+e consulta semanticamente o statement:
+
+SerialBegin
+
+por meio da API pública:
+
+vm.getArduinoUnoUploadSerialConfig()
+
+Exemplo:
+
+SerialBegin
+baud: 9600
+
+→
+
+{
+    baudRate: 9600
+}
+
+O Monitor é iniciado somente depois de Upload concluído com sucesso.
+
+O fluxo de Upload preserva também o peripheralId Web Serial antes da liberação da porta.
+
+Handoff físico do Monitor Serial
+
+Fluxo consolidado:
+
+Arduino UNO conectado por Web Serial
+→ programa Upload validado
+→ baud Serial capturado semanticamente
+→ peripheralId preservado
+→ Web Serial libera a porta
+→ Hardware Service / Arduino CLI grava o programa
+→ Upload concluído
+→ pequena espera para reboot/handoff
+→ Web Serial reabre a mesma placa
+→ ArduinoUnoPeripheral entra em modo MONITOR
+→ conexão utiliza o baud do programa enviado
+→ dados do sketch chegam ao Monitor Serial da GUI
+
+O Monitor não tenta se conectar quando o programa enviado não possui SerialBegin.
+
+Nesse caso a interface informa semanticamente que o programa não inicializa comunicação Serial.
+
+UploadWorkspace — Monitor Serial funcional
+
+O painel inferior do UploadWorkspace passou a apresentar:
+
+- estado do Monitor Serial;
+- baud ativo;
+- saída recebida da placa;
+- botão Limpar;
+- área de saída monoespaçada.
+
+A recepção textual utiliza TextDecoder UTF-8 incremental.
+
+Isso preserva corretamente caracteres multibyte mesmo quando bytes UTF-8 chegam divididos em múltiplos pacotes Web Serial.
+
+Exemplo validado fisicamente:
+
+Olá EasyBlox
+
+sem corrupção para:
+
+OlÃ¡ EasyBlox
+
+ou caractere de substituição.
+
+O botão Limpar remove a saída já exibida, sem interromper a conexão ou a recepção das mensagens seguintes.
+
+Serial no Upload — valores imprimíveis
+
+Durante a validação física do Monitor Serial foi identificada uma restrição excessiva no UploadTypeValidator.
+
+SerialWrite e SerialWriteLine aceitavam apenas:
+
+TEXT
+
+Isso impedia usos essenciais como:
+
+SerialWrite(UltrasonicReadExpression)
+
+porque a leitura ultrassônica possui tipo pedagógico:
+
+DECIMAL
+
+O contrato foi corrigido para aceitar valores escalares imprimíveis:
+
+TEXT
+INTEGER
+DECIMAL
+BOOLEAN
+
+Não foi removida a validação de tipos e não foi introduzida coerção global silenciosa.
+
+A alteração é restrita ao contrato dos statements:
+
+SerialWrite
+SerialWriteLine
+
+O ArduinoUnoGenerator já estava correto e continua gerando diretamente:
+
+Serial.print(<expressão>);
+Serial.println(<expressão>);
+
+Portanto não foi necessário alterar o gerador nem converter números para String na área de blocos.
+
+Para BOOLEAN, o comportamento atual permanece o nativo de Serial.print/Serial.println do Arduino, ou seja, representação numérica 1/0. Conversão pedagógica futura para verdadeiro/falso, se desejada, deve ser uma decisão explícita e separada.
+
+Retorno MONITOR → STAGE
+
+Ao retornar de Carregar para Palco:
+
+Monitor Serial
+→ libera Web Serial
+→ B3 restaura o firmware Stage canônico
+→ Arduino UNO reinicia
+→ Web Serial reconecta em 115200
+→ PING/PONG
+→ PERIPHERAL_STAGE_READY
+→ indicador verde
+→ comandos Stage disponíveis novamente
+
+A implementação do Monitor Serial não duplica nem substitui o StageFirmwareManager.
+
+Ela reutiliza o fluxo B3 consolidado.
+
+Validação automatizada
+
+Scratch GUI — Monitor Serial e UploadWorkspace:
+
+5 suites passed
+18 tests passed
+0 fail
+
+ESLint direcionado aos arquivos do Monitor Serial:
+
+0 errors
+32 warnings não bloqueantes
+
+Scratch VM — arduino-uno-upload.js:
+
+536 pass
+0 fail
+
+Scratch VM — virtual-machine-upload-serial-monitor.js:
+
+2 pass
+0 fail
+
+Scratch VM — virtual-machine-upload.js:
+
+69 pass
+0 fail
+
+Scratch VM — arduino-uno.js:
+
+536 pass
+0 fail
+
+git diff --check e git diff --cached --check:
+
+sem erros
+
+Validação física real do Monitor Serial
+
+A validação física foi concluída com sucesso em 01/09/2026.
+
+Primeiro fluxo validado:
+
+Arduino UNO
+→ Serial.begin(9600)
+→ Upload real via Arduino CLI
+→ reconexão Web Serial em 9600
+→ Monitor Serial conectado
+→ recepção de "Olá EasyBlox"
+→ UTF-8 correto
+→ botão Limpar funcionando
+→ novas mensagens continuam chegando
+→ retorno para Palco
+→ firmware Stage restaurado
+→ PING/PONG
+→ Stage operacional novamente
+
+Segundo fluxo validado:
+
+Arduino UNO
+→ sensor ultrassônico
+→ UltrasonicReadExpression
+→ tipo DECIMAL
+→ SerialWriteLine
+→ Serial.println(...)
+→ Upload real
+→ Monitor Serial
+→ valores reais de distância recebidos fisicamente
+
+Esse segundo teste confirmou que o Monitor Serial não está limitado a mensagens textuais e pode ser utilizado pedagogicamente para observar sensores, variáveis, cálculos e demais valores escalares do programa.
+
+Resultado:
+
+VALIDAÇÃO FÍSICA DO MONITOR SERIAL: APROVADA
+
+Estado técnico do checkpoint
+
+Commit:
+
+beac67f624 feat: add Arduino UNO Upload serial monitor
+
+14 arquivos
+1410 inserções
+31 remoções
+
+O commit foi enviado para:
+
+origin/feat/easyblox-arduino-uno-upload-mode
+
+Baseline funcional anterior preservado:
+
+b2fa3ac14b feat: restore Arduino Stage firmware automatically
+
+Limitações deliberadas desta versão
+
+O Monitor Serial atual é somente de saída.
+
+Entrada Serial digitada pelo usuário não faz parte deste checkpoint.
+
+Também não faz parte deste checkpoint transformar booleanos em textos pedagógicos verdadeiro/falso.
+
+A saída acumulada do Monitor ainda não possui política específica de truncamento/buffer limitado; isso pode ser tratado futuramente como refinamento de robustez da interface sem alterar o contrato de transporte.
+
+Baseline protegido após este checkpoint
+
+Não reabrir sem falha funcional concreta:
+
+- ownership Stage/Upload;
+- EasyBlox IR;
+- UploadProgramExtractor;
+- UploadContextValidator;
+- UploadTypeValidator, exceto extensão funcional deliberada do contrato;
+- UploadResourceValidator;
+- ArduinoUnoGenerator;
+- BuildService;
+- UploadService;
+- handoff Web Serial;
+- StageFirmwareProvider;
+- StageFirmwareManager;
+- restauração automática do firmware Stage;
+- modo STAGE × MONITOR;
+- obtenção semântica do baud pelo IR;
+- reconexão do Monitor Serial após Upload.
+
+Working tree deliberadamente não limpo
+
+Continua fora dos checkpoints e não deve ser restaurado, staged ou commitado sem autorização explícita:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+Também permanecem fora dos checkpoints:
+
+B1-1-review.diff
+packages/scratch-gui/test/unit/components/prompt.test.jsx
+packages/scratch-gui/test/unit/containers/prompt.test.jsx
+
+e os diversos resíduos/untracked de comandos já conhecidos.
+
+Continuam proibidos:
+
+git clean
+git add .
+
+Próximo passo
+
+O Monitor Serial de saída do Arduino UNO Upload deve ser considerado funcionalmente fechado neste checkpoint.
+
+O próximo lote deve seguir o planejamento vigente do Arduino UNO Upload Mode sem reabrir este fluxo, salvo falha concreta ou requisito novo explicitamente aprovado.

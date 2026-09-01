@@ -9145,3 +9145,360 @@ falha de upload
 placa desconectada
 
 Nunca expor stderr bruto do Arduino CLI diretamente ao aluno.
+
+
+### 19.165. Arduino UNO Upload — Monitor Serial funcional
+
+Em 01/09/2026 foi concluída a implementação funcional do Monitor Serial do Arduino UNO no Modo Carregar.
+
+Checkpoint publicado:
+
+`beac67f624 feat: add Arduino UNO Upload serial monitor`
+
+Esse checkpoint sucede:
+
+`b2fa3ac14b feat: restore Arduino Stage firmware automatically`
+
+e preserva as responsabilidades consolidadas de Build, Upload e restauração automática do firmware Stage.
+
+#### Princípio arquitetural
+
+O Monitor Serial não cria uma segunda conexão independente com a placa.
+
+A implementação reutiliza:
+
+```text
+ArduinoUnoPeripheral
+↓
+Serial
+↓
+WebSerialTransport
+↓
+Web Serial
+↓
+Arduino UNO
+
+O peripheral passa a operar explicitamente em dois modos:
+
+STAGE
+MONITOR
+
+No modo STAGE:
+
+baud fixo em 115200;
+parser Stage ativo;
+PING/PONG ativo;
+readiness baseada em PERIPHERAL_STAGE_READY.
+
+No modo MONITOR:
+
+baud definido pelo programa Upload enviado;
+parser Stage desativado;
+PING/PONG desativado;
+dados recebidos são tratados como saída bruta do sketch.
+
+A mesma porta não é aberta simultaneamente pelo navegador e pelo Arduino CLI.
+
+O handoff permanece obrigatório.
+
+Handoff após Upload
+
+O fluxo é:
+
+Web Serial conectado
+↓
+captura do peripheralId
+↓
+captura semântica da configuração Serial
+↓
+Web Serial desconecta
+↓
+Hardware Service
+↓
+UploadService
+↓
+Arduino CLI
+↓
+Arduino UNO
+↓
+upload concluído
+↓
+reboot/handoff
+↓
+Web Serial reconecta
+↓
+modo MONITOR
+
+A GUI não abre um transporte serial paralelo.
+
+O Hardware Service não ganhou uma ponte Serial própria para o Monitor.
+
+Fonte canônica do baud
+
+O baud não deve ser descoberto lendo ou analisando o C++ gerado.
+
+A fonte é o programa semântico validado pela Scratch VM.
+
+A API pública:
+
+vm.getArduinoUnoUploadSerialConfig()
+
+obtém a configuração a partir da EasyBlox IR.
+
+Exemplo:
+
+SerialBegin
+└── baud: 9600
+
+produz:
+
+{
+    baudRate: 9600
+}
+
+Essa configuração é capturada para o programa que será efetivamente enviado e o Monitor só é iniciado após Upload concluído com sucesso.
+
+Se não existir SerialBegin, o Monitor permanece indisponível para aquele programa.
+
+Eventos da VM
+
+Foram introduzidos os eventos:
+
+PERIPHERAL_SERIAL_MONITOR_READY
+PERIPHERAL_SERIAL_MONITOR_DATA
+
+A Runtime e a VirtualMachine também expõem operações específicas de conexão e consulta do estado do Monitor Serial.
+
+A GUI deve consumir essas APIs públicas, sem acessar internamente a implementação do ArduinoUnoPeripheral.
+
+UTF-8 incremental
+
+A saída do Monitor utiliza TextDecoder UTF-8 incremental.
+
+A opção de streaming é necessária porque caracteres UTF-8 podem ser divididos entre chunks diferentes recebidos pelo Web Serial.
+
+Isso foi validado fisicamente com:
+
+Olá EasyBlox
+
+sem corrupção dos caracteres acentuados.
+
+UploadWorkspace
+
+O painel inferior do UploadWorkspace passou a ser funcional.
+
+Ele apresenta:
+
+estado da conexão do Monitor;
+baud ativo;
+saída recebida;
+botão Limpar;
+área monoespaçada para os dados.
+
+Limpar deve limpar somente a apresentação já acumulada.
+
+Não deve:
+
+fechar a porta;
+reiniciar a placa;
+interromper a leitura;
+impedir que novas mensagens sejam exibidas.
+Tipos aceitos por SerialWrite e SerialWriteLine
+
+A validação inicial aceitava somente:
+
+TEXT
+
+para:
+
+SerialWrite
+SerialWriteLine
+
+Essa regra mostrou-se pedagogicamente insuficiente durante a validação física, porque o Monitor Serial deve permitir a observação de sensores, variáveis, cálculos e comparações.
+
+O contrato passou a aceitar os quatro tipos escalares canônicos:
+
+TEXT
+INTEGER
+DECIMAL
+BOOLEAN
+
+Essa mudança é localizada no UploadTypeValidator.
+
+Ela não significa remoção da tipagem ou adoção de coerção global silenciosa.
+
+O gerador continua simplesmente emitindo:
+
+Serial.print(<expressão>);
+Serial.println(<expressão>);
+
+e aproveita as sobrecargas nativas da API Serial do Arduino.
+
+Exemplo real:
+
+sensors_ultrasonicRead
+↓
+UltrasonicReadExpression
+↓
+DECIMAL
+↓
+SerialWriteLine
+↓
+Serial.println(...)
+
+A leitura ultrassônica foi validada fisicamente no Monitor Serial.
+
+Para BOOLEAN, a implementação atual preserva a representação nativa do Arduino, 1 ou 0.
+
+Uma eventual apresentação verdadeiro / falso deverá ser implementada explicitamente no futuro se houver decisão pedagógica nesse sentido.
+
+Retorno ao Modo Palco
+
+O Monitor Serial deve ser fechado antes da restauração do firmware Stage.
+
+O fluxo consolidado é:
+
+MONITOR
+↓
+Web Serial desconecta
+↓
+StageFirmwareManager
+↓
+BuildService / UploadService
+↓
+stage.ino
+↓
+Arduino UNO reinicia
+↓
+Web Serial abre em 115200
+↓
+PING/PONG
+↓
+PERIPHERAL_STAGE_READY
+↓
+STAGE
+
+O Monitor não substitui o mecanismo B3.
+
+Ele deve coexistir com ele e liberar a porta antes de qualquer restauração ou novo Upload.
+
+Validação automatizada
+
+Regressão principal da pipeline Upload:
+
+arduino-uno-upload.js
+536 pass
+0 fail
+
+API semântica do Monitor:
+
+virtual-machine-upload-serial-monitor.js
+2 pass
+0 fail
+
+Regressão da VirtualMachine Upload:
+
+virtual-machine-upload.js
+69 pass
+0 fail
+
+Arduino UNO / Serial / peripheral:
+
+arduino-uno.js
+536 pass
+0 fail
+
+Scratch GUI direcionada ao UploadWorkspace, workflow e Monitor Serial:
+
+5 suites passed
+18 tests passed
+0 fail
+
+ESLint focal:
+
+0 errors
+32 warnings não bloqueantes
+
+git diff --check e git diff --cached --check permaneceram sem erros.
+
+Validação física
+
+Foram executadas duas provas físicas principais.
+
+Primeira:
+
+Serial.begin(9600)
+↓
+Upload
+↓
+reconexão Web Serial em 9600
+↓
+Monitor Serial
+↓
+Olá EasyBlox
+
+Foram confirmados:
+
+baud correto;
+UTF-8 correto;
+botão Limpar;
+continuidade da recepção;
+retorno Carregar → Palco;
+restauração automática do firmware Stage;
+novo PING/PONG;
+retomada dos comandos Stage.
+
+Segunda:
+
+sensor ultrassônico
+↓
+UltrasonicReadExpression
+↓
+DECIMAL
+↓
+SerialWriteLine
+↓
+Serial.println(...)
+↓
+Monitor Serial
+
+Valores reais de distância foram observados fisicamente.
+
+Portanto o Monitor Serial não deve ser tratado como recurso exclusivo para textos literais.
+
+Limitações atuais deliberadas
+
+A primeira versão funcional do Monitor Serial é somente de saída.
+
+Não implementar entrada Serial como correção ou consequência implícita deste checkpoint.
+
+Entrada Serial deverá ser um requisito separado.
+
+Também permanece como refinamento futuro possível a adoção de limite/buffer para o histórico visual de saída.
+
+Regra para futuras alterações
+
+Preservar obrigatoriamente:
+
+EasyBlox IR como fonte semântica
+↓
+baud obtido do SerialBegin validado
+↓
+Upload conclui
+↓
+Web Serial reconecta
+↓
+modo MONITOR
+
+Não:
+
+analisar Serial.begin(...) no C++ por regex;
+abrir duas portas Web Serial;
+criar transporte paralelo na GUI;
+manter o parser Stage ativo durante Monitor;
+iniciar PING/PONG durante Monitor;
+permitir que o navegador e o Arduino CLI disputem a porta;
+alterar o baud Stage de 115200;
+converter números para texto nos blocos apenas para usar o Monitor.
+
+O checkpoint beac67f624 deve ser tratado como baseline funcional do Monitor Serial do Arduino UNO Upload.
