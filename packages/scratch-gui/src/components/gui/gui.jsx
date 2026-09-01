@@ -472,6 +472,9 @@ export const GUIComponent = props => {
 
     return (<MediaQuery minWidth={layout.fullSizeMinWidth}>{isFullSize => {
         const stageSize = resolveStageSize(stageSizeMode, isFullSize);
+        const selectedBoardDetails = selectedBoard ?
+            getBoardById(selectedBoard) :
+            null;
         const boxStyles = classNames(styles.bodyWrapper, {
             [styles.bodyWrapperWithoutMenuBar]: menuBarHidden
         });
@@ -780,12 +783,23 @@ export const GUIComponent = props => {
                         <Box
                             role="complementary"
                             aria-label={intl.formatMessage(ariaMessages.stageAndTarget)}
-                            className={classNames(styles.stageAndTargetWrapper, styles[stageSize])}
+                            className={classNames(
+                                styles.stageAndTargetWrapper,
+                                styles[stageSize],
+                                {
+                                    [styles.uploadMode]: programMode === 'upload'
+                                }
+                            )}
                             element="aside"
                         >
 
                             {programMode === 'upload' ? (
                                 <UploadWorkspace
+                                    boardName={
+                                        selectedBoardDetails ?
+                                            selectedBoardDetails.name :
+                                            null
+                                    }
                                     code={uploadPreviewCode}
                                     error={uploadPreviewError}
                                 />

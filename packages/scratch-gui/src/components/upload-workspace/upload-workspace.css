@@ -1,0 +1,420 @@
+@import "../../css/colors.css";
+@import "../../css/units.css";
+@import "../../css/easyblox-colors.css";
+
+.workspace {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: $space;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding-top: $space;
+    padding-bottom: $space;
+
+    color: $easyblox-graphite;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.preview-card {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+
+    overflow: hidden;
+
+    background: $easyblox-white;
+    border: 1px solid $ui-black-transparent;
+    border-radius: $space;
+}
+
+.preview-header {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+
+    min-height: 3rem;
+    padding: 0.625rem 0.875rem;
+
+    color: $easyblox-white;
+    background: $easyblox-graphite;
+    border-bottom: 0.1875rem solid $easyblox-yellow;
+}
+
+.preview-title {
+    margin: 0;
+
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.read-only-badge {
+    padding: 0.2rem 0.5rem;
+
+    color: $easyblox-white;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 1rem;
+
+    font-size: 0.6875rem;
+    font-weight: 600;
+}
+
+.preview-body {
+    position: relative;
+
+    display: flex;
+    flex: 1 1 auto;
+
+    min-width: 0;
+    min-height: 0;
+
+    overflow: hidden;
+
+    background: #1f1f1f;
+}
+
+.code-viewport {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: flex-start;
+
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    overflow: auto;
+
+    color: #f4f4f4;
+    background: #1f1f1f;
+
+    font-family: Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.line-numbers {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+
+    min-height: 100%;
+    margin: 0;
+    padding: 1rem 0.75rem;
+
+    list-style: none;
+
+    color: rgba(255, 255, 255, 0.42);
+    background: #242424;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+
+    user-select: none;
+}
+
+.line-number {
+    display: block;
+
+    min-width: 2rem;
+    height: 1.5rem;
+
+    font-size: 0.75rem;
+    line-height: 1.5rem;
+    text-align: right;
+}
+
+.code-pre {
+    flex: 1 0 auto;
+
+    min-width: 0;
+    margin: 0;
+    padding: 1rem;
+
+    color: inherit;
+    background: transparent;
+
+    font-family: inherit;
+    font-size: 0.8125rem;
+    line-height: 1.5rem;
+
+    tab-size: 4;
+    white-space: pre;
+
+    user-select: text;
+}
+
+.feedback-state {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+
+    padding: 2rem;
+    text-align: center;
+}
+
+.empty-message {
+    max-width: 19rem;
+    margin: 0;
+
+    color: rgba(255, 255, 255, 0.72);
+
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+.error-message {
+    max-width: 20rem;
+    margin: 0;
+    padding: 0.875rem 1rem;
+
+    color: $easyblox-graphite;
+    background: $ui-alert-orange;
+    border-radius: $space;
+
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.action-bar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+
+    min-height: 3.5rem;
+    padding: 0.625rem 0.75rem;
+
+    background: $easyblox-white;
+    border-top: 1px solid $ui-black-transparent-10;
+}
+
+.action-button {
+    min-height: 2.25rem;
+    padding: 0.45rem 0.8rem;
+
+    border: 1px solid $easyblox-graphite;
+    border-radius: 0.35rem;
+
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.action-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+}
+
+.secondary-action {
+    color: $easyblox-graphite;
+    background: $easyblox-white;
+}
+
+.secondary-action:not(:disabled):hover {
+    background: $ui-secondary;
+}
+
+.primary-action {
+    color: $easyblox-graphite;
+    background: $easyblox-yellow;
+    border-color: $easyblox-yellow;
+}
+
+.serial-monitor {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+
+    overflow: hidden;
+
+    background: $easyblox-white;
+    border: 1px solid $ui-black-transparent;
+    border-radius: $space;
+}
+
+.serial-monitor-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+
+    color: $easyblox-graphite;
+    background: $easyblox-white;
+    border: 0;
+
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: left;
+
+    cursor: pointer;
+}
+
+.serial-monitor-toggle:hover {
+    background: $ui-secondary;
+}
+
+.serial-monitor-indicator {
+    margin-left: 0.75rem;
+
+    font-size: 0.625rem;
+}
+
+.serial-monitor-region {
+    min-height: 5rem;
+    max-height: 10rem;
+    padding: 0.875rem;
+
+    overflow: auto;
+
+    color: rgba(255, 255, 255, 0.75);
+    background: $easyblox-graphite;
+    border-top: 1px solid $ui-black-transparent;
+}
+
+.serial-monitor-placeholder {
+    margin: 0;
+
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.raw-code-modal {
+    display: flex;
+    flex-direction: column;
+
+    width: calc(100% - 2rem);
+    max-width: 52rem;
+    height: 70vh;
+    max-height: 42rem;
+    margin: 1rem auto;
+
+    background: $easyblox-white;
+}
+
+.raw-code-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.75rem;
+
+    min-height: 0;
+    padding: 1rem;
+
+    background: $easyblox-white;
+}
+
+.raw-code-description {
+    flex: 0 0 auto;
+
+    margin: 0;
+
+    color: $easyblox-graphite;
+
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+.raw-code-textarea {
+    flex: 1 1 auto;
+
+    width: 100%;
+    min-height: 12rem;
+    padding: 0.875rem;
+
+    resize: none;
+    overflow: auto;
+
+    color: #f4f4f4;
+    background: #1f1f1f;
+    border: 1px solid $ui-black-transparent;
+    border-radius: 0.35rem;
+
+    font-family: Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+
+    tab-size: 4;
+    white-space: pre;
+
+    user-select: text;
+}
+
+.raw-code-textarea:focus {
+    border-color: $easyblox-yellow;
+    box-shadow: 0 0 0 0.125rem $easyblox-yellow-transparent;
+    outline: none;
+}
+
+.raw-code-actions {
+    display: flex;
+    flex: 0 0 auto;
+    justify-content: flex-end;
+}
+
+/*
+ * Prism tokens.
+ *
+ * As classes are emitted directly by Prism, these selectors must remain
+ * global instead of being renamed by CSS Modules.
+ */
+
+:global(.token.comment),
+:global(.token.prolog),
+:global(.token.doctype),
+:global(.token.cdata) {
+    color: #9aa0a6;
+}
+
+:global(.token.punctuation) {
+    color: #d8d8d8;
+}
+
+:global(.token.keyword),
+:global(.token.boolean),
+:global(.token.directive),
+:global(.token.important) {
+    color: $easyblox-yellow;
+}
+
+:global(.token.number) {
+    color: #f78c6c;
+}
+
+:global(.token.string),
+:global(.token.char) {
+    color: #c3e88d;
+}
+
+:global(.token.function) {
+    color: #82aaff;
+}
+
+:global(.token.operator) {
+    color: #89ddff;
+}
+
+:global(.token.class-name),
+:global(.token.constant) {
+    color: #ffcb6b;
+}
+
+:global(.token.macro),
+:global(.token.property) {
+    color: #c792ea;
+}

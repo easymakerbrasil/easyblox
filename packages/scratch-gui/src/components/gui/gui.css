@@ -224,6 +224,13 @@
     flex-basis: 0;
 }
 
+.stage-and-target-wrapper.upload-mode {
+    flex-basis: clamp(24rem, 34vw, 34rem);
+    flex-grow: 0;
+    flex-shrink: 0;
+    min-width: 24rem;
+}
+
 .target-wrapper {
     display: flex;
     flex-grow: 1;

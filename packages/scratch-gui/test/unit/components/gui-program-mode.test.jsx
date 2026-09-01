@@ -108,7 +108,10 @@ describe('GUI program mode propagation', () => {
             refreshWorkspace
         };
 
-        const {getByTestId} = renderWithIntl(
+        const {
+            getByRole,
+            getByTestId
+        } = renderWithIntl(
             <GUIComponent
                 colorMode="default"
                 setTheme={jest.fn()}
@@ -151,6 +154,15 @@ describe('GUI program mode propagation', () => {
 
         expect(getByTestId('blocks'))
             .toHaveAttribute('data-program-mode', 'upload');
+
+        expect(
+            getByRole(
+                'button',
+                {
+                    name: 'Enviar para Arduino UNO'
+                }
+            )
+        ).toBeDisabled();
 
         expect(setProgramContext)
             .toHaveBeenLastCalledWith(
