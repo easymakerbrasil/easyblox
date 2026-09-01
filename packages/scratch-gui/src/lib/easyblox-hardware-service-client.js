@@ -82,6 +82,20 @@ class EasyBloxHardwareServiceClient {
         );
     }
 
+    restoreStageFirmware ({
+        boardId,
+        portHint
+    }) {
+        return this._request(
+            '/v1/stage-firmware/restore',
+            'POST',
+            {
+                boardId,
+                portHint
+            }
+        );
+    }
+
     discard (buildId) {
         return this._request(
             `/v1/build/${encodeURIComponent(buildId)}`,

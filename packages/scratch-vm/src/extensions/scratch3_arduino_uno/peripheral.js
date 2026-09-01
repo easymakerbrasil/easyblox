@@ -938,7 +938,27 @@ class ArduinoUnoPeripheral {
                 this._scheduleHandshake(
                     STAGE_HANDSHAKE_RETRY_DELAY
                 );
+                return;
             }
+
+            this._handshakeTimer = setTimeout(() => {
+                this._handshakeTimer = null;
+
+                if (
+                    !this.isConnected() ||
+                    this._stageConnected
+                ) {
+                    return;
+                }
+
+                this._runtime.emit(
+                    this._runtime.constructor
+                        .PERIPHERAL_STAGE_HANDSHAKE_FAILED,
+                    {
+                        extensionId: EXTENSION_ID
+                    }
+                );
+            }, STAGE_HANDSHAKE_RETRY_DELAY);
         }, delay);
     }
 
@@ -967,6 +987,14 @@ class ArduinoUnoPeripheral {
                 clearTimeout(this._handshakeTimer);
                 this._handshakeTimer = null;
             }
+
+            this._runtime.emit(
+                this._runtime.constructor
+                    .PERIPHERAL_STAGE_READY,
+                {
+                    extensionId: EXTENSION_ID
+                }
+            );
 
             return;
         }

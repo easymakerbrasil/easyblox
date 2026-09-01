@@ -10240,3 +10240,426 @@ persistência;
 preservação visual Palco ↔ Carregar;
 
 salvo falha funcional concreta do novo fluxo físico exigir revisão.
+
+
+---
+
+## Checkpoint B2 — Build e Upload físico para Arduino UNO concluído
+
+O ciclo B2 foi concluído e validado na branch:
+
+`feat/easyblox-arduino-uno-upload-mode`
+
+A arquitetura física consolidada ficou:
+
+```text
+Scratch GUI
+→ Scratch VM
+→ EasyBlox Hardware Service
+→ BuildService
+→ UploadService
+→ Arduino CLI
+→ Arduino UNO
+
+O Arduino CLI continua sendo um executável externo não modificado. Componentes React e o ArduinoUnoGenerator não executam subprocessos diretamente.
+
+B2.1 — BuildService e ToolchainProvider
+
+Commit:
+
+75825da1b0 feat: add Arduino UNO native build service
+
+Foi criado o workspace privado:
+
+packages/easyblox-hardware-service
+
+Principais responsabilidades implementadas:
+
+ToolchainProvider resolve semanticamente arduino-uno;
+arduino-uno é traduzido internamente para arduino:avr:uno;
+core utilizado: arduino:avr;
+Arduino CLI executado com execFile/shell:false;
+BuildService cria sketch temporário isolado;
+compilação gera um artifact reutilizável;
+artifacts bem-sucedidos permanecem disponíveis até cleanup;
+falhas limpam o workspace temporário;
+stderr e caminhos nativos não são expostos diretamente ao aluno.
+
+Ambiente físico de desenvolvimento validado:
+
+Arduino CLI:
+C:\Program Files\Arduino IDE\resources\app\lib\backend\resources\arduino-cli.exe
+
+Versão:
+arduino-cli 1.5.1
+
+Core:
+arduino:avr 1.8.8
+B2.2 — PortDiscovery e UploadService
+
+Commit:
+
+15323001dc feat: add Arduino UNO native upload service
+
+Foram implementados:
+
+PortDiscovery;
+UploadService;
+resolução por endereço explícito;
+correlação por USB VID/PID;
+rejeição de ambiguidade quando mais de uma placa igual está conectada;
+upload de artifact já compilado, sem recompilação;
+tradução semântica de erros como porta ocupada e falha de sincronização do bootloader.
+
+Placa física utilizada durante a validação:
+
+Arduino UNO compatível
+USB VID: 1A86
+USB PID: 7523
+porta observada durante desenvolvimento: COM11
+
+O número da COM não é tratado como identidade permanente da placa.
+
+B2.3A — Handoff seguro do Web Serial
+
+Commit:
+
+75c7b53c13 feat: make Arduino serial handoff upload-safe
+
+O fluxo Web Serial passou a suportar:
+
+armazenamento de USB VID/PID;
+identificador opaco do periférico para reconexão;
+desconexão aguardável;
+fechamento seguro da porta;
+prevenção de deadlock durante encerramento;
+exposição controlada das informações de conexão pela VM.
+
+O fluxo de Upload pode, portanto:
+
+compilar enquanto Stage continua conectado
+→ liberar Web Serial
+→ Arduino CLI assume a porta
+→ gravar
+B2.3B — Hardware Service conectado à GUI
+
+Commit:
+
+8ff5b4e122 feat: connect Arduino Upload workspace to hardware service
+
+O EasyBlox Hardware Service passou a expor uma API HTTP local em:
+
+127.0.0.1:8602
+
+Endpoints principais do B2:
+
+POST   /v1/build
+POST   /v1/upload
+DELETE /v1/build/<id>
+GET    /v1/health
+
+Regras de segurança consolidadas:
+
+bind apenas em 127.0.0.1;
+origens permitidas limitadas ao EasyBlox local;
+header obrigatório X-EasyBlox-Client;
+POST somente com JSON;
+corpo máximo de 1 MiB;
+GUI conhece apenas boardId semântico;
+FQBN, caminhos nativos e stderr técnico não são expostos à interface do aluno.
+
+O fluxo pedagógico visível passou a utilizar estados equivalentes a:
+
+gerando código
+→ compilando
+→ preparando placa
+→ gravando
+→ concluído
+
+O botão principal do Modo Carregar usa o nome da placa:
+
+Enviar para Arduino UNO
+
+A validação física confirmou build e upload reais na Arduino UNO.
+
+Checkpoint B3 — restauração automática do firmware Stage do Arduino UNO
+
+O B3 implementa a recuperação automática do Modo Palco após qualquer programa enviado pelo Modo Carregar substituir o firmware Stage da placa.
+
+Problema resolvido:
+
+Modo Palco
+→ firmware Stage ativo
+→ usuário entra em Carregar
+→ programa C++ do aluno é gravado
+→ firmware Stage deixa de existir na placa
+→ usuário volta para Palco
+
+O EasyBlox agora detecta essa condição e restaura automaticamente o firmware oficial Stage.
+
+Firmware Stage canônico
+
+A única fonte oficial continua sendo:
+
+packages/scratch-vm/firmware/arduino-uno/stage/stage.ino
+
+Não existe cópia do firmware Stage na GUI nem no Hardware Service.
+
+O protocolo Stage permanece baseado em:
+
+Serial: 115200 baud
+PING:   0x01
+PONG:   0x81
+
+O indicador de conexão física não fica verde apenas porque a porta Web Serial abriu. Para Arduino UNO, o estado Stage só é considerado pronto depois do PONG válido.
+
+Eventos de readiness do Stage
+
+A extensão Arduino UNO passou a emitir:
+
+PERIPHERAL_STAGE_READY
+PERIPHERAL_STAGE_HANDSHAKE_FAILED
+
+Comportamento:
+
+após conexão física, há atraso inicial de 500 ms;
+são feitas tentativas periódicas de PING;
+máximo de 6 tentativas;
+após a última tentativa existe uma janela final para chegada do PONG;
+PONG válido marca Stage como pronto;
+esgotamento do handshake sinaliza que a placa está fisicamente acessível, porém sem firmware Stage compatível.
+
+A Runtime e a VirtualMachine propagam esses eventos e expõem consulta específica de readiness Stage.
+
+StageFirmwareProvider
+
+Novo arquivo:
+
+packages/easyblox-hardware-service/src/stage-firmware-provider.js
+
+Responsabilidades:
+
+localizar internamente o stage.ino canônico;
+carregar o firmware sem expor caminho à GUI;
+gerar uma versão determinística baseada no conteúdo;
+impedir que GUI forneça código ou caminho arbitrário para o firmware Stage.
+StageFirmwareManager
+
+Novo arquivo:
+
+packages/easyblox-hardware-service/src/stage-firmware-manager.js
+
+O manager reutiliza a infraestrutura já concluída no B2:
+
+StageFirmwareProvider
+→ BuildService
+→ UploadService
+→ Arduino CLI
+
+O firmware Stage compilado é mantido em cache no processo do Hardware Service usando:
+
+boardId + versão/hash do conteúdo
+
+Consequências:
+
+primeira restauração pode exigir compilação;
+restaurações seguintes reutilizam o artifact compilado;
+alteração do firmware canônico invalida o cache;
+artifacts Stage são limpos quando o servidor é encerrado.
+Endpoint de restauração
+
+Foi acrescentado:
+
+POST /v1/stage-firmware/restore
+
+A GUI envia apenas informações semânticas da placa e portHint.
+
+O Hardware Service resolve internamente:
+
+firmware canônico;
+toolchain;
+build;
+porta;
+upload.
+
+Nenhum artifact nativo, FQBN, caminho local ou stderr técnico é devolvido ao navegador.
+
+Workflow GUI de restauração Stage
+
+Novo arquivo:
+
+packages/scratch-gui/src/lib/easyblox-stage-firmware-workflow.js
+
+Fluxo consolidado:
+
+detectar necessidade de Stage
+→ preservar portHint e peripheralId
+→ liberar Web Serial quando necessário
+→ solicitar restauração ao Hardware Service
+→ aguardar reboot da placa
+→ reconectar Web Serial
+→ aguardar novo handshake PING/PONG
+→ marcar Stage como pronto
+
+Estados visuais principais:
+
+Preparando Modo Palco...
+→ Conectando...
+→ Conectado
+
+Durante restauração e reconexão o controle permanece em estado de trabalho amarelo. Verde significa Stage efetivamente pronto.
+
+Dois caminhos de recuperação suportados
+1. Retorno Carregar → Palco
+
+Após Upload bem-sucedido:
+
+programa do aluno gravado
+→ firmware Stage marcado como ausente/desatualizado
+→ usuário seleciona Palco
+→ restauração automática
+→ reconexão
+→ PING/PONG
+→ Stage pronto
+2. Conexão inicial com firmware desconhecido
+
+Se uma sessão nova conecta fisicamente à Arduino UNO que contém um sketch externo ou programa anterior:
+
+Web Serial abre
+→ indicador permanece em conexão
+→ handshake Stage esgota
+→ EasyBlox restaura firmware Stage
+→ reconecta Web Serial
+→ PING/PONG
+→ indicador verde
+
+Importante:
+
+se a porta física não puder ser aberta, a placa estiver ausente ou o usuário não conceder acesso ao Web Serial, o EasyBlox não presume que o firmware Stage está ausente e não inicia gravação automática.
+
+Validação automatizada final do B3
+
+Scratch VM Arduino UNO:
+
+517 pass
+0 fail
+
+Hardware Service:
+
+23 pass
+0 fail
+
+Scratch GUI — regressão B3:
+
+9 suites passed
+28 tests passed
+0 fail
+
+ESLint direcionado aos arquivos B3:
+
+0 errors
+31 warnings não bloqueantes
+
+git diff --check e git diff --cached --check:
+
+sem erros
+Validação física real do B3
+
+A validação física completa foi concluída com sucesso em 01/09/2026.
+
+Fluxo testado:
+
+Arduino UNO em Modo Palco
+→ conexão Web Serial
+→ PING/PONG válido
+→ comandos Stage físicos funcionando
+→ entrada em Modo Carregar
+→ compilação do programa
+→ liberação do Web Serial
+→ upload via Arduino CLI
+→ programa do aluno executando fisicamente na UNO
+→ retorno para Palco
+→ "Preparando Modo Palco..."
+→ restauração automática do stage.ino
+→ reboot
+→ reconexão Web Serial
+→ novo PING/PONG
+→ indicador verde
+→ comandos Stage físicos funcionando novamente
+
+O teste utilizou o LED onboard em D13 para confirmar não apenas o PONG, mas também a retomada efetiva da comunicação e dos comandos Stage após a restauração.
+
+Resultado:
+
+VALIDAÇÃO FÍSICA B3: APROVADA
+Estado técnico ao fechar o B3
+
+Arquivos funcionais do B3:
+
+17 arquivos
+1988 inserções
+9 remoções
+
+O Hardware Service continua sendo o único responsável por build/upload nativo.
+
+A arquitetura final desta etapa é:
+
+Scratch GUI
+→ Scratch VM
+→ EasyBlox Hardware Service
+   → StageFirmwareProvider
+   → StageFirmwareManager
+      → BuildService
+      → UploadService
+         → Arduino CLI
+            → Arduino UNO
+
+Após a gravação:
+
+Arduino UNO
+→ Web Serial
+→ Scratch VM
+→ handshake Stage
+→ Scratch GUI
+
+O Monitor Serial do Modo Carregar continua apenas como placeholder estrutural e não faz parte do B3.
+
+Working tree deliberadamente não limpo
+
+Continua fora dos checkpoints e não deve ser restaurado, staged ou commitado sem autorização explícita:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+Também permanecem fora dos checkpoints:
+
+B1-1-review.diff
+packages/scratch-gui/test/unit/components/prompt.test.jsx
+packages/scratch-gui/test/unit/containers/prompt.test.jsx
+
+e os diversos resíduos/untracked de comandos já conhecidos.
+
+Continuam proibidos:
+
+git clean
+git add .
+Próximo passo
+
+Após o commit e push deste checkpoint B3, seguir para o próximo lote funcional do Arduino UNO Upload Mode conforme o planejamento vigente.
+
+Não reabrir sem falha funcional concreta:
+
+ownership Stage/Upload;
+EasyBlox IR;
+Extractor;
+Type Validator;
+Context Validator;
+Resource Validator;
+Variáveis;
+Meus Blocos;
+Listas;
+persistência;
+preservação visual Palco ↔ Carregar;
+arquitetura BuildService/UploadService;
+handoff Web Serial;
+StageFirmwareProvider;
+StageFirmwareManager.

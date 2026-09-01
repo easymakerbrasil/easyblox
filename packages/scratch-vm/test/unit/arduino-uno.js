@@ -40,6 +40,9 @@ MockRuntime.PERIPHERAL_DISCONNECTED = 'PERIPHERAL_DISCONNECTED';
 MockRuntime.PERIPHERAL_REQUEST_ERROR = 'PERIPHERAL_REQUEST_ERROR';
 MockRuntime.PERIPHERAL_SCAN_TIMEOUT = 'PERIPHERAL_SCAN_TIMEOUT';
 MockRuntime.PERIPHERAL_CONNECTION_LOST_ERROR = 'PERIPHERAL_CONNECTION_LOST_ERROR';
+MockRuntime.PERIPHERAL_STAGE_READY = 'PERIPHERAL_STAGE_READY';
+MockRuntime.PERIPHERAL_STAGE_HANDSHAKE_FAILED =
+    'PERIPHERAL_STAGE_HANDSHAKE_FAILED';
 
 const flushPromises = () =>
     new Promise(resolve => setImmediate(resolve));
@@ -263,6 +266,21 @@ tap.test('Arduino UNO completes the Stage handshake with PING and PONG', async t
     );
 
     t.equal(peripheral.isStageConnected(), true);
+    const stageReadyEvent =
+        runtime.events.find(
+            event =>
+                event.event ===
+                MockRuntime.PERIPHERAL_STAGE_READY
+        );
+
+    t.ok(stageReadyEvent);
+
+    t.same(
+        stageReadyEvent.data,
+        {
+            extensionId: 'arduinoUno'
+        }
+    );
 });
 
 tap.test('Arduino UNO retries the Stage handshake until PONG is received', async t => {
@@ -317,6 +335,84 @@ tap.test('Arduino UNO retries the Stage handshake until PONG is received', async
     await new Promise(resolve => setTimeout(resolve, 550));
 
     t.equal(writtenFrames.length, 2);
+});
+
+tap.test('Arduino UNO reports when the Stage handshake is exhausted without PONG', async t => {
+    const writtenFrames = [];
+
+    const transport = {
+        open: async () => {},
+
+        write: async data => {
+            writtenFrames.push(data);
+        }
+    };
+
+    const runtime =
+        new MockRuntime(transport);
+
+    const peripheral =
+        new ArduinoUnoPeripheral(runtime);
+
+    peripheral.connect('COM3');
+
+    await new Promise(
+        resolve =>
+            setTimeout(resolve, 3600)
+    );
+
+    t.equal(
+        peripheral.isConnected(),
+        true
+    );
+
+    t.equal(
+        peripheral.isStageConnected(),
+        false
+    );
+
+    t.equal(
+        writtenFrames.length,
+        6
+    );
+
+    for (const frame of writtenFrames) {
+        t.equal(
+            frame[4],
+            COMMANDS.PING
+        );
+    }
+
+    const handshakeFailedEvents =
+        runtime.events.filter(
+            event =>
+                event.event ===
+                MockRuntime
+                    .PERIPHERAL_STAGE_HANDSHAKE_FAILED
+        );
+
+    t.equal(
+        handshakeFailedEvents.length,
+        1
+    );
+
+    t.same(
+        handshakeFailedEvents[0].data,
+        {
+            extensionId: 'arduinoUno'
+        }
+    );
+
+    t.equal(
+        runtime.events.some(
+            event =>
+                event.event ===
+                MockRuntime.PERIPHERAL_STAGE_READY
+        ),
+        false
+    );
+
+    await peripheral.disconnect();
 });
 
 tap.test('Arduino UNO sends DIGITAL_WRITE after the Stage handshake', async t => {

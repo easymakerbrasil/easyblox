@@ -684,6 +684,23 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Event emitted when a peripheral completes its EasyBlox Stage handshake.
+     * @returns {string} Event name.
+     */
+    static get PERIPHERAL_STAGE_READY () {
+        return 'PERIPHERAL_STAGE_READY';
+    }
+
+    /**
+     * Event emitted when the physical peripheral is available but the
+     * EasyBlox Stage handshake cannot be completed.
+     * @returns {string} Event name.
+     */
+    static get PERIPHERAL_STAGE_HANDSHAKE_FAILED () {
+        return 'PERIPHERAL_STAGE_HANDSHAKE_FAILED';
+    }
+
+    /**
      * Event name for reporting that a peripheral has encountered a request error.
      * This causes the peripheral connection modal to switch to an error state.
      * @constant {string}
@@ -1819,6 +1836,31 @@ class Runtime extends EventEmitter {
             isConnected = this.peripheralExtensions[extensionId].isConnected();
         }
         return isConnected;
+    }
+
+    /**
+     * Returns whether the peripheral completed its EasyBlox Stage handshake.
+     * Extensions without a dedicated Stage handshake fall back to their
+     * physical connection state.
+     * @param {string} extensionId Extension id.
+     * @returns {boolean} Whether the peripheral is ready for Stage mode.
+     */
+    getPeripheralIsStageConnected (extensionId) {
+        const extension =
+            this.peripheralExtensions[extensionId];
+
+        if (!extension) {
+            return false;
+        }
+
+        if (
+            typeof extension.isStageConnected ===
+            'function'
+        ) {
+            return extension.isStageConnected();
+        }
+
+        return extension.isConnected();
     }
 
     /**

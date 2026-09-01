@@ -153,6 +153,23 @@ class VirtualMachine extends EventEmitter {
         this.runtime.on(Runtime.PERIPHERAL_DISCONNECTED, () =>
             this.emit(Runtime.PERIPHERAL_DISCONNECTED)
         );
+        this.runtime.on(
+            Runtime.PERIPHERAL_STAGE_READY,
+            data =>
+                this.emit(
+                    Runtime.PERIPHERAL_STAGE_READY,
+                    data
+                )
+        );
+
+        this.runtime.on(
+            Runtime.PERIPHERAL_STAGE_HANDSHAKE_FAILED,
+            data =>
+                this.emit(
+                    Runtime.PERIPHERAL_STAGE_HANDSHAKE_FAILED,
+                    data
+                )
+        );
         this.runtime.on(Runtime.PERIPHERAL_CONNECTION_LOST_ERROR, data =>
             this.emit(Runtime.PERIPHERAL_CONNECTION_LOST_ERROR, data)
         );
@@ -320,6 +337,17 @@ class VirtualMachine extends EventEmitter {
      */
     getPeripheralIsConnected (extensionId) {
         return this.runtime.getPeripheralIsConnected(extensionId);
+    }
+
+    /**
+     * Returns whether the extension's peripheral is ready for EasyBlox Stage mode.
+     * @param {string} extensionId Extension id.
+     * @returns {boolean} Whether the Stage handshake completed.
+     */
+    getPeripheralIsStageConnected (extensionId) {
+        return this.runtime.getPeripheralIsStageConnected(
+            extensionId
+        );
     }
 
     /**

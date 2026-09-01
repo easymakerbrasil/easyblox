@@ -10,6 +10,7 @@ const CONNECTION_LABELS = {
     connecting: 'Conectando...',
     connected: 'Desconectar placa',
     uploading: 'Enviando programa...',
+    restoring: 'Preparando Modo Palco...',
     error: 'Erro de conexão. Tentar novamente'
 };
 
@@ -38,7 +39,8 @@ const HardwareControls = ({
     const connectionLabel = CONNECTION_LABELS[connectionState];
 
     const connectionVisualState =
-        connectionState === 'uploading' ?
+        connectionState === 'uploading' ||
+        connectionState === 'restoring' ?
             'connecting' :
             connectionState;
 
@@ -59,7 +61,8 @@ const HardwareControls = ({
 
         if (
             connectionState !== 'connecting' &&
-            connectionState !== 'uploading'
+            connectionState !== 'uploading' &&
+            connectionState !== 'restoring'
         ) {
             onConnect();
         }
@@ -85,7 +88,8 @@ const HardwareControls = ({
                 className={`${styles.connectionButton} ${styles[connectionVisualState]}`}
                 disabled={
                     connectionState === 'connecting' ||
-                    connectionState === 'uploading'
+                    connectionState === 'uploading' ||
+                    connectionState === 'restoring'
                 }
                 onClick={handleConnectionClick}
                 ref={connectionButtonRef}
@@ -124,7 +128,8 @@ HardwareControls.propTypes = {
         'connecting',
         'connected',
         'uploading',
-        'error'
+        'error',
+        'restoring'
     ]),
     onConnect: PropTypes.func,
     onDisconnect: PropTypes.func,

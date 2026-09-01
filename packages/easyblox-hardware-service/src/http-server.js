@@ -4,6 +4,8 @@ const {randomUUID} = require('node:crypto');
 const BuildService = require('./build-service');
 const HardwareServiceError = require('./hardware-service-error');
 const UploadService = require('./upload-service');
+const StageFirmwareManager =
+    require('./stage-firmware-manager');
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8602;
@@ -68,6 +70,15 @@ class HardwareHttpServer {
         this._uploadService =
             options.uploadService ||
             new UploadService();
+
+        this._stageFirmwareManager =
+            options.stageFirmwareManager ||
+            new StageFirmwareManager({
+                buildService:
+                    this._buildService,
+                uploadService:
+                    this._uploadService
+            });
 
         this._builds = new Map();
 
@@ -151,6 +162,9 @@ class HardwareHttpServer {
                     )
             )
         );
+
+        await this._stageFirmwareManager
+            .cleanup();
 
         if (!this._server.listening) {
             return;
@@ -246,6 +260,19 @@ class HardwareHttpServer {
             url.pathname === '/v1/build'
         ) {
             await this._handleBuild(
+                request,
+                response
+            );
+
+            return;
+        }
+
+        if (
+            request.method === 'POST' &&
+            url.pathname ===
+                '/v1/stage-firmware/restore'
+        ) {
+            await this._handleStageFirmwareRestore(
                 request,
                 response
             );
@@ -408,6 +435,36 @@ class HardwareHttpServer {
                 body.buildId
             );
         }
+
+        this._sendJson(
+            response,
+            200,
+            {
+                ok: true,
+                ...result
+            }
+        );
+    }
+
+    async _handleStageFirmwareRestore (
+        request,
+        response
+    ) {
+        const body =
+            await this._readJson(
+                request
+            );
+
+        const result =
+            await this._stageFirmwareManager
+                .restore({
+                    boardId:
+                        body &&
+                        body.boardId,
+                    portHint:
+                        body &&
+                        body.portHint
+                });
 
         this._sendJson(
             response,

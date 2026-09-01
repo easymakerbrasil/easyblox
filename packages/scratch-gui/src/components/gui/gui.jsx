@@ -35,6 +35,7 @@ import BoardSelectionModal from '../board-selection-modal/board-selection-modal.
 import UploadWorkspace from '../upload-workspace/upload-workspace.jsx';
 import EasyBloxHardwareServiceClient from '../../lib/easyblox-hardware-service-client';
 import {runEasyBloxUpload} from '../../lib/easyblox-upload-workflow';
+import {runEasyBloxStageFirmwareRestore} from '../../lib/easyblox-stage-firmware-workflow';
 import {
     resolveUploadConnectionState,
     shouldIgnorePeripheralDisconnected
@@ -145,6 +146,15 @@ export const GUIComponent = props => {
     const uploadOutputEntryIdRef = React.useRef(0);
 
     const uploadOwnsSerialHandoffRef =
+        React.useRef(false);
+
+    const stagePeripheralIdRef =
+        React.useRef(null);
+
+    const stageRestoreInFlightRef =
+        React.useRef(false);
+
+    const stageFirmwareNeedsRestoreRef =
         React.useRef(false);
 
     useEffect(() => {
@@ -375,20 +385,84 @@ export const GUIComponent = props => {
         }
 
         const updateConnectionState = () => {
-            setConnectionState(
-                vm.getPeripheralIsConnected(extensionId) ?
-                    'connected' :
+            const physicallyConnected =
+                vm.getPeripheralIsConnected(
+                    extensionId
+                );
+
+            if (!physicallyConnected) {
+                setConnectionState(
                     'disconnected'
+                );
+                return;
+            }
+
+            if (
+                extensionId ===
+                'arduinoUno'
+            ) {
+                const stageConnected =
+                    typeof vm
+                        .getPeripheralIsStageConnected ===
+                        'function' &&
+                    vm.getPeripheralIsStageConnected(
+                        extensionId
+                    );
+
+                setConnectionState(
+                    stageConnected ?
+                        'connected' :
+                        'connecting'
+                );
+                return;
+            }
+
+            setConnectionState(
+                'connected'
             );
         };
 
         const handlePeripheralConnected = () => {
-            uploadOwnsSerialHandoffRef.current = false;
+            const connectionInfo =
+                typeof vm
+                    .getPeripheralConnectionInfo ===
+                    'function' ?
+                    vm.getPeripheralConnectionInfo(
+                        extensionId
+                    ) :
+                    null;
+
+            if (
+                connectionInfo &&
+                connectionInfo.peripheralId
+            ) {
+                stagePeripheralIdRef.current =
+                    connectionInfo.peripheralId;
+            }
+
+            uploadOwnsSerialHandoffRef.current =
+                false;
+
             updateConnectionState();
         };
 
+        const handlePeripheralStageReady =
+            data => {
+                if (
+                    data &&
+                    data.extensionId &&
+                    data.extensionId !==
+                        extensionId
+                ) {
+                    return;
+                }
+
+                updateConnectionState();
+            };
+
         const handlePeripheralDisconnected = () => {
             if (
+                stageRestoreInFlightRef.current ||
                 shouldIgnorePeripheralDisconnected(
                     uploadStateRef.current,
                     uploadOwnsSerialHandoffRef.current
@@ -411,6 +485,10 @@ export const GUIComponent = props => {
             handlePeripheralConnected
         );
         vm.on(
+            'PERIPHERAL_STAGE_READY',
+            handlePeripheralStageReady
+        );
+        vm.on(
             'PERIPHERAL_DISCONNECTED',
             handlePeripheralDisconnected
         );
@@ -423,6 +501,10 @@ export const GUIComponent = props => {
             vm.removeListener(
                 'PERIPHERAL_CONNECTED',
                 handlePeripheralConnected
+            );
+            vm.removeListener(
+                'PERIPHERAL_STAGE_READY',
+                handlePeripheralStageReady
             );
             vm.removeListener(
                 'PERIPHERAL_DISCONNECTED',
@@ -504,6 +586,10 @@ export const GUIComponent = props => {
                                 uploadOwnsSerialHandoffRef.current = true;
                             }
 
+                            if (status.state === 'success') {
+                                stageFirmwareNeedsRestoreRef.current = true;
+                            }
+
                             setUploadState(
                                 status.state
                             );
@@ -548,6 +634,162 @@ export const GUIComponent = props => {
         uploadPreviewCode,
         vm
     ]);
+    const handleStageFirmwareRestore =
+        useCallback(async () => {
+            if (
+                stageRestoreInFlightRef.current
+            ) {
+                return;
+            }
+
+            const board =
+                selectedBoard ?
+                    getBoardById(
+                        selectedBoard
+                    ) :
+                    null;
+
+            if (
+                !board ||
+                board.extensionId !==
+                    'arduinoUno'
+            ) {
+                return;
+            }
+
+            stageRestoreInFlightRef.current =
+                true;
+
+            try {
+                const restoreResult =
+                    await runEasyBloxStageFirmwareRestore({
+                        vm,
+                        board,
+                        boardId:
+                            selectedBoard,
+                        cachedPortHint:
+                            uploadPortHint,
+                        peripheralId:
+                            stagePeripheralIdRef.current,
+                        client:
+                            easybloxHardwareServiceClient,
+                        onStatus:
+                            status => {
+                                switch (
+                                    status.state
+                                ) {
+                                case 'restoring-stage':
+                                    setConnectionState(
+                                        'restoring'
+                                    );
+                                    break;
+
+                                case 'reconnecting-stage':
+                                    setConnectionState(
+                                        'connecting'
+                                    );
+                                    break;
+
+                                case 'stage-ready':
+                                    setConnectionState(
+                                        'connected'
+                                    );
+                                    break;
+
+                                case 'error':
+                                    setConnectionState(
+                                        'error'
+                                    );
+                                    break;
+
+                                default:
+                                    break;
+                                }
+                            }
+                    });
+
+                setUploadPortHint(
+                    restoreResult.portHint
+                );
+
+                stagePeripheralIdRef.current =
+                    restoreResult.peripheralId;
+
+                stageFirmwareNeedsRestoreRef.current =
+                    false;
+            } catch (error) {
+                setConnectionState(
+                    'error'
+                );
+            } finally {
+                stageRestoreInFlightRef.current =
+                    false;
+            }
+        }, [
+            selectedBoard,
+            uploadPortHint,
+            vm
+        ]);
+
+    useEffect(() => {
+        const board =
+            selectedBoard ?
+                getBoardById(
+                    selectedBoard
+                ) :
+                null;
+
+        if (
+            !board ||
+            board.extensionId !==
+                'arduinoUno'
+        ) {
+            return;
+        }
+
+        const handleStageHandshakeFailed =
+            data => {
+                if (
+                    data &&
+                    data.extensionId &&
+                    data.extensionId !==
+                        board.extensionId
+                ) {
+                    return;
+                }
+
+                handleStageFirmwareRestore();
+            };
+
+        vm.on(
+            'PERIPHERAL_STAGE_HANDSHAKE_FAILED',
+            handleStageHandshakeFailed
+        );
+
+        return () => {
+            vm.removeListener(
+                'PERIPHERAL_STAGE_HANDSHAKE_FAILED',
+                handleStageHandshakeFailed
+            );
+        };
+    }, [
+        handleStageFirmwareRestore,
+        selectedBoard,
+        vm
+    ]);
+
+    useEffect(() => {
+        if (
+            programMode === 'stage' &&
+            stageFirmwareNeedsRestoreRef.current
+        ) {
+            handleStageFirmwareRestore();
+        }
+    }, [
+        handleStageFirmwareRestore,
+        programMode
+    ]);
+
     const handleRemoveBoard = useCallback(() => {
         const board = selectedBoard ?
             getBoardById(selectedBoard) :
