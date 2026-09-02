@@ -101,7 +101,7 @@ const LanguageMenu = ({
             </button>
             <Submenu
                 className={stylesLanguageMenu.languageSubmenu}
-                place={isRtl ? 'left' : 'right'}
+                place={isRtl ? 'right' : 'left'}
             >
                 {
                     EASYBLOX_LOCALES

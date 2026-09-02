@@ -65,11 +65,11 @@
 }
 
 .expand-caret {
-    transform: rotate(-90deg);
+    transform: rotate(90deg);
 }
 
 [dir="rtl"] .expand-caret {
-    transform: rotate(90deg);
+    transform: rotate(-90deg);
 }
 
 @media only screen and (max-width: 1024px) {

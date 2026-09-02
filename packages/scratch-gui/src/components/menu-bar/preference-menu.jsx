@@ -101,7 +101,7 @@ const PreferenceMenu = ({
                 />
             </button>
             <Submenu
-                place={isRtl ? 'left' : 'right'}
+                place={isRtl ? 'right' : 'left'}
                 className={styles.preferenceSubmenu}
                 menuClassName={styles.menu}
             >

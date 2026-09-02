@@ -13,11 +13,8 @@ import VM from '@scratch/scratch-vm';
 import Box from '../box/box.jsx';
 import Button from '../button/button.jsx';
 import {ComingSoonTooltip} from '../coming-soon/coming-soon.jsx';
-import Divider from '../divider/divider.jsx';
-import SaveStatus from './save-status.jsx';
 import ProjectTitleInput from './project-title-input.jsx';
 import AuthorInfo from './author-info.jsx';
-import LoginDropdown from './login-dropdown.jsx';
 import MenuBarHOC from '../../containers/menu-bar-hoc.jsx';
 import SettingsMenu from './settings-menu.jsx';
 import FileMenu from './file-menu.jsx';
@@ -56,9 +53,7 @@ import {PLATFORM} from '../../lib/platform';
 
 import styles from './menu-bar.css';
 
-import profileIcon from './icon--profile.png';
 import remixIcon from './icon--remix.svg';
-import dropdownCaret from './dropdown-caret.svg';
 
 import scratchLogo from './easyblox-logo.svg';
 import scratchLogoAndroid from './easyblox-logo-android.svg';
@@ -70,7 +65,6 @@ import oldtimeyLogo from './oldtimey-logo.svg';
 import sharedMessages from '../../lib/shared-messages';
 
 import {AccountMenuOptionsPropTypes} from '../../lib/account-menu-options';
-import AccountMenu from './account-menu.jsx';
 
 const ariaMessages = defineMessages({
     tutorials: {
@@ -360,8 +354,6 @@ class MenuBar extends React.Component {
             </Button>
         );
 
-        const menuOpts = this.props.accountMenuOptions;
-
         return (
             <Box
                 className={classNames(
@@ -414,6 +406,20 @@ class MenuBar extends React.Component {
                         isRtl={this.props.isRtl}
                         depth={1}
                     />)}
+
+                    {this.props.canRemix ? (
+                        <div className={classNames(styles.menuBarItem)}>
+                            {remixButton}
+                        </div>
+                    ) : null}
+
+                    {this.props.onClickAbout && (
+                        <AboutMenu
+                            onClick={this.props.onClickAbout}
+                            isRtl={this.props.isRtl}
+                            depth={1}
+                        />
+                    )}
                 </div>
                 <div className={styles.projectControlsGroup}>
                     {this.props.canEditTitle ? (
@@ -461,154 +467,46 @@ class MenuBar extends React.Component {
                     </button>
                 </div>
 
-                {this.props.canRemix ? (
-                    <div className={classNames(styles.menuBarItem)}>
-                        {remixButton}
-                    </div>
-                ) : null}
+                               <div className={styles.rightControlsGroup}>
+                    <div className={styles.hardwareControlGroup}>
+                        <HardwareControls
+                            connectionState={this.props.connectionState}
+                            selectedBoard={this.props.selectedBoard}
+                            onSelectBoard={this.props.onSelectBoard}
+                            onConnect={this.props.onConnect}
+                            onDisconnect={this.props.onDisconnect}
+                        />
 
-                <Divider className={classNames(styles.divider)} />
+                        <span className={styles.hardwareControlLabel}>
+                            Modo
+                        </span>
 
-                <div className={styles.hardwareControlGroup}>
-                    <HardwareControls
-                        connectionState={this.props.connectionState}
-                        selectedBoard={this.props.selectedBoard}
-                        onSelectBoard={this.props.onSelectBoard}
-                        onConnect={this.props.onConnect}
-                        onDisconnect={this.props.onDisconnect}
-                    />
-
-                    <span className={styles.hardwareControlLabel}>
-                        Modo
-                    </span>
-
-                    <ProgramModeSelector
-                        mode={this.props.programMode}
-                        onModeChange={this.props.onProgramModeChange}
-                    />
-                </div>
-
-                {/* show the proper UI in the account menu, given whether the user is
-                logged in, and whether a session is available to log in with */}
-                <div className={styles.accountInfoGroup}>
-                    <div className={styles.menuBarItem}>
-                        {this.props.canSave && (
-                            <SaveStatus className={classNames(styles.hoverable, styles.menuBarItem)} />
-                        )}
-                    {(this.props.canChangeColorMode || this.props.canChangeLanguage || this.props.canChangeTheme) &&
-                    (<SettingsMenu
-                        canChangeLanguage={this.props.canChangeLanguage}
-                        canChangeColorMode={this.props.canChangeColorMode}
-                        canChangeTheme={this.props.canChangeTheme}
-                        hasActiveMembership={this.props.hasActiveMembership}
-                        isRtl={this.props.isRtl}
-                        depth={1}
-                    />)}
+                        <ProgramModeSelector
+                            mode={this.props.programMode}
+                            onModeChange={this.props.onProgramModeChange}
+                        />
                     </div>
 
-                    {menuOpts.canHaveSession ? (
-                        this.props.username ? (
-                            // ************ user is logged in ************
-                            <React.Fragment>
-
-                                <AccountMenu
-                                    menuOpts={menuOpts}
-                                    username={this.props.username}
-                                    isRtl={this.props.isRtl}
-                                    onLogOut={this.props.onLogOut}
-                                    avatarBadge={this.props.avatarBadge}
-                                    depth={1}
-                                />
-                            </React.Fragment>
-                        ) : (
-                            // ********* user not logged in, but a session exists
-                            // ********* so they can choose to log in
-                            <React.Fragment>
-                                {menuOpts.canRegister ? (
-                                    <button
-                                        className={classNames(
-                                            styles.menuBarItem,
-                                            styles.hoverable
-                                        )}
-                                        key="join"
-                                        onClick={this.props.onOpenRegistration}
-                                    >
-                                        <FormattedMessage
-                                            defaultMessage="Join Scratch"
-                                            description="Link for creating a Scratch account"
-                                            id="gui.menuBar.joinScratch"
-                                        />
-                                    </button>
-                                ) : null}
-
-                                {menuOpts.canLogin ? (
-                                    <button
-                                        className={classNames(
-                                            styles.menuBarItem,
-                                            styles.hoverable
-                                        )}
-                                        key="login"
-                                        onMouseUp={this.props.onClickLogin}
-                                        onClick={this.props.onClickLogin}
-                                    >
-                                        <FormattedMessage
-                                            defaultMessage="Sign in"
-                                            description="Link for signing in to your Scratch account"
-                                            id="gui.menuBar.signIn"
-                                        />
-                                        <LoginDropdown
-                                            className={classNames(styles.menuBarMenu)}
-                                            isOpen={this.props.loginMenuOpen}
-                                            isRtl={this.props.isRtl}
-                                            renderLogin={this.props.renderLogin}
-                                            onClose={this.props.onRequestCloseLogin}
-                                        />
-                                    </button>
-                                ) : null}
-                            </React.Fragment>
-                        )
-                    ) : (
-                        // ******** no login session is available, so don't show login stuff
-                        <React.Fragment>
-                            {this.props.showComingSoon ? (
-                                <React.Fragment>
-                                    <MenuBarItemTooltip
-                                        id="account-nav"
-                                        place={this.props.isRtl ? 'right' : 'left'}
-                                    >
-                                        <div
-                                            className={classNames(
-                                                styles.menuBarItem,
-                                                styles.hoverable,
-                                                styles.accountNavMenu
-                                            )}
-                                        >
-                                            <img
-                                                className={styles.profileIcon}
-                                                src={profileIcon}
-                                            />
-                                            <span>
-                                                {'scratch-cat'}
-                                            </span>
-                                            <img
-                                                className={styles.dropdownCaretIcon}
-                                                src={dropdownCaret}
-                                            />
-                                        </div>
-                                    </MenuBarItemTooltip>
-                                </React.Fragment>
-                            ) : []}
-                        </React.Fragment>
+                    {(this.props.canChangeColorMode ||
+                        this.props.canChangeLanguage ||
+                        this.props.canChangeTheme) && (
+                        <div
+                            className={classNames(
+                                styles.menuBarItem,
+                                styles.settingsControl
+                            )}
+                        >
+                            <SettingsMenu
+                                canChangeLanguage={this.props.canChangeLanguage}
+                                canChangeColorMode={this.props.canChangeColorMode}
+                                canChangeTheme={this.props.canChangeTheme}
+                                hasActiveMembership={this.props.hasActiveMembership}
+                                isRtl={this.props.isRtl}
+                                depth={1}
+                            />
+                        </div>
                     )}
                 </div>
-
-                {this.props.onClickAbout && (
-                    <AboutMenu
-                        onClick={this.props.onClickAbout}
-                        isRtl={this.props.isRtl}
-                        depth={1}
-                    />
-                )}
             </Box>
         );
     }
