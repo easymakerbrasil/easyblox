@@ -132,6 +132,9 @@ class VirtualMachine extends EventEmitter {
         this.runtime.on(Runtime.BLOCKSINFO_UPDATE, categoryInfo => {
             this.emit(Runtime.BLOCKSINFO_UPDATE, categoryInfo);
         });
+        this.runtime.on(Runtime.PROJECT_LOADED, () => {
+            this.emit(Runtime.PROJECT_LOADED);
+        });
         this.runtime.on(Runtime.BLOCKS_NEED_UPDATE, () => {
             this.emitWorkspaceUpdate();
         });
@@ -283,6 +286,7 @@ class VirtualMachine extends EventEmitter {
         this._easybloxUploadPrograms = null;
         this._easybloxProgramMode = 'stage';
         this._easybloxActiveBoardId = null;
+        this._easybloxSelectedBoardId = null;
         this.emitTargetsUpdate(false /* Don't emit project change */);
     }
 
@@ -625,6 +629,19 @@ class VirtualMachine extends EventEmitter {
                 Array.from(serializedExtensionIds);
         }
 
+        if (!optTargetId) {
+            const projectContext =
+                this.getEasyBloxProjectContext();
+
+            serializedProject.easybloxProject = {
+                schemaVersion: 1,
+                selectedBoardId:
+                    projectContext.selectedBoardId,
+                programMode:
+                    projectContext.programMode
+            };
+        }
+
         return StringUtil.stringify(serializedProject);
     }
 
@@ -649,6 +666,46 @@ class VirtualMachine extends EventEmitter {
     deserializeProject (projectJSON, zip) {
         // Clear the current runtime
         this.clear();
+
+        const serializedEasyBloxProject =
+            projectJSON &&
+            projectJSON.easybloxProject &&
+            typeof projectJSON.easybloxProject === 'object' &&
+            !Array.isArray(projectJSON.easybloxProject) ?
+                projectJSON.easybloxProject :
+                null;
+
+        if (
+            serializedEasyBloxProject &&
+            serializedEasyBloxProject.schemaVersion === 1
+        ) {
+            const selectedBoardId =
+                typeof serializedEasyBloxProject.selectedBoardId === 'string' &&
+                serializedEasyBloxProject.selectedBoardId.length > 0 ?
+                    serializedEasyBloxProject.selectedBoardId :
+                    null;
+
+            const requestedProgramMode =
+                serializedEasyBloxProject.programMode === 'upload' ?
+                    'upload' :
+                    'stage';
+
+            this._easybloxSelectedBoardId =
+                selectedBoardId;
+
+            this._easybloxProgramMode =
+                requestedProgramMode === 'upload' &&
+                selectedBoardId ?
+                    'upload' :
+                    'stage';
+
+            /*
+             * Loading project metadata restores the logical project context,
+             * but does not activate an Upload backing store before the GUI
+             * has restored its own board/mode state.
+             */
+            this._easybloxActiveBoardId = null;
+        }
 
         if (typeof performance !== 'undefined') {
             performance.mark('scratch-vm-deserialize-start');
@@ -1658,6 +1715,62 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Set the logical board selected for the EasyBlox project.
+     * This state is independent from a physical peripheral connection and
+     * remains selected while the user works in Stage mode.
+     * @param {?string} boardId Selected logical board ID, or null.
+     */
+    setEasyBloxSelectedBoard (boardId) {
+        if (
+            boardId !== null &&
+            (
+                typeof boardId !== 'string' ||
+                boardId.length === 0
+            )
+        ) {
+            throw new Error(
+                'EasyBlox selected board must be a non-empty board ID or null'
+            );
+        }
+
+        this._easybloxSelectedBoardId =
+            boardId;
+
+        /*
+         * Upload cannot exist without an owning logical board.
+         */
+        if (
+            boardId === null &&
+            this._easybloxProgramMode === 'upload'
+        ) {
+            this._easybloxProgramMode = 'stage';
+            this._easybloxActiveBoardId = null;
+        }
+    }
+
+    /**
+     * Return the persistable logical EasyBlox project context.
+     * Physical connection state is deliberately excluded.
+     * @returns {!object} Selected board and normalized program mode.
+     */
+    getEasyBloxProjectContext () {
+        const selectedBoardId =
+            typeof this._easybloxSelectedBoardId === 'string' &&
+            this._easybloxSelectedBoardId.length > 0 ?
+                this._easybloxSelectedBoardId :
+                null;
+
+        return {
+            selectedBoardId,
+            programMode:
+                this._easybloxProgramMode === 'upload' &&
+                selectedBoardId ?
+                    'upload' :
+                    'stage'
+        };
+    }
+
+    /**
      * Set the active EasyBlox programming context.
      * Stage mode continues to use the current Scratch editing target.
      * Upload mode uses the canonical program owned by the selected board.
@@ -1713,6 +1826,11 @@ class VirtualMachine extends EventEmitter {
         this._easybloxProgramMode = mode;
         this._easybloxActiveBoardId =
             mode === 'upload' ? boardId : null;
+
+        if (mode === 'upload') {
+            this._easybloxSelectedBoardId =
+                boardId;
+        }
     }
 
     /**
@@ -1974,6 +2092,45 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Return Blockly-compatible XML for an EasyBlox programming context
+     * without activating that context or creating a missing backing store.
+     * Currently only the independent Upload workspace requires this
+     * read-only access.
+     * @param {!string} mode EasyBlox program mode.
+     * @param {?string} boardId Board owning the Upload workspace.
+     * @returns {?string} Workspace XML, or null when unavailable.
+     */
+    getEasyBloxWorkspaceXML (mode, boardId) {
+        if (
+            mode !== 'upload' ||
+            typeof boardId !== 'string' ||
+            boardId.length === 0 ||
+            !this._easybloxUploadPrograms ||
+            !this._easybloxUploadPrograms.has(boardId)
+        ) {
+            return null;
+        }
+
+        const uploadProgram =
+            this._easybloxUploadPrograms.get(boardId);
+
+        const uploadVariables =
+            Object.keys(uploadProgram.variables)
+                .map(variableId =>
+                    uploadProgram.variables[variableId]
+                );
+
+        return `<xml xmlns="http://www.w3.org/1999/xhtml">
+            <variables>
+                ${uploadVariables.map(variable =>
+                    variable.toXML()
+                ).join()}
+            </variables>
+            ${uploadProgram.blocks.toXML()}
+        </xml>`;
+    }
+
+    /**
      * Emit a Blockly/scratch-blocks compatible XML representation
      * of the active EasyBlox programming context.
      */
@@ -1982,32 +2139,20 @@ class VirtualMachine extends EventEmitter {
             this._easybloxProgramMode === 'upload' &&
             this._easybloxActiveBoardId
         ) {
-            const uploadProgram = this.getOrCreateUploadProgram(
-                this._easybloxActiveBoardId
-            );
-
-            const uploadVariables =
-                Object.keys(uploadProgram.variables)
-                    .map(variableId =>
-                        uploadProgram.variables[variableId]
-                    );
-
             const xmlString =
-                `<xml xmlns="http://www.w3.org/1999/xhtml">
-                    <variables>
-                        ${uploadVariables.map(variable =>
-                            variable.toXML()
-                        ).join()}
-                    </variables>
-                    ${uploadProgram.blocks.toXML()}
-                </xml>`;
+                this.getEasyBloxWorkspaceXML(
+                    'upload',
+                    this._easybloxActiveBoardId
+                );
 
-            this.emit(
-                'workspaceUpdate',
-                {xml: xmlString}
-            );
+            if (xmlString) {
+                this.emit(
+                    'workspaceUpdate',
+                    {xml: xmlString}
+                );
 
-            return;
+                return;
+            }
         }
 
         // Create a list of broadcast message Ids according to the stage variables

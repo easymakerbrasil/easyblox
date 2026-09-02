@@ -3,6 +3,7 @@ const VirtualMachine = require('../../src/virtual-machine');
 const Runtime = require('../../src/engine/runtime');
 const Blocks = require('../../src/engine/blocks');
 const Variable = require('../../src/engine/variable');
+const Sprite = require('../../src/sprites/sprite');
 
 const test = tap.test;
 
@@ -1092,6 +1093,299 @@ test('VirtualMachine emits shared variables with independent Stage and Upload sc
     );
 
     t.end();
+});
+
+test('VirtualMachine exposes Upload workspace XML without activating it', t => {
+    const vm = new VirtualMachine();
+
+    vm.getOrCreateUploadProgram(
+        'arduino-uno'
+    );
+
+    const xml =
+        vm.getEasyBloxWorkspaceXML(
+            'upload',
+            'arduino-uno'
+        );
+
+    t.ok(
+        xml &&
+        xml.includes('<xml'),
+        'read-only Upload workspace XML is available'
+    );
+
+    t.same(
+        vm.getEasyBloxProjectContext(),
+        {
+            selectedBoardId: null,
+            programMode: 'stage'
+        },
+        'reading Upload XML does not activate Upload mode or select a board'
+    );
+
+    t.equal(
+        vm.getEasyBloxWorkspaceXML(
+            'upload',
+            'missing-board'
+        ),
+        null,
+        'reading an unknown board does not create an Upload workspace'
+    );
+
+    t.end();
+});
+
+test('VirtualMachine forwards project loaded runtime events', t => {
+    const vm = new VirtualMachine();
+
+    let projectLoadedEvents = 0;
+
+    vm.on(
+        'PROJECT_LOADED',
+        () => {
+            projectLoadedEvents += 1;
+        }
+    );
+
+    vm.runtime.handleProjectLoaded();
+
+    t.equal(
+        projectLoadedEvents,
+        1,
+        'VM forwards PROJECT_LOADED from the runtime'
+    );
+
+    t.end();
+});
+
+test('VirtualMachine persists and rehydrates EasyBlox project context with canonical Upload workspace', async t => {
+    const sourceVm = new VirtualMachine();
+
+    const sprite =
+        new Sprite(null, sourceVm.runtime);
+
+    sprite.name = 'Stage';
+
+    const stage =
+        sprite.createClone();
+
+    stage.isStage = true;
+    stage.isOriginal = true;
+
+    sourceVm.runtime.targets = [stage];
+    sourceVm.editingTarget = stage;
+    sourceVm.runtime.setEditingTarget(stage);
+
+    stage.blocks.createBlock({
+        id: 'roundtrip_stage_block',
+        opcode: 'operator_add',
+        next: null,
+        parent: null,
+        inputs: {},
+        fields: {},
+        topLevel: true,
+        shadow: false
+    });
+
+    const sourceUploadProgram =
+        sourceVm.getOrCreateUploadProgram(
+            'arduino-uno'
+        );
+
+    sourceUploadProgram.blocks.createBlock({
+        id: 'roundtrip_upload_block',
+        opcode: 'operator_subtract',
+        next: null,
+        parent: null,
+        inputs: {},
+        fields: {},
+        topLevel: true,
+        shadow: false
+    });
+
+    /*
+     * A selected board belongs to the project even while Stage is active.
+     * It must therefore be independent from the active Upload owner.
+     */
+    sourceVm.setEasyBloxSelectedBoard(
+        'arduino-uno'
+    );
+
+    sourceVm.setProgramContext(
+        'stage',
+        null
+    );
+
+    const serializedStageProject =
+        JSON.parse(
+            sourceVm.toJSON()
+        );
+
+    t.same(
+        serializedStageProject.easybloxProject,
+        {
+            schemaVersion: 1,
+            selectedBoardId: 'arduino-uno',
+            programMode: 'stage'
+        },
+        'Stage project serialization preserves the selected board'
+    );
+
+    /*
+     * A project with no selected board is always a Stage project.
+     */
+    sourceVm.setEasyBloxSelectedBoard(null);
+
+    const serializedNoBoardProject =
+        JSON.parse(
+            sourceVm.toJSON()
+        );
+
+    t.same(
+        serializedNoBoardProject.easybloxProject,
+        {
+            schemaVersion: 1,
+            selectedBoardId: null,
+            programMode: 'stage'
+        },
+        'project serialization preserves the absence of a selected board'
+    );
+
+    /*
+     * Restore the logical board and enter Upload before the canonical
+     * round-trip used by the remainder of this regression.
+     */
+    sourceVm.setEasyBloxSelectedBoard(
+        'arduino-uno'
+    );
+
+    sourceVm.setProgramContext(
+        'upload',
+        'arduino-uno'
+    );
+
+    const serializedProject =
+        sourceVm.toJSON();
+
+    const serializedProjectJSON =
+        JSON.parse(serializedProject);
+
+    t.same(
+        serializedProjectJSON.easybloxProject,
+        {
+            schemaVersion: 1,
+            selectedBoardId: 'arduino-uno',
+            programMode: 'upload'
+        },
+        'Upload project serialization preserves board and program mode'
+    );
+
+    t.match(
+        serializedProject,
+        /roundtrip_upload_block/,
+        'serialized project contains the canonical Upload script'
+    );
+
+    const reloadedVm =
+        new VirtualMachine();
+
+    const deserializedProject =
+        JSON.parse(serializedProject);
+
+    deserializedProject.projectVersion = 3;
+
+    await reloadedVm.deserializeProject(
+        deserializedProject,
+        null
+    );
+
+    const reloadedUploadProgram =
+        reloadedVm.getOrCreateUploadProgram(
+            'arduino-uno'
+        );
+
+    t.ok(
+        reloadedUploadProgram.blocks.getBlock(
+            'roundtrip_upload_block'
+        ),
+        'project reload restores the canonical Upload backing store'
+    );
+
+    const restoredProjectContext =
+        reloadedVm.getEasyBloxProjectContext();
+
+    t.same(
+        restoredProjectContext,
+        {
+            selectedBoardId: 'arduino-uno',
+            programMode: 'upload'
+        },
+        'project reload restores the logical board and program mode'
+    );
+
+    let workspaceXml = '';
+
+    reloadedVm.on(
+        'workspaceUpdate',
+        data => {
+            workspaceXml = data.xml;
+        }
+    );
+
+    /*
+     * Restored project metadata does not itself perform GUI activation.
+     * Once the GUI applies the restored context, the canonical Upload
+     * workspace must hydrate immediately.
+     */
+    reloadedVm.setProgramContext(
+        restoredProjectContext.programMode,
+        restoredProjectContext.selectedBoardId
+    );
+
+    reloadedVm.refreshWorkspace();
+
+    t.match(
+        workspaceXml,
+        /roundtrip_upload_block/,
+        'restored Upload context rehydrates the canonical Upload script'
+    );
+
+    t.notMatch(
+        workspaceXml,
+        /roundtrip_stage_block/,
+        'restored Upload context does not rehydrate the Stage script'
+    );
+
+    /*
+     * Malformed persisted context must never create Upload mode without
+     * an owning board.
+     */
+    const invalidContextVm =
+        new VirtualMachine();
+
+    const invalidContextProject =
+        JSON.parse(serializedProject);
+
+    invalidContextProject.projectVersion = 3;
+    invalidContextProject.easybloxProject = {
+        schemaVersion: 1,
+        selectedBoardId: null,
+        programMode: 'upload'
+    };
+
+    await invalidContextVm.deserializeProject(
+        invalidContextProject,
+        null
+    );
+
+    t.same(
+        invalidContextVm.getEasyBloxProjectContext(),
+        {
+            selectedBoardId: null,
+            programMode: 'stage'
+        },
+        'Upload without a selected board falls back safely to Stage'
+    );
 });
 
 test('VirtualMachine exposes Arduino UNO Upload code generation', t => {

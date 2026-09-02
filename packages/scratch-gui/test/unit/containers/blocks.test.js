@@ -930,15 +930,128 @@ test('updates workspace block disabled state for the program mode', () => {
     );
 });
 
+test('hydrates inactive Upload blocks visually on a cold Stage workspace load', () => {
+    const executionModes = {
+        motion_movesteps: 'stage',
+        serial_serialWrite: 'upload'
+    };
+
+    const runtime = {
+        _blockInfo: executionModes,
+
+        getBlockExecutionMode (blockType) {
+            return this._blockInfo[blockType] || null;
+        }
+    };
+
+    const stageWorkspaceDom =
+        document.createElement('xml');
+
+    stageWorkspaceDom.innerHTML =
+        '<block type="motion_movesteps" id="stage-only-block" x="24" y="36"></block>';
+
+    const uploadWorkspaceDom =
+        document.createElement('xml');
+
+    uploadWorkspaceDom.innerHTML =
+        '<block type="serial_serialWrite" id="upload-only-block" x="48" y="72"></block>';
+
+    const instance = {
+        props: {
+            activeBoardId: 'arduino-uno',
+            programMode: 'stage',
+            vm: {
+                runtime,
+
+                getEasyBloxWorkspaceXML:
+                    jest.fn().mockReturnValue(
+                        '<xml>' +
+                        '<block type="serial_serialWrite" ' +
+                        'id="upload-only-block" x="48" y="72">' +
+                        '</block>' +
+                        '</xml>'
+                    )
+            }
+        },
+
+        workspace: {},
+
+        ScratchBlocks: {
+            Xml: {
+                workspaceToDom:
+                    jest.fn().mockReturnValue(
+                        stageWorkspaceDom
+                    )
+            },
+
+            utils: {
+                xml: {
+                    textToDom:
+                        jest.fn().mockReturnValue(
+                            uploadWorkspaceDom
+                        )
+                }
+            }
+        },
+
+        _hydrateInactiveBlocksOnNextWorkspaceUpdate:
+            true,
+
+        preserveIncompatibleWorkspaceBlocks:
+            Blocks.prototype.preserveIncompatibleWorkspaceBlocks
+    };
+
+    const incomingDom =
+        stageWorkspaceDom.cloneNode(true);
+
+    const result =
+        Blocks.prototype.preserveIncompatibleWorkspaceBlocks.call(
+            instance,
+            incomingDom
+        );
+
+    expect(
+        instance.props.vm.getEasyBloxWorkspaceXML
+    ).toHaveBeenCalledWith(
+        'upload',
+        'arduino-uno'
+    );
+
+    const uploadBlock =
+        result.querySelector(
+            '#upload-only-block'
+        );
+
+    expect(
+        uploadBlock.getAttribute('disabled')
+    ).toBe('true');
+
+    expect(
+        uploadBlock.getAttribute('movable')
+    ).toBe('false');
+
+    expect(
+        uploadBlock.getAttribute('editable')
+    ).toBe('false');
+
+    expect(
+        instance._hydrateInactiveBlocksOnNextWorkspaceUpdate
+    ).toBe(false);
+});
+
 test('preserves incompatible workspace blocks visually across Stage and Upload reloads', () => {
     const executionModes = {
         motion_movesteps: 'stage',
         serial_serialWrite: 'upload'
     };
 
-    const getBlockExecutionMode = jest.fn(blockType =>
-        executionModes[blockType] || null
-    );
+    const runtime = {
+        _blockInfo: executionModes,
+
+        getBlockExecutionMode (blockType) {
+            return this._blockInfo[blockType] || null;
+        }
+    };
 
     const createWorkspaceDom = (type, id) => {
         const dom = document.createElement('xml');
@@ -967,9 +1080,7 @@ test('preserves incompatible workspace blocks visually across Stage and Upload r
             programMode: 'upload',
             vm: {
                 editingTarget: null,
-                runtime: {
-                    getBlockExecutionMode
-                }
+                runtime
             },
             workspaceMetrics: {
                 targets: {}

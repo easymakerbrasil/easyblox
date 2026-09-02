@@ -104,6 +104,7 @@ describe('GUI program mode propagation', () => {
             getPeripheralIsConnected: jest.fn().mockReturnValue(false),
             on: jest.fn(),
             removeListener: jest.fn(),
+            setEasyBloxSelectedBoard: jest.fn(),
             setProgramContext,
             refreshWorkspace
         };
@@ -184,6 +185,24 @@ describe('GUI program mode propagation', () => {
                 ]
             ]);
 
+        expect(
+            vm.setEasyBloxSelectedBoard
+        ).toHaveBeenLastCalledWith(
+            'arduino-uno'
+        );
+
+        expect(
+            vm.setEasyBloxSelectedBoard
+        ).toHaveBeenLastCalledWith(
+            'arduino-uno'
+        );
+
+        expect(
+            vm.setEasyBloxSelectedBoard
+        ).toHaveBeenLastCalledWith(
+            'arduino-uno'
+        );
+
         fireEvent.click(
             getByTestId('request-stage-mode')
         );
@@ -210,6 +229,177 @@ describe('GUI program mode propagation', () => {
                     'refresh'
                 ]
             ]);
+    });
+
+    test('restores Arduino UNO and Upload mode when an EasyBlox project finishes loading', () => {
+        const setEasyBloxSelectedBoard =
+            jest.fn();
+
+        const setProgramContext =
+            jest.fn();
+
+        const refreshWorkspace =
+            jest.fn();
+
+        const getEasyBloxProjectContext =
+            jest.fn().mockReturnValue({
+                selectedBoardId: 'arduino-uno',
+                programMode: 'upload'
+            });
+
+        const vm = {
+            generateArduinoUnoUploadCode:
+                jest.fn().mockReturnValue(''),
+
+            getPeripheralIsConnected:
+                jest.fn().mockReturnValue(false),
+
+            getEasyBloxProjectContext,
+
+            on: jest.fn((eventName, handler) => {
+                if (eventName === 'PROJECT_LOADED') {
+                    handler();
+                }
+            }),
+
+            removeListener: jest.fn(),
+
+            setEasyBloxSelectedBoard,
+            setProgramContext,
+            refreshWorkspace
+        };
+
+        const {
+            getByRole,
+            getByTestId
+        } = renderWithIntl(
+            <GUIComponent
+                colorMode="default"
+                setTheme={jest.fn()}
+                theme="default"
+                vm={vm}
+            />
+        );
+
+        expect(vm.on)
+            .toHaveBeenCalledWith(
+                'PROJECT_LOADED',
+                expect.any(Function)
+            );
+
+        expect(getEasyBloxProjectContext)
+            .toHaveBeenCalled();
+
+        expect(
+            setEasyBloxSelectedBoard
+        ).toHaveBeenLastCalledWith(
+            'arduino-uno'
+        );
+
+        expect(getByTestId('blocks'))
+            .toHaveAttribute(
+                'data-program-mode',
+                'upload'
+            );
+
+        expect(setProgramContext)
+            .toHaveBeenLastCalledWith(
+                'upload',
+                'arduino-uno'
+            );
+
+        expect(refreshWorkspace)
+            .toHaveBeenCalled();
+
+        expect(
+            getByRole(
+                'button',
+                {
+                    name:
+                        'Enviar para Arduino UNO'
+                }
+            )
+        ).toBeDisabled();
+    });
+
+    test('restores Arduino UNO while keeping a loaded EasyBlox project in Stage mode', () => {
+        const setEasyBloxSelectedBoard =
+            jest.fn();
+
+        const setProgramContext =
+            jest.fn();
+
+        const refreshWorkspace =
+            jest.fn();
+
+        const getEasyBloxProjectContext =
+            jest.fn().mockReturnValue({
+                selectedBoardId: 'arduino-uno',
+                programMode: 'stage'
+            });
+
+        const vm = {
+            generateArduinoUnoUploadCode:
+                jest.fn().mockReturnValue(''),
+
+            getPeripheralIsConnected:
+                jest.fn().mockReturnValue(false),
+
+            getEasyBloxProjectContext,
+
+            on: jest.fn((eventName, handler) => {
+                if (eventName === 'PROJECT_LOADED') {
+                    handler();
+                }
+            }),
+
+            removeListener: jest.fn(),
+
+            setEasyBloxSelectedBoard,
+            setProgramContext,
+            refreshWorkspace
+        };
+
+        const {getByTestId} =
+            renderWithIntl(
+                <GUIComponent
+                    colorMode="default"
+                    menuBarHidden
+                    setTheme={jest.fn()}
+                    theme="default"
+                    vm={vm}
+                />
+            );
+
+        expect(vm.on)
+            .toHaveBeenCalledWith(
+                'PROJECT_LOADED',
+                expect.any(Function)
+            );
+
+        expect(getEasyBloxProjectContext)
+            .toHaveBeenCalled();
+
+        expect(
+            setEasyBloxSelectedBoard
+        ).toHaveBeenLastCalledWith(
+            'arduino-uno'
+        );
+
+        expect(getByTestId('blocks'))
+            .toHaveAttribute(
+                'data-program-mode',
+                'stage'
+            );
+
+        expect(setProgramContext)
+            .toHaveBeenLastCalledWith(
+                'stage',
+                null
+            );
+
+        expect(refreshWorkspace)
+            .toHaveBeenCalled();
     });
 
     test('passes the initial stage program mode to Blocks', () => {

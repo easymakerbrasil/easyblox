@@ -115,6 +115,7 @@ class Blocks extends React.Component {
         this.onTargetsUpdate = debounce(this.onTargetsUpdate, 100);
         this.toolboxUpdateQueue = [];
         this._recreateFlyoutOnNextToolboxUpdate = false;
+        this._hydrateInactiveBlocksOnNextWorkspaceUpdate = false;
     }
 
     componentDidMount () {
@@ -232,6 +233,21 @@ class Blocks extends React.Component {
         }
 
         this.handleExtensionSelectionRequest(prevProps);
+
+        /*
+         * A board restored while Stage remains active does not cause a
+         * Stage -> Upload -> Stage transition. Hydrate the board's canonical
+         * Upload program once so it can appear only as inert visual context.
+         */
+        if (
+            this.props.programMode === 'stage' &&
+            prevProps.programMode === 'stage' &&
+            this.props.activeBoardId &&
+            this.props.activeBoardId !== prevProps.activeBoardId
+        ) {
+            this._hydrateInactiveBlocksOnNextWorkspaceUpdate = true;
+        }
+
 
         if (this.props.programMode !== prevProps.programMode) {
         /*
@@ -621,37 +637,81 @@ class Blocks extends React.Component {
         const shouldPreserve =
             this._preserveIncompatibleBlocksOnNextWorkspaceUpdate;
 
+        const shouldHydrateInactive =
+            this._hydrateInactiveBlocksOnNextWorkspaceUpdate;
+
         /*
-         * Consume the transition marker immediately. Ordinary workspace
-         * refreshes must continue to represent only the canonical active
-         * backing store.
+         * Both markers are one-shot. Ordinary workspace refreshes must
+         * continue to represent only the canonical active backing store.
          */
         this._preserveIncompatibleBlocksOnNextWorkspaceUpdate = false;
+        this._hydrateInactiveBlocksOnNextWorkspaceUpdate = false;
 
         if (
-            !shouldPreserve ||
+            (!shouldPreserve && !shouldHydrateInactive) ||
             !incomingDom ||
-            !this.workspace ||
-            !this.ScratchBlocks.Xml ||
-            typeof this.ScratchBlocks.Xml.workspaceToDom !== 'function'
+            !this.workspace
         ) {
-            return incomingDom;
-        }
-
-        const currentDom =
-            this.ScratchBlocks.Xml.workspaceToDom(
-                this.workspace
-            );
-
-        if (!currentDom) {
             return incomingDom;
         }
 
         const currentMode =
             this.props.programMode;
 
+        const runtime =
+            this.props.vm.runtime;
+
         const getExecutionMode =
-            this.props.vm.runtime.getBlockExecutionMode;
+            runtime.getBlockExecutionMode;
+
+        let currentDom = null;
+
+        /*
+         * Cold Stage hydration reads the canonical Upload workspace without
+         * activating it. The resulting XML is visual source material only.
+         */
+        if (
+            shouldHydrateInactive &&
+            currentMode === 'stage' &&
+            this.props.activeBoardId &&
+            typeof this.props.vm.getEasyBloxWorkspaceXML === 'function' &&
+            this.ScratchBlocks.utils &&
+            this.ScratchBlocks.utils.xml &&
+            typeof this.ScratchBlocks.utils.xml.textToDom === 'function'
+        ) {
+            const inactiveWorkspaceXML =
+                this.props.vm.getEasyBloxWorkspaceXML(
+                    'upload',
+                    this.props.activeBoardId
+                );
+
+            if (inactiveWorkspaceXML) {
+                currentDom =
+                    this.ScratchBlocks.utils.xml.textToDom(
+                        inactiveWorkspaceXML
+                    );
+            }
+        }
+
+        /*
+         * A real Stage <-> Upload transition preserves incompatible scripts
+         * from the outgoing Blockly workspace.
+         */
+        if (
+            !currentDom &&
+            shouldPreserve &&
+            this.ScratchBlocks.Xml &&
+            typeof this.ScratchBlocks.Xml.workspaceToDom === 'function'
+        ) {
+            currentDom =
+                this.ScratchBlocks.Xml.workspaceToDom(
+                    this.workspace
+                );
+        }
+
+        if (!currentDom) {
+            return incomingDom;
+        }
 
         if (typeof getExecutionMode !== 'function') {
             return incomingDom;
@@ -699,7 +759,10 @@ class Blocks extends React.Component {
                         blockNode.getAttribute('type');
 
                     const executionMode =
-                        getExecutionMode(blockType);
+                        getExecutionMode.call(
+                            runtime,
+                            blockType
+                        );
 
                     return (
                         executionMode !== null &&

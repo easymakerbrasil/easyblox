@@ -249,6 +249,16 @@ export const GUIComponent = props => {
             boardSelectionIntent === 'connect';
 
         setSelectedBoard(board.boardId);
+
+        if (
+            props.vm &&
+            typeof props.vm.setEasyBloxSelectedBoard === 'function'
+        ) {
+            props.vm.setEasyBloxSelectedBoard(
+                board.boardId
+            );
+        }
+
         setBoardSelectionModalVisible(false);
 
         if (boardSelectionIntent === 'upload') {
@@ -260,7 +270,7 @@ export const GUIComponent = props => {
         setExtensionSelectionRequest(request => request + 1);
 
         setBoardSelectionIntent(null);
-    }, [boardSelectionIntent]);
+    }, [boardSelectionIntent, props.vm]);
     const {
         accountMenuOptions,
         activeTabIndex,
@@ -355,6 +365,85 @@ export const GUIComponent = props => {
         vm,
         ...componentProps
     } = omit(props, 'dispatch', 'setPlatform');
+    useEffect(() => {
+        if (
+            !vm ||
+            typeof vm.on !== 'function' ||
+            typeof vm.getEasyBloxProjectContext !== 'function'
+        ) {
+            return;
+        }
+
+        const handleProjectLoaded = () => {
+            const projectContext =
+                vm.getEasyBloxProjectContext();
+
+            const restoredBoard =
+                projectContext &&
+                projectContext.selectedBoardId ?
+                    getBoardById(
+                        projectContext.selectedBoardId
+                    ) :
+                    null;
+
+            const restoredBoardId =
+                restoredBoard ?
+                    restoredBoard.boardId :
+                    null;
+
+            const restoredProgramMode =
+                projectContext &&
+                projectContext.programMode === 'upload' &&
+                restoredBoard &&
+                restoredBoard.supportedModes.includes(
+                    'upload'
+                ) ?
+                    'upload' :
+                    'stage';
+
+            if (
+                typeof vm.setEasyBloxSelectedBoard ===
+                'function'
+            ) {
+                vm.setEasyBloxSelectedBoard(
+                    restoredBoardId
+                );
+            }
+
+            setSelectedBoard(
+                restoredBoardId
+            );
+
+            setProgramMode(
+                restoredProgramMode
+            );
+
+            /*
+             * Physical connection state never comes from project metadata.
+             * The existing connection effect will independently query the
+             * real peripheral state for the restored board.
+             */
+            setConnectionState(
+                'disconnected'
+            );
+        };
+
+        vm.on(
+            'PROJECT_LOADED',
+            handleProjectLoaded
+        );
+
+        return () => {
+            if (
+                typeof vm.removeListener === 'function'
+            ) {
+                vm.removeListener(
+                    'PROJECT_LOADED',
+                    handleProjectLoaded
+                );
+            }
+        };
+    }, [vm]);
     useEffect(() => {
         if (
             !vm ||
@@ -1031,6 +1120,13 @@ export const GUIComponent = props => {
             vm.getPeripheralIsConnected(board.extensionId)
         ) {
             vm.disconnectPeripheral(board.extensionId);
+        }
+
+        if (
+            typeof vm.setEasyBloxSelectedBoard ===
+            'function'
+        ) {
+            vm.setEasyBloxSelectedBoard(null);
         }
 
         setSelectedBoard(null);
