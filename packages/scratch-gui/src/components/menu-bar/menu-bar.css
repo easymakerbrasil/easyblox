@@ -95,9 +95,9 @@
     align-items: center;
     justify-self: center;
 
-    width: 28rem;
-    max-width: 36vw;
-    min-width: 16rem;
+    width: 19rem;
+    max-width: 24vw;
+    min-width: 12rem;
 }
 
 .project-controls-group .menu-bar-item.growable {
