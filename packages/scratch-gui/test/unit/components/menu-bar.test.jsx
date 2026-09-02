@@ -8,10 +8,13 @@ import {fireEvent} from '@testing-library/react';
 
 import {PLATFORM} from '../../../src/lib/platform';
 
+import createEasyBloxProjectFileService from '../../../src/lib/easyblox-project-file-service';
+
 import configureStore from 'redux-mock-store';
 import {Provider} from 'react-redux';
 import VM from '@scratch/scratch-vm';
 import {MenuRefProvider} from '../../../src/contexts/menu-ref-context.jsx';
+jest.mock('../../../src/lib/easyblox-project-file-service');
 
 describe('MenuBar Component', () => {
     const store = configureStore()({
@@ -40,10 +43,152 @@ describe('MenuBar Component', () => {
     const getComponent = function (props = {}) {
         return (<Provider store={store}>
             <MenuRefProvider>
-                <MenuBar {...props} />
+                <MenuBar
+                    canManageFiles
+                    canCreateCopy={false}
+                    canRemix={false}
+                    onStartSelectingFileUpload={jest.fn()}
+                    {...props}
+                />
             </MenuRefProvider>
         </Provider>);
     };
+
+    let projectFileService;
+
+    beforeEach(() => {
+        projectFileService = {
+            clearFileHandle: jest.fn(),
+            save: jest.fn().mockResolvedValue(),
+            saveAs: jest.fn().mockResolvedValue()
+        };
+
+        createEasyBloxProjectFileService.mockReturnValue(
+            projectFileService
+        );
+    });
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    describe('EasyBlox local project save integration', () => {
+        test('quick-save diskette delegates to the local project file service', () => {
+            const {getByRole} = renderWithIntl(
+                getComponent()
+            );
+
+            fireEvent.click(
+                getByRole(
+                    'button',
+                    {
+                        name: 'Salvar'
+                    }
+                )
+            );
+
+            expect(
+                createEasyBloxProjectFileService
+            ).toHaveBeenCalledTimes(1);
+
+            expect(
+                projectFileService.save
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        test('Ctrl+S delegates to the same local Save operation', () => {
+            renderWithIntl(
+                getComponent()
+            );
+
+            fireEvent.keyDown(
+                document,
+                {
+                    key: 's',
+                    ctrlKey: true
+                }
+            );
+
+            expect(
+                projectFileService.save
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        test('File menu Save delegates to the local Save operation', () => {
+            const {
+                getByRole,
+                getByText
+            } = renderWithIntl(
+                getComponent()
+            );
+
+            fireEvent.click(
+                getByRole(
+                    'button',
+                    {
+                        name: 'File menu'
+                    }
+                )
+            );
+
+            fireEvent.click(
+                getByText('Salvar')
+            );
+
+            expect(
+                projectFileService.save
+            ).toHaveBeenCalledTimes(1);
+
+            expect(
+                projectFileService.saveAs
+            ).not.toHaveBeenCalled();
+        });
+
+        test('File menu Save As delegates to the local Save As operation', () => {
+            const {
+                getByRole,
+                getByText
+            } = renderWithIntl(
+                getComponent()
+            );
+
+            fireEvent.click(
+                getByRole(
+                    'button',
+                    {
+                        name: 'File menu'
+                    }
+                )
+            );
+
+            fireEvent.click(
+                getByText('Salvar como...')
+            );
+
+            expect(
+                projectFileService.saveAs
+            ).toHaveBeenCalledTimes(1);
+
+            expect(
+                projectFileService.save
+            ).not.toHaveBeenCalled();
+        });
+
+        test('clears the associated local file when another project finishes loading', () => {
+            renderWithIntl(
+                getComponent()
+            );
+
+            store.getState()
+                .scratchGui
+                .vm
+                .emit('PROJECT_LOADED');
+
+            expect(
+                projectFileService.clearFileHandle
+            ).toHaveBeenCalledTimes(1);
+        });
+    });
 
     test('menu bar with no About handler has no About button', () => {
         const {container} = renderWithIntl(getComponent());

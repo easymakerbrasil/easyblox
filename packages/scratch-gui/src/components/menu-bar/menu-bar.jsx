@@ -41,7 +41,6 @@ import {
     getIsUpdating,
     getIsShowingProject,
     requestNewProject,
-    manualUpdateProject,
     remixProject
 } from '../../reducers/project-state';
 import {
@@ -50,7 +49,9 @@ import {
     loginMenuOpen
 } from '../../reducers/menus';
 
-import collectMetadata from '../../lib/collect-metadata';
+import createEasyBloxProjectFileService from '../../lib/easyblox-project-file-service';
+import downloadBlob from '../../lib/download-blob';
+import {projectTitleInitialState} from '../../reducers/project-title';
 import {PLATFORM} from '../../lib/platform';
 
 import styles from './menu-bar.css';
@@ -149,6 +150,12 @@ MenuItemTooltip.propTypes = {
     isRtl: PropTypes.bool
 };
 
+const quickSaveIconPath = [
+    'M17 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4z',
+    'm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z',
+    'm3-10H5V5h10v4z'
+].join('');
+
 class MenuBar extends React.Component {
     constructor (props) {
         super(props);
@@ -156,18 +163,72 @@ class MenuBar extends React.Component {
             'handleClickNew',
             'handleClickSeeCommunity',
             'handleClickShare',
+            'handleProjectLoaded',
+            'handleSave',
+            'handleSaveAs',
             'handleSetMode',
             'handleKeyPress',
             'handleRestoreOption',
-            'getSaveToComputerHandler',
+            'getProjectFilename',
             'restoreOptionMessage'
         ]);
+
+        const showSaveFilePicker =
+            typeof window !== 'undefined' &&
+            typeof window.showSaveFilePicker === 'function' ?
+                window.showSaveFilePicker.bind(window) :
+                null;
+
+        this.projectFileService =
+            createEasyBloxProjectFileService({
+                showSaveFilePicker,
+                saveProjectSb3:
+                    this.props.vm.saveProjectSb3.bind(
+                        this.props.vm
+                    ),
+                getProjectFilename: this.getProjectFilename,
+                downloadBlob
+            });
     }
     componentDidMount () {
-        document.addEventListener('keydown', this.handleKeyPress);
+        document.addEventListener(
+            'keydown',
+            this.handleKeyPress
+        );
+
+        this.props.vm.on(
+            'PROJECT_LOADED',
+            this.handleProjectLoaded
+        );
     }
     componentWillUnmount () {
-        document.removeEventListener('keydown', this.handleKeyPress);
+        document.removeEventListener(
+            'keydown',
+            this.handleKeyPress
+        );
+
+        this.props.vm.removeListener(
+            'PROJECT_LOADED',
+            this.handleProjectLoaded
+        );
+    }
+    handleProjectLoaded () {
+        this.projectFileService.clearFileHandle();
+    }
+    handleSave () {
+        return this.projectFileService.save();
+    }
+    handleSaveAs () {
+        return this.projectFileService.saveAs();
+    }
+    getProjectFilename () {
+        let filenameTitle = this.props.projectTitle;
+
+        if (!filenameTitle || filenameTitle.length === 0) {
+            filenameTitle = projectTitleInitialState;
+        }
+
+        return `${filenameTitle.substring(0, 100)}.sb3`;
     }
     handleClickNew () {
         // if the project is dirty, and user owns the project, we will autosave.
@@ -244,18 +305,9 @@ class MenuBar extends React.Component {
     handleKeyPress (event) {
         const modifier = bowser.mac ? event.metaKey : event.ctrlKey;
         if (modifier && event.key === 's') {
-            this.props.onClickSave();
+            this.handleSave();
             event.preventDefault();
         }
-    }
-    getSaveToComputerHandler (downloadProjectCallback) {
-        return () => {
-            downloadProjectCallback();
-            if (this.props.onProjectTelemetryEvent) {
-                const metadata = collectMetadata(this.props.vm, this.props.projectTitle, this.props.locale);
-                this.props.onProjectTelemetryEvent('projectDidSave', metadata);
-            }
-        };
     }
     restoreOptionMessage (deletedItem) {
         switch (deletedItem) {
@@ -340,9 +392,8 @@ class MenuBar extends React.Component {
                         onStartSelectingFileUpload={this.props.onStartSelectingFileUpload}
                         onClickNew={this.handleClickNew}
                         onClickRemix={this.props.onClickRemix}
-                        onClickSave={this.props.onClickSave}
-                        getSaveToComputerHandler={this.getSaveToComputerHandler}
-                        canSave={this.props.canSave}
+                        onClickSave={this.handleSave}
+                        onClickSaveAs={this.handleSaveAs}
                         canCreateCopy={this.props.canCreateCopy}
                         canRemix={this.props.canRemix}
                         intl={this.props.intl}
@@ -398,14 +449,14 @@ class MenuBar extends React.Component {
                         )}
                         title="Salvar"
                         type="button"
-                        onClick={this.props.onClickSave}
+                        onClick={this.handleSave}
                     >
                         <svg
                             aria-hidden="true"
                             className={styles.quickSaveIcon}
                             viewBox="0 0 24 24"
                         >
-                            <path d="M5 3h12l2 2v16H5V3zm2 2v5h8V5H7zm0 9v5h10v-5H7z" />
+                            <path d={quickSaveIconPath} />
                         </svg>
                     </button>
                 </div>
@@ -593,7 +644,6 @@ MenuBar.propTypes = {
     isShowingProject: PropTypes.bool,
     isTotallyNormal: PropTypes.bool,
     isUpdating: PropTypes.bool,
-    locale: PropTypes.string.isRequired,
     loginMenuOpen: PropTypes.bool,
     logo: PropTypes.string,
     mode1920: PropTypes.bool,
@@ -615,11 +665,9 @@ MenuBar.propTypes = {
     onClickMode: PropTypes.func,
     onClickNew: PropTypes.func,
     onClickRemix: PropTypes.func,
-    onClickSave: PropTypes.func,
     onClickSaveAsCopy: PropTypes.func,
     onLogOut: PropTypes.func,
     onOpenRegistration: PropTypes.func,
-    onProjectTelemetryEvent: PropTypes.func,
     onRequestCloseLogin: PropTypes.func,
     onSeeCommunity: PropTypes.func,
     onSetTimeTravelMode: PropTypes.func,
@@ -684,7 +732,6 @@ const mapStateToProps = (state, ownProps) => {
         isRtl: state.locales.isRtl,
         isUpdating: getIsUpdating(loadingState),
         isShowingProject: getIsShowingProject(loadingState),
-        locale: state.locales.locale,
         loginMenuOpen: loginMenuOpen(state),
         projectTitle: state.scratchGui.projectTitle,
         username: ownProps.username ?? (user ? user.username : null),
@@ -724,7 +771,6 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
     autoUpdateProject: () => dispatch(autoUpdateProject()),
     onClickNew: needSave => dispatch(requestNewProject(needSave)),
     onClickLogin: ownProps.onClickLogin ?? (() => dispatch(openLoginMenu())),
-    onClickSave: () => dispatch(manualUpdateProject()),
     onClickRemix: () => dispatch(remixProject()),
     onRequestCloseLogin: () => dispatch(closeLoginMenu()),
     onSeeCommunity: ownProps.onSeeCommunity ?? (() => dispatch(setPlayer(true))),

@@ -8,11 +8,8 @@ import fileIcon from './icon--file.svg';
 import {useIntl, FormattedMessage, defineMessage} from 'react-intl';
 import MenuBarMenu from './menu-bar-menu.jsx';
 import {MenuItem, MenuSection} from '../menu/menu.jsx';
-import SB3Downloader from '../../containers/sb3-downloader.jsx';
 import dropdownCaret from './dropdown-caret.svg';
 import useMenuNavigation from '../../hooks/use-menu-navigation';
-
-import sharedMessages from '../../lib/shared-messages';
 
 import {saveProjectAsCopy} from '../../reducers/project-state';
 
@@ -24,15 +21,14 @@ const fileMenu = defineMessage({
 
 const FileMenu = ({
     isRtl,
-    canSave,
     canCreateCopy,
     canRemix,
     onClickNew,
     onClickSave,
+    onClickSaveAs,
     onClickSaveAsCopy,
     onClickRemix,
     onStartSelectingFileUpload,
-    getSaveToComputerHandler,
     remixMessage,
     depth
 }) => {
@@ -50,11 +46,19 @@ const FileMenu = ({
         isRtl
     });
 
-    const saveNowMessage = (
+    const saveMessage = (
         <FormattedMessage
-            defaultMessage="Save now"
-            description="Menu bar item for saving now"
-            id="gui.menuBar.saveNow"
+            defaultMessage="Salvar"
+            description="Menu bar item for saving the current project"
+            id="gui.menuBar.save"
+        />
+    );
+
+    const saveAsMessage = (
+        <FormattedMessage
+            defaultMessage="Salvar como..."
+            description="Menu bar item for saving the current project to a file"
+            id="gui.menuBar.saveAs"
         />
     );
     const createCopyMessage = (
@@ -107,59 +111,55 @@ const FileMenu = ({
                         {newProjectMessage}
                     </MenuItem>
                 </MenuSection>
-                {(canSave || canCreateCopy || canRemix) && (
-                    <MenuSection>
-                        {canSave && (
-                            <MenuItem
-                                onClick={onClickSave}
-                                isDataMenuItem
-                                onParentKeyDown={handleKeyDownOpenMenu}
-                            >
-                                {saveNowMessage}
-                            </MenuItem>
-                        )}
-                        {canCreateCopy && (
-                            <MenuItem
-                                onClick={onClickSaveAsCopy}
-                                isDataMenuItem
-                                onParentKeyDown={handleKeyDownOpenMenu}
-                            >
-                                {createCopyMessage}
-                            </MenuItem>
-                        )}
-                        {canRemix && (
-                            <MenuItem
-                                onClick={onClickRemix}
-                                isDataMenuItem
-                                onParentKeyDown={handleKeyDownOpenMenu}
-                            >
-                                {remixMessage}
-                            </MenuItem>
-                        )}
-                    </MenuSection>
-                )}
                 <MenuSection>
                     <MenuItem
                         onClick={onStartSelectingFileUpload}
                         isDataMenuItem
                         onParentKeyDown={handleKeyDownOpenMenu}
                     >
-                        {intl.formatMessage(sharedMessages.loadFromComputerTitle)}
+                        <FormattedMessage
+                            defaultMessage="Abrir..."
+                            description="Menu bar item for opening a project file"
+                            id="gui.menuBar.openProject"
+                        />
                     </MenuItem>
-                    <SB3Downloader>{(className, downloadProjectCallback) => (
+                </MenuSection>
+                <MenuSection>
+                    <MenuItem
+                        onClick={onClickSave}
+                        isDataMenuItem
+                        onParentKeyDown={handleKeyDownOpenMenu}
+                    >
+                        {saveMessage}
+                    </MenuItem>
+
+                    <MenuItem
+                        onClick={onClickSaveAs}
+                        isDataMenuItem
+                        onParentKeyDown={handleKeyDownOpenMenu}
+                    >
+                        {saveAsMessage}
+                    </MenuItem>
+
+                    {canCreateCopy && (
                         <MenuItem
-                            className={className}
-                            onClick={getSaveToComputerHandler(downloadProjectCallback)}
+                            onClick={onClickSaveAsCopy}
                             isDataMenuItem
                             onParentKeyDown={handleKeyDownOpenMenu}
                         >
-                            <FormattedMessage
-                                defaultMessage="Save to your computer"
-                                description="Menu bar item for downloading a project to your computer" // eslint-disable-line @stylistic/max-len
-                                id="gui.menuBar.downloadToComputer"
-                            />
+                            {createCopyMessage}
                         </MenuItem>
-                    )}</SB3Downloader>
+                    )}
+
+                    {canRemix && (
+                        <MenuItem
+                            onClick={onClickRemix}
+                            isDataMenuItem
+                            onParentKeyDown={handleKeyDownOpenMenu}
+                        >
+                            {remixMessage}
+                        </MenuItem>
+                    )}
                 </MenuSection>
             </MenuBarMenu>
         </button>
@@ -168,15 +168,14 @@ const FileMenu = ({
 
 FileMenu.propTypes = {
     isRtl: PropTypes.bool,
-    canSave: PropTypes.bool.isRequired,
     canCreateCopy: PropTypes.bool.isRequired,
     canRemix: PropTypes.bool.isRequired,
     onStartSelectingFileUpload: PropTypes.func.isRequired,
-    onClickSave: PropTypes.func,
+    onClickSave: PropTypes.func.isRequired,
+    onClickSaveAs: PropTypes.func.isRequired,
     onClickSaveAsCopy: PropTypes.func,
     onClickRemix: PropTypes.func,
     onClickNew: PropTypes.func.isRequired,
-    getSaveToComputerHandler: PropTypes.func.isRequired,
     remixMessage: PropTypes.node,
     depth: PropTypes.number
 };
