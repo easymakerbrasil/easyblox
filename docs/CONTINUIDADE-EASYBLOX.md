@@ -11006,3 +11006,243 @@ Próximo passo
 O Monitor Serial de saída do Arduino UNO Upload deve ser considerado funcionalmente fechado neste checkpoint.
 
 O próximo lote deve seguir o planejamento vigente do Arduino UNO Upload Mode sem reabrir este fluxo, salvo falha concreta ou requisito novo explicitamente aprovado.
+
+
+Checkpoint — restauração do contexto EasyBlox no .sb3 — 02/09/2026
+
+Objetivo concluído
+
+O formato canônico de projeto continua sendo .sb3.
+
+O contexto lógico específico do EasyBlox agora é persistido e restaurado no próprio projeto, separadamente do programa Upload:
+
+easybloxProject:
+- schemaVersion: 1
+- selectedBoardId
+- programMode
+
+A associação lógica da placa é independente da conexão física.
+
+Não são persistidos:
+- porta COM;
+- permissão/sessão Web Serial;
+- estado físico conectado/desconectado;
+- estado do Monitor Serial;
+- uploadPortHint.
+
+Semântica validada
+
+Projeto salvo em Palco com Arduino UNO selecionado:
+
+.sb3
+→ reabertura
+→ Arduino UNO restaurado
+→ modo Palco restaurado
+→ programa Stage ativo
+→ programa Upload preservado como contexto visual esmaecido
+→ nenhuma troca manual Palco → Carregar → Palco necessária
+
+Projeto salvo em Carregar com Arduino UNO selecionado:
+
+.sb3
+→ reabertura
+→ Arduino UNO restaurado
+→ modo Carregar restaurado
+→ programa Upload canônico ativo imediatamente
+→ programa Stage preservado como contexto visual esmaecido
+→ preview C++ correspondente ao programa Upload
+
+A conexão física continua sendo descoberta separadamente após a abertura do projeto e não é restaurada automaticamente a partir dos metadados do .sb3.
+
+Arquitetura preservada
+
+Stage e Upload continuam usando backing stores independentes:
+
+Stage:
+editingTarget.blocks
+
+Upload:
+EasyBloxUploadProgram.blocks
+
+Os blocos do contexto inativo mostrados esmaecidos no Blockly são apenas composição visual.
+
+Eles não são copiados para a backing store ativa e permanecem:
+- disabled;
+- movable=false;
+- editable=false.
+
+A hidratação visual fria do contexto Upload em um projeto aberto diretamente em Palco usa leitura somente de sua representação XML, sem ativar Upload e sem criar uma nova backing store por efeito colateral.
+
+Virtual Machine
+
+A VM agora:
+- encaminha Runtime.PROJECT_LOADED como evento PROJECT_LOADED da própria VirtualMachine;
+- persiste easybloxProject no JSON canônico do projeto;
+- restaura selectedBoardId e programMode durante deserializeProject;
+- normaliza Upload sem placa válida para Palco;
+- mantém selectedBoardId distinto de _easybloxActiveBoardId;
+- expõe setEasyBloxSelectedBoard(boardId);
+- expõe getEasyBloxProjectContext();
+- expõe getEasyBloxWorkspaceXML(mode, boardId) como leitura sem ativação do contexto.
+
+GUI
+
+GUIComponent passa a:
+- sincronizar a placa selecionada com a VM;
+- restaurar placa e modo após PROJECT_LOADED;
+- não iniciar conexão física apenas por restaurar a placa do projeto;
+- remover também a associação lógica da placa quando o usuário escolhe remover placa.
+
+Blocks
+
+O container Blocks preserva o comportamento Stage ↔ Upload já aprovado e adiciona hidratação visual one-shot do Upload canônico quando:
+
+Stage permanece ativo
++
+Arduino UNO é restaurado durante a abertura fria do projeto.
+
+Isso elimina a assimetria anteriormente observada em projetos salvos no Palco.
+
+Validações automatizadas
+
+Scratch VM — virtual-machine-upload.js:
+
+82 pass
+0 fail
+
+Inclui:
+- forwarding de PROJECT_LOADED;
+- persistência e round-trip de easybloxProject;
+- restauração do Upload canônico;
+- fallback seguro de Upload sem placa;
+- leitura XML do Upload sem ativar o contexto ou selecionar placa;
+- consulta de placa inexistente sem criar backing store.
+
+Scratch GUI — blocks.test.js:
+
+34 pass
+0 fail
+
+Inclui:
+- preservação visual Stage ↔ Upload;
+- receiver correto de getBlockExecutionMode;
+- hidratação fria do Upload como contexto visual inerte em Palco.
+
+Scratch GUI — gui-program-mode.test.jsx:
+
+4 pass
+0 fail
+
+Inclui:
+- fluxo manual Palco → Carregar;
+- restauração Arduino UNO + Carregar após PROJECT_LOADED;
+- restauração Arduino UNO + Palco após PROJECT_LOADED;
+- estado inicial Palco.
+
+node --check:
+
+packages/scratch-vm/src/virtual-machine.js
+aprovado
+
+git diff --check e git diff --cached --check:
+
+sem erros
+
+Validação funcional real
+
+Validação concluída com sucesso em 02/09/2026.
+
+Caso 1 — projeto salvo em Palco:
+
+Arduino UNO selecionado
+→ salvar/baixar .sb3
+→ abrir em sessão limpa
+→ Palco restaurado
+→ Arduino UNO restaurado
+→ blocos Stage ativos
+→ blocos Upload esmaecidos imediatamente
+→ nenhuma alternância manual de modo necessária
+
+Resultado:
+
+APROVADO
+
+Caso 2 — projeto salvo em Carregar:
+
+Arduino UNO selecionado
+→ salvar/baixar .sb3
+→ abrir em sessão limpa
+→ Carregar restaurado
+→ Arduino UNO restaurado
+→ blocos Upload ativos imediatamente
+→ blocos Stage preservados esmaecidos
+
+Resultado:
+
+APROVADO
+
+Estado técnico do checkpoint
+
+Commit funcional:
+
+f3f8e293eb feat: restore EasyBlox project context
+
+6 arquivos
+948 inserções
+49 remoções
+
+Commit enviado para:
+
+origin/feat/easyblox-arduino-uno-upload-mode
+
+Baseline anterior:
+
+a4784f73ee docs: record Arduino Upload serial monitor milestone
+
+Working tree deliberadamente não limpo
+
+Continua fora dos checkpoints e não deve ser restaurado, staged ou commitado sem autorização explícita:
+
+packages/scratch-gui/src/components/action-menu/icon--sprite.svg
+
+Também permanecem fora dos checkpoints:
+
+B1-1-review.diff
+packages/scratch-gui/test/unit/components/prompt.test.jsx
+packages/scratch-gui/test/unit/containers/prompt.test.jsx
+
+e os diversos resíduos/untracked de comandos já conhecidos.
+
+Continuam proibidos:
+
+git clean
+git add .
+
+Próximo passo
+
+Implementar o fluxo nativo de Salvar / Salvar como... para projetos EasyBlox mantendo .sb3 como formato canônico.
+
+Contrato já aprovado para o próximo lote:
+
+Salvar:
+- se não houver writable file handle associado, executar Salvar como...;
+- se houver writable file handle, gravar novamente no mesmo .sb3.
+
+Salvar como...:
+- abrir seletor de arquivo;
+- gravar .sb3;
+- associar o novo writable file handle ao projeto atual.
+
+O botão de disquete deve executar Salvar.
+
+O fluxo deve reutilizar o serializador .sb3 existente.
+
+O handle de arquivo é estado da GUI/plataforma e não deve ser serializado em easybloxProject.
+
+O comando existente de baixar projeto continua sendo uma cópia por download e não deve associar writable file handle.
+
+Usar File System Access API quando disponível, preservando fallback por download quando não estiver disponível.
+
+Cancelamento do seletor pelo usuário (AbortError) deve ser silencioso.
+
+Exportar .ino permanece um fluxo futuro separado e não altera o formato canônico de salvamento do projeto.
