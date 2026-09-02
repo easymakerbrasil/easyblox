@@ -22,7 +22,6 @@ import CostumeLibrary from '../../containers/costume-library.jsx';
 import BackdropLibrary from '../../containers/backdrop-library.jsx';
 import Watermark from '../../containers/watermark.jsx';
 
-import Backpack from '../../containers/backpack.jsx';
 import ExtensionsButton from '../extension-button/extension-button.jsx';
 import WebGlModal from '../../containers/webgl-modal.jsx';
 import TipsLibrary from '../../containers/tips-library.jsx';
@@ -101,11 +100,7 @@ const ariaMessages = defineMessages({
         defaultMessage: 'Sounds editor panel',
         description: 'accessibility label for the sounds editor panel'
     },
-    backpack: {
-        id: 'gui.aria.backpack',
-        defaultMessage: 'Backpack',
-        description: 'accessibility label for the backpack'
-    },
+
     stageAndTarget: {
         id: 'gui.aria.stageAndTarget',
         defaultMessage: 'Stage and target',
@@ -281,9 +276,6 @@ export const GUIComponent = props => {
         authorAvatarBadge,
         basePath,
         backdropLibraryVisible,
-        backpackConfigured,
-        backpackHost,
-        backpackVisible,
         blocksId,
         blocksTabVisible,
         cardsVisible,
@@ -1480,13 +1472,6 @@ export const GUIComponent = props => {
                                         /> : null}
                                 </TabPanel>
                             </Tabs>
-                            {backpackVisible && backpackConfigured ? (
-                                <Backpack
-                                    host={backpackHost}
-                                    ariaRole="region"
-                                    ariaLabel={intl.formatMessage(ariaMessages.backpack)}
-                                />
-                            ) : null}
                         </Box>
 
                         <Box
@@ -1581,9 +1566,6 @@ GUIComponent.propTypes = {
     authorUsername: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]), // can be false
     authorAvatarBadge: PropTypes.number,
     backdropLibraryVisible: PropTypes.bool,
-    backpackConfigured: PropTypes.bool,
-    backpackHost: PropTypes.string,
-    backpackVisible: PropTypes.bool,
     basePath: PropTypes.string,
     blocksTabVisible: PropTypes.bool,
     blocksId: PropTypes.string,
@@ -1666,8 +1648,6 @@ GUIComponent.propTypes = {
 };
 
 GUIComponent.defaultProps = {
-    backpackHost: null,
-    backpackVisible: false,
     basePath: './',
     blocksId: 'original',
     // TODO: Currently all of those are always true. Do we actually need them?
@@ -1699,8 +1679,7 @@ const mapStateToProps = state => ({
     blocksId: state.scratchGui.timeTravel.year.toString(),
     stageSizeMode: state.scratchGui.stageSize.stageSize,
     colorMode: state.scratchGui.settings.colorMode,
-    theme: state.scratchGui.settings.theme,
-    backpackConfigured: !!state.scratchGui.config.storage?.backpackStorage
+    theme: state.scratchGui.settings.theme
 });
 
 const mapDispatchToProps = dispatch => ({
