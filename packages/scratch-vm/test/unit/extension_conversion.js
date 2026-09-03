@@ -403,6 +403,126 @@ test('getBlocksXML keeps SHOW_DISABLED incompatible blocks disabled in the palet
     t.end();
 });
 
+test('getBlocksXML disables board capability blocks when the capability is unavailable', t => {
+    const runtime = new Runtime();
+
+    const boardCapabilityExtensionInfo = Object.assign(
+        {},
+        testExtensionInfo,
+        {
+            id: 'boardCapability',
+            name: 'board capability extension',
+            blocks: [
+                {
+                    opcode: 'command',
+                    blockType: BlockType.COMMAND,
+                    executionMode: BlockExecutionMode.BOTH,
+                    requiredBoardCapability: 'bluetoothSerial',
+                    text: 'Bluetooth command'
+                }
+            ]
+        }
+    );
+
+    runtime._registerExtensionPrimitives(
+        boardCapabilityExtensionInfo
+    );
+
+    const withoutCapability = runtime.getBlocksXML(
+        null,
+        BlockExecutionMode.STAGE_ONLY,
+        []
+    );
+
+    const unavailableCategory =
+        withoutCapability.find(categoryInfo =>
+            categoryInfo.id === 'boardCapability'
+        );
+
+    t.ok(
+        unavailableCategory,
+        'capability-dependent category remains visible'
+    );
+
+    t.ok(
+        unavailableCategory.xml.includes(
+            '<block type="boardCapability_command" ' +
+            'disabled-reasons="EASYBLOX_BOARD_CAPABILITY">'
+        ),
+        'block remains visible and disabled without capability'
+    );
+
+    const withCapability = runtime.getBlocksXML(
+        null,
+        BlockExecutionMode.STAGE_ONLY,
+        [
+            'bluetoothSerial'
+        ]
+    );
+
+    const availableCategory =
+        withCapability.find(categoryInfo =>
+            categoryInfo.id === 'boardCapability'
+        );
+
+    t.ok(
+        availableCategory.xml.includes(
+            '<block type="boardCapability_command"></block>'
+        ),
+        'block is enabled when the capability is available'
+    );
+
+    t.notOk(
+        availableCategory.xml.includes(
+            'EASYBLOX_BOARD_CAPABILITY'
+        ),
+        'enabled block has no board capability disabled reason'
+    );
+
+    t.end();
+});
+
+test('getBlockRequiredBoardCapability resolves extension capability metadata', t => {
+    const runtime = new Runtime();
+
+    const boardCapabilityExtensionInfo = Object.assign(
+        {},
+        testExtensionInfo,
+        {
+            id: 'boardCapabilityResolver',
+            name: 'board capability resolver',
+            blocks: [
+                {
+                    opcode: 'command',
+                    blockType: BlockType.COMMAND,
+                    requiredBoardCapability: 'bluetoothSerial',
+                    text: 'Bluetooth command'
+                }
+            ]
+        }
+    );
+
+    runtime._registerExtensionPrimitives(
+        boardCapabilityExtensionInfo
+    );
+
+    t.equal(
+        runtime.getBlockRequiredBoardCapability(
+            'boardCapabilityResolver_command'
+        ),
+        'bluetoothSerial'
+    );
+
+    t.equal(
+        runtime.getBlockRequiredBoardCapability(
+            'test_reporter'
+        ),
+        null
+    );
+
+    t.end();
+});
+
 test('getBlockExecutionMode resolves extension block execution modes', t => {
     const runtime = new Runtime();
 
@@ -541,9 +661,9 @@ test('getBlockExecutionMode keeps Upload-compatible native blocks in both modes'
     );
 
     t.equal(
-    runtime.getBlockExecutionMode('data_variable'),
-    BlockExecutionMode.BOTH,
-    'variable reporter remains BOTH'
+        runtime.getBlockExecutionMode('data_variable'),
+        BlockExecutionMode.BOTH,
+        'variable reporter remains BOTH'
     );
 
     t.equal(

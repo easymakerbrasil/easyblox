@@ -4,6 +4,9 @@ const BlockType = require('../../extension-support/block-type');
 
 const EXTENSION_ID = 'easybloxBt';
 
+const REQUIRED_BOARD_CAPABILITY =
+    'bluetoothSerial';
+
 /**
  * Scratch blocks for EasyBlox BT.
  *
@@ -26,11 +29,24 @@ class Scratch3EasyBloxBtBlocks {
         return {
             id: EXTENSION_ID,
             name: 'EasyBlox BT',
+            color1: '#0a3e91',
+            color2: '#083477',
+            color3: '#06285c',
             blocks: [
+                {
+                    opcode: 'init',
+                    blockType: BlockType.COMMAND,
+                    executionMode: BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
+                    text: 'iniciar EasyBlox BT'
+                },
                 {
                     opcode: 'sendText',
                     blockType: BlockType.COMMAND,
                     executionMode: BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
                     text: 'enviar texto [TEXT] no canal [CHANNEL]',
                     arguments: {
                         TEXT: {
@@ -44,29 +60,33 @@ class Scratch3EasyBloxBtBlocks {
                     }
                 },
                 {
-                    opcode: 'whenTextReceived',
-                    blockType: BlockType.HAT,
+                    opcode: 'waitText',
+                    blockType: BlockType.COMMAND,
                     executionMode: BlockExecutionMode.BOTH,
-                    text: 'quando EasyBlox BT receber texto no canal [CHANNEL]',
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
+                    text: 'aguardar texto no canal [CHANNEL]',
                     arguments: {
                         CHANNEL: {
                             type: ArgumentType.STRING,
                             defaultValue: 'cmd'
                         }
-                    },
-                    isEdgeActivated: false,
-                    shouldRestartExistingThreads: false
+                    }
                 },
                 {
                     opcode: 'receivedText',
                     blockType: BlockType.REPORTER,
                     executionMode: BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
                     text: 'texto recebido'
                 },
                 {
                     opcode: 'sendNumber',
                     blockType: BlockType.COMMAND,
                     executionMode: BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
                     text: 'enviar número [NUMBER] no canal [CHANNEL]',
                     arguments: {
                         NUMBER: {
@@ -80,23 +100,25 @@ class Scratch3EasyBloxBtBlocks {
                     }
                 },
                 {
-                    opcode: 'whenNumberReceived',
-                    blockType: BlockType.HAT,
+                    opcode: 'waitNumber',
+                    blockType: BlockType.COMMAND,
                     executionMode: BlockExecutionMode.BOTH,
-                    text: 'quando EasyBlox BT receber número no canal [CHANNEL]',
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
+                    text: 'aguardar número no canal [CHANNEL]',
                     arguments: {
                         CHANNEL: {
                             type: ArgumentType.STRING,
                             defaultValue: 'valor'
                         }
-                    },
-                    isEdgeActivated: false,
-                    shouldRestartExistingThreads: false
+                    }
                 },
                 {
                     opcode: 'receivedNumber',
                     blockType: BlockType.REPORTER,
                     executionMode: BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
                     text: 'número recebido'
                 }
             ]
@@ -104,12 +126,12 @@ class Scratch3EasyBloxBtBlocks {
     }
 
     /**
-     * EasyBlox BT TEXT receive hat.
+     * Initialize the EasyBlox BT transport.
      * Runtime transport behavior is implemented in a later checkpoint.
-     * @returns {boolean} False until the Stage transport is integrated.
+     * @returns {void} No value.
      */
-    whenTextReceived () {
-        return false;
+    init () {
+        // Transport integration is intentionally deferred.
     }
 
     /**
@@ -118,6 +140,15 @@ class Scratch3EasyBloxBtBlocks {
      * @returns {void} No value.
      */
     sendText () {
+        // Transport integration is intentionally deferred.
+    }
+
+    /**
+     * Wait for an EasyBlox BT TEXT message on a channel.
+     * Runtime blocking behavior is implemented in a later checkpoint.
+     * @returns {void} No value.
+     */
+    waitText () {
         // Transport integration is intentionally deferred.
     }
 
@@ -131,20 +162,20 @@ class Scratch3EasyBloxBtBlocks {
     }
 
     /**
-     * EasyBlox BT NUMBER receive hat.
-     * Runtime transport behavior is implemented in a later checkpoint.
-     * @returns {boolean} False until the Stage transport is integrated.
-     */
-    whenNumberReceived () {
-        return false;
-    }
-
-    /**
      * Send an EasyBlox BT numeric message.
      * Transport behavior is implemented in a later checkpoint.
      * @returns {void} No value.
      */
     sendNumber () {
+        // Transport integration is intentionally deferred.
+    }
+
+    /**
+     * Wait for an EasyBlox BT NUMBER message on a channel.
+     * Runtime blocking behavior is implemented in a later checkpoint.
+     * @returns {void} No value.
+     */
+    waitNumber () {
         // Transport integration is intentionally deferred.
     }
 

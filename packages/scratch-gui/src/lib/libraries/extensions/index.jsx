@@ -475,6 +475,9 @@ const BOARD_METADATA = {
             'stage',
             'upload'
         ],
+        capabilities: [
+            'bluetoothSerial'
+        ],
         visible: true
     },
     microbit: {
@@ -483,6 +486,7 @@ const BOARD_METADATA = {
         supportedModes: [
             'stage'
         ],
+        capabilities: [],
         visible: true
     },
     ev3: {

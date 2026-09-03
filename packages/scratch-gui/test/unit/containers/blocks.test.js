@@ -3,6 +3,9 @@ import {
     EASYBLOX_EXECUTION_MODE_DISABLED_REASON
 } from '../../../src/lib/easyblox-connection-checker';
 
+const EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON =
+    'EASYBLOX_BOARD_CAPABILITY';
+
 describe('Blocks variable category program mode', () => {
     test('filters the Scratch variable category using the current program mode', () => {
         const elements = [
@@ -570,6 +573,66 @@ describe('Blocks active board toolbox updates', () => {
         expect(shouldUpdate).toBe(true);
     });
 
+    test('recreates flyout blocks when the active board is removed', () => {
+        const instance = {
+            state: {
+                prompt: null,
+                activeExtensionIds: []
+            },
+            props: {
+                activeBoardId: null,
+                programMode: 'stage',
+                anyModalVisible: false,
+                isVisible: false,
+                toolboxXML: '<xml/>',
+                updateToolboxState: jest.fn()
+            },
+            _renderedToolboxXML: '<xml/>',
+            _recreateFlyoutOnNextToolboxUpdate: false,
+            ScratchBlocks: {
+                hideChaff: jest.fn()
+            },
+            getToolboxXML:
+                jest.fn().mockReturnValue(
+                    '<xml bluetooth-disabled/>'
+                ),
+            handleExtensionSelectionRequest:
+                jest.fn(),
+            requestToolboxUpdate:
+                jest.fn(),
+            updateWorkspaceBoardCapability:
+                jest.fn()
+        };
+
+        Blocks.prototype.componentDidUpdate.call(
+            instance,
+            {
+                activeBoardId: 'arduino-uno',
+                programMode: 'stage',
+                anyModalVisible: false,
+                isVisible: false,
+                toolboxXML: '<xml/>'
+            },
+            {
+                activeExtensionIds: []
+            }
+        );
+
+        expect(
+            instance.updateWorkspaceBoardCapability
+        ).toHaveBeenCalledTimes(1);
+
+        expect(
+            instance._recreateFlyoutOnNextToolboxUpdate
+        ).toBe(true);
+
+        expect(
+            instance.props.updateToolboxState
+        ).toHaveBeenCalledWith(
+            '<xml bluetooth-disabled/>'
+        );
+    });
+
     test('rebuilds toolbox state when the active board changes', () => {
         const instance = {
             props: {
@@ -585,7 +648,8 @@ describe('Blocks active board toolbox updates', () => {
             },
             getToolboxXML: jest.fn().mockReturnValue('<xml filtered/>'),
             handleExtensionSelectionRequest: jest.fn(),
-            requestToolboxUpdate: jest.fn()
+            requestToolboxUpdate: jest.fn(),
+            updateWorkspaceBoardCapability: jest.fn()
         };
 
         Blocks.prototype.componentDidUpdate.call(instance, {
@@ -596,9 +660,73 @@ describe('Blocks active board toolbox updates', () => {
         });
 
         expect(instance.getToolboxXML).toHaveBeenCalledTimes(1);
-        expect(instance.props.updateToolboxState)
-            .toHaveBeenCalledWith('<xml filtered/>');
+        expect(
+            instance.updateWorkspaceBoardCapability
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            instance._recreateFlyoutOnNextToolboxUpdate
+        ).toBe(true);
     });
+
+    test('passes active board capabilities to runtime toolbox generation', () => {
+        const target = {
+            id: 'stage',
+            isStage: true,
+            getCostumes: jest.fn().mockReturnValue([
+                {
+                    name: 'costume1'
+                }
+            ]),
+            getSounds: jest.fn().mockReturnValue([])
+        };
+
+        const getBlocksXML =
+            jest.fn().mockReturnValue([]);
+
+        const instance = {
+            state: {
+                activeExtensionIds: []
+            },
+            props: {
+                activeBoardId: 'arduino-uno',
+                programMode: 'stage',
+                vm: {
+                    editingTarget: target,
+                    runtime: {
+                        getTargetForStage:
+                            jest.fn().mockReturnValue(target),
+                        getBlocksXML
+                    },
+                    extensionManager: {
+                        getExtensionCompanions:
+                            jest.fn().mockReturnValue([])
+                    }
+                }
+            }
+        };
+
+        Blocks.prototype.getToolboxXML.call(instance);
+
+        expect(getBlocksXML).toHaveBeenCalledWith(
+            target,
+            'stage',
+            [
+                'bluetoothSerial'
+            ]
+        );
+
+        getBlocksXML.mockClear();
+        instance.props.activeBoardId = null;
+
+        Blocks.prototype.getToolboxXML.call(instance);
+
+        expect(getBlocksXML).toHaveBeenCalledWith(
+            target,
+            'stage',
+            []
+        );
+    });
+
 });
 
 describe('Blocks program mode toolbox updates', () => {
@@ -792,7 +920,8 @@ describe('Blocks program mode toolbox updates', () => {
 
         expect(getBlocksXML).toHaveBeenCalledWith(
             target,
-            'upload'
+            'upload',
+            []
         );
 
         expect(toolboxXML).not.toContain(
@@ -927,6 +1056,101 @@ test('updates workspace block disabled state for the program mode', () => {
     expect(uploadOnlyBlock.setDisabledReason).toHaveBeenCalledWith(
         true,
         EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+    );
+});
+
+test('updates workspace block disabled state for the active board capability', () => {
+    const bluetoothBlock = {
+        type: 'easybloxBt_sendText',
+        setDisabledReason: jest.fn()
+    };
+
+    const ordinaryBlock = {
+        type: 'operator_add',
+        setDisabledReason: jest.fn()
+    };
+
+    const requiredCapabilities = {
+        easybloxBt_sendText: 'bluetoothSerial',
+        operator_add: null
+    };
+
+    const getBlockRequiredBoardCapability =
+        jest.fn(blockType =>
+            requiredCapabilities[blockType]
+        );
+
+    const instance = {
+        props: {
+            activeBoardId: null,
+            vm: {
+                runtime: {
+                    getBlockRequiredBoardCapability
+                }
+            }
+        },
+        workspace: {
+            getAllBlocks: jest.fn().mockReturnValue([
+                bluetoothBlock,
+                ordinaryBlock
+            ])
+        }
+    };
+
+    Blocks.prototype.updateWorkspaceBoardCapability.call(
+        instance
+    );
+
+    expect(
+        bluetoothBlock.setDisabledReason
+    ).toHaveBeenCalledWith(
+        true,
+        EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
+    );
+
+    expect(
+        ordinaryBlock.setDisabledReason
+    ).toHaveBeenCalledWith(
+        false,
+        EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
+    );
+
+    bluetoothBlock.setDisabledReason.mockClear();
+    ordinaryBlock.setDisabledReason.mockClear();
+
+    instance.props.activeBoardId = 'arduino-uno';
+
+    Blocks.prototype.updateWorkspaceBoardCapability.call(
+        instance
+    );
+
+    expect(
+        bluetoothBlock.setDisabledReason
+    ).toHaveBeenCalledWith(
+        false,
+        EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
+    );
+
+    expect(
+        ordinaryBlock.setDisabledReason
+    ).toHaveBeenCalledWith(
+        false,
+        EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
+    );
+
+    bluetoothBlock.setDisabledReason.mockClear();
+
+    instance.props.activeBoardId = 'microbit';
+
+    Blocks.prototype.updateWorkspaceBoardCapability.call(
+        instance
+    );
+
+    expect(
+        bluetoothBlock.setDisabledReason
+    ).toHaveBeenCalledWith(
+        true,
+        EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
     );
 });
 
@@ -1488,7 +1712,8 @@ describe('Blocks active extensions', () => {
             },
             getToolboxXML: jest.fn().mockReturnValue('<xml filtered/>'),
             handleExtensionSelectionRequest: jest.fn(),
-            requestToolboxUpdate: jest.fn()
+            requestToolboxUpdate: jest.fn(),
+            updateWorkspaceBoardCapability: jest.fn()
         };
 
         Blocks.prototype.componentDidUpdate.call(

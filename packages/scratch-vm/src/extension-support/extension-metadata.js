@@ -17,6 +17,7 @@
  * @property {string} [func] - the name of the function implementing this block. Can be shared by other blocks/opcodes.
  * @property {BlockType} blockType - the type of block (command, reporter, etc.) being described.
  * @property {BlockExecutionMode} [executionMode] - execution mode for this block. Defaults to BOTH.
+ * @property {string} [requiredBoardCapability] - board capability required to enable this block.
  * @property {BlockInactiveModeBehavior} [inactiveModeBehavior] - palette behavior when incompatible. Defaults to HIDE.
  * @property {string} text - the text on the block, with [PLACEHOLDERS] for arguments.
  * @property {boolean} [hideFromPalette] - true if this block should not appear in the block palette.

@@ -1,6 +1,7 @@
 import {
     createEasyBloxConnectionChecker,
-    EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+    EASYBLOX_EXECUTION_MODE_DISABLED_REASON,
+    EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
 } from '../../../src/lib/easyblox-connection-checker';
 
 describe('EasyBlox connection checker', () => {
@@ -97,6 +98,39 @@ describe('EasyBlox connection checker', () => {
         );
         expect(incompatibleBlock.hasDisabledReason).toHaveBeenCalledWith(
             EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+        );
+    });
+
+    test('rejects a new connection when a block is disabled by board capability', () => {
+        const EasyBloxConnectionChecker =
+            createEasyBloxConnectionChecker(ScratchBlocks);
+        const checker = new EasyBloxConnectionChecker();
+
+        const incompatibleBlock = {
+            hasDisabledReason: jest.fn(reason =>
+                reason ===
+                EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
+            )
+        };
+        const compatibleBlock = {
+            hasDisabledReason: jest.fn().mockReturnValue(false)
+        };
+
+        const result = checker.canConnectWithReason(
+            makeConnection(incompatibleBlock),
+            makeConnection(compatibleBlock),
+            true,
+            20
+        );
+
+        expect(result).toBe(
+            ScratchBlocks.Connection.REASON_CHECKS_FAILED
+        );
+
+        expect(
+            incompatibleBlock.hasDisabledReason
+        ).toHaveBeenCalledWith(
+            EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
         );
     });
 

@@ -7,7 +7,8 @@ import React from 'react';
 import VMScratchBlocks from '../lib/blocks';
 import {
     createEasyBloxConnectionChecker,
-    EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+    EASYBLOX_EXECUTION_MODE_DISABLED_REASON,
+    EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
 } from '../lib/easyblox-connection-checker';
 import {
     filterVariableCategoryForProgramMode
@@ -262,6 +263,14 @@ class Blocks extends React.Component {
         }
 
         if (
+            this.props.activeBoardId !==
+            prevProps.activeBoardId
+        ) {
+            this.updateWorkspaceBoardCapability();
+            this._recreateFlyoutOnNextToolboxUpdate = true;
+        }
+
+        if (
             this.props.activeBoardId !== prevProps.activeBoardId ||
             this.props.programMode !== prevProps.programMode ||
             this.state.activeExtensionIds !== prevState.activeExtensionIds
@@ -354,6 +363,49 @@ class Blocks extends React.Component {
             block.setDisabledReason(
                 incompatible,
                 EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+            );
+        }
+    }
+
+    updateWorkspaceBoardCapability () {
+        if (!this.workspace) {
+            return;
+        }
+
+        const activeBoard =
+            this.props.activeBoardId ?
+                getBoardById(
+                    this.props.activeBoardId
+                ) :
+                null;
+
+        const availableCapabilities =
+            new Set(
+                activeBoard &&
+                Array.isArray(activeBoard.capabilities) ?
+                    activeBoard.capabilities :
+                    []
+            );
+
+        for (
+            const block of
+            this.workspace.getAllBlocks(false)
+        ) {
+            const requiredCapability =
+                this.props.vm.runtime
+                    .getBlockRequiredBoardCapability(
+                        block.type
+                    );
+
+            const incompatible =
+                Boolean(requiredCapability) &&
+                !availableCapabilities.has(
+                    requiredCapability
+                );
+
+            block.setDisabledReason(
+                incompatible,
+                EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
             );
         }
     }
@@ -566,14 +618,26 @@ class Blocks extends React.Component {
             const stageCostumes = stage.getCostumes();
             const targetCostumes = target.getCostumes();
             const targetSounds = target.getSounds();
-            const blocksXML = this.props.vm.runtime.getBlocksXML(
-                target,
-                this.props.programMode
-            );
 
-            const activeBoard = this.props.activeBoardId ?
-                getBoardById(this.props.activeBoardId) :
-                null;
+            const activeBoard =
+                this.props.activeBoardId ?
+                    getBoardById(
+                        this.props.activeBoardId
+                    ) :
+                    null;
+
+            const activeBoardCapabilities =
+                activeBoard &&
+                Array.isArray(activeBoard.capabilities) ?
+                    activeBoard.capabilities :
+                    [];
+
+            const blocksXML =
+                this.props.vm.runtime.getBlocksXML(
+                    target,
+                    this.props.programMode,
+                    activeBoardCapabilities
+                );
 
             const activeBoardCompanionIds = activeBoard ?
                 this.props.vm.extensionManager.getExtensionCompanions(

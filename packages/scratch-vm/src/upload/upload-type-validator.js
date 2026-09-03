@@ -218,6 +218,17 @@ class UploadTypeValidator {
             }
         }
 
+        if (
+            Array.isArray(ir.events) &&
+            ir.events.length > 0
+        ) {
+            throw new Error(
+                'EasyBlox BT parallel events are not supported'
+            );
+        }
+
+        this._validateEasyBloxBtInitialization(ir);
+
         this._validateStatements(
             Array.isArray(ir.setup) ? ir.setup : []
         );
@@ -227,6 +238,185 @@ class UploadTypeValidator {
         );
 
         return ir;
+    }
+
+    /**
+     * Validate EasyBlox BT initialization placement and ordering.
+     * @param {object} ir Arduino UNO Upload IR.
+     * @private
+     */
+    _validateEasyBloxBtInitialization (ir) {
+        const setup =
+            Array.isArray(ir.setup) ?
+                ir.setup :
+                [];
+        const loop =
+            Array.isArray(ir.loop) ?
+                ir.loop :
+                [];
+        const procedures =
+            Array.isArray(ir.procedures) ?
+                ir.procedures :
+                [];
+
+        const topLevelInitIndexes = [];
+
+        for (
+            let index = 0;
+            index < setup.length;
+            index++
+        ) {
+            if (
+                setup[index] &&
+                setup[index].type ===
+                    'EasyBloxBtInit'
+            ) {
+                topLevelInitIndexes.push(index);
+            }
+        }
+
+        const setupInitCount =
+            this._countEasyBloxBtInitializations(
+                setup
+            );
+
+        const nonSetupInitCount =
+            this._countEasyBloxBtInitializations(
+                loop
+            ) +
+            this._countEasyBloxBtInitializations(
+                procedures
+            );
+
+        if (
+            nonSetupInitCount > 0 ||
+            setupInitCount !==
+                topLevelInitIndexes.length
+        ) {
+            throw new Error(
+                'EasyBlox BT initialization must be in setup'
+            );
+        }
+
+        if (setupInitCount > 1) {
+            throw new Error(
+                'EasyBlox BT must be initialized only once'
+            );
+        }
+
+        const usesEasyBloxBt =
+            this._containsEasyBloxBtUse(setup) ||
+            this._containsEasyBloxBtUse(loop) ||
+            this._containsEasyBloxBtUse(procedures);
+
+        if (!usesEasyBloxBt) {
+            return;
+        }
+
+        if (topLevelInitIndexes.length === 0) {
+            throw new Error(
+                'EasyBlox BT must be initialized before use'
+            );
+        }
+
+        const initIndex =
+            topLevelInitIndexes[0];
+
+        if (
+            this._containsEasyBloxBtUse(
+                setup.slice(0, initIndex)
+            )
+        ) {
+            throw new Error(
+                'EasyBlox BT must be initialized before use'
+            );
+        }
+    }
+
+    /**
+     * Count EasyBlox BT initialization nodes recursively.
+     * @param {object} value IR fragment.
+     * @returns {number} Initialization count.
+     * @private
+     */
+    _countEasyBloxBtInitializations (value) {
+        if (Array.isArray(value)) {
+            return value.reduce(
+                (count, item) =>
+                    count +
+                    this._countEasyBloxBtInitializations(
+                        item
+                    ),
+                0
+            );
+        }
+
+        if (
+            !value ||
+            typeof value !== 'object'
+        ) {
+            return 0;
+        }
+
+        let count =
+            value.type === 'EasyBloxBtInit' ?
+                1 :
+                0;
+
+        for (const key of Object.keys(value)) {
+            if (key === 'type') {
+                continue;
+            }
+
+            count +=
+                this._countEasyBloxBtInitializations(
+                    value[key]
+                );
+        }
+
+        return count;
+    }
+
+    /**
+     * Detect semantic EasyBlox BT use recursively.
+     * Initialization itself is not considered a use.
+     * @param {object} value IR fragment.
+     * @returns {boolean} True when Bluetooth functionality is used.
+     * @private
+     */
+    _containsEasyBloxBtUse (value) {
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._containsEasyBloxBtUse(item)
+            );
+        }
+
+        if (
+            !value ||
+            typeof value !== 'object'
+        ) {
+            return false;
+        }
+
+        if (
+            value.type === 'EasyBloxBtSendText' ||
+            value.type === 'EasyBloxBtWaitText' ||
+            value.type ===
+                'EasyBloxBtReceivedTextExpression' ||
+            value.type === 'EasyBloxBtSendNumber' ||
+            value.type === 'EasyBloxBtWaitNumber' ||
+            value.type ===
+                'EasyBloxBtReceivedNumberExpression'
+        ) {
+            return true;
+        }
+
+        return Object.keys(value).some(key =>
+            key !== 'type' &&
+            this._containsEasyBloxBtUse(
+                value[key]
+            )
+        );
     }
 
     /**
@@ -412,7 +602,6 @@ class UploadTypeValidator {
                 const valueType = this._inferExpressionType(
                     statement.value
                 );
-
                 if (
                     valueType !== VALUE_TYPES.TEXT &&
                     valueType !== VALUE_TYPES.INTEGER &&
@@ -421,6 +610,74 @@ class UploadTypeValidator {
                 ) {
                     throw new Error(
                         'Serial write value must be a printable scalar'
+                    );
+                }
+
+                break;
+            }
+
+            case 'EasyBloxBtInit':
+                break;
+
+            case 'EasyBloxBtWaitText':
+            case 'EasyBloxBtWaitNumber': {
+                const channelType =
+                    this._inferExpressionType(
+                        statement.channel
+                    );
+
+                if (
+                    channelType !==
+                    VALUE_TYPES.TEXT
+                ) {
+                    throw new Error(
+                        'EasyBlox BT channel must be TEXT'
+                    );
+                }
+
+                break;
+            }
+
+            case 'EasyBloxBtSendText': {
+                const valueType = this._inferExpressionType(
+                    statement.value
+                );
+                const channelType = this._inferExpressionType(
+                    statement.channel
+                );
+
+                if (valueType !== VALUE_TYPES.TEXT) {
+                    throw new Error(
+                        'EasyBlox BT text value must be TEXT'
+                    );
+                }
+
+                if (channelType !== VALUE_TYPES.TEXT) {
+                    throw new Error(
+                        'EasyBlox BT channel must be TEXT'
+                    );
+                }
+
+                break;
+            }
+
+            case 'EasyBloxBtSendNumber': {
+                const valueType = this._inferExpressionType(
+                    statement.value
+                );
+                const channelType = this._inferExpressionType(
+                    statement.channel
+                );
+
+                if (!this._isNumericType(valueType)) {
+                    throw new Error(
+                        'EasyBlox BT number value must be numeric'
+                    );
+                }
+
+                if (channelType !== VALUE_TYPES.TEXT) {
+                    throw new Error(
+                        'EasyBlox BT channel must be TEXT'
                     );
                 }
 
@@ -586,6 +843,12 @@ class UploadTypeValidator {
         case 'BooleanLiteral':
             return VALUE_TYPES.BOOLEAN;
 
+        case 'EasyBloxBtReceivedTextExpression':
+            return VALUE_TYPES.TEXT;
+
+        case 'EasyBloxBtReceivedNumberExpression':
+            return VALUE_TYPES.DECIMAL;
+
         case 'DigitalReadExpression':
             return VALUE_TYPES.BOOLEAN;
 
@@ -741,10 +1004,6 @@ class UploadTypeValidator {
             return VALUE_TYPES.INTEGER;
 
         case 'Round': {
-            const operandType = this._inferExpressionType(
-                expression.operand
-            );
-
             if (!this._isNumericType(operandType)) {
                 throw new Error(
                     'Round operand must be numeric'
@@ -755,10 +1014,6 @@ class UploadTypeValidator {
         }
 
         case 'MathOp': {
-            const operandType = this._inferExpressionType(
-                expression.operand
-            );
-
             if (!this._isNumericType(operandType)) {
                 throw new Error(
                     'MathOp operand must be numeric'

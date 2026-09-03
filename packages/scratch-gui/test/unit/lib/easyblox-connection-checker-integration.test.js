@@ -3,7 +3,8 @@ const VMScratchBlocks = require('../../../src/lib/blocks').default;
 
 const {
     createEasyBloxConnectionChecker,
-    EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+    EASYBLOX_EXECUTION_MODE_DISABLED_REASON,
+    EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
 } = require('../../../src/lib/easyblox-connection-checker');
 
 describe('EasyBlox connection checker Scratch Blocks integration', () => {
@@ -82,6 +83,36 @@ describe('EasyBlox connection checker Scratch Blocks integration', () => {
         expect(
             topBlock.hasDisabledReason(
                 EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+            )
+        ).toBe(true);
+
+        const result =
+            workspace.connectionChecker.canConnectWithReason(
+                topBlock.nextConnection,
+                bottomBlock.previousConnection,
+                true,
+                100
+            );
+
+        expect(result).toBe(
+            ScratchBlocks.Connection.REASON_CHECKS_FAILED
+        );
+    });
+
+    test('rejects a real drag connection involving a board-capability disabled block', () => {
+        const topBlock =
+            workspace.newBlock('easyblox_test_top');
+        const bottomBlock =
+            workspace.newBlock('easyblox_test_bottom');
+
+        topBlock.setDisabledReason(
+            true,
+            EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
+        );
+
+        expect(
+            topBlock.hasDisabledReason(
+                EASYBLOX_BOARD_CAPABILITY_DISABLED_REASON
             )
         ).toBe(true);
 

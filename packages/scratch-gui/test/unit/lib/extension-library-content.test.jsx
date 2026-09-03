@@ -18,6 +18,9 @@ describe('EasyBlox extension library classification', () => {
                 'stage',
                 'upload'
             ],
+            capabilities: [
+                'bluetoothSerial'
+            ],
             visible: true
         });
     });
@@ -29,6 +32,7 @@ describe('EasyBlox extension library classification', () => {
             supportedModes: [
                 'stage'
             ],
+            capabilities: [],
             visible: true
         });
     });

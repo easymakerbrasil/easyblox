@@ -1590,12 +1590,46 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Get the board capability required by a registered extension block.
+     * @param {string} blockType - scratch-blocks block type
+     * @returns {?string} required board capability, or null
+     */
+    getBlockRequiredBoardCapability (blockType) {
+        for (const categoryInfo of this._blockInfo) {
+            const convertedBlock =
+                categoryInfo.blocks.find(block =>
+                    block &&
+                    block.json &&
+                    block.json.type === blockType
+                );
+
+            if (convertedBlock) {
+                return convertedBlock.info
+                    .requiredBoardCapability || null;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @returns {Array.<object>} scratch-blocks XML for each category of extension blocks, in category order.
      * @param {?BlockExecutionMode} [executionMode] - execution mode used to filter palette blocks (optional)
      * @property {string} id - the category / extension ID
      * @property {string} xml - the XML text for this category, starting with `<category>` and ending with `</category>`
      */
-    getBlocksXML (target, executionMode = null) {
+    getBlocksXML (
+        target,
+        executionMode = null,
+        availableBoardCapabilities = []
+    ) {
+        const availableBoardCapabilitySet =
+            new Set(
+                Array.isArray(availableBoardCapabilities) ?
+                    availableBoardCapabilities :
+                    []
+            );
+
         return this._blockInfo.map(categoryInfo => {
             const {name, color1, color2} = categoryInfo;
             // Filter out blocks that aren't supposed to be shown on this target, as determined by the block info's
@@ -1677,12 +1711,31 @@ class Runtime extends EventEmitter {
                         block.info.inactiveModeBehavior ===
                             BlockInactiveModeBehavior.SHOW_DISABLED;
 
-                    return showDisabled ?
-                        block.xml.replace(
+                    const requiredBoardCapability =
+                        block.info.requiredBoardCapability ||
+                        null;
+
+                    const boardCapabilityIncompatible =
+                        Boolean(requiredBoardCapability) &&
+                        !availableBoardCapabilitySet.has(
+                            requiredBoardCapability
+                        );
+
+                    if (boardCapabilityIncompatible) {
+                        return block.xml.replace(
+                            '>',
+                            ' disabled-reasons="EASYBLOX_BOARD_CAPABILITY">'
+                        );
+                    }
+
+                    if (showDisabled) {
+                        return block.xml.replace(
                             '>',
                             ' disabled-reasons="EASYBLOX_EXECUTION_MODE">'
-                        ) :
-                        block.xml;
+                        );
+                    }
+
+                    return block.xml;
                 }).join('')}</category>`
             };
         }).filter(Boolean);

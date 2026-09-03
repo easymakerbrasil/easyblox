@@ -1,3 +1,7 @@
+const {
+    CONNECTIVITY_RESOURCES
+} = require('../connectivity/easyblox-connectivity-contract');
+
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
 const DIGITAL_READ_OPCODE = 'arduinoUno_digitalRead';
@@ -33,6 +37,13 @@ const RELAY_WRITE_OPCODE = 'actuators_relayWrite';
 const SERIAL_BEGIN_OPCODE = 'serial_serialBegin';
 const SERIAL_WRITE_OPCODE = 'serial_serialWrite';
 const SERIAL_WRITE_LINE_OPCODE = 'serial_serialWriteLine';
+const EASYBLOX_BT_INIT_OPCODE = 'easybloxBt_init';
+const EASYBLOX_BT_SEND_TEXT_OPCODE = 'easybloxBt_sendText';
+const EASYBLOX_BT_WAIT_TEXT_OPCODE = 'easybloxBt_waitText';
+const EASYBLOX_BT_RECEIVED_TEXT_OPCODE = 'easybloxBt_receivedText';
+const EASYBLOX_BT_SEND_NUMBER_OPCODE = 'easybloxBt_sendNumber';
+const EASYBLOX_BT_WAIT_NUMBER_OPCODE = 'easybloxBt_waitNumber';
+const EASYBLOX_BT_RECEIVED_NUMBER_OPCODE = 'easybloxBt_receivedNumber';
 const FOREVER_OPCODE = 'control_forever';
 const REPEAT_OPCODE = 'control_repeat';
 const IF_OPCODE = 'control_if';
@@ -103,6 +114,8 @@ class UploadProgramExtractor {
         this.runtime = isUploadProgram ?
             null :
             source;
+
+        this._resources = new Set();
     }
 
     /**
@@ -130,6 +143,8 @@ class UploadProgramExtractor {
      * @returns {object} EasyBlox Upload IR.
      */
     extract () {
+        this._resources = new Set();
+
         const entryPoints = this._findEntryPoints();
 
         if (entryPoints.length === 0) {
@@ -140,7 +155,9 @@ class UploadProgramExtractor {
         }
 
         if (entryPoints.length > 1) {
-            throw new Error('Arduino UNO Upload has multiple entry points');
+            throw new Error(
+                'Arduino UNO Upload has multiple entry points'
+            );
         }
 
         const entryPoint = entryPoints[0];
@@ -148,36 +165,59 @@ class UploadProgramExtractor {
         const loop = [];
         const unreachable = [];
 
-        let blockId = entryPoint.blocks.getNextBlock(entryPoint.blockId);
+        let blockId =
+            entryPoint.blocks.getNextBlock(
+                entryPoint.blockId
+            );
 
         while (blockId) {
-            const block = entryPoint.blocks.getBlock(blockId);
+            const block =
+                entryPoint.blocks.getBlock(blockId);
 
             if (!block) {
-                throw new Error(`Arduino UNO Upload block not found: ${blockId}`);
+                throw new Error(
+                    `Arduino UNO Upload block not found: ${
+                        blockId
+                    }`
+                );
             }
 
             if (block.opcode === FOREVER_OPCODE) {
-    this._extractBranchStatements(
-        entryPoint.blocks,
-        entryPoint.blocks.getBranch(blockId, 1),
-        loop
-    );
+                this._extractBranchStatements(
+                    entryPoint.blocks,
+                    entryPoint.blocks.getBranch(
+                        blockId,
+                        1
+                    ),
+                    loop
+                );
 
-    const nextBlockId = entryPoint.blocks.getNextBlock(blockId);
+                const nextBlockId =
+                    entryPoint.blocks.getNextBlock(
+                        blockId
+                    );
 
-            if (nextBlockId) {
-                unreachable.push({
-                    type: 'UnreachableCode',
-                    reason: 'AfterInfiniteLoop'
-                });
+                if (nextBlockId) {
+                    unreachable.push({
+                        type: 'UnreachableCode',
+                        reason: 'AfterInfiniteLoop'
+                    });
+                }
+
+                break;
             }
 
-            break;
-        }
+            setup.push(
+                this._extractStatement(
+                    entryPoint.blocks,
+                    block
+                )
+            );
 
-            setup.push(this._extractStatement(entryPoint.blocks, block));
-            blockId = entryPoint.blocks.getNextBlock(blockId);
+            blockId =
+                entryPoint.blocks.getNextBlock(
+                    blockId
+                );
         }
 
         const ir = {
@@ -194,10 +234,19 @@ class UploadProgramExtractor {
             ir.globals = globals;
         }
 
-        const procedures = this._extractProcedures(entryPoint.target);
+        const procedures =
+            this._extractProcedures(
+                entryPoint.target
+            );
 
         if (procedures.length > 0) {
             ir.procedures = procedures;
+        }
+
+        if (this._resources.size > 0) {
+            ir.resources = Array.from(
+                this._resources
+            );
         }
 
         if (unreachable.length > 0) {
@@ -1033,6 +1082,71 @@ class UploadProgramExtractor {
                 )
             };
 
+        case EASYBLOX_BT_INIT_OPCODE:
+            this._reserveEasyBloxBtResource();
+
+            return {
+                type: 'EasyBloxBtInit'
+            };
+
+        case EASYBLOX_BT_SEND_TEXT_OPCODE:
+            this._reserveEasyBloxBtResource();
+
+            return {
+                type: 'EasyBloxBtSendText',
+                value: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'TEXT'
+                ),
+                channel: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'CHANNEL'
+                )
+            };
+
+        case EASYBLOX_BT_WAIT_TEXT_OPCODE:
+            this._reserveEasyBloxBtResource();
+
+            return {
+                type: 'EasyBloxBtWaitText',
+                channel: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'CHANNEL'
+                )
+            };
+
+        case EASYBLOX_BT_SEND_NUMBER_OPCODE:
+            this._reserveEasyBloxBtResource();
+
+            return {
+                type: 'EasyBloxBtSendNumber',
+                value: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'NUMBER'
+                ),
+                channel: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'CHANNEL'
+                )
+            };
+
+        case EASYBLOX_BT_WAIT_NUMBER_OPCODE:
+            this._reserveEasyBloxBtResource();
+
+            return {
+                type: 'EasyBloxBtWaitNumber',
+                channel: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'CHANNEL'
+                )
+            };
+
         case WAIT_OPCODE:
             return {
                 type: 'Wait',
@@ -1184,6 +1298,17 @@ class UploadProgramExtractor {
     }
 
     /**
+     * Reserve the canonical EasyBlox Bluetooth software UART.
+     * Repeated claims are intentionally deduplicated.
+     * @private
+     */
+    _reserveEasyBloxBtResource () {
+        this._resources.add(
+            CONNECTIVITY_RESOURCES.SOFTWARE_UART_D2_D3
+        );
+    }
+
+    /**
      * Read and validate a digital HIGH/LOW Scratch input.
      * @param {Blocks} blocks Scratch Blocks storage.
      * @param {object} block Parent block.
@@ -1309,6 +1434,20 @@ class UploadProgramExtractor {
         }
 
         switch (block.opcode) {
+        case EASYBLOX_BT_RECEIVED_TEXT_OPCODE:
+            this._reserveEasyBloxBtResource();
+
+            return {
+                type: 'EasyBloxBtReceivedTextExpression'
+            };
+
+        case EASYBLOX_BT_RECEIVED_NUMBER_OPCODE:
+            this._reserveEasyBloxBtResource();
+
+            return {
+                type: 'EasyBloxBtReceivedNumberExpression'
+            };
+
         case VARIABLE_REPORTER_OPCODE: {
             const fields = blocks.getFields(block);
             const variableField = fields && fields.VARIABLE;

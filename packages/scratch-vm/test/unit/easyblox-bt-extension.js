@@ -37,30 +37,85 @@ tap.test(
             'EasyBlox BT'
         );
 
+        t.equal(
+            info.color1,
+            '#0a3e91'
+        );
+
+        t.equal(
+            info.color2,
+            '#083477'
+        );
+
+        t.equal(
+            info.color3,
+            '#06285c'
+        );
+
         t.end();
     }
 );
 
 tap.test(
-    'EasyBlox BT exposes exactly the six canonical v1 blocks',
+    'EasyBlox BT exposes exactly the seven canonical v1 blocks',
     t => {
         const blocks = getBlocks();
 
         t.same(
             blocks.map(block => block.opcode),
             [
+                'init',
                 'sendText',
-                'whenTextReceived',
+                'waitText',
                 'receivedText',
                 'sendNumber',
-                'whenNumberReceived',
+                'waitNumber',
                 'receivedNumber'
             ]
         );
 
         t.equal(
             blocks.length,
-            6
+            7
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT init block explicitly initializes the transport',
+    t => {
+        const block = getBlock('init');
+
+        t.ok(
+            block,
+            'init block must exist'
+        );
+
+        if (!block) {
+            t.end();
+            return;
+        }
+
+        t.equal(
+            block.blockType,
+            BlockType.COMMAND
+        );
+
+        t.equal(
+            block.executionMode,
+            BlockExecutionMode.BOTH
+        );
+
+        t.equal(
+            block.text,
+            'iniciar EasyBlox BT'
+        );
+
+        t.same(
+            block.arguments || {},
+            {}
         );
 
         t.end();
@@ -106,13 +161,23 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT text receive hat exposes only a static channel input',
+    'EasyBlox BT wait text block exposes only a channel input',
     t => {
-        const block = getBlock('whenTextReceived');
+        const block = getBlock('waitText');
+
+        t.ok(
+            block,
+            'waitText block must exist'
+        );
+
+        if (!block) {
+            t.end();
+            return;
+        }
 
         t.equal(
             block.blockType,
-            BlockType.HAT
+            BlockType.COMMAND
         );
 
         t.equal(
@@ -122,7 +187,7 @@ tap.test(
 
         t.equal(
             block.text,
-            'quando EasyBlox BT receber texto no canal [CHANNEL]'
+            'aguardar texto no canal [CHANNEL]'
         );
 
         t.same(
@@ -133,16 +198,6 @@ tap.test(
                     defaultValue: 'cmd'
                 }
             }
-        );
-
-        t.equal(
-            block.isEdgeActivated,
-            false
-        );
-
-        t.equal(
-            block.shouldRestartExistingThreads,
-            false
         );
 
         t.end();
@@ -217,13 +272,23 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT number receive hat exposes only a static channel input',
+    'EasyBlox BT wait number block exposes only a channel input',
     t => {
-        const block = getBlock('whenNumberReceived');
+        const block = getBlock('waitNumber');
+
+        t.ok(
+            block,
+            'waitNumber block must exist'
+        );
+
+        if (!block) {
+            t.end();
+            return;
+        }
 
         t.equal(
             block.blockType,
-            BlockType.HAT
+            BlockType.COMMAND
         );
 
         t.equal(
@@ -233,7 +298,7 @@ tap.test(
 
         t.equal(
             block.text,
-            'quando EasyBlox BT receber número no canal [CHANNEL]'
+            'aguardar número no canal [CHANNEL]'
         );
 
         t.same(
@@ -244,16 +309,6 @@ tap.test(
                     defaultValue: 'valor'
                 }
             }
-        );
-
-        t.equal(
-            block.isEdgeActivated,
-            false
-        );
-
-        t.equal(
-            block.shouldRestartExistingThreads,
-            false
         );
 
         t.end();
@@ -331,6 +386,53 @@ tap.test(
             t.equal(
                 block.executionMode,
                 BlockExecutionMode.BOTH,
+                block.opcode
+            );
+        }
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT v1 exposes no extension HAT blocks',
+    t => {
+        for (const block of getBlocks()) {
+            t.equal(
+                block.blockType === BlockType.HAT,
+                false,
+                block.opcode
+            );
+        }
+
+        t.end();
+    }
+);
+
+tap.test(
+    'every EasyBlox BT public opcode has a runtime method',
+    t => {
+        const extension = createExtension();
+
+        for (const block of getBlocks()) {
+            t.equal(
+                typeof extension[block.opcode],
+                'function',
+                block.opcode
+            );
+        }
+
+        t.end();
+    }
+);
+
+tap.test(
+    'all EasyBlox BT v1 blocks require Bluetooth Serial board capability',
+    t => {
+        for (const block of getBlocks()) {
+            t.equal(
+                block.requiredBoardCapability,
+                'bluetoothSerial',
                 block.opcode
             );
         }
