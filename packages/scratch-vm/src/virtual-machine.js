@@ -2047,6 +2047,73 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Route movement or deletion of a mode-specific block which is visible
+     * in the opposite EasyBlox program mode back to its real backing store.
+     *
+     * Unlike BOTH transfer, ownership does not change. The block remains
+     * Stage-only or Upload-only; only its source program is mutated.
+     *
+     * @param {!Blockly.Event} e Blockly event.
+     * @param {?Blocks} inactiveBlocks Inactive program backing store.
+     * @param {!Blocks} activeBlocks Active program backing store.
+     * @param {!string} activeMode Active EasyBlox program mode.
+     * @returns {boolean} Whether the event was handled by the inactive owner.
+     */
+    _routeEasyBloxInactiveBlockEvent (
+        e,
+        inactiveBlocks,
+        activeBlocks,
+        activeMode
+    ) {
+        if (
+            !e ||
+            (
+                e.type !== 'move' &&
+                e.type !== 'delete'
+            ) ||
+            typeof e.blockId !== 'string' ||
+            !inactiveBlocks ||
+            !activeBlocks ||
+            activeBlocks.getBlock(e.blockId)
+        ) {
+            return false;
+        }
+
+        const inactiveBlock =
+            inactiveBlocks.getBlock(e.blockId);
+
+        if (!inactiveBlock) {
+            return false;
+        }
+
+        const executionMode =
+            typeof this.runtime.getBlockExecutionMode ===
+                'function' ?
+                this.runtime.getBlockExecutionMode(
+                    inactiveBlock.opcode
+                ) :
+                null;
+
+        /*
+         * BOTH blocks use the ownership-transfer path. Neutral blocks and
+         * blocks already compatible with the active program must not be
+         * redirected as inactive mode-specific content.
+         */
+        if (
+            executionMode === null ||
+            typeof executionMode === 'undefined' ||
+            executionMode === 'both' ||
+            executionMode === activeMode
+        ) {
+            return false;
+        }
+
+        inactiveBlocks.blocklyListen(e);
+
+        return true;
+    }
+
+    /**
      * Handle a Blockly event for the current editing target.
      * @param {!Blockly.Event} e Any Blockly event.
      */
@@ -2061,15 +2128,30 @@ class VirtualMachine extends EventEmitter {
 
             const sourceBlocks = uploadProgram.blocks;
 
+            const inactiveBlocks =
+                this.editingTarget ?
+                    this.editingTarget.blocks :
+                    null;
+
             const transferredMove =
                 this._transferEasyBloxPortableBlockForMove(
                     e,
-                    this.editingTarget ?
-                        this.editingTarget.blocks :
-                        null,
+                    inactiveBlocks,
                     sourceBlocks,
                     'upload'
                 );
+
+            if (
+                !transferredMove &&
+                this._routeEasyBloxInactiveBlockEvent(
+                    e,
+                    inactiveBlocks,
+                    sourceBlocks,
+                    'upload'
+                )
+            ) {
+                return;
+            }
 
             const routedEvent =
                 transferredMove || e;
@@ -2110,15 +2192,30 @@ class VirtualMachine extends EventEmitter {
                     ) :
                     null;
 
+            const inactiveBlocks =
+                selectedUploadProgram ?
+                    selectedUploadProgram.blocks :
+                    null;
+
             const transferredMove =
                 this._transferEasyBloxPortableBlockForMove(
                     e,
-                    selectedUploadProgram ?
-                        selectedUploadProgram.blocks :
-                        null,
+                    inactiveBlocks,
                     sourceBlocks,
                     'stage'
                 );
+
+            if (
+                !transferredMove &&
+                this._routeEasyBloxInactiveBlockEvent(
+                    e,
+                    inactiveBlocks,
+                    sourceBlocks,
+                    'stage'
+                )
+            ) {
+                return;
+            }
 
             const routedEvent =
                 transferredMove || e;

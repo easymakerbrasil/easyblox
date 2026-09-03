@@ -1028,7 +1028,11 @@ test('hydrates inactive Upload blocks visually on a cold Stage workspace load', 
 
     expect(
         uploadBlock.getAttribute('movable')
-    ).toBe('false');
+    ).toBeNull();
+
+    expect(
+        uploadBlock.getAttribute('deletable')
+    ).toBeNull();
 
     expect(
         uploadBlock.getAttribute('editable')
@@ -1221,11 +1225,11 @@ test('preserves incompatible blocks without freezing portable BOTH descendants a
 
         expect(
             preservedStageHat.getAttribute('movable')
-        ).toBe('false');
+        ).toBeNull();
 
         expect(
             preservedStageHat.getAttribute('deletable')
-        ).toBe('false');
+        ).toBeNull();
 
         expect(
             preservedStageHat.getAttribute('editable')
@@ -1330,11 +1334,11 @@ test('preserves incompatible blocks without freezing portable BOTH descendants a
 
         expect(
             preservedUploadHat.getAttribute('movable')
-        ).toBe('false');
+        ).toBeNull();
 
         expect(
             preservedUploadHat.getAttribute('deletable')
-        ).toBe('false');
+        ).toBeNull();
 
         expect(
             preservedUploadHat.getAttribute('editable')

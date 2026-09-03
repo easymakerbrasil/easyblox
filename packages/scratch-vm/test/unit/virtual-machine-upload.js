@@ -967,6 +967,207 @@ test('VirtualMachine transfers a portable BOTH stack from Upload into the active
     t.end();
 });
 
+test('VirtualMachine routes Stage-only move and delete events to Stage while Upload is active', t => {
+    const vm = new VirtualMachine();
+
+    const stageBlocks =
+        new Blocks(vm.runtime);
+
+    const stage = {
+        id: 'stage',
+        isStage: true,
+        isOriginal: true,
+        blocks: stageBlocks,
+        variables: Object.create(null)
+    };
+
+    vm.runtime.targets = [stage];
+    vm.runtime.getTargetForStage = () => stage;
+    vm.runtime.getEditingTarget = () => stage;
+    vm.editingTarget = stage;
+
+    vm.runtime.getBlockExecutionMode = opcode => {
+        const executionModes = {
+            event_whenflagclicked: 'stage'
+        };
+
+        return executionModes[opcode] || null;
+    };
+
+    stageBlocks.createBlock({
+        id: 'stage_only_hat',
+        opcode: 'event_whenflagclicked',
+        next: null,
+        parent: null,
+        inputs: {},
+        fields: {},
+        topLevel: true,
+        shadow: false,
+        x: 20,
+        y: 30
+    });
+
+    const uploadProgram =
+        vm.getOrCreateUploadProgram('arduino-uno');
+
+    vm.setProgramContext(
+        'upload',
+        'arduino-uno'
+    );
+
+    vm.blockListener({
+        type: 'move',
+        blockId: 'stage_only_hat',
+        newCoordinate: {
+            x: 140,
+            y: 90
+        }
+    });
+
+    const movedStageBlock =
+        stageBlocks.getBlock('stage_only_hat');
+
+    t.equal(
+        movedStageBlock && movedStageBlock.x,
+        140,
+        'Stage-only block movement persists in its Stage backing store'
+    );
+
+    t.equal(
+        movedStageBlock && movedStageBlock.y,
+        90,
+        'Stage-only block keeps the new Y coordinate'
+    );
+
+    t.equal(
+        uploadProgram.blocks.getBlock('stage_only_hat'),
+        undefined,
+        'moving a Stage-only block does not transfer it to Upload'
+    );
+
+    vm.blockListener({
+        type: 'delete',
+        blockId: 'stage_only_hat'
+    });
+
+    t.equal(
+        stageBlocks.getBlock('stage_only_hat'),
+        undefined,
+        'deleting the foreign Stage-only block removes it from Stage'
+    );
+
+    t.equal(
+        uploadProgram.blocks.getBlock('stage_only_hat'),
+        undefined,
+        'deleted Stage-only block is never created in Upload'
+    );
+
+    t.end();
+});
+
+test('VirtualMachine routes Upload-only move and delete events to Upload while Stage is active', t => {
+    const vm = new VirtualMachine();
+
+    const stageBlocks =
+        new Blocks(vm.runtime);
+
+    const stage = {
+        id: 'stage',
+        isStage: true,
+        isOriginal: true,
+        blocks: stageBlocks,
+        variables: Object.create(null)
+    };
+
+    vm.runtime.targets = [stage];
+    vm.runtime.getTargetForStage = () => stage;
+    vm.runtime.getEditingTarget = () => stage;
+    vm.editingTarget = stage;
+
+    vm.runtime.getBlockExecutionMode = opcode => {
+        const executionModes = {
+            arduinoUno_whenArduinoUnoStart: 'upload'
+        };
+
+        return executionModes[opcode] || null;
+    };
+
+    const uploadProgram =
+        vm.getOrCreateUploadProgram('arduino-uno');
+
+    uploadProgram.blocks.createBlock({
+        id: 'upload_only_hat',
+        opcode: 'arduinoUno_whenArduinoUnoStart',
+        next: null,
+        parent: null,
+        inputs: {},
+        fields: {},
+        topLevel: true,
+        shadow: false,
+        x: 20,
+        y: 30
+    });
+
+    vm.setProgramContext(
+        'upload',
+        'arduino-uno'
+    );
+
+    vm.setProgramContext(
+        'stage',
+        null
+    );
+
+    vm.blockListener({
+        type: 'move',
+        blockId: 'upload_only_hat',
+        newCoordinate: {
+            x: 170,
+            y: 110
+        }
+    });
+
+    const movedUploadBlock =
+        uploadProgram.blocks.getBlock('upload_only_hat');
+
+    t.equal(
+        movedUploadBlock && movedUploadBlock.x,
+        170,
+        'Upload-only block movement persists in its Upload backing store'
+    );
+
+    t.equal(
+        movedUploadBlock && movedUploadBlock.y,
+        110,
+        'Upload-only block keeps the new Y coordinate'
+    );
+
+    t.equal(
+        stageBlocks.getBlock('upload_only_hat'),
+        undefined,
+        'moving an Upload-only block does not transfer it to Stage'
+    );
+
+    vm.blockListener({
+        type: 'delete',
+        blockId: 'upload_only_hat'
+    });
+
+    t.equal(
+        uploadProgram.blocks.getBlock('upload_only_hat'),
+        undefined,
+        'deleting the foreign Upload-only block removes it from Upload'
+    );
+
+    t.equal(
+        stageBlocks.getBlock('upload_only_hat'),
+        undefined,
+        'deleted Upload-only block is never created in Stage'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine shares My Block signatures while keeping Stage and Upload bodies independent', t => {
     const vm = new VirtualMachine();
 

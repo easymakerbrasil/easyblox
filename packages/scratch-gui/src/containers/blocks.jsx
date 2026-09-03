@@ -841,17 +841,22 @@ class Blocks extends React.Component {
                         'editable'
                     );
                 } else {
+                    /*
+                     * A mode-specific block remains inactive for execution
+                     * and editing, but it must still behave like a Blockly
+                     * object: the student may reposition or delete it.
+                     * MOVE and DELETE are routed by the VM to its inactive
+                     * backing-store owner.
+                     */
                     blockNode.setAttribute(
                         'disabled',
                         'true'
                     );
-                    blockNode.setAttribute(
-                        'movable',
-                        'false'
+                    blockNode.removeAttribute(
+                        'movable'
                     );
-                    blockNode.setAttribute(
-                        'deletable',
-                        'false'
+                    blockNode.removeAttribute(
+                        'deletable'
                     );
                     blockNode.setAttribute(
                         'editable',
