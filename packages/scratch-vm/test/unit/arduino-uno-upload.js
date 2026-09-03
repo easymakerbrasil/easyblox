@@ -1518,6 +1518,165 @@ tap.test('Arduino UNO Upload resource validator accepts Servo with PWM outside T
     t.end();
 });
 
+tap.test('Arduino UNO BoardProfile defines Tone PWM conflict pins', t => {
+    t.same(
+        ArduinoUnoBoardProfile.tonePwmConflictPins,
+        [3, 11]
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Tone with PWM on Timer2 conflict pins', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    for (const pin of [3, 11]) {
+        const ir = {
+            setup: [{
+                type: 'ToneStart',
+                pin: 7,
+                frequency: 440,
+                duration: 500
+            }, {
+                type: 'PwmWrite',
+                pin,
+                value: 128
+            }],
+            loop: []
+        };
+
+        t.throws(
+            () => validator.validate(ir),
+            /Tone cannot be used with PWM on the selected pin/,
+            `rejects Tone with PWM on Timer2 pin ${pin}`
+        );
+    }
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts Tone with PWM outside Timer2 conflict pins', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    for (const pin of [5, 6, 9, 10]) {
+        const ir = {
+            setup: [{
+                type: 'ToneStart',
+                pin: 12,
+                frequency: 440,
+                duration: 500
+            }, {
+                type: 'PwmWrite',
+                pin,
+                value: 128
+            }],
+            loop: []
+        };
+
+        t.equal(
+            validator.validate(ir),
+            ir,
+            `accepts Tone with PWM on non-Timer2 pin ${pin}`
+        );
+    }
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Tone with default Motor 1 because of Timer2', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 12,
+            frequency: 440,
+            duration: 500
+        }, {
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 75
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Tone cannot be used with Motor PWM on the selected pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator accepts Tone with default Motor 2 outside Timer2', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'ToneStart',
+            pin: 12,
+            frequency: 440,
+            duration: 500
+        }, {
+            type: 'MotorWrite',
+            motor: 2,
+            direction: 0,
+            speedPercent: 75
+        }],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator rejects Tone with configured motor PWM on Timer2', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    const ir = {
+        setup: [{
+            type: 'MotorConfigure',
+            motor: 2,
+            in1Pin: 7,
+            in2Pin: 8,
+            pwmPin: 11
+        }, {
+            type: 'ToneStart',
+            pin: 12,
+            frequency: 440,
+            duration: 500
+        }, {
+            type: 'MotorWrite',
+            motor: 2,
+            direction: 0,
+            speedPercent: 75
+        }],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Tone cannot be used with Motor PWM on the selected pin/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload resource validator rejects unsupported PWM pin', t => {
     const validator = new UploadResourceValidator(
         ArduinoUnoBoardProfile
@@ -1562,10 +1721,29 @@ tap.test('Arduino UNO Upload resource validator accepts supported PWM pin', t =>
     t.end();
 });
 
-tap.test('Arduino UNO BoardProfile defines Tone pins', t => {
+tap.test('Arduino UNO BoardProfile defines Tone digital pins', t => {
     t.same(
         ArduinoUnoBoardProfile.tonePins,
-        [3, 5, 6, 9, 10, 11]
+        [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19
+        ]
     );
 
     t.end();
@@ -1579,6 +1757,66 @@ tap.test('Arduino UNO BoardProfile defines Tone frequency range', t => {
             max: 65535
         }
     );
+
+    t.end();
+});
+
+tap.test('Arduino UNO BoardProfile defines Tone duration range', t => {
+    t.same(
+        ArduinoUnoBoardProfile.toneDurationRange,
+        {
+            min: 1,
+            max: 65535
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload resource validator validates Tone duration range', t => {
+    const validator = new UploadResourceValidator(
+        ArduinoUnoBoardProfile
+    );
+
+    for (const duration of [0, 65536]) {
+        t.throws(
+            () => validator.validate({
+                setup: [{
+                    type: 'ToneStart',
+                    pin: 7,
+                    frequency: 440,
+                    duration
+                }],
+                loop: []
+            }),
+            /Tone duration is not supported by the selected board/,
+            `rejects Tone duration ${duration}`
+        );
+    }
+
+    for (const duration of [
+        1,
+        125,
+        500,
+        2000,
+        65535
+    ]) {
+        const ir = {
+            setup: [{
+                type: 'ToneStart',
+                pin: 7,
+                frequency: 440,
+                duration
+            }],
+            loop: []
+        };
+
+        t.equal(
+            validator.validate(ir),
+            ir,
+            `accepts Tone duration ${duration}`
+        );
+    }
 
     t.end();
 });
@@ -1679,7 +1917,7 @@ tap.test('Arduino UNO Upload resource validator rejects unsupported ToneStop pin
     const ir = {
         setup: [{
             type: 'ToneStop',
-            pin: 2
+            pin: 1
         }],
         loop: []
     };
@@ -1700,7 +1938,7 @@ tap.test('Arduino UNO Upload resource validator accepts supported ToneStop pin',
     const ir = {
         setup: [{
             type: 'ToneStop',
-            pin: 6
+            pin: 7
         }],
         loop: []
     };
@@ -2015,7 +2253,7 @@ tap.test('Arduino UNO Upload resource validator rejects unsupported Tone pin', t
     const ir = {
         setup: [{
             type: 'ToneStart',
-            pin: 2,
+            pin: 1,
             frequency: 440
         }],
         loop: []
@@ -2037,8 +2275,9 @@ tap.test('Arduino UNO Upload resource validator accepts supported Tone pin', t =
     const ir = {
         setup: [{
             type: 'ToneStart',
-            pin: 6,
-            frequency: 440
+            pin: 7,
+            frequency: 440,
+            duration: 500
         }],
         loop: []
     };
@@ -2095,49 +2334,44 @@ tap.test('Arduino UNO Upload resource validator accepts supported Servo pin', t 
     t.end();
 });
 
-tap.test('Arduino UNO Upload resource validator rejects Servo angle above range', t => {
-    const validator = new UploadResourceValidator(
-        ArduinoUnoBoardProfile
-    );
+tap.test(
+    'Arduino UNO Upload resource validator accepts Servo angles for runtime normalization',
+    t => {
+        const validator = new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
 
-    const ir = {
-        setup: [{
-            type: 'ServoWrite',
-            pin: 5,
-            angle: 181
-        }],
-        loop: []
-    };
+        const aboveRangeIr = {
+            setup: [{
+                type: 'ServoWrite',
+                pin: 5,
+                angle: 181
+            }],
+            loop: []
+        };
 
-    t.throws(
-        () => validator.validate(ir),
-        /Servo angle is not supported by the selected board/
-    );
+        const belowRangeIr = {
+            setup: [{
+                type: 'ServoWrite',
+                pin: 5,
+                angle: -1
+            }],
+            loop: []
+        };
 
-    t.end();
-});
+        t.doesNotThrow(
+            () => validator.validate(aboveRangeIr),
+            'allows Servo angle above range to be clamped at runtime'
+        );
 
-tap.test('Arduino UNO Upload resource validator rejects Servo angle below range', t => {
-    const validator = new UploadResourceValidator(
-        ArduinoUnoBoardProfile
-    );
+        t.doesNotThrow(
+            () => validator.validate(belowRangeIr),
+            'allows Servo angle below range to be clamped at runtime'
+        );
 
-    const ir = {
-        setup: [{
-            type: 'ServoWrite',
-            pin: 5,
-            angle: -1
-        }],
-        loop: []
-    };
-
-    t.throws(
-        () => validator.validate(ir),
-        /Servo angle is not supported by the selected board/
-    );
-
-    t.end();
-});
+        t.end();
+    }
+);
 
 tap.test('Arduino UNO Upload resource validator accepts Servo minimum angle', t => {
     const validator = new UploadResourceValidator(
@@ -4426,6 +4660,201 @@ tap.test('Arduino UNO Upload type validator accepts ServoWrite statement', t => 
 
     t.end();
 });
+
+tap.test(
+    'Arduino UNO Upload normalizes PWM and Servo numeric values',
+    t => {
+        const generator = new ArduinoUnoGenerator();
+
+        const pwmLiteralCode = generator.generate({
+            setup: [
+                {
+                    type: 'PwmWrite',
+                    pin: 3,
+                    value: 600
+                },
+                {
+                    type: 'PwmWrite',
+                    pin: 5,
+                    value: -20
+                },
+                {
+                    type: 'PwmWrite',
+                    pin: 6,
+                    value: 128.9
+                }
+            ],
+            loop: []
+        });
+
+        t.match(
+            pwmLiteralCode,
+            /analogWrite\(3, 255\);/,
+            'clamps literal PWM above 255'
+        );
+
+        t.match(
+            pwmLiteralCode,
+            /analogWrite\(5, 0\);/,
+            'clamps literal PWM below zero'
+        );
+
+        t.match(
+            pwmLiteralCode,
+            /analogWrite\(6, 128\);/,
+            'truncates literal decimal PWM'
+        );
+
+        const pwmExpressionCode = generator.generate({
+            setup: [{
+                type: 'PwmWrite',
+                pin: 9,
+                value: {
+                    type: 'BinaryExpression',
+                    operator: 'Add',
+                    left: {
+                        type: 'DecimalLiteral',
+                        value: 128.9
+                    },
+                    right: {
+                        type: 'IntegerLiteral',
+                        value: 0
+                    }
+                }
+            }],
+            loop: []
+        });
+
+        t.match(
+            pwmExpressionCode,
+            /float [A-Za-z][A-Za-z0-9_]* = \(128\.9 \+ 0\);/,
+            'evaluates runtime PWM expression once'
+        );
+
+        t.match(
+            pwmExpressionCode,
+            /if \([A-Za-z][A-Za-z0-9_]* < 0\) \{/,
+            'clamps runtime PWM lower bound'
+        );
+
+        t.match(
+            pwmExpressionCode,
+            /else if \([A-Za-z][A-Za-z0-9_]* > 255\) \{/,
+            'clamps runtime PWM upper bound'
+        );
+
+        t.match(
+            pwmExpressionCode,
+            /analogWrite\(9, \(int\)[A-Za-z][A-Za-z0-9_]*\);/,
+            'passes truncated runtime PWM value to analogWrite'
+        );
+
+        t.equal(
+            (
+                pwmExpressionCode.match(
+                    /\(128\.9 \+ 0\)/g
+                ) || []
+            ).length,
+            1,
+            'does not evaluate PWM reporter more than once'
+        );
+
+        const servoLiteralCode = generator.generate({
+            setup: [
+                {
+                    type: 'ServoWrite',
+                    pin: 5,
+                    angle: -10
+                },
+                {
+                    type: 'ServoWrite',
+                    pin: 5,
+                    angle: 190
+                },
+                {
+                    type: 'ServoWrite',
+                    pin: 5,
+                    angle: 90.6
+                }
+            ],
+            loop: []
+        });
+
+        t.match(
+            servoLiteralCode,
+            /servo5\.write\(0\);/,
+            'clamps literal Servo below zero'
+        );
+
+        t.match(
+            servoLiteralCode,
+            /servo5\.write\(180\);/,
+            'clamps literal Servo above 180'
+        );
+
+        t.match(
+            servoLiteralCode,
+            /servo5\.write\(91\);/,
+            'rounds literal Servo angle'
+        );
+
+        const servoExpressionCode = generator.generate({
+            setup: [{
+                type: 'ServoWrite',
+                pin: 6,
+                angle: {
+                    type: 'BinaryExpression',
+                    operator: 'Add',
+                    left: {
+                        type: 'DecimalLiteral',
+                        value: 90.6
+                    },
+                    right: {
+                        type: 'IntegerLiteral',
+                        value: 200
+                    }
+                }
+            }],
+            loop: []
+        });
+
+        t.match(
+            servoExpressionCode,
+            /int [A-Za-z][A-Za-z0-9_]* = \(int\)round\(\(90\.6 \+ 200\)\);/,
+            'rounds runtime Servo expression once'
+        );
+
+        t.match(
+            servoExpressionCode,
+            /if \([A-Za-z][A-Za-z0-9_]* < 0\) \{/,
+            'clamps runtime Servo lower bound'
+        );
+
+        t.match(
+            servoExpressionCode,
+            /else if \([A-Za-z][A-Za-z0-9_]* > 180\) \{/,
+            'clamps runtime Servo upper bound'
+        );
+
+        t.match(
+            servoExpressionCode,
+            /servo6\.write\([A-Za-z][A-Za-z0-9_]*\);/,
+            'writes normalized runtime Servo angle'
+        );
+
+        t.equal(
+            (
+                servoExpressionCode.match(
+                    /\(90\.6 \+ 200\)/g
+                ) || []
+            ).length,
+            1,
+            'does not evaluate Servo reporter more than once'
+        );
+
+        t.end();
+    }
+);
 
 tap.test('Arduino UNO Upload generates ServoWrite C++', t => {
     const generator = new ArduinoUnoGenerator();
@@ -6785,20 +7214,110 @@ tap.test('Arduino UNO Upload validates remaining standard operator types as batc
 tap.test('Arduino UNO generator emits remaining standard operators as batch', t => {
     const generator = new ArduinoUnoGenerator();
 
-    t.equal(
+    const generateRandomExpression = (left, right) =>
         generator._generateExpression({
             type: 'BinaryExpression',
             operator: 'Random',
-            left: {
+            left,
+            right
+        });
+
+    t.equal(
+        generateRandomExpression(
+            {
                 type: 'IntegerLiteral',
                 value: 1
             },
-            right: {
+            {
                 type: 'IntegerLiteral',
                 value: 10
             }
-        }),
-        'scratchRandom(1, 10)'
+        ),
+        'random(1, 11)',
+        'uses Arduino random for ascending integer literals'
+    );
+
+    t.equal(
+        generateRandomExpression(
+            {
+                type: 'IntegerLiteral',
+                value: 10
+            },
+            {
+                type: 'IntegerLiteral',
+                value: 1
+            }
+        ),
+        'random(1, 11)',
+        'normalizes reversed integer literal bounds'
+    );
+
+    t.equal(
+        generateRandomExpression(
+            {
+                type: 'IntegerLiteral',
+                value: 0
+            },
+            {
+                type: 'IntegerLiteral',
+                value: 255
+            }
+        ),
+        'random(0, 256)',
+        'keeps the Scratch upper bound inclusive'
+    );
+
+    t.equal(
+        generateRandomExpression(
+            {
+                type: 'IntegerLiteral',
+                value: 5
+            },
+            {
+                type: 'IntegerLiteral',
+                value: 5
+            }
+        ),
+        '5',
+        'reduces equal integer literal bounds to the literal'
+    );
+
+    t.equal(
+        generateRandomExpression(
+            {
+                type: 'DecimalLiteral',
+                value: 1.5
+            },
+            {
+                type: 'DecimalLiteral',
+                value: 10.5
+            }
+        ),
+        'scratchRandom(1.5, 10.5)',
+        'keeps Scratch helper for decimal ranges'
+    );
+
+    t.equal(
+        generateRandomExpression(
+            {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            },
+            {
+                type: 'IntegerLiteral',
+                value: 10
+            }
+        ),
+        'scratchRandom((1 + 2), 10)',
+        'keeps Scratch helper for runtime bounds'
     );
 
     t.equal(
@@ -6869,9 +7388,47 @@ tap.test('Arduino UNO generator emits remaining standard operators as batch', t 
         loop: []
     });
 
+    t.notMatch(
+        code,
+        /double scratchRandom\(double from, double to\)/,
+        'does not emit scratchRandom helper for static integer Random'
+    );
+
     t.match(
         code,
-        /double scratchRandom\(double from, double to\) \{[\s\S]*const double low = from <= to \? from : to;[\s\S]*const double high = from <= to \? to : from;[\s\S]*floor\(from\) == from[\s\S]*floor\(to\) == to[\s\S]*random/
+        /random\(1, 11\)/,
+        'generates native Arduino random in the program'
+    );
+
+    const decimalRandomCode = generator.generate({
+        setup: [{
+            type: 'Wait',
+            duration: {
+                type: 'BinaryExpression',
+                operator: 'Random',
+                left: {
+                    type: 'DecimalLiteral',
+                    value: 0.5
+                },
+                right: {
+                    type: 'DecimalLiteral',
+                    value: 1.5
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        decimalRandomCode,
+        /double scratchRandom\(double from, double to\) \{[\s\S]*const double low = from <= to \? from : to;[\s\S]*const double high = from <= to \? to : from;[\s\S]*floor\(from\) == from[\s\S]*floor\(to\) == to[\s\S]*random/,
+        'keeps scratchRandom helper when Scratch semantics require it'
+    );
+
+    t.match(
+        decimalRandomCode,
+        /scratchRandom\(0.5, 1.5\)/,
+        'uses scratchRandom for decimal bounds'
     );
 
     t.end();
@@ -9813,6 +10370,69 @@ tap.test('Arduino UNO Upload generates timer reset', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts Tone dropdown fields from the real block shape', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('tone_start'),
+        {
+            id: 'tone_start',
+            opcode: 'arduinoUno_toneStart',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'tone_pin_menu',
+                    shadow: 'tone_pin_menu'
+                }
+            },
+            fields: {
+                NOTE: {
+                    name: 'NOTE',
+                    value: '262'
+                },
+                DURATION: {
+                    name: 'DURATION',
+                    value: '500'
+                }
+            },
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'tone_pin_menu',
+            'tone_start',
+            'arduinoUno_menu_digitalPins',
+            'digitalPins',
+            6
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'ToneStart',
+            pin: 6,
+            frequency: 262,
+            duration: 500
+        }],
+        loop: []
+    });
+
+    validator.validate(ir);
+
+    t.match(
+        generator.generate(ir),
+        /tone\(6, 262, 500\);/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload generates timer read expression', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('if_block'),
@@ -9970,7 +10590,7 @@ tap.test('Arduino UNO Upload generates tone stop', t => {
     t.end();
 });
 
-tap.test('Arduino UNO Upload generates tone start', t => {
+tap.test('Arduino UNO Upload generates timed musical tone', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('tone_start'),
         {
@@ -9984,28 +10604,28 @@ tap.test('Arduino UNO Upload generates tone start', t => {
                     block: 'tone_pin_menu',
                     shadow: 'tone_pin_menu'
                 },
-                FREQUENCY: {
-                    name: 'FREQUENCY',
-                    block: 'tone_frequency',
-                    shadow: 'tone_frequency'
+            },
+            fields: {
+                NOTE: {
+                    name: 'NOTE',
+                    value: '440'
+                },
+                DURATION: {
+                    name: 'DURATION',
+                    value: '500'
                 }
             },
-            fields: {},
             topLevel: false,
             shadow: false
         },
         createExtensionMenuShadow(
             'tone_pin_menu',
             'tone_start',
-            'arduinoUno_menu_pwmPins',
-            'pwmPins',
-            6
+            'arduinoUno_menu_digitalPins',
+            'digitalPins',
+            7
         ),
-        createNumberShadow(
-            'tone_frequency',
-            'tone_start',
-            440
-        )
+
     ]);
 
     const extractor = new UploadProgramExtractor(runtime);
@@ -10017,8 +10637,9 @@ tap.test('Arduino UNO Upload generates tone start', t => {
     t.same(ir, {
         setup: [{
             type: 'ToneStart',
-            pin: 6,
-            frequency: 440
+            pin: 7,
+            frequency: 440,
+            duration: 500
         }],
         loop: []
     });
@@ -10027,7 +10648,7 @@ tap.test('Arduino UNO Upload generates tone start', t => {
 
     t.equal(generator.generate(ir), [
         'void setup() {',
-        '    tone(6, 440);',
+        '    tone(7, 440, 500);',
         '}',
         '',
         'void loop() {',
@@ -10104,6 +10725,614 @@ tap.test('Arduino UNO Upload generates PWM write', t => {
         '}',
         ''
     ].join('\n'));
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload supports numeric expressions in PWM value', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('pwm_write'),
+        {
+            id: 'pwm_write',
+            opcode: 'arduinoUno_pwmWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                PIN: {
+                    name: 'PIN',
+                    block: 'pwm_pin_menu',
+                    shadow: 'pwm_pin_menu'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'pwm_random',
+                    shadow: 'pwm_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'pwm_pin_menu',
+            'pwm_write',
+            'arduinoUno_menu_pwmPins',
+            'pwmPins',
+            9
+        ),
+        createNumberShadow(
+            'pwm_value',
+            'pwm_write',
+            128,
+            'easyblox_pwm_value'
+        ),
+        {
+            id: 'pwm_random',
+            opcode: 'operator_random',
+            next: null,
+            parent: 'pwm_write',
+            inputs: {
+                FROM: {
+                    name: 'FROM',
+                    block: 'pwm_random_from',
+                    shadow: 'pwm_random_from'
+                },
+                TO: {
+                    name: 'TO',
+                    block: 'pwm_random_to',
+                    shadow: 'pwm_random_to'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'pwm_random_from',
+            'pwm_random',
+            0
+        ),
+        createNumberShadow(
+            'pwm_random_to',
+            'pwm_random',
+            255
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'PwmWrite',
+            pin: 9,
+            value: {
+                type: 'BinaryExpression',
+                operator: 'Random',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 0
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 255
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.doesNotThrow(
+        () => validator.validate(ir),
+        'accepts numeric Random expression as PWM value'
+    );
+
+    const expressionCode = generator.generate({
+        setup: [{
+            type: 'PwmWrite',
+            pin: 9,
+            value: {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 1
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 2
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        expressionCode,
+        /float [A-Za-z][A-Za-z0-9_]* = \(1 \+ 2\);/,
+        'evaluates the numeric PWM expression'
+    );
+
+    t.match(
+        expressionCode,
+        /analogWrite\(9, \(int\)[A-Za-z][A-Za-z0-9_]*\);/,
+        'writes the normalized PWM value'
+    );
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'PwmWrite',
+                pin: 9,
+                value: {
+                    type: 'TextLiteral',
+                    value: 'inválido'
+                }
+            }],
+            loop: []
+        }),
+        /PWM value must be numeric/,
+        'rejects non-numeric PWM expression'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload validates runtime numeric hardware values', t => {
+    const validator = new UploadTypeValidator();
+
+    const numericExpression = {
+        type: 'BinaryExpression',
+        operator: 'Add',
+        left: {
+            type: 'IntegerLiteral',
+            value: 1
+        },
+        right: {
+            type: 'IntegerLiteral',
+            value: 2
+        }
+    };
+
+    const invalidExpression = {
+        type: 'TextLiteral',
+        value: 'inválido'
+    };
+
+    const numericCases = [{
+        statement: {
+            type: 'ServoWrite',
+            pin: 5,
+            angle: numericExpression
+        },
+        invalidStatement: {
+            type: 'ServoWrite',
+            pin: 5,
+            angle: invalidExpression
+        },
+        error: /Servo angle must be numeric/
+    }, {
+        statement: {
+            type: 'MatrixBrightness',
+            brightnessPercent: numericExpression
+        },
+        invalidStatement: {
+            type: 'MatrixBrightness',
+            brightnessPercent: invalidExpression
+        },
+        error: /Matrix brightness must be numeric/
+    }, {
+        statement: {
+            type: 'Tm1637Show',
+            value: numericExpression,
+            length: 4,
+            position: 1,
+            point: '0',
+            leadingZeros: '0'
+        },
+        invalidStatement: {
+            type: 'Tm1637Show',
+            value: invalidExpression,
+            length: 4,
+            position: 1,
+            point: '0',
+            leadingZeros: '0'
+        },
+        error: /TM1637 value must be numeric/
+    }];
+
+    for (const testCase of numericCases) {
+        t.doesNotThrow(
+            () => validator.validate({
+                setup: [testCase.statement],
+                loop: []
+            })
+        );
+
+        t.throws(
+            () => validator.validate({
+                setup: [testCase.invalidStatement],
+                loop: []
+            }),
+            testCase.error
+        );
+    }
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates runtime numeric hardware values', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const expression = {
+        type: 'BinaryExpression',
+        operator: 'Add',
+        left: {
+            type: 'IntegerLiteral',
+            value: 1
+        },
+        right: {
+            type: 'IntegerLiteral',
+            value: 2
+        }
+    };
+
+    const servoCode = generator.generate({
+        setup: [{
+            type: 'ServoWrite',
+            pin: 5,
+            angle: expression
+        }],
+        loop: []
+    });
+
+    t.match(
+        servoCode,
+        /int [A-Za-z][A-Za-z0-9_]* = \(int\)round\(\(1 \+ 2\)\);/,
+        'evaluates and rounds Servo angle expression'
+    );
+
+    t.match(
+        servoCode,
+        /servo5\.write\([A-Za-z][A-Za-z0-9_]*\);/,
+        'writes the normalized Servo angle'
+    );
+
+    const matrixCode = generator.generate({
+        setup: [{
+            type: 'MatrixInit',
+            dinPin: 2,
+            csPin: 3,
+            clkPin: 4
+        }, {
+            type: 'MatrixBrightness',
+            brightnessPercent: expression
+        }],
+        loop: []
+    });
+
+    t.match(
+        matrixCode,
+        /easybloxMatrixBrightness\(2, 3, 4, \(1 \+ 2\)\);/,
+        'generates matrix brightness expression'
+    );
+
+    const tm1637Code = generator.generate({
+        setup: [{
+            type: 'Tm1637Init',
+            clkPin: 5,
+            dioPin: 6
+        }, {
+            type: 'Tm1637Show',
+            value: expression,
+            length: 4,
+            position: 1,
+            point: '0',
+            leadingZeros: '0'
+        }],
+        loop: []
+    });
+
+    t.match(
+        tm1637Code,
+        /easybloxTm1637Show\(5, 6, \(1 \+ 2\), 4, 1, false, false\);/,
+        'generates TM1637 value expression'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload supports runtime numeric MotorWrite speed', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('motor_write'),
+        {
+            id: 'motor_write',
+            opcode: 'actuators_motorWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                MOTOR: {
+                    name: 'MOTOR',
+                    block: 'motor_number',
+                    shadow: 'motor_number'
+                },
+                DIRECTION: {
+                    name: 'DIRECTION',
+                    block: 'motor_direction',
+                    shadow: 'motor_direction'
+                },
+                SPEED: {
+                    name: 'SPEED',
+                    block: 'motor_random',
+                    shadow: 'motor_speed'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'motor_number',
+            'motor_write',
+            'actuators_menu_motorNumbers',
+            'motorNumbers',
+            1
+        ),
+        createExtensionMenuShadow(
+            'motor_direction',
+            'motor_write',
+            'actuators_menu_motorDirections',
+            'motorDirections',
+            0
+        ),
+        createNumberShadow(
+            'motor_speed',
+            'motor_write',
+            75,
+            'easyblox_motor_speed'
+        ),
+        {
+            id: 'motor_random',
+            opcode: 'operator_random',
+            next: null,
+            parent: 'motor_write',
+            inputs: {
+                FROM: {
+                    name: 'FROM',
+                    block: 'motor_random_from',
+                    shadow: 'motor_random_from'
+                },
+                TO: {
+                    name: 'TO',
+                    block: 'motor_random_to',
+                    shadow: 'motor_random_to'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'motor_random_from',
+            'motor_random',
+            0
+        ),
+        createNumberShadow(
+            'motor_random_to',
+            'motor_random',
+            100
+        )
+    ]);
+
+    const extractor = new UploadProgramExtractor(runtime);
+    const validator = new UploadTypeValidator();
+    const generator = new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: {
+                type: 'BinaryExpression',
+                operator: 'Random',
+                left: {
+                    type: 'IntegerLiteral',
+                    value: 0
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 100
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.throws(
+        () => validator.validate({
+            setup: [{
+                type: 'MotorWrite',
+                motor: 1,
+                direction: 0,
+                speedPercent: {
+                    type: 'TextLiteral',
+                    value: 'rápido'
+                }
+            }],
+            loop: []
+        }),
+        /Motor speed must be numeric/,
+        'rejects non-numeric MotorWrite speed'
+    );
+
+    validator.validate(ir);
+
+    const code = generator.generate(ir);
+
+    t.notMatch(
+        code,
+        /NaN/,
+        'does not generate NaN for runtime MotorWrite speed'
+    );
+
+    t.equal(
+        (
+            code.match(
+                /random\(0, 101\)/g
+            ) || []
+        ).length,
+        1,
+        'evaluates runtime MotorWrite speed expression once'
+    );
+
+    t.match(
+        code,
+        /int [A-Za-z_][A-Za-z0-9_]* = \(int\)round\(random\(0, 101\)\);/,
+        'rounds runtime MotorWrite speed before normalization'
+    );
+
+    t.match(
+        code,
+        /if \([A-Za-z_][A-Za-z0-9_]* < 0\)/,
+        'clamps negative MotorWrite speed'
+    );
+
+    t.match(
+        code,
+        /else if \([A-Za-z_][A-Za-z0-9_]* > 100\)/,
+        'clamps MotorWrite speed above 100 percent'
+    );
+
+    t.match(
+        code,
+        /round\(\s*[A-Za-z_][A-Za-z0-9_]* \* 255(?:\.0)? \/ 100(?:\.0)?\s*\)/,
+        'converts runtime MotorWrite percentage to PWM'
+    );
+
+    t.match(
+        code,
+        /if \([A-Za-z_][A-Za-z0-9_]* ===? 0\)|if \([A-Za-z_][A-Za-z0-9_]* == 0\)/,
+        'keeps a runtime zero-speed stop branch'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload matches Stage MotorWrite speed normalization', t => {
+    const generator = new ArduinoUnoGenerator();
+
+    const decimalLiteralCode = generator.generate({
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 49.6
+        }],
+        loop: []
+    });
+
+    t.match(
+        decimalLiteralCode,
+        /analogWrite\(MOTOR1_PWM, 128\);/,
+        'rounds literal MotorWrite percentage before PWM conversion'
+    );
+
+    const negativeLiteralCode = generator.generate({
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: -10
+        }],
+        loop: []
+    });
+
+    t.equal(
+        (
+            negativeLiteralCode.match(
+                /analogWrite\(MOTOR1_PWM, 0\);/g
+            ) || []
+        ).length,
+        2,
+        'clamps negative literal MotorWrite percentage to zero'
+    );
+
+    const highLiteralCode = generator.generate({
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: 120
+        }],
+        loop: []
+    });
+
+    t.match(
+        highLiteralCode,
+        /analogWrite\(MOTOR1_PWM, 255\);/,
+        'clamps literal MotorWrite percentage above 100'
+    );
+
+    const expressionCode = generator.generate({
+        setup: [{
+            type: 'MotorWrite',
+            motor: 1,
+            direction: 0,
+            speedPercent: {
+                type: 'BinaryExpression',
+                operator: 'Add',
+                left: {
+                    type: 'DecimalLiteral',
+                    value: 49.6
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 0
+                }
+            }
+        }],
+        loop: []
+    });
+
+    t.match(
+        expressionCode,
+        /int [A-Za-z_][A-Za-z0-9_]* = \(int\)round\(\(49\.6 \+ 0\)\);/,
+        'rounds runtime MotorWrite percentage before clamping'
+    );
+
+    t.match(
+        expressionCode,
+        /if \([A-Za-z_][A-Za-z0-9_]* < 0\) \{/,
+        'clamps runtime MotorWrite percentage below zero'
+    );
+
+    t.match(
+        expressionCode,
+        /else if \([A-Za-z_][A-Za-z0-9_]* > 100\) \{/,
+        'clamps runtime MotorWrite percentage above 100'
+    );
+
+    t.match(
+        expressionCode,
+        /round\(\s*[A-Za-z_][A-Za-z0-9_]* \* 255(?:\.0)? \/ 100(?:\.0)?\s*\)/,
+        'converts the normalized MotorWrite percentage to PWM'
+    );
+
+    t.equal(
+        (
+            expressionCode.match(
+                /\(49\.6 \+ 0\)/g
+            ) || []
+        ).length,
+        1,
+        'evaluates runtime MotorWrite speed expression once'
+    );
 
     t.end();
 });
@@ -16034,6 +17263,18 @@ tap.test(
 
         t.match(
             code,
+            'if (!isfinite(value))',
+            'normalizes non-finite TM1637 values like Stage mode'
+        );
+
+        t.match(
+            code,
+            'value = trunc(value);',
+            'truncates TM1637 decimal values like Stage mode'
+        );
+
+        t.match(
+            code,
             'if (value < 0)',
             'clamps TM1637 value to zero'
         );
@@ -16901,6 +18142,158 @@ tap.test(
             () => validator.validate(ir),
             /Procedure argument.*INTEGER/,
             'does not silently pass TEXT to INTEGER parameter'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO generator protects Arduino core identifiers from student symbols',
+    t => {
+        const types = UploadTypeValidator.VALUE_TYPES;
+
+        const reservedNames = [
+            'random',
+            'setup',
+            'loop',
+            'INPUT_PULLUP',
+            'pinMode',
+            'digitalWrite',
+            'analogWrite',
+            'analogRead',
+            'digitalRead',
+            'tone',
+            'noTone',
+            'delay',
+            'delayMicroseconds',
+            'millis',
+            'pulseIn',
+            'digitalPinToPort',
+            'digitalPinToBitMask',
+            'portInputRegister',
+            'microsecondsToClockCycles',
+            'round',
+            'floor',
+            'ceil',
+            'fabs',
+            'sqrt',
+            'sin',
+            'cos',
+            'tan',
+            'asin',
+            'acos',
+            'atan',
+            'log',
+            'log10',
+            'exp',
+            'pow',
+            'Servo',
+            'Wire',
+            'uint8_t',
+            'uint16_t',
+            'size_t'
+        ];
+
+        const generator = new ArduinoUnoGenerator();
+
+        const code = generator.generate({
+            globals: {
+                variables: reservedNames.map((name, index) => ({
+                    id: `reserved_variable_${index}`,
+                    name,
+                    valueType: types.INTEGER,
+                    initialValue: {
+                        type: 'IntegerLiteral',
+                        value: 0
+                    }
+                })),
+                lists: []
+            },
+
+            procedures: [],
+
+            setup: [{
+                type: 'PwmWrite',
+                pin: 3,
+                value: {
+                    type: 'BinaryExpression',
+                    operator: 'Random',
+                    left: {
+                        type: 'IntegerLiteral',
+                        value: 0
+                    },
+                    right: {
+                        type: 'IntegerLiteral',
+                        value: 255
+                    }
+                }
+            }],
+
+            loop: []
+        });
+
+        for (const name of reservedNames) {
+            t.match(
+                code,
+                new RegExp(`long ${name}_2 = 0;`),
+                `mangles student identifier ${name}`
+            );
+
+            t.notMatch(
+                code,
+                new RegExp(`long ${name} = 0;`),
+                `does not emit conflicting identifier ${name}`
+            );
+        }
+
+        const easybloxNamespaceCode = generator.generate({
+            globals: {
+                variables: [{
+                    id: 'easyblox_namespace_variable',
+                    name: 'easybloxLcdWrite',
+                    valueType: types.INTEGER,
+                    initialValue: {
+                        type: 'IntegerLiteral',
+                        value: 0
+                    }
+                }],
+                lists: []
+            },
+
+            procedures: [],
+            setup: [],
+            loop: []
+        });
+
+        t.match(
+            easybloxNamespaceCode,
+            /long user_easybloxLcdWrite = 0;/,
+            'reserves the complete EasyBlox internal identifier namespace'
+        );
+
+        t.notMatch(
+            easybloxNamespaceCode,
+            /long easybloxLcdWrite = 0;/,
+            'does not expose an EasyBlox helper collision'
+        );
+
+        t.match(
+            code,
+            /float [A-Za-z][A-Za-z0-9_]* = random\(0, 256\);/,
+            'keeps native Arduino random callable after identifier allocation'
+        );
+
+        t.match(
+            code,
+            /analogWrite\(3, \(int\)[A-Za-z][A-Za-z0-9_]*\);/,
+            'keeps native Arduino analogWrite callable after identifier allocation'
+        );
+
+        t.notMatch(
+            code,
+            /double scratchRandom\(double from, double to\)/,
+            'does not reintroduce scratchRandom for static integer bounds'
         );
 
         t.end();

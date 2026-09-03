@@ -61,8 +61,10 @@ class UploadResourceValidator {
         }
 
         const configuredMotors = new Set();
+        const configuredMotorPwmPins = new Map();
 
         const motorPins = new Set();
+        const motorPwmPins = new Set();
         const usedMotors = new Set();
 
         for (const statement of setup) {
@@ -101,6 +103,10 @@ class UploadResourceValidator {
                 }
 
                 configuredMotors.add(statement.motor);
+                configuredMotorPwmPins.set(
+                    statement.motor,
+                    statement.pwmPin
+                );
 
                 for (const pin of configuredMotorPins) {
                     motorPins.add(pin);
@@ -115,6 +121,9 @@ class UploadResourceValidator {
 
         for (const motor of usedMotors) {
             if (configuredMotors.has(motor)) {
+                motorPwmPins.add(
+                    configuredMotorPwmPins.get(motor)
+                );
                 continue;
             }
 
@@ -144,6 +153,10 @@ class UploadResourceValidator {
                 for (const pin of defaultMotorPins) {
                     motorPins.add(pin);
                 }
+
+                motorPwmPins.add(
+                    motorConfiguration.pwmPin
+                );
             }
         }
 
@@ -276,6 +289,21 @@ class UploadResourceValidator {
             }
         }
 
+        const tonePwmConflictPins =
+            Array.isArray(this.boardProfile.tonePwmConflictPins) ?
+                this.boardProfile.tonePwmConflictPins :
+                [];
+
+        if (tonePins.size > 0) {
+            for (const pin of pwmWritePins) {
+                if (tonePwmConflictPins.includes(pin)) {
+                    throw new Error(
+                        'Tone cannot be used with PWM on the selected pin'
+                    );
+                }
+            }
+        }
+
         const supportedTonePins =
             Array.isArray(this.boardProfile.tonePins) ?
                 this.boardProfile.tonePins :
@@ -331,6 +359,16 @@ class UploadResourceValidator {
                 throw new Error(
                     'Motor and Tone cannot use the same pin'
                 );
+            }
+        }
+
+        if (tonePins.size > 0) {
+            for (const pin of motorPwmPins) {
+                if (tonePwmConflictPins.includes(pin)) {
+                    throw new Error(
+                        'Tone cannot be used with Motor PWM on the selected pin'
+                    );
+                }
             }
         }
 
@@ -917,20 +955,6 @@ class UploadResourceValidator {
         for (const statement of statements) {
             if (statement.type === 'ServoWrite') {
                 servoPins.add(statement.pin);
-
-                const servoAngleRange = this.boardProfile.servoAngleRange;
-
-                if (
-                    servoAngleRange &&
-                    (
-                        statement.angle < servoAngleRange.min ||
-                        statement.angle > servoAngleRange.max
-                    )
-                ) {
-                    throw new Error(
-                        'Servo angle is not supported by the selected board'
-                    );
-                }
             }
 
             if (statement.type === 'ToneStart') {
@@ -948,6 +972,27 @@ class UploadResourceValidator {
                 ) {
                     throw new Error(
                         'Tone frequency is not supported by the selected board'
+                    );
+                }
+
+                const toneDurationRange =
+                    this.boardProfile.toneDurationRange;
+
+                if (
+                    typeof statement.duration !== 'undefined' &&
+                    (
+                        !Number.isInteger(statement.duration) ||
+                        (
+                            toneDurationRange &&
+                            (
+                                statement.duration < toneDurationRange.min ||
+                                statement.duration > toneDurationRange.max
+                            )
+                        )
+                    )
+                ) {
+                    throw new Error(
+                        'Tone duration is not supported by the selected board'
                     );
                 }
             }

@@ -224,12 +224,13 @@ class ArduinoUnoPeripheral {
     }
 
     /**
-     * Start a tone on an Arduino UNO PWM-capable pin in Stage mode.
-     * @param {number} pin Arduino PWM pin: D3, D5, D6, D9, D10 or D11.
+     * Play a timed musical tone on an Arduino UNO digital pin in Stage mode.
+     * @param {number} pin Arduino digital pin from D2 to D13 or A0 to A5.
      * @param {number} frequency Tone frequency from 1 to 65535 Hz.
+     * @param {number} duration Tone duration from 1 to 65535 milliseconds.
      * @returns {?number} Command sequence number or null when unavailable.
      */
-    toneStart (pin, frequency) {
+    toneStart (pin, frequency, duration) {
         if (!this._stageConnected) {
             return null;
         }
@@ -237,9 +238,13 @@ class ArduinoUnoPeripheral {
         if (
             !Number.isInteger(pin) ||
             !Number.isInteger(frequency) ||
-            ![3, 5, 6, 9, 10, 11].includes(pin) ||
+            !Number.isInteger(duration) ||
+            pin < 2 ||
+            pin > 19 ||
             frequency < 1 ||
-            frequency > 65535
+            frequency > 65535 ||
+            duration < 1 ||
+            duration > 65535
         ) {
             return null;
         }
@@ -249,14 +254,16 @@ class ArduinoUnoPeripheral {
             [
                 pin,
                 frequency & 0xFF,
-                (frequency >> 8) & 0xFF
+                (frequency >> 8) & 0xFF,
+                duration & 0xFF,
+                (duration >> 8) & 0xFF
             ]
         );
     }
 
     /**
-     * Stop a tone on an Arduino UNO PWM-capable pin in Stage mode.
-     * @param {number} pin Arduino PWM pin: D3, D5, D6, D9, D10 or D11.
+     * Stop a tone on an Arduino UNO digital pin in Stage mode.
+     * @param {number} pin Arduino digital pin from D2 to D13 or A0 to A5.
      * @returns {?number} Command sequence number or null when unavailable.
      */
     toneStop (pin) {
@@ -266,7 +273,8 @@ class ArduinoUnoPeripheral {
 
         if (
             !Number.isInteger(pin) ||
-            ![3, 5, 6, 9, 10, 11].includes(pin)
+            pin < 2 ||
+            pin > 19
         ) {
             return null;
         }

@@ -99,16 +99,22 @@ class Scratch3ArduinoUnoBlocks {
                 {
                     opcode: 'toneStart',
                     blockType: BlockType.COMMAND,
-                    text: 'tocar tom no pino [PIN] com frequência [FREQUENCY] Hz',
+                    text: 'tocar nota [NOTE] no pino [PIN] por [DURATION]',
                     arguments: {
+                        NOTE: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'toneNotes',
+                            defaultValue: 262
+                        },
                         PIN: {
                             type: ArgumentType.NUMBER,
-                            menu: 'pwmPins',
+                            menu: 'digitalPins',
                             defaultValue: 6
                         },
-                        FREQUENCY: {
+                        DURATION: {
                             type: ArgumentType.NUMBER,
-                            defaultValue: 440
+                            menu: 'toneDurations',
+                            defaultValue: 500
                         }
                     }
                 },
@@ -119,7 +125,7 @@ class Scratch3ArduinoUnoBlocks {
                     arguments: {
                         PIN: {
                             type: ArgumentType.NUMBER,
-                            menu: 'pwmPins',
+                            menu: 'digitalPins',
                             defaultValue: 6
                         }
                     }
@@ -169,6 +175,100 @@ class Scratch3ArduinoUnoBlocks {
                         {text: 'A3', value: '17'},
                         {text: 'A4', value: '18'},
                         {text: 'A5', value: '19'}
+                    ]
+                },
+                toneNotes: {
+                    acceptReporters: false,
+                    items: [
+                        {text: 'C2', value: '65'},
+                        {text: 'C#2', value: '69'},
+                        {text: 'D2', value: '73'},
+                        {text: 'D#2', value: '78'},
+                        {text: 'E2', value: '82'},
+                        {text: 'F2', value: '87'},
+                        {text: 'F#2', value: '92'},
+                        {text: 'G2', value: '98'},
+                        {text: 'G#2', value: '104'},
+                        {text: 'A2', value: '110'},
+                        {text: 'A#2', value: '117'},
+                        {text: 'B2', value: '123'},
+
+                        {text: 'C3', value: '131'},
+                        {text: 'C#3', value: '139'},
+                        {text: 'D3', value: '147'},
+                        {text: 'D#3', value: '156'},
+                        {text: 'E3', value: '165'},
+                        {text: 'F3', value: '175'},
+                        {text: 'F#3', value: '185'},
+                        {text: 'G3', value: '196'},
+                        {text: 'G#3', value: '208'},
+                        {text: 'A3', value: '220'},
+                        {text: 'A#3', value: '233'},
+                        {text: 'B3', value: '247'},
+
+                        {text: 'C4', value: '262'},
+                        {text: 'C#4', value: '277'},
+                        {text: 'D4', value: '294'},
+                        {text: 'D#4', value: '311'},
+                        {text: 'E4', value: '330'},
+                        {text: 'F4', value: '349'},
+                        {text: 'F#4', value: '370'},
+                        {text: 'G4', value: '392'},
+                        {text: 'G#4', value: '415'},
+                        {text: 'A4', value: '440'},
+                        {text: 'A#4', value: '466'},
+                        {text: 'B4', value: '494'},
+
+                        {text: 'C5', value: '523'},
+                        {text: 'C#5', value: '554'},
+                        {text: 'D5', value: '587'},
+                        {text: 'D#5', value: '622'},
+                        {text: 'E5', value: '659'},
+                        {text: 'F5', value: '698'},
+                        {text: 'F#5', value: '740'},
+                        {text: 'G5', value: '784'},
+                        {text: 'G#5', value: '831'},
+                        {text: 'A5', value: '880'},
+                        {text: 'A#5', value: '932'},
+                        {text: 'B5', value: '988'},
+
+                        {text: 'C6', value: '1047'},
+                        {text: 'C#6', value: '1109'},
+                        {text: 'D6', value: '1175'},
+                        {text: 'D#6', value: '1245'},
+                        {text: 'E6', value: '1319'},
+                        {text: 'F6', value: '1397'},
+                        {text: 'F#6', value: '1480'},
+                        {text: 'G6', value: '1568'},
+                        {text: 'G#6', value: '1661'},
+                        {text: 'A6', value: '1760'},
+                        {text: 'A#6', value: '1865'},
+                        {text: 'B6', value: '1976'},
+
+                        {text: 'C7', value: '2093'},
+                        {text: 'C#7', value: '2217'},
+                        {text: 'D7', value: '2349'},
+                        {text: 'D#7', value: '2489'},
+                        {text: 'E7', value: '2637'},
+                        {text: 'F7', value: '2794'},
+                        {text: 'F#7', value: '2960'},
+                        {text: 'G7', value: '3136'},
+                        {text: 'G#7', value: '3322'},
+                        {text: 'A7', value: '3520'},
+                        {text: 'A#7', value: '3729'},
+                        {text: 'B7', value: '3951'},
+
+                        {text: 'C8', value: '4186'}
+                    ]
+                },
+                toneDurations: {
+                    acceptReporters: false,
+                    items: [
+                        {text: 'dobro', value: '2000'},
+                        {text: 'inteiro', value: '1000'},
+                        {text: 'metade', value: '500'},
+                        {text: 'um quarto', value: '250'},
+                        {text: 'um oitavo', value: '125'}
                     ]
                 },
                 pwmPins: {
@@ -227,11 +327,13 @@ class Scratch3ArduinoUnoBlocks {
      */
     pwmWrite (args) {
         const pin = Number(args.PIN);
-        const value = Math.max(
-            0,
-            Math.min(
-                255,
-                Number(args.VALUE)
+        const value = Math.trunc(
+            Math.max(
+                0,
+                Math.min(
+                    255,
+                    Number(args.VALUE)
+                )
             )
         );
 
@@ -242,28 +344,24 @@ class Scratch3ArduinoUnoBlocks {
     }
 
     /**
-     * Start a tone on an Arduino UNO PWM-capable pin in Stage mode.
+     * Play a musical note on an Arduino UNO digital pin in Stage mode.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */
     toneStart (args) {
         const pin = Number(args.PIN);
-        const frequency = Math.max(
-            1,
-            Math.min(
-                65535,
-                Number(args.FREQUENCY)
-            )
-        );
+        const frequency = Number(args.NOTE);
+        const duration = Number(args.DURATION);
 
         return this._peripheral.toneStart(
             pin,
-            frequency
+            frequency,
+            duration
         );
     }
 
     /**
-     * Stop a tone on an Arduino UNO PWM-capable pin in Stage mode.
+     * Stop a tone on an Arduino UNO digital pin in Stage mode.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */

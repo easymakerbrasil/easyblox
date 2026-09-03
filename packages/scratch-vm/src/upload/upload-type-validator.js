@@ -238,7 +238,6 @@ class UploadTypeValidator {
         for (const statement of statements) {
             switch (statement.type) {
             case 'DigitalWrite':
-            case 'PwmWrite':
             case 'ToneStart':
             case 'ToneStop':
             case 'TimerReset':
@@ -246,20 +245,51 @@ class UploadTypeValidator {
             case 'LcdInit':
             case 'Tm1637Init':
             case 'MatrixWrite':
-            case 'MatrixBrightness':
             case 'MatrixClear':
             case 'LcdWrite':
             case 'LcdMode':
             case 'LcdClear':
-            case 'Tm1637Show':
             case 'Tm1637Clear':
             case 'JoystickInit':
             case 'MotorConfigure':
-            case 'MotorWrite':
             case 'MotorStop':
-            case 'ServoWrite':
             case 'RelayWrite':
             case 'SerialBegin':
+                break;
+
+            case 'PwmWrite':
+                this._validateRuntimeNumericValue(
+                    statement.value,
+                    'PWM value must be numeric'
+                );
+                break;
+
+            case 'ServoWrite':
+                this._validateRuntimeNumericValue(
+                    statement.angle,
+                    'Servo angle must be numeric'
+                );
+                break;
+
+            case 'MatrixBrightness':
+                this._validateRuntimeNumericValue(
+                    statement.brightnessPercent,
+                    'Matrix brightness must be numeric'
+                );
+                break;
+
+            case 'Tm1637Show':
+                this._validateRuntimeNumericValue(
+                    statement.value,
+                    'TM1637 value must be numeric'
+                );
+                break;
+
+            case 'MotorWrite':
+                this._validateRuntimeNumericValue(
+                    statement.speedPercent,
+                    'Motor speed must be numeric'
+                );
                 break;
 
             case 'VariableSet': {
@@ -1167,6 +1197,33 @@ class UploadTypeValidator {
         throw new Error(
             `${subject} cannot compare ${expectedType} with ${actualType}`
         );
+    }
+
+    /**
+     * Validate a runtime value which must remain numeric.
+     * Legacy raw numeric literals and structured Expression IR are accepted.
+     * @param {number|object} value Numeric literal or Expression IR.
+     * @param {string} errorMessage Diagnostic used for invalid values.
+     * @private
+     */
+    _validateRuntimeNumericValue (value, errorMessage) {
+        let valueType;
+
+        if (typeof value === 'number') {
+            if (!Number.isFinite(value)) {
+                throw new Error(errorMessage);
+            }
+
+            valueType = Number.isInteger(value) ?
+                VALUE_TYPES.INTEGER :
+                VALUE_TYPES.DECIMAL;
+        } else {
+            valueType = this._inferExpressionType(value);
+        }
+
+        if (!this._isNumericType(valueType)) {
+            throw new Error(errorMessage);
+        }
     }
 
     /**

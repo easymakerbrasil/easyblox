@@ -673,7 +673,38 @@ class UploadProgramExtractor {
                 value: this._readDigitalValue(blocks, block, 'VALUE')
             };
 
-        case TONE_START_OPCODE:
+        case TONE_START_OPCODE: {
+            const fields = blocks.getFields(block);
+            const noteField = fields && fields.NOTE;
+            const durationField = fields && fields.DURATION;
+
+            if (!noteField) {
+                throw new Error(
+                    `Missing NOTE field in ${block.opcode}`
+                );
+            }
+
+            if (!durationField) {
+                throw new Error(
+                    `Missing DURATION field in ${block.opcode}`
+                );
+            }
+
+            const frequency = Number(noteField.value);
+            const duration = Number(durationField.value);
+
+            if (!Number.isFinite(frequency)) {
+                throw new Error(
+                    `Invalid NOTE field in ${block.opcode}`
+                );
+            }
+
+            if (!Number.isFinite(duration)) {
+                throw new Error(
+                    `Invalid DURATION field in ${block.opcode}`
+                );
+            }
+
             return {
                 type: 'ToneStart',
                 pin: this._readNumberInput(
@@ -681,12 +712,10 @@ class UploadProgramExtractor {
                     block,
                     'PIN'
                 ),
-                frequency: this._readNumberInput(
-                    blocks,
-                    block,
-                    'FREQUENCY'
-                )
+                frequency,
+                duration
             };
+        }
 
         case TONE_STOP_OPCODE:
             return {
@@ -706,7 +735,7 @@ class UploadProgramExtractor {
                     block,
                     'PIN'
                 ),
-                value: this._readNumberInput(
+                value: this._readRuntimeNumberInput(
                     blocks,
                     block,
                     'VALUE'
@@ -792,7 +821,7 @@ class UploadProgramExtractor {
         case MATRIX_BRIGHTNESS_OPCODE:
             return {
                 type: 'MatrixBrightness',
-                brightnessPercent: this._readNumberInput(
+                brightnessPercent: this._readRuntimeNumberInput(
                     blocks,
                     block,
                     'BRIGHTNESS'
@@ -843,7 +872,7 @@ class UploadProgramExtractor {
         case TM1637_SHOW_OPCODE:
             return {
                 type: 'Tm1637Show',
-                value: this._readNumberInput(
+                value: this._readRuntimeNumberInput(
                     blocks,
                     block,
                     'VALUE'
@@ -913,7 +942,7 @@ class UploadProgramExtractor {
                     block,
                     'DIRECTION'
                 ),
-                speedPercent: this._readNumberInput(
+                speedPercent: this._readRuntimeNumberInput(
                     blocks,
                     block,
                     'SPEED'
@@ -938,7 +967,7 @@ class UploadProgramExtractor {
                     block,
                     'PIN'
                 ),
-                angle: this._readNumberInput(
+                angle: this._readRuntimeNumberInput(
                     blocks,
                     block,
                     'ANGLE'
@@ -2190,6 +2219,50 @@ class UploadProgramExtractor {
 
         throw new Error(
             `Unsupported numeric input ${inputName} in ${block.opcode}`
+        );
+    }
+
+    /**
+     * Read a numeric input which may be calculated at runtime.
+     *
+     * Direct numeric literals keep the legacy raw-number IR shape.
+     * Connected reporter blocks are extracted as structured Expression IR.
+     *
+     * @param {Blocks} blocks Scratch Blocks storage.
+     * @param {object} block Parent block.
+     * @param {string} inputName Scratch input name.
+     * @returns {number|object} Raw numeric literal or Expression IR.
+     * @private
+     */
+    _readRuntimeNumberInput (blocks, block, inputName) {
+        const inputs = blocks.getInputs(block);
+        const input = inputs && inputs[inputName];
+
+        if (!input || !input.block) {
+            throw new Error(
+                `Missing numeric input ${inputName} in ${block.opcode}`
+            );
+        }
+
+        const inputBlock = blocks.getBlock(input.block);
+
+        if (!inputBlock) {
+            throw new Error(
+                `Unsupported numeric input ${inputName} in ${block.opcode}`
+            );
+        }
+
+        if (this._isNumericLiteralOpcode(inputBlock.opcode)) {
+            return this._readNumberInput(
+                blocks,
+                block,
+                inputName
+            );
+        }
+
+        return this._extractExpression(
+            blocks,
+            input.block
         );
     }
 }

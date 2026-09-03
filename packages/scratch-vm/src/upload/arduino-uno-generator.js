@@ -137,10 +137,9 @@ class ArduinoUnoGenerator {
             'Mod'
         );
 
-        const usesScratchRandom = this._programUsesExpressionOperator(
+        const usesScratchRandom = this._programUsesScratchRandomHelper(
             analysisSetupStatements,
-            loopStatements,
-            'Random'
+            loopStatements
         );
 
         const usesUnicodeStringLength = (
@@ -753,12 +752,18 @@ class ArduinoUnoGenerator {
                 'void easybloxTm1637Show(',
                 '    uint8_t clkPin,',
                 '    uint8_t dioPin,',
-                '    long value,',
+                '    float value,',
                 '    float lengthValue,',
                 '    float positionValue,',
                 '    bool point,',
                 '    bool leadingZeros',
                 ') {',
+                '    if (!isfinite(value)) {',
+                '        value = 0;',
+                '    }',
+                '',
+                '    value = trunc(value);',
+                '',
                 '    if (value < 0) {',
                 '        value = 0;',
                 '    }',
@@ -786,7 +791,7 @@ class ArduinoUnoGenerator {
                 '',
                 '    uint8_t segments[4] = {0, 0, 0, 0};',
                 '    uint8_t digits[4] = {0, 0, 0, 0};',
-                '    long remaining = value;',
+                '    long remaining = (long)value;',
                 '',
                 '    if (remaining == 0) {',
                 '        if (leadingZeros) {',
@@ -1628,6 +1633,75 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Check whether any Random expression still requires Scratch semantics.
+     * Static integer literal ranges can use Arduino random() directly.
+     * @param {Array<object>} setupStatements Setup IR statements.
+     * @param {Array<object>} loopStatements Loop IR statements.
+     * @returns {boolean} True when scratchRandom helper is required.
+     * @private
+     */
+    _programUsesScratchRandomHelper (
+        setupStatements,
+        loopStatements
+    ) {
+        return (
+            this._irUsesScratchRandomHelper(setupStatements) ||
+            this._irUsesScratchRandomHelper(loopStatements)
+        );
+    }
+
+    /**
+     * Recursively inspect EasyBlox IR for Random expressions which cannot
+     * be represented directly by Arduino random().
+     * @param {*} value IR value.
+     * @returns {boolean} True when scratchRandom helper is required.
+     * @private
+     */
+    _irUsesScratchRandomHelper (value) {
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._irUsesScratchRandomHelper(item)
+            );
+        }
+
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        if (
+            value.type === 'BinaryExpression' &&
+            value.operator === 'Random' &&
+            !this._isStaticIntegerRandom(value)
+        ) {
+            return true;
+        }
+
+        return Object.keys(value).some(key =>
+            this._irUsesScratchRandomHelper(value[key])
+        );
+    }
+
+    /**
+     * Check whether Random has two compile-time integer literal bounds.
+     * @param {object} expression Random BinaryExpression IR.
+     * @returns {boolean} True when Arduino random() can represent it directly.
+     * @private
+     */
+    _isStaticIntegerRandom (expression) {
+        return (
+            expression &&
+            expression.type === 'BinaryExpression' &&
+            expression.operator === 'Random' &&
+            expression.left &&
+            expression.left.type === 'IntegerLiteral' &&
+            Number.isInteger(expression.left.value) &&
+            expression.right &&
+            expression.right.type === 'IntegerLiteral' &&
+            Number.isInteger(expression.right.value)
+        );
+    }
+
+    /**
      * Recursively inspect EasyBlox IR for an expression operator.
      * @param {*} value IR value.
      * @param {string} operator Expression operator.
@@ -2455,6 +2529,43 @@ class ArduinoUnoGenerator {
             'LOW',
             'INPUT',
             'OUTPUT',
+            'INPUT_PULLUP',
+            'random',
+            'pinMode',
+            'digitalWrite',
+            'analogWrite',
+            'analogRead',
+            'digitalRead',
+            'tone',
+            'noTone',
+            'delay',
+            'delayMicroseconds',
+            'millis',
+            'pulseIn',
+            'digitalPinToPort',
+            'digitalPinToBitMask',
+            'portInputRegister',
+            'microsecondsToClockCycles',
+            'round',
+            'floor',
+            'ceil',
+            'fabs',
+            'sqrt',
+            'sin',
+            'cos',
+            'tan',
+            'asin',
+            'acos',
+            'atan',
+            'log',
+            'log10',
+            'exp',
+            'pow',
+            'Servo',
+            'Wire',
+            'uint8_t',
+            'uint16_t',
+            'size_t',
             'unicodeStringLength',
             'unicodeLetterOf',
             'unicodeLatin1ToLower',
@@ -2507,7 +2618,7 @@ class ArduinoUnoGenerator {
             base = `${fallback}_${base}`;
         }
 
-        if (base.toLowerCase().startsWith('easyblox_')) {
+        if (base.toLowerCase().startsWith('easyblox')) {
             base = `user_${base}`;
         }
 
@@ -2931,15 +3042,51 @@ class ArduinoUnoGenerator {
                 );
                 break;
 
-            case 'PwmWrite':
-                lines.push(
-                    `${indent}analogWrite(${statement.pin}, ${statement.value});`
+            case 'PwmWrite': {
+                /*
+                 * Preserve compact Arduino code for literal values while
+                 * applying the same runtime normalization used by Stage.
+                 */
+                if (typeof statement.value === 'number') {
+                    const value = Math.trunc(
+                        Math.max(
+                            0,
+                            Math.min(255, statement.value)
+                        )
+                    );
+
+                    lines.push(
+                        `${indent}analogWrite(${statement.pin}, ${value});`
+                    );
+                    break;
+                }
+
+                const valueIdentifier = identifiers.allocate(
+                    'pwmValue'
                 );
+
+                const valueExpression = this._generateExpression(
+                    statement.value
+                );
+
+                lines.push(
+                    `${indent}{`,
+                    `${indent}    float ${valueIdentifier} = ${valueExpression};`,
+                    `${indent}    if (${valueIdentifier} < 0) {`,
+                    `${indent}        ${valueIdentifier} = 0;`,
+                    `${indent}    } else if (${valueIdentifier} > 255) {`,
+                    `${indent}        ${valueIdentifier} = 255;`,
+                    `${indent}    }`,
+                    `${indent}    analogWrite(${statement.pin}, (int)${valueIdentifier});`,
+                    `${indent}}`
+                );
+
                 break;
+            }
 
             case 'ToneStart':
                 lines.push(
-                    `${indent}tone(${statement.pin}, ${statement.frequency});`
+                    `${indent}tone(${statement.pin}, ${statement.frequency}, ${statement.duration});`
                 );
                 break;
 
@@ -3020,7 +3167,11 @@ class ArduinoUnoGenerator {
                     `${this._matrixInitialization.dinPin}, ` +
                     `${this._matrixInitialization.csPin}, ` +
                     `${this._matrixInitialization.clkPin}, ` +
-                    `${statement.brightnessPercent}` +
+                    `${
+                        this._generateExpression(
+                            statement.brightnessPercent
+                        )
+                    }` +
                     ');'
                 );
                 break;
@@ -3108,7 +3259,7 @@ class ArduinoUnoGenerator {
                     `${indent}easybloxTm1637Show(` +
                     `${this._tm1637Initialization.clkPin}, ` +
                     `${this._tm1637Initialization.dioPin}, ` +
-                    `${statement.value}, ` +
+                    `${this._generateExpression(statement.value)}, ` +
                     `${statement.length}, ` +
                     `${statement.position}, ` +
                     `${point}, ` +
@@ -3170,34 +3321,87 @@ class ArduinoUnoGenerator {
                     );
                 }
 
-                const pwmValue = Math.round(
-                    statement.speedPercent * 255 / 100
-                );
+                /*
+                * Keep the established compact code for literal speeds.
+                */
+                if (typeof statement.speedPercent === 'number') {
+                    const speedPercent = Math.max(
+                        0,
+                        Math.min(
+                            100,
+                            Math.round(statement.speedPercent)
+                        )
+                    );
 
-                lines.push(
-                    `${indent}analogWrite(MOTOR${statement.motor}_PWM, 0);`
-                );
+                    const pwmValue = Math.round(
+                        speedPercent * 255 / 100
+                    );
 
-                if (pwmValue === 0) {
                     lines.push(
-                        `${indent}digitalWrite(MOTOR${statement.motor}_IN1, LOW);`,
-                        `${indent}digitalWrite(MOTOR${statement.motor}_IN2, LOW);`
+                        `${indent}analogWrite(MOTOR${statement.motor}_PWM, 0);`
                     );
-                } else if (statement.direction === 0) {
+
+                    if (pwmValue === 0) {
+                        lines.push(
+                            `${indent}digitalWrite(MOTOR${statement.motor}_IN1, LOW);`,
+                            `${indent}digitalWrite(MOTOR${statement.motor}_IN2, LOW);`
+                        );
+                    } else if (statement.direction === 0) {
+                        lines.push(
+                            `${indent}digitalWrite(MOTOR${statement.motor}_IN1, HIGH);`,
+                            `${indent}digitalWrite(MOTOR${statement.motor}_IN2, LOW);`
+                        );
+                    } else {
+                        lines.push(
+                            `${indent}digitalWrite(MOTOR${statement.motor}_IN1, LOW);`,
+                            `${indent}digitalWrite(MOTOR${statement.motor}_IN2, HIGH);`
+                        );
+                    }
+
                     lines.push(
-                        `${indent}digitalWrite(MOTOR${statement.motor}_IN1, HIGH);`,
-                        `${indent}digitalWrite(MOTOR${statement.motor}_IN2, LOW);`
+                        `${indent}analogWrite(MOTOR${statement.motor}_PWM, ${pwmValue});`
                     );
-                } else {
-                    lines.push(
-                        `${indent}digitalWrite(MOTOR${statement.motor}_IN1, LOW);`,
-                        `${indent}digitalWrite(MOTOR${statement.motor}_IN2, HIGH);`
-                    );
+                    break;
                 }
 
-                lines.push(
-                    `${indent}analogWrite(MOTOR${statement.motor}_PWM, ${pwmValue});`
+                const speedIdentifier = identifiers.allocate(
+                    'motorSpeedPercent'
                 );
+
+                const pwmIdentifier = identifiers.allocate(
+                    'motorPwmValue'
+                );
+
+                const speedExpression = this._generateExpression(
+                    statement.speedPercent
+                );
+
+                lines.push(
+                    `${indent}{`,
+                    `${indent}    int ${speedIdentifier} = (int)round(${speedExpression});`,
+                    `${indent}    if (${speedIdentifier} < 0) {`,
+                    `${indent}        ${speedIdentifier} = 0;`,
+                    `${indent}    } else if (${speedIdentifier} > 100) {`,
+                    `${indent}        ${speedIdentifier} = 100;`,
+                    `${indent}    }`,
+                    `${indent}    int ${pwmIdentifier} = (int)round(`,
+                    `${indent}        ${speedIdentifier} * 255.0 / 100.0`,
+                    `${indent}    );`,
+                    `${indent}    analogWrite(MOTOR${statement.motor}_PWM, 0);`,
+                    `${indent}    if (${pwmIdentifier} == 0) {`,
+                    `${indent}        digitalWrite(MOTOR${statement.motor}_IN1, LOW);`,
+                    `${indent}        digitalWrite(MOTOR${statement.motor}_IN2, LOW);`,
+                    `${indent}    } else if (${statement.direction} == 0) {`,
+                    `${indent}        digitalWrite(MOTOR${statement.motor}_IN1, HIGH);`,
+                    `${indent}        digitalWrite(MOTOR${statement.motor}_IN2, LOW);`,
+                    `${indent}    } else {`,
+                    `${indent}        digitalWrite(MOTOR${statement.motor}_IN1, LOW);`,
+                    `${indent}        digitalWrite(MOTOR${statement.motor}_IN2, HIGH);`,
+                    `${indent}    }`,
+                    `${indent}    analogWrite(MOTOR${statement.motor}_PWM, ${pwmIdentifier});`,
+                    `${indent}}`
+                );
+
                 break;
             }
 
@@ -3209,14 +3413,56 @@ class ArduinoUnoGenerator {
                 );
                 break;
 
-            case 'ServoWrite':
+            case 'ServoWrite': {
+                /*
+                 * Preserve compact Arduino code for literal angles.
+                 * Runtime expressions are evaluated once, rounded and
+                 * clamped to the Servo contract of 0..180 degrees.
+                 */
+                if (typeof statement.angle === 'number') {
+                    const angle = Math.max(
+                        0,
+                        Math.min(
+                            180,
+                            Math.round(statement.angle)
+                        )
+                    );
+
+                    lines.push(
+                        `${indent}if (!servo${statement.pin}.attached()) {`,
+                        `${indent}    servo${statement.pin}.attach(${statement.pin});`,
+                        `${indent}}`,
+                        `${indent}servo${statement.pin}.write(${angle});`
+                    );
+
+                    break;
+                }
+
+                const angleIdentifier = identifiers.allocate(
+                    'servoAngle'
+                );
+
+                const angleExpression = this._generateExpression(
+                    statement.angle
+                );
+
                 lines.push(
                     `${indent}if (!servo${statement.pin}.attached()) {`,
                     `${indent}    servo${statement.pin}.attach(${statement.pin});`,
                     `${indent}}`,
-                    `${indent}servo${statement.pin}.write(${statement.angle});`
+                    `${indent}{`,
+                    `${indent}    int ${angleIdentifier} = (int)round(${angleExpression});`,
+                    `${indent}    if (${angleIdentifier} < 0) {`,
+                    `${indent}        ${angleIdentifier} = 0;`,
+                    `${indent}    } else if (${angleIdentifier} > 180) {`,
+                    `${indent}        ${angleIdentifier} = 180;`,
+                    `${indent}    }`,
+                    `${indent}    servo${statement.pin}.write(${angleIdentifier});`,
+                    `${indent}}`
                 );
+
                 break;
+            }
 
             case 'RelayWrite':
                 lines.push(
@@ -3908,8 +4154,27 @@ class ArduinoUnoGenerator {
             case 'Mod':
                 return `scratchMod(${left}, ${right})`;
 
-            case 'Random':
+            case 'Random': {
+                if (this._isStaticIntegerRandom(expression)) {
+                    const low = Math.min(
+                        expression.left.value,
+                        expression.right.value
+                    );
+
+                    const high = Math.max(
+                        expression.left.value,
+                        expression.right.value
+                    );
+
+                    if (low === high) {
+                        return String(low);
+                    }
+
+                    return `random(${low}, ${high + 1})`;
+                }
+
                 return `scratchRandom(${left}, ${right})`;
+            }
 
             case 'Divide':
                 return `(` +

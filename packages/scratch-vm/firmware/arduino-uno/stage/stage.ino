@@ -79,6 +79,7 @@ uint32_t timerResetAt = 0;
 
 constexpr uint8_t NO_TONE_PIN = 0xFF;
 uint8_t activeTonePin = NO_TONE_PIN;
+uint32_t activeToneUntil = 0;
 
 constexpr uint8_t NO_MATRIX_PIN = 0xFF;
 
@@ -1205,6 +1206,21 @@ bool isPwmPin(uint8_t pin) {
     );
 }
 
+void refreshActiveToneState() {
+    if (activeTonePin == NO_TONE_PIN) {
+        return;
+    }
+
+    if (
+        static_cast<int32_t>(
+            millis() - activeToneUntil
+        ) >= 0
+    ) {
+        activeTonePin = NO_TONE_PIN;
+        activeToneUntil = 0;
+    }
+}
+
 void handlePwmWrite() {
     if (payloadLength != 2) {
         sendFrame(
@@ -1223,6 +1239,10 @@ void handlePwmWrite() {
         (
             hasAttachedServo() &&
             (pin == 9 || pin == 10)
+        ) ||
+        (
+            activeTonePin != NO_TONE_PIN &&
+            (pin == 3 || pin == 11)
         )
     ) {
         sendFrame(
@@ -1246,7 +1266,7 @@ void handlePwmWrite() {
 }
 
 void handleToneStart() {
-    if (payloadLength != 3) {
+    if (payloadLength != 5) {
         sendFrame(
             sequence,
             RESPONSE_ERROR
@@ -1260,9 +1280,15 @@ void handleToneStart() {
         static_cast<uint16_t>(payload[1]) |
         (static_cast<uint16_t>(payload[2]) << 8);
 
+    const uint16_t duration =
+        static_cast<uint16_t>(payload[3]) |
+        (static_cast<uint16_t>(payload[4]) << 8);
+
     if (
-        !isPwmPin(pin) ||
+        pin < 2 ||
+        pin > 19 ||
         frequency == 0 ||
+        duration == 0 ||
         isServoAttachedOnPin(pin)
     ) {
         sendFrame(
@@ -1281,10 +1307,14 @@ void handleToneStart() {
 
     tone(
         pin,
-        frequency
+        frequency,
+        duration
     );
 
     activeTonePin = pin;
+    activeToneUntil =
+        millis() +
+        static_cast<uint32_t>(duration);
 
     sendFrame(
         sequence,
@@ -1303,7 +1333,10 @@ void handleToneStop() {
 
     const uint8_t pin = payload[0];
 
-    if (!isPwmPin(pin)) {
+    if (
+        pin < 2 ||
+        pin > 19
+    ) {
         sendFrame(
             sequence,
             RESPONSE_ERROR
@@ -1314,6 +1347,7 @@ void handleToneStop() {
     if (activeTonePin == pin) {
         noTone(pin);
         activeTonePin = NO_TONE_PIN;
+        activeToneUntil = 0;
     }
 
     sendFrame(
@@ -1398,6 +1432,10 @@ void handleMotorWrite() {
         activeTonePin == in2Pin ||
         activeTonePin == pwmPin ||
         (
+            activeTonePin != NO_TONE_PIN &&
+            (pwmPin == 3 || pwmPin == 11)
+        ) ||
+        (
             hasAttachedServo() &&
             (pwmPin == 9 || pwmPin == 10)
         )
@@ -1472,6 +1510,10 @@ void handleMotorStop() {
         activeTonePin == in1Pin ||
         activeTonePin == in2Pin ||
         activeTonePin == pwmPin ||
+        (
+            activeTonePin != NO_TONE_PIN &&
+            (pwmPin == 3 || pwmPin == 11)
+        ) ||
         (
             hasAttachedServo() &&
             (pwmPin == 9 || pwmPin == 10)
@@ -2405,6 +2447,8 @@ void setup() {
 
 void loop() {
     while (Serial.available() > 0) {
+        EasyBloxStage::refreshActiveToneState();
+
         EasyBloxStage::processByte(
             static_cast<uint8_t>(Serial.read())
         );
