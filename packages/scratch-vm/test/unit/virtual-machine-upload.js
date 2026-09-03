@@ -570,6 +570,403 @@ test('VirtualMachine shares My Block definitions between Stage and Upload contex
     t.end();
 });
 
+test('VirtualMachine transfers a portable BOTH stack from Stage into the active Upload program', t => {
+    const vm = new VirtualMachine();
+
+    const stageBlocks =
+        new Blocks(vm.runtime);
+
+    const stage = {
+        id: 'stage',
+        isStage: true,
+        isOriginal: true,
+        blocks: stageBlocks,
+        variables: Object.create(null)
+    };
+
+    vm.runtime.targets = [stage];
+    vm.runtime.getTargetForStage = () => stage;
+    vm.runtime.getEditingTarget = () => stage;
+    vm.editingTarget = stage;
+
+    vm.runtime.getBlockExecutionMode = opcode => {
+        const executionModes = {
+            event_whenflagclicked: 'stage',
+            arduinoUno_digitalWrite: 'both',
+            control_wait: 'both'
+        };
+
+        return executionModes[opcode] || null;
+    };
+
+    stageBlocks.createBlock({
+        id: 'stage_hat',
+        opcode: 'event_whenflagclicked',
+        next: 'portable_write',
+        parent: null,
+        inputs: {},
+        fields: {},
+        topLevel: true,
+        shadow: false,
+        x: 20,
+        y: 30
+    });
+
+    stageBlocks.createBlock({
+        id: 'portable_write',
+        opcode: 'arduinoUno_digitalWrite',
+        next: 'portable_wait',
+        parent: 'stage_hat',
+        inputs: {},
+        fields: {},
+        topLevel: false,
+        shadow: false
+    });
+
+    stageBlocks.createBlock({
+        id: 'portable_wait',
+        opcode: 'control_wait',
+        next: null,
+        parent: 'portable_write',
+        inputs: {},
+        fields: {},
+        topLevel: false,
+        shadow: false
+    });
+
+    const uploadProgram =
+        vm.getOrCreateUploadProgram('arduino-uno');
+
+    vm.setProgramContext(
+        'upload',
+        'arduino-uno'
+    );
+
+    vm.blockListener({
+        type: 'move',
+        blockId: 'portable_write',
+        oldParentId: 'stage_hat',
+        newCoordinate: {
+            x: 180,
+            y: 120
+        }
+    });
+
+    t.equal(
+        stageBlocks.getBlock('stage_hat').next,
+        null,
+        'Stage parent releases the transferred BOTH stack'
+    );
+
+    t.equal(
+        stageBlocks.getBlock('portable_write'),
+        undefined,
+        'transferred root no longer belongs to Stage'
+    );
+
+    t.equal(
+        stageBlocks.getBlock('portable_wait'),
+        undefined,
+        'transferred descendants no longer belong to Stage'
+    );
+
+    const transferredWrite =
+        uploadProgram.blocks.getBlock('portable_write');
+
+    const transferredWait =
+        uploadProgram.blocks.getBlock('portable_wait');
+
+    t.ok(
+        transferredWrite,
+        'BOTH root becomes owned by the Upload program'
+    );
+
+    t.ok(
+        transferredWait,
+        'BOTH descendant becomes owned by the Upload program'
+    );
+
+    t.equal(
+        transferredWrite.next,
+        'portable_wait',
+        'the transferred stack preserves its next chain'
+    );
+
+    t.equal(
+        transferredWrite.parent,
+        null,
+        'transferred root becomes top-level in Upload'
+    );
+
+    t.equal(
+        transferredWait.parent,
+        'portable_write',
+        'transferred descendant preserves its parent'
+    );
+
+    t.equal(
+        transferredWrite.x,
+        180,
+        'the original Blockly move is applied after adoption'
+    );
+
+    t.equal(
+        transferredWrite.y,
+        120,
+        'the transferred block keeps the requested destination coordinate'
+    );
+
+    t.end();
+});
+
+test('VirtualMachine does not transfer a BOTH stack containing a block incompatible with Upload', t => {
+    const vm = new VirtualMachine();
+
+    const stageBlocks =
+        new Blocks(vm.runtime);
+
+    const stage = {
+        id: 'stage',
+        isStage: true,
+        isOriginal: true,
+        blocks: stageBlocks,
+        variables: Object.create(null)
+    };
+
+    vm.runtime.targets = [stage];
+    vm.runtime.getTargetForStage = () => stage;
+    vm.runtime.getEditingTarget = () => stage;
+    vm.editingTarget = stage;
+
+    vm.runtime.getBlockExecutionMode = opcode => {
+        const executionModes = {
+            arduinoUno_digitalWrite: 'both',
+            motion_movesteps: 'stage'
+        };
+
+        return executionModes[opcode] || null;
+    };
+
+    stageBlocks.createBlock({
+        id: 'portable_root',
+        opcode: 'arduinoUno_digitalWrite',
+        next: 'stage_only_child',
+        parent: null,
+        inputs: {},
+        fields: {},
+        topLevel: true,
+        shadow: false,
+        x: 20,
+        y: 30
+    });
+
+    stageBlocks.createBlock({
+        id: 'stage_only_child',
+        opcode: 'motion_movesteps',
+        next: null,
+        parent: 'portable_root',
+        inputs: {},
+        fields: {},
+        topLevel: false,
+        shadow: false
+    });
+
+    const uploadProgram =
+        vm.getOrCreateUploadProgram('arduino-uno');
+
+    vm.setProgramContext(
+        'upload',
+        'arduino-uno'
+    );
+
+    vm.blockListener({
+        type: 'move',
+        blockId: 'portable_root',
+        newCoordinate: {
+            x: 180,
+            y: 120
+        }
+    });
+
+    t.ok(
+        stageBlocks.getBlock('portable_root'),
+        'BOTH root remains in Stage when its stack is not fully portable'
+    );
+
+    t.ok(
+        stageBlocks.getBlock('stage_only_child'),
+        'incompatible descendant remains in Stage'
+    );
+
+    t.equal(
+        uploadProgram.blocks.getBlock('portable_root'),
+        undefined,
+        'Upload does not adopt a partially incompatible stack'
+    );
+
+    t.equal(
+        uploadProgram.blocks.getBlock('stage_only_child'),
+        undefined,
+        'Upload never receives the incompatible descendant'
+    );
+
+    t.end();
+});
+
+test('VirtualMachine transfers a portable BOTH stack from Upload into the active Stage program', t => {
+    const vm = new VirtualMachine();
+
+    const stageBlocks =
+        new Blocks(vm.runtime);
+
+    const stage = {
+        id: 'stage',
+        isStage: true,
+        isOriginal: true,
+        blocks: stageBlocks,
+        variables: Object.create(null)
+    };
+
+    vm.runtime.targets = [stage];
+    vm.runtime.getTargetForStage = () => stage;
+    vm.runtime.getEditingTarget = () => stage;
+    vm.editingTarget = stage;
+
+    vm.runtime.getBlockExecutionMode = opcode => {
+        const executionModes = {
+            arduinoUno_whenArduinoUnoStart: 'upload',
+            arduinoUno_digitalWrite: 'both',
+            control_wait: 'both'
+        };
+
+        return executionModes[opcode] || null;
+    };
+
+    const uploadProgram =
+        vm.getOrCreateUploadProgram('arduino-uno');
+
+    uploadProgram.blocks.createBlock({
+        id: 'upload_hat',
+        opcode: 'arduinoUno_whenArduinoUnoStart',
+        next: 'portable_write',
+        parent: null,
+        inputs: {},
+        fields: {},
+        topLevel: true,
+        shadow: false,
+        x: 20,
+        y: 30
+    });
+
+    uploadProgram.blocks.createBlock({
+        id: 'portable_write',
+        opcode: 'arduinoUno_digitalWrite',
+        next: 'portable_wait',
+        parent: 'upload_hat',
+        inputs: {},
+        fields: {},
+        topLevel: false,
+        shadow: false
+    });
+
+    uploadProgram.blocks.createBlock({
+        id: 'portable_wait',
+        opcode: 'control_wait',
+        next: null,
+        parent: 'portable_write',
+        inputs: {},
+        fields: {},
+        topLevel: false,
+        shadow: false
+    });
+
+    vm.setProgramContext(
+        'upload',
+        'arduino-uno'
+    );
+
+    vm.setProgramContext(
+        'stage',
+        null
+    );
+
+    vm.blockListener({
+        type: 'move',
+        blockId: 'portable_write',
+        oldParentId: 'upload_hat',
+        newCoordinate: {
+            x: 210,
+            y: 150
+        }
+    });
+
+    t.equal(
+        uploadProgram.blocks.getBlock('upload_hat').next,
+        null,
+        'Upload parent releases the transferred BOTH stack'
+    );
+
+    t.equal(
+        uploadProgram.blocks.getBlock('portable_write'),
+        undefined,
+        'transferred root no longer belongs to Upload'
+    );
+
+    t.equal(
+        uploadProgram.blocks.getBlock('portable_wait'),
+        undefined,
+        'transferred descendants no longer belong to Upload'
+    );
+
+    const transferredWrite =
+        stageBlocks.getBlock('portable_write');
+
+    const transferredWait =
+        stageBlocks.getBlock('portable_wait');
+
+    t.ok(
+        transferredWrite,
+        'BOTH root becomes owned by the Stage program'
+    );
+
+    t.ok(
+        transferredWait,
+        'BOTH descendant becomes owned by the Stage program'
+    );
+
+    t.equal(
+        transferredWrite && transferredWrite.next,
+        'portable_wait',
+        'the transferred stack preserves its next chain'
+    );
+
+    t.equal(
+        transferredWrite && transferredWrite.parent,
+        null,
+        'transferred root becomes top-level in Stage'
+    );
+
+    t.equal(
+        transferredWait && transferredWait.parent,
+        'portable_write',
+        'transferred descendant preserves its parent'
+    );
+
+    t.equal(
+        transferredWrite && transferredWrite.x,
+        210,
+        'the original Blockly move is applied after Stage adoption'
+    );
+
+    t.equal(
+        transferredWrite && transferredWrite.y,
+        150,
+        'the transferred block keeps the requested Stage coordinate'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine shares My Block signatures while keeping Stage and Upload bodies independent', t => {
     const vm = new VirtualMachine();
 

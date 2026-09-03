@@ -1834,6 +1834,219 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Collect one block and every block structurally owned below it.
+     * This includes the next chain, value/statement inputs, and shadows.
+     * @param {!Blocks} sourceBlocks Source block container.
+     * @param {!string} rootBlockId Root block ID.
+     * @returns {!Array<object>} Source block metadata in parent-first order.
+     */
+    _collectEasyBloxPortableBlockSubtree (
+        sourceBlocks,
+        rootBlockId
+    ) {
+        const collectedBlocks = [];
+        const visitedBlockIds = new Set();
+
+        const visitBlock = blockId => {
+            if (
+                !blockId ||
+                visitedBlockIds.has(blockId)
+            ) {
+                return;
+            }
+
+            const block =
+                sourceBlocks.getBlock(blockId);
+
+            if (!block) {
+                return;
+            }
+
+            visitedBlockIds.add(blockId);
+            collectedBlocks.push(block);
+
+            if (block.inputs) {
+                Object.keys(block.inputs).forEach(inputName => {
+                    const input = block.inputs[inputName];
+
+                    if (!input) {
+                        return;
+                    }
+
+                    if (input.block) {
+                        visitBlock(input.block);
+                    }
+
+                    if (
+                        input.shadow &&
+                        input.shadow !== input.block
+                    ) {
+                        visitBlock(input.shadow);
+                    }
+                });
+            }
+
+            if (block.next) {
+                visitBlock(block.next);
+            }
+        };
+
+        visitBlock(rootBlockId);
+
+        return collectedBlocks;
+    }
+
+    /**
+     * Check whether a foreign block subtree may become owned by another
+     * EasyBlox program mode.
+     *
+     * The dragged root itself must be BOTH. Descendants may be BOTH,
+     * destination-specific, or execution-mode-neutral blocks such as
+     * literal/menu shadows.
+     *
+     * @param {!Array<object>} blocks Block subtree.
+     * @param {!string} destinationMode Destination program mode.
+     * @returns {boolean} Whether the whole subtree is portable.
+     */
+    _isEasyBloxPortableBlockSubtreeCompatible (
+        blocks,
+        destinationMode
+    ) {
+        if (
+            blocks.length === 0 ||
+            typeof this.runtime.getBlockExecutionMode !==
+                'function'
+        ) {
+            return false;
+        }
+
+        const rootExecutionMode =
+            this.runtime.getBlockExecutionMode(
+                blocks[0].opcode
+            );
+
+        if (rootExecutionMode !== 'both') {
+            return false;
+        }
+
+        return blocks.every(block => {
+            const executionMode =
+                this.runtime.getBlockExecutionMode(
+                    block.opcode
+                );
+
+            return (
+                executionMode === null ||
+                typeof executionMode === 'undefined' ||
+                executionMode === 'both' ||
+                executionMode === destinationMode
+            );
+        });
+    }
+
+    /**
+     * Adopt a portable foreign BOTH subtree into the currently active
+     * backing store before applying its Blockly move event.
+     *
+     * IDs are deliberately preserved because the visible Blockly blocks
+     * already exist with those IDs. Only the old-parent side of the move
+     * belongs to the source backing store and must therefore be removed
+     * from the event routed to the destination.
+     *
+     * @param {!Blockly.Event} e Blockly move event.
+     * @param {?Blocks} sourceBlocks Foreign source block container.
+     * @param {!Blocks} destinationBlocks Active destination block container.
+     * @param {!string} destinationMode Active EasyBlox program mode.
+     * @returns {?Blockly.Event} Sanitized move event when transferred,
+     *     otherwise null.
+     */
+    _transferEasyBloxPortableBlockForMove (
+        e,
+        sourceBlocks,
+        destinationBlocks,
+        destinationMode
+    ) {
+        if (
+            !e ||
+            e.type !== 'move' ||
+            typeof e.blockId !== 'string' ||
+            !sourceBlocks ||
+            !destinationBlocks ||
+            destinationBlocks.getBlock(e.blockId)
+        ) {
+            return null;
+        }
+
+        const sourceRoot =
+            sourceBlocks.getBlock(e.blockId);
+
+        if (!sourceRoot) {
+            return null;
+        }
+
+        const sourceSubtree =
+            this._collectEasyBloxPortableBlockSubtree(
+                sourceBlocks,
+                e.blockId
+            );
+
+        if (
+            !this._isEasyBloxPortableBlockSubtreeCompatible(
+                sourceSubtree,
+                destinationMode
+            )
+        ) {
+            return null;
+        }
+
+        const transferredBlocks =
+            sourceSubtree.map(block =>
+                JSON.parse(JSON.stringify(block))
+            );
+
+        /*
+         * First apply only the source side of Blockly's move. This releases
+         * the root from its old parent without attempting to connect it to
+         * anything that belongs to the destination backing store.
+         */
+        sourceBlocks.moveBlock({
+            id: e.blockId,
+            oldParent: e.oldParentId,
+            oldInput: e.oldInputName
+        });
+
+        const transferredRoot =
+            transferredBlocks[0];
+
+        transferredRoot.parent = null;
+        transferredRoot.topLevel = true;
+
+        transferredBlocks.forEach(block => {
+            destinationBlocks.createBlock(block);
+        });
+
+        /*
+         * The complete subtree now exists independently in the destination,
+         * so remove the original source-owned copy.
+         */
+        sourceBlocks.deleteBlock(e.blockId);
+
+        /*
+         * oldParentId/oldInputName refer to the foreign backing store.
+         * newParentId/newInputName/newCoordinate, when present, belong to the
+         * currently visible destination workspace and must be preserved.
+         */
+        const destinationEvent = {
+            ...e
+        };
+
+        delete destinationEvent.oldParentId;
+        delete destinationEvent.oldInputName;
+
+        return destinationEvent;
+    }
+
+    /**
      * Handle a Blockly event for the current editing target.
      * @param {!Blockly.Event} e Any Blockly event.
      */
@@ -1848,20 +2061,33 @@ class VirtualMachine extends EventEmitter {
 
             const sourceBlocks = uploadProgram.blocks;
 
+            const transferredMove =
+                this._transferEasyBloxPortableBlockForMove(
+                    e,
+                    this.editingTarget ?
+                        this.editingTarget.blocks :
+                        null,
+                    sourceBlocks,
+                    'upload'
+                );
+
+            const routedEvent =
+                transferredMove || e;
+
             const deletedProcedureId =
-                e &&
-                e.type === 'delete' &&
-                typeof e.blockId === 'string' &&
-                sourceBlocks.getBlock(e.blockId) &&
-                sourceBlocks.getBlock(e.blockId).opcode ===
+                routedEvent &&
+                routedEvent.type === 'delete' &&
+                typeof routedEvent.blockId === 'string' &&
+                sourceBlocks.getBlock(routedEvent.blockId) &&
+                sourceBlocks.getBlock(routedEvent.blockId).opcode ===
                     'procedures_definition' ?
-                    e.blockId :
+                    routedEvent.blockId :
                     null;
 
-            uploadProgram.blocklyListen(e);
+            uploadProgram.blocklyListen(routedEvent);
 
             this._updateEasyBloxSharedProceduresAfterBlocklyEvent(
-                e,
+                routedEvent,
                 sourceBlocks,
                 deletedProcedureId
             );
@@ -1873,20 +2099,44 @@ class VirtualMachine extends EventEmitter {
             const sourceBlocks =
                 this.editingTarget.blocks;
 
-            const deletedProcedureId =
-                e &&
-                e.type === 'delete' &&
-                typeof e.blockId === 'string' &&
-                sourceBlocks.getBlock(e.blockId) &&
-                sourceBlocks.getBlock(e.blockId).opcode ===
-                    'procedures_definition' ?
-                    e.blockId :
+            const selectedUploadProgram =
+                this._easybloxSelectedBoardId &&
+                this._easybloxUploadPrograms &&
+                this._easybloxUploadPrograms.has(
+                    this._easybloxSelectedBoardId
+                ) ?
+                    this._easybloxUploadPrograms.get(
+                        this._easybloxSelectedBoardId
+                    ) :
                     null;
 
-            sourceBlocks.blocklyListen(e);
+            const transferredMove =
+                this._transferEasyBloxPortableBlockForMove(
+                    e,
+                    selectedUploadProgram ?
+                        selectedUploadProgram.blocks :
+                        null,
+                    sourceBlocks,
+                    'stage'
+                );
+
+            const routedEvent =
+                transferredMove || e;
+
+            const deletedProcedureId =
+                routedEvent &&
+                routedEvent.type === 'delete' &&
+                typeof routedEvent.blockId === 'string' &&
+                sourceBlocks.getBlock(routedEvent.blockId) &&
+                sourceBlocks.getBlock(routedEvent.blockId).opcode ===
+                    'procedures_definition' ?
+                    routedEvent.blockId :
+                    null;
+
+            sourceBlocks.blocklyListen(routedEvent);
 
             this._updateEasyBloxSharedProceduresAfterBlocklyEvent(
-                e,
+                routedEvent,
                 sourceBlocks,
                 deletedProcedureId
             );

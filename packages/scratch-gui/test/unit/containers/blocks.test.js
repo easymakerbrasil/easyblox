@@ -1039,10 +1039,12 @@ test('hydrates inactive Upload blocks visually on a cold Stage workspace load', 
     ).toBe(false);
 });
 
-test('preserves incompatible workspace blocks visually across Stage and Upload reloads', () => {
+test('preserves incompatible blocks without freezing portable BOTH descendants across Stage and Upload', () => {
     const executionModes = {
-        motion_movesteps: 'stage',
-        serial_serialWrite: 'upload'
+        event_whenflagclicked: 'stage',
+        arduinoUno_whenArduinoUnoStart: 'upload',
+        arduinoUno_digitalWrite: 'both',
+        control_wait: 'both'
     };
 
     const runtime = {
@@ -1053,23 +1055,49 @@ test('preserves incompatible workspace blocks visually across Stage and Upload r
         }
     };
 
-    const createWorkspaceDom = (type, id) => {
+    const createWorkspaceDom = (
+        hatType,
+        hatId,
+        bothPrefix
+    ) => {
         const dom = document.createElement('xml');
-        dom.innerHTML =
-            `<block type="${type}" id="${id}" x="24" y="36"></block>`;
+
+        dom.innerHTML = `
+            <block
+                type="${hatType}"
+                id="${hatId}"
+                x="24"
+                y="36">
+                <next>
+                    <block
+                        type="arduinoUno_digitalWrite"
+                        id="${bothPrefix}-write">
+                        <next>
+                            <block
+                                type="control_wait"
+                                id="${bothPrefix}-wait">
+                            </block>
+                        </next>
+                    </block>
+                </next>
+            </block>
+        `;
+
         return dom;
     };
 
     const stageWorkspaceDom =
         createWorkspaceDom(
-            'motion_movesteps',
-            'stage-only-block'
+            'event_whenflagclicked',
+            'stage-only-hat',
+            'stage-both'
         );
 
     const uploadWorkspaceDom =
         createWorkspaceDom(
-            'serial_serialWrite',
-            'upload-only-block'
+            'arduinoUno_whenArduinoUnoStart',
+            'upload-only-hat',
+            'upload-both'
         );
 
     const clearWorkspaceAndLoadFromXml =
@@ -1129,11 +1157,8 @@ test('preserves incompatible workspace blocks visually across Stage and Upload r
             clearWorkspaceAndLoadFromXml
         },
 
-        /*
-         * A program-mode transition must preserve incompatible blocks from
-         * the workspace which is about to be replaced.
-         */
-        _preserveIncompatibleBlocksOnNextWorkspaceUpdate: true
+        _preserveIncompatibleBlocksOnNextWorkspaceUpdate:
+            true
     };
 
     const previousRequestAnimationFrame =
@@ -1145,8 +1170,10 @@ test('preserves incompatible workspace blocks visually across Stage and Upload r
     try {
         /*
          * Stage -> Upload:
-         * the Upload workspace becomes active, but an existing Stage-only
-         * block must remain visible as inactive context.
+         *
+         * STAGE_ONLY hat remains inert visual context.
+         * Its BOTH descendants remain available so the student can detach
+         * them and the VM can transfer their ownership to Upload.
          */
         Blocks.prototype.onWorkspaceUpdate.call(
             instance,
@@ -1165,37 +1192,80 @@ test('preserves incompatible workspace blocks visually across Stage and Upload r
 
         expect(
             stageToUploadDom.querySelector(
-                '[id="upload-only-block"]'
+                '[id="upload-only-hat"]'
             )
         ).not.toBeNull();
 
-        const preservedStageBlock =
+        const preservedStageHat =
             stageToUploadDom.querySelector(
-                '[id="stage-only-block"]'
+                '[id="stage-only-hat"]'
             );
 
-        expect(preservedStageBlock).not.toBeNull();
+        const preservedStageWrite =
+            stageToUploadDom.querySelector(
+                '[id="stage-both-write"]'
+            );
+
+        const preservedStageWait =
+            stageToUploadDom.querySelector(
+                '[id="stage-both-wait"]'
+            );
+
+        expect(preservedStageHat).not.toBeNull();
+        expect(preservedStageWrite).not.toBeNull();
+        expect(preservedStageWait).not.toBeNull();
 
         expect(
-            preservedStageBlock.getAttribute('disabled')
+            preservedStageHat.getAttribute('disabled')
         ).toBe('true');
 
         expect(
-            preservedStageBlock.getAttribute('movable')
+            preservedStageHat.getAttribute('movable')
         ).toBe('false');
 
         expect(
-            preservedStageBlock.getAttribute('deletable')
+            preservedStageHat.getAttribute('deletable')
         ).toBe('false');
 
         expect(
-            preservedStageBlock.getAttribute('editable')
+            preservedStageHat.getAttribute('editable')
         ).toBe('false');
+
+        expect(
+            preservedStageWrite.getAttribute('disabled')
+        ).toBeNull();
+
+        expect(
+            preservedStageWrite.getAttribute('movable')
+        ).toBeNull();
+
+        expect(
+            preservedStageWrite.getAttribute('deletable')
+        ).toBeNull();
+
+        expect(
+            preservedStageWrite.getAttribute('editable')
+        ).toBeNull();
+
+        expect(
+            preservedStageWait.getAttribute('disabled')
+        ).toBeNull();
+
+        expect(
+            preservedStageWait.getAttribute('movable')
+        ).toBeNull();
+
+        expect(
+            preservedStageWait.getAttribute('deletable')
+        ).toBeNull();
+
+        expect(
+            preservedStageWait.getAttribute('editable')
+        ).toBeNull();
 
         /*
          * Upload -> Stage:
-         * perform the inverse transition and require the Upload-only block
-         * to remain visible without becoming part of the Stage program.
+         * require exactly the same contract in the opposite direction.
          */
         instance.props.programMode = 'stage';
 
@@ -1231,37 +1301,82 @@ test('preserves incompatible workspace blocks visually across Stage and Upload r
 
         expect(
             uploadToStageDom.querySelector(
-                '[id="stage-only-block"]'
+                '[id="stage-only-hat"]'
             )
         ).not.toBeNull();
 
-        const preservedUploadBlock =
+        const preservedUploadHat =
             uploadToStageDom.querySelector(
-                '[id="upload-only-block"]'
+                '[id="upload-only-hat"]'
             );
 
-        expect(preservedUploadBlock).not.toBeNull();
+        const preservedUploadWrite =
+            uploadToStageDom.querySelector(
+                '[id="upload-both-write"]'
+            );
+
+        const preservedUploadWait =
+            uploadToStageDom.querySelector(
+                '[id="upload-both-wait"]'
+            );
+
+        expect(preservedUploadHat).not.toBeNull();
+        expect(preservedUploadWrite).not.toBeNull();
+        expect(preservedUploadWait).not.toBeNull();
 
         expect(
-            preservedUploadBlock.getAttribute('disabled')
+            preservedUploadHat.getAttribute('disabled')
         ).toBe('true');
 
         expect(
-            preservedUploadBlock.getAttribute('movable')
+            preservedUploadHat.getAttribute('movable')
         ).toBe('false');
 
         expect(
-            preservedUploadBlock.getAttribute('deletable')
+            preservedUploadHat.getAttribute('deletable')
         ).toBe('false');
 
         expect(
-            preservedUploadBlock.getAttribute('editable')
+            preservedUploadHat.getAttribute('editable')
         ).toBe('false');
+
+        expect(
+            preservedUploadWrite.getAttribute('disabled')
+        ).toBeNull();
+
+        expect(
+            preservedUploadWrite.getAttribute('movable')
+        ).toBeNull();
+
+        expect(
+            preservedUploadWrite.getAttribute('deletable')
+        ).toBeNull();
+
+        expect(
+            preservedUploadWrite.getAttribute('editable')
+        ).toBeNull();
+
+        expect(
+            preservedUploadWait.getAttribute('disabled')
+        ).toBeNull();
+
+        expect(
+            preservedUploadWait.getAttribute('movable')
+        ).toBeNull();
+
+        expect(
+            preservedUploadWait.getAttribute('deletable')
+        ).toBeNull();
+
+        expect(
+            preservedUploadWait.getAttribute('editable')
+        ).toBeNull();
     } finally {
         global.requestAnimationFrame =
             previousRequestAnimationFrame;
     }
 });
+
 
 describe('Blocks active extensions', () => {
     test('activates an extension without duplicating it', () => {

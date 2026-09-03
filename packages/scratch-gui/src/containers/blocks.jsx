@@ -625,13 +625,13 @@ class Blocks extends React.Component {
      * Preserve scripts containing blocks which are incompatible with the
      * newly active EasyBlox program mode.
      *
-     * Stage and Upload continue to have independent VM backing stores. These
-     * cloned XML blocks are visual context only: they are loaded disabled and
-     * cannot be moved, deleted or edited, preventing Blockly events from
-     * mutating the active backing store incorrectly.
+     * Stage and Upload continue to have independent VM backing stores.
+     * Mode-specific blocks preserved from the inactive backing store remain
+     * inert visual context. BOTH blocks remain available so they can be
+     * detached and transferred to the active backing store by the VM.
      *
      * @param {!Element} incomingDom XML for the newly active backing store.
-     * @returns {!Element} XML including any required inert visual context.
+     * @returns {!Element} XML including preserved visual context.
      */
     preserveIncompatibleWorkspaceBlocks (incomingDom) {
         const shouldPreserve =
@@ -805,27 +805,59 @@ class Blocks extends React.Component {
             ];
 
             /*
-             * These blocks do not belong to the active backing store.
-             * Make the entire preserved script inert so it cannot generate
-             * semantic Blockly changes against the wrong owner.
+             * Preserved mode-specific blocks still belong exclusively to
+             * the inactive backing store and therefore remain inert.
+             *
+             * BOTH blocks are portable. They must stay interactive so the
+             * user can detach them; the VM then transfers their ownership
+             * to the active backing store when Blockly emits the move.
              */
             preservedBlocks.forEach(blockNode => {
-                blockNode.setAttribute(
-                    'disabled',
-                    'true'
-                );
-                blockNode.setAttribute(
-                    'movable',
-                    'false'
-                );
-                blockNode.setAttribute(
-                    'deletable',
-                    'false'
-                );
-                blockNode.setAttribute(
-                    'editable',
-                    'false'
-                );
+                const blockType =
+                    blockNode.getAttribute('type');
+
+                const executionMode =
+                    getExecutionMode.call(
+                        runtime,
+                        blockType
+                    );
+
+                if (executionMode === 'both') {
+                    /*
+                     * Remove stale inert attributes as well. The outgoing
+                     * workspace may itself contain blocks preserved during
+                     * an earlier program-mode transition.
+                     */
+                    blockNode.removeAttribute(
+                        'disabled'
+                    );
+                    blockNode.removeAttribute(
+                        'movable'
+                    );
+                    blockNode.removeAttribute(
+                        'deletable'
+                    );
+                    blockNode.removeAttribute(
+                        'editable'
+                    );
+                } else {
+                    blockNode.setAttribute(
+                        'disabled',
+                        'true'
+                    );
+                    blockNode.setAttribute(
+                        'movable',
+                        'false'
+                    );
+                    blockNode.setAttribute(
+                        'deletable',
+                        'false'
+                    );
+                    blockNode.setAttribute(
+                        'editable',
+                        'false'
+                    );
+                }
 
                 const blockId =
                     blockNode.getAttribute('id');
