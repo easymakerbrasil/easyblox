@@ -30,6 +30,35 @@ class UploadResourceValidator {
             ir.procedures :
             [];
 
+        const resources = Array.isArray(ir.resources) ?
+            [...new Set(ir.resources)] :
+            [];
+
+        const logicalResources =
+            this.boardProfile.logicalResources || {};
+
+        const connectivityReservedPins = new Set();
+
+        for (const resourceName of resources) {
+            const resource =
+                logicalResources[resourceName];
+
+            if (!resource) {
+                throw new Error(
+                    'Hardware resource is not supported by the selected board'
+                );
+            }
+
+            if (
+                resource.exclusive === true &&
+                Array.isArray(resource.pins)
+            ) {
+                for (const pin of resource.pins) {
+                    connectivityReservedPins.add(pin);
+                }
+            }
+        }
+
         const procedureStatements = [];
 
         for (const procedure of procedures) {
@@ -426,6 +455,42 @@ class UploadResourceValidator {
             ultrasonicPins,
             dhtPins
         );
+
+        const connectivityConflictPinSets = [
+            motorPins,
+            servoPins,
+            tonePins,
+            relayPins,
+            pwmWritePins,
+            digitalWritePins,
+            digitalReadPins,
+            ultrasonicPins,
+            dhtPins,
+            displayGpioPins,
+            displayI2cPins
+        ];
+
+        if (joystickInitialization) {
+            connectivityConflictPinSets.push(
+                new Set([
+                    joystickInitialization.xPin,
+                    joystickInitialization.yPin,
+                    joystickInitialization.clickPin
+                ])
+            );
+        }
+
+        for (const pin of connectivityReservedPins) {
+            if (
+                connectivityConflictPinSets.some(
+                    pinSet => pinSet.has(pin)
+                )
+            ) {
+                throw new Error(
+                    `Connectivity resource conflict on pin ${pin}`
+                );
+            }
+        }
 
         const displayReservedPins = new Set([
             ...displayGpioPins,

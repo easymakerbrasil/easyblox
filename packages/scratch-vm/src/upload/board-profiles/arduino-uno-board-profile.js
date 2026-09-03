@@ -1,6 +1,10 @@
 /**
  * Hardware capabilities and defaults for the Arduino UNO Upload target.
  */
+const {
+    CONNECTIVITY_RESOURCES
+} = require('../../connectivity/easyblox-connectivity-contract');
+
 const ArduinoUnoBoardProfile = Object.freeze({
     id: 'arduino-uno',
 
@@ -88,6 +92,15 @@ const ArduinoUnoBoardProfile = Object.freeze({
         115200
     ]),
 
+    logicalResources: Object.freeze({
+        [CONNECTIVITY_RESOURCES.SOFTWARE_UART_D2_D3]: Object.freeze({
+            pins: Object.freeze([
+                2,
+                3
+            ]),
+            exclusive: true
+        })
+    }),
 
     servoPins: Object.freeze([
         3,
