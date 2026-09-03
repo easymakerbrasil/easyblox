@@ -2,7 +2,18 @@ const ArgumentType = require('../../extension-support/argument-type');
 const BlockExecutionMode = require('../../extension-support/block-execution-mode');
 const BlockType = require('../../extension-support/block-type');
 
+const {
+    EBCP_CONTRACT
+} = require('../../connectivity/easyblox-connectivity-contract');
+
+const {
+    EasyBloxConnectivityRuntime
+} = require('../../connectivity/easyblox-connectivity-runtime');
+
 const EXTENSION_ID = 'easybloxBt';
+
+const TEXT = EBCP_CONTRACT.messageTypes.TEXT;
+const NUMBER = EBCP_CONTRACT.messageTypes.NUMBER;
 
 const REQUIRED_BOARD_CAPABILITY =
     'bluetoothSerial';
@@ -19,6 +30,9 @@ class Scratch3EasyBloxBtBlocks {
      */
     constructor (runtime) {
         this.runtime = runtime;
+        this._connectivityRuntime =
+            new EasyBloxConnectivityRuntime();
+        this._receivedByThread = new WeakMap();
     }
 
     /**
@@ -126,6 +140,50 @@ class Scratch3EasyBloxBtBlocks {
     }
 
     /**
+     * Get or initialize received EasyBlox BT values for one Scratch thread.
+     * @param {object} util Scratch block utility.
+     * @returns {?object} thread-local received state, or null
+     */
+    _getReceivedState (util) {
+        const thread =
+            util && util.thread;
+
+        if (
+            !thread ||
+            (
+                typeof thread !== 'object' &&
+                typeof thread !== 'function'
+            )
+        ) {
+            return null;
+        }
+
+        const sessionGeneration =
+            this._connectivityRuntime.sessionGeneration;
+
+        let state =
+            this._receivedByThread.get(thread);
+
+        if (
+            !state ||
+            state.sessionGeneration !== sessionGeneration
+        ) {
+            state = {
+                text: '',
+                number: 0,
+                sessionGeneration
+            };
+
+            this._receivedByThread.set(
+                thread,
+                state
+            );
+        }
+
+        return state;
+    }
+
+    /**
      * Initialize the EasyBlox BT transport.
      * Runtime transport behavior is implemented in a later checkpoint.
      * @returns {void} No value.
@@ -145,20 +203,38 @@ class Scratch3EasyBloxBtBlocks {
 
     /**
      * Wait for an EasyBlox BT TEXT message on a channel.
-     * Runtime blocking behavior is implemented in a later checkpoint.
-     * @returns {void} No value.
+     * @param {object} args block arguments
+     * @param {string} args.CHANNEL EasyBlox BT channel
+     * @param {object} util Scratch block utility
+     * @returns {Promise<void>} resolves when a matching message is consumed
      */
-    waitText () {
-        // Transport integration is intentionally deferred.
+    waitText (args, util) {
+        return this._connectivityRuntime.waitFor(
+            TEXT,
+            args.CHANNEL
+        ).then(message => {
+            const state =
+                this._getReceivedState(util);
+
+            if (state) {
+                state.text = message.payload;
+            }
+        });
     }
 
     /**
-     * Report the most recently received EasyBlox BT text.
-     * Runtime transport behavior is implemented in a later checkpoint.
-     * @returns {string} Empty text until transport integration.
+     * Report the most recently consumed EasyBlox BT text for this Scratch thread.
+     * @param {object} args block arguments
+     * @param {object} util Scratch block utility
+     * @returns {string} received text, or empty text before the first receive
      */
-    receivedText () {
-        return '';
+    receivedText (args, util) {
+        const state =
+            this._getReceivedState(util);
+
+        return state ?
+            state.text :
+            '';
     }
 
     /**
@@ -172,20 +248,38 @@ class Scratch3EasyBloxBtBlocks {
 
     /**
      * Wait for an EasyBlox BT NUMBER message on a channel.
-     * Runtime blocking behavior is implemented in a later checkpoint.
-     * @returns {void} No value.
+     * @param {object} args block arguments
+     * @param {string} args.CHANNEL EasyBlox BT channel
+     * @param {object} util Scratch block utility
+     * @returns {Promise<void>} resolves when a matching message is consumed
      */
-    waitNumber () {
-        // Transport integration is intentionally deferred.
+    waitNumber (args, util) {
+        return this._connectivityRuntime.waitFor(
+            NUMBER,
+            args.CHANNEL
+        ).then(message => {
+            const state =
+                this._getReceivedState(util);
+
+            if (state) {
+                state.number = message.payload;
+            }
+        });
     }
 
     /**
-     * Report the most recently received EasyBlox BT number.
-     * Runtime transport behavior is implemented in a later checkpoint.
-     * @returns {number} Zero until transport integration.
+     * Report the most recently consumed EasyBlox BT number for this Scratch thread.
+     * @param {object} args block arguments
+     * @param {object} util Scratch block utility
+     * @returns {number} received number, or zero before the first receive
      */
-    receivedNumber () {
-        return 0;
+    receivedNumber (args, util) {
+        const state =
+            this._getReceivedState(util);
+
+        return state ?
+            state.number :
+            0;
     }
 }
 
