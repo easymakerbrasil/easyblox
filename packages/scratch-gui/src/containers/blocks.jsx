@@ -1001,6 +1001,7 @@ class Blocks extends React.Component {
         }
 
         this.updateWorkspaceExecutionMode();
+        this.updateWorkspaceBoardCapability();
 
         if (this.props.vm.editingTarget && this.props.workspaceMetrics.targets[this.props.vm.editingTarget.id]) {
             const {scrollX, scrollY, scale} = this.props.workspaceMetrics.targets[this.props.vm.editingTarget.id];

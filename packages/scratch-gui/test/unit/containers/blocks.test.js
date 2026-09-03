@@ -320,6 +320,7 @@ describe('Blocks container onWorkspaceUpdate', () => {
             onWorkspaceMetricsChange: jest.fn(),
             toolboxUpdateChangeListener: jest.fn(),
             updateWorkspaceExecutionMode: jest.fn(),
+            updateWorkspaceBoardCapability: jest.fn(),
             props: {
                 vm: {editingTarget: null},
                 workspaceMetrics: {targets: {}},
@@ -384,6 +385,16 @@ describe('Blocks container onWorkspaceUpdate', () => {
             .toHaveBeenCalled();
     });
 
+    test('updates workspace board capability after loading the workspace', () => {
+        Blocks.prototype.onWorkspaceUpdate.call(instance, {xml: '<xml/>'});
+
+        expect(instance.updateWorkspaceBoardCapability)
+            .toHaveBeenCalledTimes(1);
+
+        expect(instance.ScratchBlocks.clearWorkspaceAndLoadFromXml)
+            .toHaveBeenCalled();
+    });
+
     test('updates workspace execution mode after a partial workspace load failure', () => {
         instance.ScratchBlocks.clearWorkspaceAndLoadFromXml.mockImplementation(() => {
             throw new Error('workspace load failed');
@@ -392,6 +403,17 @@ describe('Blocks container onWorkspaceUpdate', () => {
         Blocks.prototype.onWorkspaceUpdate.call(instance, {xml: '<xml/>'});
 
         expect(instance.updateWorkspaceExecutionMode)
+            .toHaveBeenCalledTimes(1);
+    });
+
+    test('updates workspace board capability after a partial workspace load failure', () => {
+        instance.ScratchBlocks.clearWorkspaceAndLoadFromXml.mockImplementation(() => {
+            throw new Error('workspace load failed');
+        });
+
+        Blocks.prototype.onWorkspaceUpdate.call(instance, {xml: '<xml/>'});
+
+        expect(instance.updateWorkspaceBoardCapability)
             .toHaveBeenCalledTimes(1);
     });
 });
@@ -1358,6 +1380,7 @@ test('preserves incompatible blocks without freezing portable BOTH descendants a
         onWorkspaceMetricsChange: jest.fn(),
 
         updateWorkspaceExecutionMode: jest.fn(),
+        updateWorkspaceBoardCapability: jest.fn(),
 
         preserveIncompatibleWorkspaceBlocks:
             Blocks.prototype.preserveIncompatibleWorkspaceBlocks,
