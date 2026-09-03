@@ -20,7 +20,7 @@ import makeymakeyIconURL from './makeymakey/makeymakey.png';
 import makeymakeyInsetIconURL from './makeymakey/makeymakey-small.svg';
 
 import arduinoUnoIconURL from './arduinoUno/arduino-uno.svg';
-
+import easybloxBtIconURL from './easybloxBt/easyblox-bt.svg';
 import microbitIconURL from './microbit/microbit.png';
 import microbitInsetIconURL from './microbit/microbit-small.svg';
 import microbitConnectionIconURL from './microbit/microbit-illustration.svg';
@@ -225,6 +225,21 @@ const extensionLibraryContent = [
                 id="gui.extension.arduinoUno.scanBeginMessage"
             />
         )
+    },
+    {
+        name: 'EasyBlox BT',
+        extensionId: 'easybloxBt',
+        iconURL: easybloxBtIconURL,
+        insetIconURL: easybloxBtIconURL,
+        description: (
+            <FormattedMessage
+                defaultMessage="Comunique seus projetos por Bluetooth usando HC-05 ou HC-06."
+                description="Description for the EasyBlox BT extension"
+                id="gui.extension.easybloxBt.description"
+            />
+        ),
+        featured: true,
+        disabled: false
     },
     {
         name: 'micro:bit',
