@@ -19,10 +19,22 @@ const HardwareControls = ({
     selectedBoard,
     onConnect,
     onDisconnect,
-    onSelectBoard
+    onPrepareStageFirmware,
+    onSelectBoard,
+    stageFirmwareIssue
 }) => {
     const connectionButtonRef = React.useRef(null);
     const [disconnectPromptOpen, setDisconnectPromptOpen] = React.useState(false);
+    const [
+        stageFirmwarePromptOpen,
+        setStageFirmwarePromptOpen
+    ] = React.useState(Boolean(stageFirmwareIssue));
+
+    React.useEffect(() => {
+        setStageFirmwarePromptOpen(
+            Boolean(stageFirmwareIssue)
+        );
+    }, [stageFirmwareIssue]);
 
     const board = selectedBoard ?
         getBoardById(selectedBoard) :
@@ -37,6 +49,30 @@ const HardwareControls = ({
         'Selecionar placa';
 
     const connectionLabel = CONNECTION_LABELS[connectionState];
+
+    const stageFirmwarePrompt =
+        stageFirmwareIssue === 'legacy' ?
+            {
+                message:
+                    'O firmware do Modo Palco precisa ser atualizado.',
+                actionLabel:
+                    'Atualizar para o Modo Palco'
+            } :
+            stageFirmwareIssue === 'incompatible' ?
+                {
+                    message:
+                        'A versão do firmware do Modo Palco não é compatível.',
+                    actionLabel:
+                        'Atualizar para o Modo Palco'
+                } :
+                stageFirmwareIssue === 'unidentified' ?
+                    {
+                        message:
+                            'O firmware do Modo Palco não foi identificado.',
+                        actionLabel:
+                            'Preparar para o Modo Palco'
+                    } :
+                    null;
 
     const connectionVisualState =
         connectionState === 'uploading' ||
@@ -53,7 +89,21 @@ const HardwareControls = ({
         onDisconnect();
     };
 
+    const handleStageFirmwareCancel = () => {
+        setStageFirmwarePromptOpen(false);
+    };
+
+    const handleStageFirmwareConfirm = () => {
+        setStageFirmwarePromptOpen(false);
+        onPrepareStageFirmware();
+    };
+
     const handleConnectionClick = React.useCallback(() => {
+        if (stageFirmwareIssue) {
+            setStageFirmwarePromptOpen(true);
+            return;
+        }
+
         if (connectionState === 'connected') {
             setDisconnectPromptOpen(true);
             return;
@@ -66,7 +116,11 @@ const HardwareControls = ({
         ) {
             onConnect();
         }
-    }, [connectionState, onConnect]);
+    }, [
+        connectionState,
+        onConnect,
+        stageFirmwareIssue
+    ]);
 
     return (
         <div className={styles.hardwareControls}>
@@ -118,6 +172,36 @@ const HardwareControls = ({
                 title="Desconectar placa"
             />
 
+            <ConfirmationPrompt
+                align={PopupAlign.CENTER}
+                cancelButtonConfig={{
+                    label: 'Cancelar',
+                    onClick: handleStageFirmwareCancel
+                }}
+                confirmButtonConfig={{
+                    label:
+                        stageFirmwarePrompt ?
+                            stageFirmwarePrompt.actionLabel :
+                            'Preparar para o Modo Palco',
+                    onClick: handleStageFirmwareConfirm
+                }}
+                isOpen={
+                    stageFirmwarePromptOpen &&
+                    Boolean(stageFirmwarePrompt)
+                }
+                layoutConfig={{
+                    modalWidth: 320
+                }}
+                message={
+                    stageFirmwarePrompt ?
+                        stageFirmwarePrompt.message :
+                        ''
+                }
+                relativeElementRef={connectionButtonRef}
+                side={PopupSide.DOWN}
+                title="Modo Palco"
+            />
+
         </div>
     );
 };
@@ -133,16 +217,24 @@ HardwareControls.propTypes = {
     ]),
     onConnect: PropTypes.func,
     onDisconnect: PropTypes.func,
+    onPrepareStageFirmware: PropTypes.func,
     onSelectBoard: PropTypes.func,
-    selectedBoard: PropTypes.string
+    selectedBoard: PropTypes.string,
+    stageFirmwareIssue: PropTypes.oneOf([
+        'legacy',
+        'incompatible',
+        'unidentified'
+    ])
 };
 
 HardwareControls.defaultProps = {
     connectionState: 'disconnected',
     onConnect: () => {},
     onDisconnect: () => {},
+    onPrepareStageFirmware: () => {},
     onSelectBoard: () => {},
-    selectedBoard: null
+    selectedBoard: null,
+    stageFirmwareIssue: null
 };
 
 export default HardwareControls;

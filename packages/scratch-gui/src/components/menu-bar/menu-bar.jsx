@@ -472,9 +472,13 @@ class MenuBar extends React.Component {
                         <HardwareControls
                             connectionState={this.props.connectionState}
                             selectedBoard={this.props.selectedBoard}
+                            stageFirmwareIssue={this.props.stageFirmwareIssue}
                             onSelectBoard={this.props.onSelectBoard}
                             onConnect={this.props.onConnect}
                             onDisconnect={this.props.onDisconnect}
+                            onPrepareStageFirmware={
+                                this.props.onPrepareStageFirmware
+                            }
                         />
 
                         <span className={styles.hardwareControlLabel}>
@@ -578,11 +582,18 @@ MenuBar.propTypes = {
         'connecting',
         'connected',
         'uploading',
-        'error'
+        'error',
+        'restoring'
     ]),
     onSelectBoard: PropTypes.func,
     onConnect: PropTypes.func,
     onDisconnect: PropTypes.func,
+    onPrepareStageFirmware: PropTypes.func,
+    stageFirmwareIssue: PropTypes.oneOf([
+        'legacy',
+        'incompatible',
+        'unidentified'
+    ]),
     selectedBoard: PropTypes.oneOf([
         'arduino-uno'
     ]),
@@ -615,7 +626,9 @@ MenuBar.defaultProps = {
     onSelectBoard: () => {},
     onConnect: () => {},
     onDisconnect: () => {},
+    onPrepareStageFirmware: () => {},
     selectedBoard: null,
+    stageFirmwareIssue: null,
     onProgramModeChange: () => {}
 };
 

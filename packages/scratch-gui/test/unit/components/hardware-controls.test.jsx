@@ -200,4 +200,176 @@ describe('HardwareControls', () => {
 
         expect(onConnect).toHaveBeenCalledTimes(1);
     });
+
+    test.each([
+        [
+            'legacy',
+            'O firmware do Modo Palco precisa ser atualizado.',
+            'Atualizar para o Modo Palco'
+        ],
+        [
+            'incompatible',
+            'A versão do firmware do Modo Palco não é compatível.',
+            'Atualizar para o Modo Palco'
+        ],
+        [
+            'unidentified',
+            'O firmware do Modo Palco não foi identificado.',
+            'Preparar para o Modo Palco'
+        ]
+    ])(
+        'offers an explicit Stage firmware action for %s firmware',
+        (
+            stageFirmwareIssue,
+            expectedMessage,
+            expectedAction
+        ) => {
+            const onConnect = jest.fn();
+            const onPrepareStageFirmware =
+                jest.fn();
+
+            render(
+                <HardwareControls
+                    connectionState="error"
+                    onConnect={onConnect}
+                    onDisconnect={jest.fn()}
+                    onPrepareStageFirmware={
+                        onPrepareStageFirmware
+                    }
+                    onSelectBoard={jest.fn()}
+                    selectedBoard="arduino-uno"
+                    stageFirmwareIssue={
+                        stageFirmwareIssue
+                    }
+                />
+            );
+
+            expect(
+                screen.getByText(
+                    expectedMessage
+                )
+            ).toBeInTheDocument();
+
+            expect(
+                onPrepareStageFirmware
+            ).not.toHaveBeenCalled();
+
+            expect(
+                onConnect
+            ).not.toHaveBeenCalled();
+
+            fireEvent.click(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            expectedAction
+                    }
+                )
+            );
+
+            expect(
+                onPrepareStageFirmware
+            ).toHaveBeenCalledTimes(1);
+
+            expect(
+                onConnect
+            ).not.toHaveBeenCalled();
+        }
+    );
+
+    test('cancels Stage firmware preparation without reconnecting or restoring', () => {
+        const onConnect = jest.fn();
+        const onPrepareStageFirmware =
+            jest.fn();
+
+        render(
+            <HardwareControls
+                connectionState="error"
+                onConnect={onConnect}
+                onDisconnect={jest.fn()}
+                onPrepareStageFirmware={
+                    onPrepareStageFirmware
+                }
+                onSelectBoard={jest.fn()}
+                selectedBoard="arduino-uno"
+                stageFirmwareIssue="unidentified"
+            />
+        );
+
+        fireEvent.click(
+            screen.getByRole(
+                'button',
+                {
+                    name: 'Cancelar'
+                }
+            )
+        );
+
+        expect(
+            onPrepareStageFirmware
+        ).not.toHaveBeenCalled();
+
+        expect(
+            onConnect
+        ).not.toHaveBeenCalled();
+
+        expect(
+            screen.queryByText(
+                'O firmware do Modo Palco não foi identificado.'
+            )
+        ).not.toBeInTheDocument();
+    });
+
+    test('reopens the Stage firmware prompt instead of retrying the connection', () => {
+        const onConnect = jest.fn();
+
+        render(
+            <HardwareControls
+                connectionState="error"
+                onConnect={onConnect}
+                onDisconnect={jest.fn()}
+                onPrepareStageFirmware={
+                    jest.fn()
+                }
+                onSelectBoard={jest.fn()}
+                selectedBoard="arduino-uno"
+                stageFirmwareIssue="legacy"
+            />
+        );
+
+        fireEvent.click(
+            screen.getByRole(
+                'button',
+                {
+                    name: 'Cancelar'
+                }
+            )
+        );
+
+        expect(
+            screen.queryByText(
+                'O firmware do Modo Palco precisa ser atualizado.'
+            )
+        ).not.toBeInTheDocument();
+
+        fireEvent.click(
+            screen.getByRole(
+                'button',
+                {
+                    name:
+                        'Erro de conexão. Tentar novamente'
+                }
+            )
+        );
+
+        expect(
+            screen.getByText(
+                'O firmware do Modo Palco precisa ser atualizado.'
+            )
+        ).toBeInTheDocument();
+
+        expect(onConnect)
+            .not.toHaveBeenCalled();
+    });
 });

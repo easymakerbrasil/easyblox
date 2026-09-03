@@ -7,6 +7,7 @@ namespace EasyBloxStage {
 constexpr uint8_t START_BYTE_1 = 0xFF;
 constexpr uint8_t START_BYTE_2 = 0x55;
 constexpr uint8_t PROTOCOL_VERSION = 0x01;
+constexpr uint8_t STAGE_FIRMWARE_COMPATIBILITY_VERSION = 0x01;
 
 constexpr uint8_t MAX_PAYLOAD_LENGTH = 32;
 
@@ -2250,9 +2251,15 @@ void handleRelayWrite() {
 
 void handleFrame() {
     if (command == COMMAND_PING) {
+        const uint8_t pongPayload[] = {
+            STAGE_FIRMWARE_COMPATIBILITY_VERSION
+        };
+
         sendFrame(
             sequence,
-            RESPONSE_PONG
+            RESPONSE_PONG,
+            pongPayload,
+            sizeof(pongPayload)
         );
         return;
     }

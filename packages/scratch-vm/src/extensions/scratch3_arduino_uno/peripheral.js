@@ -4,6 +4,7 @@ const {
     COMMANDS,
     LCD_MODES,
     RESPONSES,
+    STAGE_FIRMWARE_COMPATIBILITY_VERSION,
     StageProtocolParser,
     encodeFrame
 } = require('./protocol');
@@ -1016,7 +1017,11 @@ class ArduinoUnoPeripheral {
                     this._runtime.constructor
                         .PERIPHERAL_STAGE_HANDSHAKE_FAILED,
                     {
-                        extensionId: EXTENSION_ID
+                        extensionId: EXTENSION_ID,
+                        reason: 'unidentified',
+                        firmwareCompatibilityVersion: null,
+                        expectedFirmwareCompatibilityVersion:
+                            STAGE_FIRMWARE_COMPATIBILITY_VERSION
                     }
                 );
             }, STAGE_HANDSHAKE_RETRY_DELAY);
@@ -1055,6 +1060,45 @@ class ArduinoUnoPeripheral {
             frame.command === RESPONSES.PONG &&
             frame.sequence === this._pingSequence
         ) {
+            const hasSingleVersionByte =
+                frame.payload instanceof Uint8Array &&
+                frame.payload.length === 1;
+
+            const firmwareCompatibilityVersion =
+                hasSingleVersionByte ?
+                    frame.payload[0] :
+                    null;
+
+            if (
+                firmwareCompatibilityVersion !==
+                STAGE_FIRMWARE_COMPATIBILITY_VERSION
+            ) {
+                if (this._handshakeTimer) {
+                    clearTimeout(this._handshakeTimer);
+                    this._handshakeTimer = null;
+                }
+
+                this._pingSequence = null;
+
+                this._runtime.emit(
+                    this._runtime.constructor
+                        .PERIPHERAL_STAGE_HANDSHAKE_FAILED,
+                    {
+                        extensionId: EXTENSION_ID,
+                        reason:
+                            frame.payload instanceof Uint8Array &&
+                            frame.payload.length === 0 ?
+                                'legacy' :
+                                'incompatible',
+                        firmwareCompatibilityVersion,
+                        expectedFirmwareCompatibilityVersion:
+                            STAGE_FIRMWARE_COMPATIBILITY_VERSION
+                    }
+                );
+
+                return;
+            }
+
             this._stageConnected = true;
 
             if (this._handshakeTimer) {
@@ -1062,11 +1106,14 @@ class ArduinoUnoPeripheral {
                 this._handshakeTimer = null;
             }
 
+            this._pingSequence = null;
+
             this._runtime.emit(
                 this._runtime.constructor
                     .PERIPHERAL_STAGE_READY,
                 {
-                    extensionId: EXTENSION_ID
+                    extensionId: EXTENSION_ID,
+                    firmwareCompatibilityVersion
                 }
             );
 

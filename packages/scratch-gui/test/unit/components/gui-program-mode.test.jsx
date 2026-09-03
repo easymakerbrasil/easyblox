@@ -1,13 +1,29 @@
 import React from 'react';
 import '@testing-library/jest-dom';
 
-import {fireEvent} from '@testing-library/react';
+import {act, fireEvent} from '@testing-library/react';
 
 import {renderWithIntl} from '../../helpers/intl-helpers.jsx';
 import {GUIComponent} from '../../../src/components/gui/gui.jsx';
 
+import {
+    runEasyBloxStageFirmwareRestore
+} from '../../../src/lib/easyblox-stage-firmware-workflow';
+
+import {
+    runEasyBloxUpload
+} from '../../../src/lib/easyblox-upload-workflow';
+
 jest.mock('@scratch/scratch-render', () => ({
     isSupported: jest.fn().mockReturnValue(true)
+}));
+
+jest.mock('../../../src/lib/easyblox-stage-firmware-workflow', () => ({
+    runEasyBloxStageFirmwareRestore: jest.fn()
+}));
+
+jest.mock('../../../src/lib/easyblox-upload-workflow', () => ({
+    runEasyBloxUpload: jest.fn()
 }));
 
 jest.mock('react-responsive', () => ({
@@ -31,19 +47,41 @@ jest.mock('../../../src/contexts/modal-focus-context.jsx', () => ({
 }));
 
 jest.mock('../../../src/components/menu-bar/menu-bar.jsx', () => (
-    ({onProgramModeChange}) => (
-        <div>
+    ({
+        connectionState,
+        onPrepareStageFirmware,
+        onProgramModeChange,
+        stageFirmwareIssue
+    }) => (
+        <div
+            data-connection-state={
+                connectionState || ''
+            }
+            data-stage-firmware-issue={
+                stageFirmwareIssue || ''
+            }
+            data-testid="menu-bar-state"
+        >
             <button
                 data-testid="request-upload-mode"
                 onClick={() => onProgramModeChange('upload')}
             >
                 Upload
             </button>
+
             <button
                 data-testid="request-stage-mode"
                 onClick={() => onProgramModeChange('stage')}
             >
                 Stage
+            </button>
+
+            <button
+                data-testid="prepare-stage-firmware"
+                disabled={!onPrepareStageFirmware}
+                onClick={onPrepareStageFirmware}
+            >
+                Prepare Stage
             </button>
         </div>
     )
@@ -400,6 +438,433 @@ describe('GUI program mode propagation', () => {
 
         expect(refreshWorkspace)
             .toHaveBeenCalled();
+    });
+
+    test.each([
+        [
+            'legacy',
+            null
+        ],
+        [
+            'incompatible',
+            2
+        ],
+        [
+            'unidentified',
+            null
+        ]
+    ])(
+        'does not automatically restore Stage firmware after a %s handshake failure',
+        async (
+            reason,
+            firmwareCompatibilityVersion
+        ) => {
+            const handlers = {};
+
+            runEasyBloxStageFirmwareRestore
+                .mockClear();
+
+            runEasyBloxStageFirmwareRestore
+                .mockResolvedValue({
+                    portHint: null,
+                    peripheralId:
+                        'web-serial-1'
+                });
+
+            const vm = {
+                generateArduinoUnoUploadCode:
+                    jest.fn().mockReturnValue(''),
+
+                getPeripheralIsConnected:
+                    jest.fn().mockReturnValue(false),
+
+                getEasyBloxProjectContext:
+                    jest.fn().mockReturnValue({
+                        selectedBoardId:
+                            'arduino-uno',
+                        programMode:
+                            'stage'
+                    }),
+
+                on: jest.fn(
+                    (
+                        eventName,
+                        handler
+                    ) => {
+                        handlers[eventName] =
+                            handler;
+
+                        if (
+                            eventName ===
+                            'PROJECT_LOADED'
+                        ) {
+                            handler();
+                        }
+                    }
+                ),
+
+                removeListener:
+                    jest.fn(),
+
+                setEasyBloxSelectedBoard:
+                    jest.fn(),
+
+                setProgramContext:
+                    jest.fn(),
+
+                refreshWorkspace:
+                    jest.fn()
+            };
+
+            const {unmount} =
+                renderWithIntl(
+                    <GUIComponent
+                        colorMode="default"
+                        menuBarHidden
+                        setTheme={jest.fn()}
+                        theme="default"
+                        vm={vm}
+                    />
+                );
+
+            expect(
+                handlers
+                    .PERIPHERAL_STAGE_HANDSHAKE_FAILED
+            ).toEqual(
+                expect.any(Function)
+            );
+
+            await act(async () => {
+                handlers
+                    .PERIPHERAL_STAGE_HANDSHAKE_FAILED({
+                        extensionId:
+                            'arduinoUno',
+                        reason,
+                        firmwareCompatibilityVersion,
+                        expectedFirmwareCompatibilityVersion:
+                            1
+                    });
+
+                await Promise.resolve();
+            });
+
+            expect(
+                runEasyBloxStageFirmwareRestore
+            ).not.toHaveBeenCalled();
+
+            unmount();
+        }
+    );
+
+    test('automatically restores Stage after an EasyBlox Upload when returning to Stage', async () => {
+        const handlers = {};
+
+        runEasyBloxUpload
+            .mockClear();
+
+        runEasyBloxStageFirmwareRestore
+            .mockClear();
+
+        runEasyBloxUpload
+            .mockImplementation(
+                async ({onStatus}) => {
+                    onStatus({
+                        state: 'success',
+                        message:
+                            'Programa enviado para Arduino UNO.'
+                    });
+
+                    return {
+                        portHint: null,
+                        peripheralId:
+                            'web-serial-1'
+                    };
+                }
+            );
+
+        runEasyBloxStageFirmwareRestore
+            .mockResolvedValue({
+                portHint: null,
+                peripheralId:
+                    'web-serial-1'
+            });
+
+        const vm = {
+            generateArduinoUnoUploadCode:
+                jest.fn().mockReturnValue(
+                    [
+                        'void setup() {',
+                        '}',
+                        '',
+                        'void loop() {',
+                        '}'
+                    ].join('\n')
+                ),
+
+            getPeripheralIsConnected:
+                jest.fn().mockReturnValue(true),
+
+            getPeripheralConnectionInfo:
+                jest.fn().mockReturnValue({
+                    peripheralId:
+                        'web-serial-1'
+                }),
+
+            getEasyBloxProjectContext:
+                jest.fn().mockReturnValue({
+                    selectedBoardId:
+                        'arduino-uno',
+                    programMode:
+                        'upload'
+                }),
+
+            on: jest.fn(
+                (
+                    eventName,
+                    handler
+                ) => {
+                    handlers[eventName] =
+                        handler;
+
+                    if (
+                        eventName ===
+                        'PROJECT_LOADED'
+                    ) {
+                        handler();
+                    }
+                }
+            ),
+
+            removeListener:
+                jest.fn(),
+
+            setEasyBloxSelectedBoard:
+                jest.fn(),
+
+            setProgramContext:
+                jest.fn(),
+
+            refreshWorkspace:
+                jest.fn()
+        };
+
+        const {
+            getByRole,
+            getByTestId
+        } = renderWithIntl(
+            <GUIComponent
+                colorMode="default"
+                setTheme={jest.fn()}
+                theme="default"
+                vm={vm}
+            />
+        );
+
+        await act(async () => {
+            fireEvent.click(
+                getByRole(
+                    'button',
+                    {
+                        name:
+                            'Enviar para Arduino UNO'
+                    }
+                )
+            );
+
+            await Promise.resolve();
+        });
+
+        expect(runEasyBloxUpload)
+            .toHaveBeenCalledTimes(1);
+
+        expect(
+            runEasyBloxStageFirmwareRestore
+        ).not.toHaveBeenCalled();
+
+        await act(async () => {
+            fireEvent.click(
+                getByTestId(
+                    'request-stage-mode'
+                )
+            );
+
+            await Promise.resolve();
+        });
+
+        expect(
+            runEasyBloxStageFirmwareRestore
+        ).toHaveBeenCalledTimes(1);
+    });
+
+    test('tracks Stage firmware diagnosis and only restores after explicit user action', async () => {
+        const handlers = {};
+
+        runEasyBloxStageFirmwareRestore
+            .mockClear();
+
+        runEasyBloxStageFirmwareRestore
+            .mockResolvedValue({
+                portHint: null,
+                peripheralId:
+                    'web-serial-1'
+            });
+
+        const vm = {
+            generateArduinoUnoUploadCode:
+                jest.fn().mockReturnValue(''),
+
+            getPeripheralIsConnected:
+                jest.fn().mockReturnValue(false),
+
+            getEasyBloxProjectContext:
+                jest.fn().mockReturnValue({
+                    selectedBoardId:
+                        'arduino-uno',
+                    programMode:
+                        'stage'
+                }),
+
+            on: jest.fn(
+                (
+                    eventName,
+                    handler
+                ) => {
+                    handlers[eventName] =
+                        handler;
+
+                    if (
+                        eventName ===
+                        'PROJECT_LOADED'
+                    ) {
+                        handler();
+                    }
+                }
+            ),
+
+            removeListener:
+                jest.fn(),
+
+            setEasyBloxSelectedBoard:
+                jest.fn(),
+
+            setProgramContext:
+                jest.fn(),
+
+            refreshWorkspace:
+                jest.fn()
+        };
+
+        const {
+            getByTestId
+        } = renderWithIntl(
+            <GUIComponent
+                colorMode="default"
+                setTheme={jest.fn()}
+                theme="default"
+                vm={vm}
+            />
+        );
+
+        const menuBarState =
+            getByTestId(
+                'menu-bar-state'
+            );
+
+        expect(menuBarState)
+            .toHaveAttribute(
+                'data-stage-firmware-issue',
+                ''
+            );
+
+        for (
+            const reason of [
+                'legacy',
+                'incompatible',
+                'unidentified'
+            ]
+        ) {
+            await act(async () => {
+                handlers
+                    .PERIPHERAL_STAGE_HANDSHAKE_FAILED({
+                        extensionId:
+                            'arduinoUno',
+                        reason,
+                        firmwareCompatibilityVersion:
+                            reason ===
+                            'incompatible' ?
+                                2 :
+                                null,
+                        expectedFirmwareCompatibilityVersion:
+                            1
+                    });
+            });
+
+            expect(menuBarState)
+                .toHaveAttribute(
+                    'data-stage-firmware-issue',
+                    reason
+                );
+
+            expect(
+                runEasyBloxStageFirmwareRestore
+            ).not.toHaveBeenCalled();
+        }
+
+        await act(async () => {
+            fireEvent.click(
+                getByTestId(
+                    'prepare-stage-firmware'
+                )
+            );
+
+            await Promise.resolve();
+        });
+
+        expect(
+            runEasyBloxStageFirmwareRestore
+        ).toHaveBeenCalledTimes(1);
+
+        expect(menuBarState)
+            .toHaveAttribute(
+                'data-stage-firmware-issue',
+                ''
+            );
+
+        await act(async () => {
+            handlers
+                .PERIPHERAL_STAGE_HANDSHAKE_FAILED({
+                    extensionId:
+                        'arduinoUno',
+                    reason:
+                        'legacy',
+                    firmwareCompatibilityVersion:
+                        null,
+                    expectedFirmwareCompatibilityVersion:
+                        1
+                });
+        });
+
+        expect(menuBarState)
+            .toHaveAttribute(
+                'data-stage-firmware-issue',
+                'legacy'
+            );
+
+        await act(async () => {
+            handlers
+                .PERIPHERAL_STAGE_READY({
+                    extensionId:
+                        'arduinoUno',
+                    firmwareCompatibilityVersion:
+                        1
+                });
+        });
+
+        expect(menuBarState)
+            .toHaveAttribute(
+                'data-stage-firmware-issue',
+                ''
+            );
     });
 
     test('passes the initial stage program mode to Blocks', () => {

@@ -12,7 +12,8 @@ const {
     COMMANDS,
     LCD_MODES,
     RESPONSES,
-    encodeFrame
+    STAGE_FIRMWARE_COMPATIBILITY_VERSION,
+    encodeFrame: encodeProtocolFrame
 } = require('../../src/extensions/scratch3_arduino_uno/protocol');
 
 class MockRuntime {
@@ -45,6 +46,16 @@ MockRuntime.PERIPHERAL_CONNECTION_LOST_ERROR = 'PERIPHERAL_CONNECTION_LOST_ERROR
 MockRuntime.PERIPHERAL_STAGE_READY = 'PERIPHERAL_STAGE_READY';
 MockRuntime.PERIPHERAL_STAGE_HANDSHAKE_FAILED =
     'PERIPHERAL_STAGE_HANDSHAKE_FAILED';
+
+const encodeFrame = (sequence, command, payload) =>
+    encodeProtocolFrame(
+        sequence,
+        command,
+        command === RESPONSES.PONG &&
+        typeof payload === 'undefined' ?
+            [STAGE_FIRMWARE_COMPATIBILITY_VERSION] :
+            payload
+    );
 
 const flushPromises = () =>
     new Promise(resolve => setImmediate(resolve));
@@ -280,9 +291,86 @@ tap.test('Arduino UNO completes the Stage handshake with PING and PONG', async t
     t.same(
         stageReadyEvent.data,
         {
-            extensionId: 'arduinoUno'
+            extensionId: 'arduinoUno',
+            firmwareCompatibilityVersion:
+                STAGE_FIRMWARE_COMPATIBILITY_VERSION
         }
     );
+});
+
+tap.test('Arduino UNO rejects legacy and incompatible Stage firmware PONGs', t => {
+    const cases = [
+        {
+            name: 'legacy',
+            payload: [],
+            reason: 'legacy',
+            firmwareCompatibilityVersion: null
+        },
+        {
+            name: 'incompatible',
+            payload: [
+                STAGE_FIRMWARE_COMPATIBILITY_VERSION + 1
+            ],
+            reason: 'incompatible',
+            firmwareCompatibilityVersion:
+                STAGE_FIRMWARE_COMPATIBILITY_VERSION + 1
+        }
+    ];
+
+    for (const testCase of cases) {
+        const runtime = new MockRuntime(null);
+        const peripheral =
+            new ArduinoUnoPeripheral(runtime);
+
+        peripheral._pingSequence = 23;
+
+        peripheral._handleFrame({
+            command: RESPONSES.PONG,
+            sequence: 23,
+            payload: Uint8Array.from(
+                testCase.payload
+            )
+        });
+
+        t.equal(
+            peripheral.isStageConnected(),
+            false,
+            `${testCase.name} firmware does not become Stage-ready`
+        );
+
+        t.equal(
+            runtime.events.some(
+                event =>
+                    event.event ===
+                    MockRuntime.PERIPHERAL_STAGE_READY
+            ),
+            false,
+            `${testCase.name} firmware does not emit Stage ready`
+        );
+
+        const failureEvent =
+            runtime.events.find(
+                event =>
+                    event.event ===
+                    MockRuntime
+                        .PERIPHERAL_STAGE_HANDSHAKE_FAILED
+            );
+
+        t.same(
+            failureEvent && failureEvent.data,
+            {
+                extensionId: 'arduinoUno',
+                reason: testCase.reason,
+                firmwareCompatibilityVersion:
+                    testCase.firmwareCompatibilityVersion,
+                expectedFirmwareCompatibilityVersion:
+                    STAGE_FIRMWARE_COMPATIBILITY_VERSION
+            },
+            `${testCase.name} firmware is classified explicitly`
+        );
+    }
+
+    t.end();
 });
 
 tap.test('Arduino UNO retries the Stage handshake until PONG is received', async t => {
@@ -401,7 +489,11 @@ tap.test('Arduino UNO reports when the Stage handshake is exhausted without PONG
     t.same(
         handshakeFailedEvents[0].data,
         {
-            extensionId: 'arduinoUno'
+            extensionId: 'arduinoUno',
+            reason: 'unidentified',
+            firmwareCompatibilityVersion: null,
+            expectedFirmwareCompatibilityVersion:
+                STAGE_FIRMWARE_COMPATIBILITY_VERSION
         }
     );
 

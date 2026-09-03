@@ -134,6 +134,10 @@ export const GUIComponent = props => {
     const [extensionSelectionRequest, setExtensionSelectionRequest] = useState(0);
     const [requestedExtensionShouldConnect, setRequestedExtensionShouldConnect] = useState(true);
     const [connectionState, setConnectionState] = useState('disconnected');
+    const [
+        stageFirmwareIssue,
+        setStageFirmwareIssue
+    ] = useState(null);
     const [uploadPreviewCode, setUploadPreviewCode] = useState('');
     const [uploadPreviewError, setUploadPreviewError] = useState(null);
     const [uploadState, setUploadState] = useState('idle');
@@ -204,6 +208,7 @@ export const GUIComponent = props => {
         setUploadState('idle');
         setUploadOutputEntries([]);
         setUploadPortHint(null);
+        setStageFirmwareIssue(null);
     }, [
         selectedBoard,
         updateSerialMonitorState
@@ -585,9 +590,9 @@ export const GUIComponent = props => {
                     return;
                 }
 
+                setStageFirmwareIssue(null);
                 updateConnectionState();
             };
-
 
         const handleSerialMonitorReady =
             data => {
@@ -794,6 +799,7 @@ export const GUIComponent = props => {
             return;
         }
 
+        setStageFirmwareIssue(null);
         setConnectionState('connecting');
         setRequestedExtensionId(board.extensionId);
         setRequestedExtensionShouldConnect(true);
@@ -804,6 +810,8 @@ export const GUIComponent = props => {
         const board = selectedBoard ?
             getBoardById(selectedBoard) :
             null;
+
+        setStageFirmwareIssue(null);
 
         if (board) {
             vm.disconnectPeripheral(board.extensionId);
@@ -1029,6 +1037,8 @@ export const GUIComponent = props => {
 
                 stageFirmwareNeedsRestoreRef.current =
                     false;
+
+                setStageFirmwareIssue(null);
             } catch (error) {
                 setConnectionState(
                     'error'
@@ -1070,7 +1080,22 @@ export const GUIComponent = props => {
                     return;
                 }
 
-                handleStageFirmwareRestore();
+                const knownReasons = [
+                    'legacy',
+                    'incompatible',
+                    'unidentified'
+                ];
+
+                const issue =
+                    data &&
+                    knownReasons.includes(
+                        data.reason
+                    ) ?
+                        data.reason :
+                        'unidentified';
+
+                setStageFirmwareIssue(issue);
+                setConnectionState('error');
             };
 
         vm.on(
@@ -1085,7 +1110,6 @@ export const GUIComponent = props => {
             );
         };
     }, [
-        handleStageFirmwareRestore,
         selectedBoard,
         vm
     ]);
@@ -1122,6 +1146,7 @@ export const GUIComponent = props => {
         }
 
         setSelectedBoard(null);
+        setStageFirmwareIssue(null);
         setConnectionState('disconnected');
         setProgramMode('stage');
         setBoardSelectionModalVisible(false);
@@ -1313,9 +1338,11 @@ export const GUIComponent = props => {
                             accountMenuOptions={accountMenuOptions}
                             selectedBoard={selectedBoard}
                             connectionState={connectionState}
+                            stageFirmwareIssue={stageFirmwareIssue}
                             onSelectBoard={handleSelectBoard}
                             onConnect={handleConnect}
                             onDisconnect={handleDisconnect}
+                            onPrepareStageFirmware={handleStageFirmwareRestore}
                         />
                     </MenuRefProvider>
                     }
