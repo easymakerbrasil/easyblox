@@ -179,6 +179,7 @@ const HardwareControls = ({
                     onClick: handleStageFirmwareCancel
                 }}
                 confirmButtonConfig={{
+                    className: styles.disconnectConfirmButton,
                     label:
                         stageFirmwarePrompt ?
                             stageFirmwarePrompt.actionLabel :
