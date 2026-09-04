@@ -22,6 +22,8 @@ const NUMBER = EBCP_CONTRACT.messageTypes.NUMBER;
 const REQUIRED_BOARD_CAPABILITY =
     'bluetoothSerial';
 
+const STAGE_TRANSPORT_CHUNK_BYTES = 32;
+
 /**
  * Scratch blocks for EasyBlox BT.
  *
@@ -190,6 +192,48 @@ class Scratch3EasyBloxBtBlocks {
     }
 
     /**
+     * Write one complete EBCP frame through the Stage Bluetooth transport.
+     * Stage payloads are limited to 32 bytes, while EBCP frames can be
+     * larger and therefore require transparent byte-stream fragmentation.
+     * @param {Uint8Array} data Complete encoded EBCP frame.
+     * @returns {?number} Last Stage sequence written, or null when unavailable.
+     */
+    _writeStageTransport (data) {
+        if (!this._bluetoothSerialProvider) {
+            return null;
+        }
+
+        let lastSequence = null;
+
+        for (
+            let offset = 0;
+            offset < data.length;
+            offset += STAGE_TRANSPORT_CHUNK_BYTES
+        ) {
+            const chunk =
+                data.subarray(
+                    offset,
+                    Math.min(
+                        offset + STAGE_TRANSPORT_CHUNK_BYTES,
+                        data.length
+                    )
+                );
+
+            lastSequence =
+                this._bluetoothSerialProvider
+                    .writeBluetoothSerial(
+                        Uint8Array.from(chunk)
+                    );
+
+            if (lastSequence === null) {
+                return null;
+            }
+        }
+
+        return lastSequence;
+    }
+
+    /**
      * Initialize the EasyBlox BT Stage transport through a neutral
      * Bluetooth Serial provider.
      * @returns {?Promise<number>} Provider initialization result,
@@ -224,7 +268,7 @@ class Scratch3EasyBloxBtBlocks {
             new EasyBloxConnectivitySession({
                 runtime: this._connectivityRuntime,
                 write: data =>
-                    provider.writeBluetoothSerial(data)
+                    this._writeStageTransport(data)
             });
 
         provider.onBluetoothSerialData(
@@ -237,12 +281,22 @@ class Scratch3EasyBloxBtBlocks {
     }
 
     /**
-     * Send an EasyBlox BT text message.
-     * Transport behavior is implemented in a later checkpoint.
-     * @returns {void} No value.
+     * Send an EasyBlox BT TEXT message.
+     * @param {object} args block arguments.
+     * @param {string} args.TEXT text payload.
+     * @param {string} args.CHANNEL EasyBlox BT channel.
+     * @returns {?number} EBCP application sequence, or null when unavailable.
      */
-    sendText () {
-        // Transport integration is intentionally deferred.
+    sendText (args) {
+        if (!this._connectivitySession) {
+            return null;
+        }
+
+        return this._connectivitySession.send(
+            TEXT,
+            args.CHANNEL,
+            args.TEXT
+        );
     }
 
     /**
@@ -282,12 +336,22 @@ class Scratch3EasyBloxBtBlocks {
     }
 
     /**
-     * Send an EasyBlox BT numeric message.
-     * Transport behavior is implemented in a later checkpoint.
-     * @returns {void} No value.
+     * Send an EasyBlox BT NUMBER message.
+     * @param {object} args block arguments.
+     * @param {number} args.NUMBER numeric payload.
+     * @param {string} args.CHANNEL EasyBlox BT channel.
+     * @returns {?number} EBCP application sequence, or null when unavailable.
      */
-    sendNumber () {
-        // Transport integration is intentionally deferred.
+    sendNumber (args) {
+        if (!this._connectivitySession) {
+            return null;
+        }
+
+        return this._connectivitySession.send(
+            NUMBER,
+            args.CHANNEL,
+            args.NUMBER
+        );
     }
 
     /**

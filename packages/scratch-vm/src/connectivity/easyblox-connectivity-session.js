@@ -23,6 +23,37 @@ class EasyBloxConnectivitySession {
         this._runtime = runtime;
         this._write = write;
         this._parser = new EasyBloxConnectivityParser();
+        this._nextOutgoingSequence = 1;
+    }
+
+    /**
+     * Send one EBCP application message.
+     * Application sequence zero remains reserved for control frames.
+     * @param {number} type EBCP application message type.
+     * @param {string} channel Application channel.
+     * @param {string|number} payload Application payload.
+     * @returns {number} Sequence allocated to the outgoing message.
+     */
+    send (type, channel, payload) {
+        const sequence =
+            this._nextOutgoingSequence;
+
+        const frame =
+            encodeFrame({
+                type,
+                sequence,
+                channel,
+                payload
+            });
+
+        this._write(frame);
+
+        this._nextOutgoingSequence =
+            sequence === 0xFF ?
+                1 :
+                sequence + 1;
+
+        return sequence;
     }
 
     /**
