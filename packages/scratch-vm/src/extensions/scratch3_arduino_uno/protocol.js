@@ -1,7 +1,7 @@
 const START_BYTE_1 = 0xFF;
 const START_BYTE_2 = 0x55;
 const PROTOCOL_VERSION = 0x01;
-const STAGE_FIRMWARE_COMPATIBILITY_VERSION = 0x01;
+const STAGE_FIRMWARE_COMPATIBILITY_VERSION = 0x02;
 const MAX_PAYLOAD_LENGTH = 32;
 
 const COMMANDS = Object.freeze({
@@ -27,7 +27,9 @@ const COMMANDS = Object.freeze({
     TM1637_WRITE: 0x22,
     JOYSTICK_READ: 0x23,
     TIMER_READ: 0x24,
-    TIMER_RESET: 0x25
+    TIMER_RESET: 0x25,
+    BT_SERIAL_INIT: 0x26,
+    BT_SERIAL_WRITE: 0x27
 });
 
 const LCD_MODES = Object.freeze({
@@ -52,6 +54,7 @@ const RESPONSES = Object.freeze({
     DHT_READ: 0x94,
     JOYSTICK_READ: 0x95,
     TIMER_READ: 0x96,
+    BT_SERIAL_DATA: 0x97,
     ERROR: 0xFF
 });
 

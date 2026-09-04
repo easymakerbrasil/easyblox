@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <Servo.h>
+#include <SoftwareSerial.h>
 #include <Wire.h>
 
 namespace EasyBloxStage {
@@ -7,7 +8,7 @@ namespace EasyBloxStage {
 constexpr uint8_t START_BYTE_1 = 0xFF;
 constexpr uint8_t START_BYTE_2 = 0x55;
 constexpr uint8_t PROTOCOL_VERSION = 0x01;
-constexpr uint8_t STAGE_FIRMWARE_COMPATIBILITY_VERSION = 0x01;
+constexpr uint8_t STAGE_FIRMWARE_COMPATIBILITY_VERSION = 0x02;
 
 constexpr uint8_t MAX_PAYLOAD_LENGTH = 32;
 
@@ -34,6 +35,8 @@ constexpr uint8_t COMMAND_TM1637_WRITE = 0x22;
 constexpr uint8_t COMMAND_JOYSTICK_READ = 0x23;
 constexpr uint8_t COMMAND_TIMER_READ = 0x24;
 constexpr uint8_t COMMAND_TIMER_RESET = 0x25;
+constexpr uint8_t COMMAND_BT_SERIAL_INIT = 0x26;
+constexpr uint8_t COMMAND_BT_SERIAL_WRITE = 0x27;
 
 constexpr uint8_t RESPONSE_ACK = 0x80;
 constexpr uint8_t RESPONSE_PONG = 0x81;
@@ -43,6 +46,7 @@ constexpr uint8_t RESPONSE_ULTRASONIC_READ = 0x93;
 constexpr uint8_t RESPONSE_DHT_READ = 0x94;
 constexpr uint8_t RESPONSE_JOYSTICK_READ = 0x95;
 constexpr uint8_t RESPONSE_TIMER_READ = 0x96;
+constexpr uint8_t RESPONSE_BT_SERIAL_DATA = 0x97;
 constexpr uint8_t RESPONSE_ERROR = 0xFF;
 
 constexpr uint8_t LCD_MODE_BLINK_ON = 0x00;
@@ -77,6 +81,26 @@ uint8_t payloadIndex = 0;
 uint8_t payload[MAX_PAYLOAD_LENGTH];
 uint8_t checksum = 0;
 uint32_t timerResetAt = 0;
+
+
+constexpr uint8_t BT_SERIAL_RX_PIN = 2;
+constexpr uint8_t BT_SERIAL_TX_PIN = 3;
+constexpr uint32_t BT_SERIAL_BAUD_RATE = 9600;
+
+bool bluetoothSerialInitialized = false;
+
+/**
+ * Construct the SoftwareSerial instance only when Bluetooth is first used.
+ * This avoids reserving D2/D3 before the student's explicit init block.
+ */
+SoftwareSerial &getBluetoothSerial() {
+    static SoftwareSerial serial(
+        BT_SERIAL_RX_PIN,
+        BT_SERIAL_TX_PIN
+    );
+
+    return serial;
+}
 
 constexpr uint8_t NO_TONE_PIN = 0xFF;
 uint8_t activeTonePin = NO_TONE_PIN;
@@ -2249,6 +2273,88 @@ void handleRelayWrite() {
     );
 }
 
+void handleBluetoothSerialInit() {
+    if (payloadLength != 0) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    SoftwareSerial &serial =
+        getBluetoothSerial();
+
+    if (!bluetoothSerialInitialized) {
+        serial.begin(BT_SERIAL_BAUD_RATE);
+        serial.listen();
+        bluetoothSerialInitialized = true;
+    }
+
+    sendFrame(
+        sequence,
+        RESPONSE_ACK
+    );
+}
+
+void handleBluetoothSerialWrite() {
+    if (
+        !bluetoothSerialInitialized ||
+        payloadLength == 0
+    ) {
+        sendFrame(
+            sequence,
+            RESPONSE_ERROR
+        );
+        return;
+    }
+
+    SoftwareSerial &serial =
+        getBluetoothSerial();
+
+    serial.write(
+        payload,
+        payloadLength
+    );
+}
+
+void processBluetoothSerialInput() {
+    if (!bluetoothSerialInitialized) {
+        return;
+    }
+
+    SoftwareSerial &serial =
+        getBluetoothSerial();
+
+    if (serial.available() <= 0) {
+        return;
+    }
+
+    uint8_t data[MAX_PAYLOAD_LENGTH];
+    uint8_t dataLength = 0;
+
+    while (
+        serial.available() > 0 &&
+        dataLength < MAX_PAYLOAD_LENGTH
+    ) {
+        data[dataLength++] =
+            static_cast<uint8_t>(
+                serial.read()
+            );
+    }
+
+    if (dataLength == 0) {
+        return;
+    }
+
+    sendFrame(
+        0,
+        RESPONSE_BT_SERIAL_DATA,
+        data,
+        dataLength
+    );
+}
+
 void handleFrame() {
     if (command == COMMAND_PING) {
         const uint8_t pongPayload[] = {
@@ -2291,6 +2397,17 @@ void handleFrame() {
 
     if (command == COMMAND_TIMER_RESET) {
         handleTimerReset();
+        return;
+    }
+
+
+    if (command == COMMAND_BT_SERIAL_INIT) {
+        handleBluetoothSerialInit();
+        return;
+    }
+
+    if (command == COMMAND_BT_SERIAL_WRITE) {
+        handleBluetoothSerialWrite();
         return;
     }
 
@@ -2453,11 +2570,13 @@ void setup() {
 }
 
 void loop() {
-    while (Serial.available() > 0) {
-        EasyBloxStage::refreshActiveToneState();
+    EasyBloxStage::refreshActiveToneState();
 
+    while (Serial.available() > 0) {
         EasyBloxStage::processByte(
             static_cast<uint8_t>(Serial.read())
         );
     }
+
+    EasyBloxStage::processBluetoothSerialInput();
 }

@@ -3,6 +3,7 @@ const Serial = require('../../io/serial');
 const {
     COMMANDS,
     LCD_MODES,
+    MAX_PAYLOAD_LENGTH,
     RESPONSES,
     STAGE_FIRMWARE_COMPATIBILITY_VERSION,
     StageProtocolParser,
@@ -49,6 +50,7 @@ class ArduinoUnoPeripheral {
         this._pendingUltrasonicReads = new Map();
         this._pendingDhtReads = new Map();
         this._pendingCommandAcks = new Map();
+        this._bluetoothSerialDataCallback = null;
         this._stageConnected = false;
         this._handshakeTimer = null;
         this._handshakeAttempts = 0;
@@ -169,6 +171,58 @@ class ArduinoUnoPeripheral {
             this._serialMode === 'monitor' &&
             this.isConnected()
         );
+    }
+
+
+    /**
+     * Initialize the board-side Bluetooth serial transport.
+     * The physical UART mapping and baud rate remain hidden from blocks.
+     * @returns {?Promise<number>} Promise resolved with the Stage sequence
+     * when initialization is acknowledged, or null when unavailable.
+     */
+    initBluetoothSerial () {
+        if (!this._stageConnected) {
+            return null;
+        }
+
+        return this._sendCommandWithAck(
+            COMMANDS.BT_SERIAL_INIT
+        );
+    }
+
+    /**
+     * Write one raw chunk to the board-side Bluetooth serial transport.
+     * Larger EBCP frames are fragmented by the connectivity adapter above
+     * this transport layer.
+     * @param {Uint8Array} data Raw Bluetooth transport bytes.
+     * @returns {?number} Stage sequence number or null when unavailable.
+     */
+    writeBluetoothSerial (data) {
+        if (
+            !this._stageConnected ||
+            !(data instanceof Uint8Array) ||
+            data.length === 0 ||
+            data.length > MAX_PAYLOAD_LENGTH
+        ) {
+            return null;
+        }
+
+        return this._sendCommand(
+            COMMANDS.BT_SERIAL_WRITE,
+            data
+        );
+    }
+
+    /**
+     * Set or clear the raw Bluetooth serial receive callback.
+     * @param {?function(Uint8Array): void} callback Receive callback.
+     * @returns {void}
+     */
+    onBluetoothSerialData (callback) {
+        this._bluetoothSerialDataCallback =
+            typeof callback === 'function' ?
+                callback :
+                null;
     }
 
     /**
@@ -1116,6 +1170,23 @@ class ArduinoUnoPeripheral {
                     firmwareCompatibilityVersion
                 }
             );
+
+            return;
+        }
+
+        if (frame.command === RESPONSES.BT_SERIAL_DATA) {
+            if (
+                frame.sequence !== 0 ||
+                frame.payload.length === 0
+            ) {
+                return;
+            }
+
+            if (this._bluetoothSerialDataCallback) {
+                this._bluetoothSerialDataCallback(
+                    new Uint8Array(frame.payload)
+                );
+            }
 
             return;
         }
