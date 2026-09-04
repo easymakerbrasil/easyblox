@@ -362,3 +362,48 @@ void easybloxBtWaitNumber(const String &channel) {
 
     easybloxBtNumberReady = false;
 }
+
+
+void EasyBloxBluetooth::begin() {
+    easybloxBtBegin();
+}
+
+void EasyBloxBluetooth::sendText(
+    const String &value
+) {
+    easybloxBtSendText(
+        EASYBLOX_BT_CHANNEL,
+        value
+    );
+}
+
+void EasyBloxBluetooth::sendNumber(
+    double value
+) {
+    easybloxBtSendNumber(
+        EASYBLOX_BT_CHANNEL,
+        value
+    );
+}
+
+void EasyBloxBluetooth::waitText() {
+    easybloxBtWaitText(
+        EASYBLOX_BT_CHANNEL
+    );
+}
+
+void EasyBloxBluetooth::waitNumber() {
+    easybloxBtWaitNumber(
+        EASYBLOX_BT_CHANNEL
+    );
+}
+
+const String &EasyBloxBluetooth::receivedText() const {
+    return easybloxBtReceivedText;
+}
+
+float EasyBloxBluetooth::receivedNumber() const {
+    return easybloxBtReceivedNumber;
+}
+
+EasyBloxBluetooth EasyBloxBT;

@@ -94,7 +94,7 @@ tap.test(
 
         t.match(
             sketch,
-            /easybloxBtBegin\s*\(\s*\)\s*;/,
+            /EasyBloxBT\.begin\s*\(\s*\)\s*;/,
             'explicit init delegates Bluetooth startup to the runtime library'
         );
 
@@ -134,7 +134,7 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT Upload generator emits TEXT and NUMBER sends on the fixed internal channel',
+    'EasyBlox BT Upload generator emits TEXT and NUMBER sends through the pedagogical facade',
     t => {
         const generator =
             new ArduinoUnoGenerator();
@@ -162,13 +162,13 @@ tap.test(
 
         t.match(
             sketch,
-            /easybloxBtSendText\s*\(\s*"1"\s*,\s*"ligar"\s*\)\s*;/,
+            /EasyBloxBT\.sendText\s*\(\s*"ligar"\s*\)\s*;/,
             'TEXT statement uses the fixed EBCP channel'
         );
 
         t.match(
             sketch,
-            /easybloxBtSendNumber\s*\(\s*"1"\s*,\s*42\.5\s*\)\s*;/,
+            /EasyBloxBT\.sendNumber\s*\(\s*42\.5\s*\)\s*;/,
             'NUMBER statement uses the fixed EBCP channel'
         );
 
@@ -203,13 +203,13 @@ tap.test(
 
         t.match(
             sketch,
-            /easybloxBtWaitText\s*\(\s*"1"\s*\)\s*;/,
+            /EasyBloxBT\.waitText\s*\(\s*\)\s*;/,
             'TEXT wait blocks sequentially on the fixed channel'
         );
 
         t.match(
             sketch,
-            /easybloxBtWaitNumber\s*\(\s*"1"\s*\)\s*;/,
+            /EasyBloxBT\.waitNumber\s*\(\s*\)\s*;/,
             'NUMBER wait blocks sequentially on the fixed channel'
         );
 
@@ -218,7 +218,7 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT Upload generator maps received reporters to typed runtime state',
+    'EasyBlox BT Upload generator maps received reporters through the pedagogical facade',
     t => {
         const generator =
             new ArduinoUnoGenerator();
@@ -228,7 +228,7 @@ tap.test(
                 type:
                     'EasyBloxBtReceivedTextExpression'
             }),
-            'easybloxBtReceivedText',
+            'EasyBloxBT.receivedText()',
             'received TEXT reporter reads the TEXT runtime state'
         );
 
@@ -237,7 +237,7 @@ tap.test(
                 type:
                     'EasyBloxBtReceivedNumberExpression'
             }),
-            'easybloxBtReceivedNumber',
+            'EasyBloxBT.receivedNumber()',
             'received NUMBER reporter reads the numeric runtime state'
         );
 

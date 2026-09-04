@@ -10,6 +10,8 @@ const {
 );
 
 const EASYBLOX_BT_INTERNAL_IDENTIFIERS = Object.freeze([
+    'EasyBloxBluetooth',
+    'EasyBloxBT',
     'SoftwareSerial',
     'EASYBLOX_BT_CHANNEL',
     'EASYBLOX_EBCP_MAGIC_0',

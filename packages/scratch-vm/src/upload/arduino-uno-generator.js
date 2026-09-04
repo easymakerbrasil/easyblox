@@ -3982,15 +3982,13 @@ class ArduinoUnoGenerator {
 
             case 'EasyBloxBtInit':
                 lines.push(
-                    `${indent}easybloxBtBegin();`
+                    `${indent}EasyBloxBT.begin();`
                 );
                 break;
 
             case 'EasyBloxBtSendText':
                 lines.push(
-                    `${indent}easybloxBtSendText(${
-                        this._generateExpression(statement.channel)
-                    }, ${
+                    `${indent}EasyBloxBT.sendText(${
                         this._generateExpression(statement.value)
                     });`
                 );
@@ -3998,9 +3996,7 @@ class ArduinoUnoGenerator {
 
             case 'EasyBloxBtSendNumber':
                 lines.push(
-                    `${indent}easybloxBtSendNumber(${
-                        this._generateExpression(statement.channel)
-                    }, ${
+                    `${indent}EasyBloxBT.sendNumber(${
                         this._generateExpression(statement.value)
                     });`
                 );
@@ -4008,17 +4004,13 @@ class ArduinoUnoGenerator {
 
             case 'EasyBloxBtWaitText':
                 lines.push(
-                    `${indent}easybloxBtWaitText(${
-                        this._generateExpression(statement.channel)
-                    });`
+                    `${indent}EasyBloxBT.waitText();`
                 );
                 break;
 
             case 'EasyBloxBtWaitNumber':
                 lines.push(
-                    `${indent}easybloxBtWaitNumber(${
-                        this._generateExpression(statement.channel)
-                    });`
+                    `${indent}EasyBloxBT.waitNumber();`
                 );
                 break;
 
@@ -4110,10 +4102,10 @@ class ArduinoUnoGenerator {
             return expression.value ? 'true' : 'false';
 
         case 'EasyBloxBtReceivedTextExpression':
-            return 'easybloxBtReceivedText';
+            return 'EasyBloxBT.receivedText()';
 
         case 'EasyBloxBtReceivedNumberExpression':
-            return 'easybloxBtReceivedNumber';
+            return 'EasyBloxBT.receivedNumber()';
 
         case 'DigitalReadExpression':
             return `(digitalRead(${expression.pin}) == HIGH)`;
