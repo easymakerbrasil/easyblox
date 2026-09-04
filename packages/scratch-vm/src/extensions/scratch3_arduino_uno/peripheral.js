@@ -57,7 +57,10 @@ class ArduinoUnoPeripheral {
 
         this._runtime.registerPeripheralExtension(
             EXTENSION_ID,
-            this
+            this,
+            [
+                'bluetoothSerial'
+            ]
         );
     }
 

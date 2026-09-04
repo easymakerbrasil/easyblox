@@ -12,7 +12,8 @@ const {
 } = require('../../src/connectivity/easyblox-connectivity-contract');
 
 const {
-    EBCP_CONTROL_TYPES
+    EBCP_CONTROL_TYPES,
+    encodeFrame
 } = require('../../src/connectivity/easyblox-connectivity-protocol');
 
 const Scratch3EasyBloxBtBlocks =
@@ -889,6 +890,244 @@ tap.test(
             ),
             0,
             'HELLO_ACK invalidates number from the previous session'
+        );
+    }
+);
+
+tap.test(
+    'EasyBlox BT Stage init is safe when no Bluetooth serial provider exists',
+    t => {
+        const runtime = {
+            getPeripheralExtensionByCapability: capability => {
+                t.equal(
+                    capability,
+                    'bluetoothSerial'
+                );
+
+                return null;
+            }
+        };
+
+        const extension =
+            new Scratch3EasyBloxBtBlocks(runtime);
+
+        t.equal(
+            extension.init(),
+            null
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Stage init rejects an incomplete Bluetooth serial provider',
+    t => {
+        const runtime = {
+            getPeripheralExtensionByCapability: () => ({})
+        };
+
+        const extension =
+            new Scratch3EasyBloxBtBlocks(runtime);
+
+        t.equal(
+            extension.init(),
+            null
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Stage connects the neutral Bluetooth provider to the EBCP session',
+    async t => {
+        const order = [];
+        const writes = [];
+
+        let bluetoothDataCallback = null;
+        let requestedCapability = null;
+
+        const peripheral = {
+            onBluetoothSerialData: callback => {
+                order.push('callback');
+                bluetoothDataCallback = callback;
+            },
+
+            initBluetoothSerial: () => {
+                order.push('init');
+                return Promise.resolve(0x40);
+            },
+
+            writeBluetoothSerial: data => {
+                writes.push(
+                    Buffer.from(data)
+                );
+
+                return 0x41;
+            }
+        };
+
+        const runtime = {
+            getPeripheralExtensionByCapability: capability => {
+                requestedCapability = capability;
+                return peripheral;
+            }
+        };
+
+        const extension =
+            new Scratch3EasyBloxBtBlocks(runtime);
+
+        const initialization =
+            extension.init();
+
+        t.type(
+            initialization,
+            Promise,
+            'init returns the provider initialization Promise'
+        );
+
+        t.equal(
+            await initialization,
+            0x40
+        );
+
+        t.equal(
+            requestedCapability,
+            'bluetoothSerial',
+            'provider is resolved by neutral capability'
+        );
+
+        t.same(
+            order,
+            [
+                'callback',
+                'init'
+            ],
+            'receive callback is installed before physical initialization'
+        );
+
+        t.type(
+            bluetoothDataCallback,
+            'function'
+        );
+
+        const thread = {};
+
+        bluetoothDataCallback(
+            encodeFrame({
+                type: TEXT,
+                sequence: 0x21,
+                channel: 'cmd',
+                payload: 'ligar'
+            })
+        );
+
+        await extension.waitText(
+            {
+                CHANNEL: 'cmd'
+            },
+            {
+                thread
+            }
+        );
+
+        t.equal(
+            extension.receivedText(
+                {},
+                {thread}
+            ),
+            'ligar'
+        );
+
+        t.same(
+            writes[0],
+            encodeFrame({
+                type: EBCP_CONTROL_TYPES.ACK,
+                sequence: 0,
+                channel: '',
+                payload: Buffer.from([
+                    0x21
+                ])
+            }),
+            'received TEXT is acknowledged through the same provider'
+        );
+
+        bluetoothDataCallback(
+            encodeFrame({
+                type: NUMBER,
+                sequence: 0x22,
+                channel: 'valor',
+                payload: 42.5
+            })
+        );
+
+        await extension.waitNumber(
+            {
+                CHANNEL: 'valor'
+            },
+            {
+                thread
+            }
+        );
+
+        t.equal(
+            extension.receivedNumber(
+                {},
+                {thread}
+            ),
+            42.5
+        );
+
+        t.same(
+            writes[1],
+            encodeFrame({
+                type: EBCP_CONTROL_TYPES.ACK,
+                sequence: 0,
+                channel: '',
+                payload: Buffer.from([
+                    0x22
+                ])
+            }),
+            'received NUMBER is acknowledged through the same provider'
+        );
+
+        bluetoothDataCallback(
+            encodeFrame({
+                type: EBCP_CONTROL_TYPES.HELLO,
+                sequence: 0,
+                channel: '',
+                payload: Buffer.alloc(0)
+            })
+        );
+
+        t.same(
+            writes[2],
+            encodeFrame({
+                type: EBCP_CONTROL_TYPES.HELLO_ACK,
+                sequence: 0,
+                channel: '',
+                payload: Buffer.alloc(0)
+            }),
+            'HELLO_ACK returns through the Bluetooth provider'
+        );
+
+        t.equal(
+            extension.receivedText(
+                {},
+                {thread}
+            ),
+            '',
+            'HELLO invalidates text from the previous connectivity session'
+        );
+
+        t.equal(
+            extension.receivedNumber(
+                {},
+                {thread}
+            ),
+            0,
+            'HELLO invalidates number from the previous connectivity session'
         );
     }
 );

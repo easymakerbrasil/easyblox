@@ -7,6 +7,10 @@ const {
 } = require('../../connectivity/easyblox-connectivity-contract');
 
 const {
+    EasyBloxConnectivitySession
+} = require('../../connectivity/easyblox-connectivity-session');
+
+const {
     EasyBloxConnectivityRuntime
 } = require('../../connectivity/easyblox-connectivity-runtime');
 
@@ -32,6 +36,8 @@ class Scratch3EasyBloxBtBlocks {
         this.runtime = runtime;
         this._connectivityRuntime =
             new EasyBloxConnectivityRuntime();
+        this._connectivitySession = null;
+        this._bluetoothSerialProvider = null;
         this._receivedByThread = new WeakMap();
     }
 
@@ -184,12 +190,50 @@ class Scratch3EasyBloxBtBlocks {
     }
 
     /**
-     * Initialize the EasyBlox BT transport.
-     * Runtime transport behavior is implemented in a later checkpoint.
-     * @returns {void} No value.
+     * Initialize the EasyBlox BT Stage transport through a neutral
+     * Bluetooth Serial provider.
+     * @returns {?Promise<number>} Provider initialization result,
+     * or null when the transport is unavailable.
      */
     init () {
-        // Transport integration is intentionally deferred.
+        if (
+            !this.runtime ||
+            typeof this.runtime
+                .getPeripheralExtensionByCapability !== 'function'
+        ) {
+            return null;
+        }
+
+        const provider =
+            this.runtime.getPeripheralExtensionByCapability(
+                REQUIRED_BOARD_CAPABILITY
+            );
+
+        if (
+            !provider ||
+            typeof provider.onBluetoothSerialData !== 'function' ||
+            typeof provider.initBluetoothSerial !== 'function' ||
+            typeof provider.writeBluetoothSerial !== 'function'
+        ) {
+            return null;
+        }
+
+        this._bluetoothSerialProvider = provider;
+
+        this._connectivitySession =
+            new EasyBloxConnectivitySession({
+                runtime: this._connectivityRuntime,
+                write: data =>
+                    provider.writeBluetoothSerial(data)
+            });
+
+        provider.onBluetoothSerialData(
+            data => {
+                this._connectivitySession.push(data);
+            }
+        );
+
+        return provider.initBluetoothSerial();
     }
 
     /**

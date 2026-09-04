@@ -394,6 +394,13 @@ class Runtime extends EventEmitter {
         this.peripheralExtensions = {};
 
         /**
+         * Board capabilities declared by each registered peripheral extension.
+         * Keys are peripheral extension ids and values are capability arrays.
+         * @type {Object.<string, Array.<string>>}
+         */
+        this.peripheralExtensionCapabilities = {};
+
+        /**
          * A runtime profiler that records timed events for later playback to
          * diagnose Scratch performance.
          * @type {Profiler}
@@ -1835,9 +1842,60 @@ class Runtime extends EventEmitter {
      * to have access to it and its peripheral functions in the future.
      * @param {string} extensionId - the id of the extension.
      * @param {object} extension - the extension to register.
+     * @param {Array.<string>} capabilities - neutral board capabilities.
      */
-    registerPeripheralExtension (extensionId, extension) {
+    registerPeripheralExtension (
+        extensionId,
+        extension,
+        capabilities = []
+    ) {
         this.peripheralExtensions[extensionId] = extension;
+
+        this.peripheralExtensionCapabilities[extensionId] =
+            Array.isArray(capabilities) ?
+                capabilities.slice() :
+                [];
+    }
+
+    /**
+     * Get a registered hardware peripheral extension by neutral capability.
+     * A currently connected provider is preferred when more than one
+     * registered peripheral exposes the same capability.
+     * @param {string} capability - neutral hardware capability.
+     * @returns {?object} Matching peripheral extension, or null when unavailable.
+     */
+    getPeripheralExtensionByCapability (capability) {
+        let fallback = null;
+
+        for (const extensionId of Object.keys(
+            this.peripheralExtensions
+        )) {
+            const capabilities =
+                this.peripheralExtensionCapabilities[
+                    extensionId
+                ] || [];
+
+            if (!capabilities.includes(capability)) {
+                continue;
+            }
+
+            const peripheral =
+                this.peripheralExtensions[extensionId];
+
+            if (!fallback) {
+                fallback = peripheral;
+            }
+
+            if (
+                peripheral &&
+                typeof peripheral.isConnected === 'function' &&
+                peripheral.isConnected()
+            ) {
+                return peripheral;
+            }
+        }
+
+        return fallback;
     }
 
     /**

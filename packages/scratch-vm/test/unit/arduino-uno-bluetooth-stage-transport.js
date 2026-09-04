@@ -15,12 +15,42 @@ const {
 class MockRuntime {
     constructor () {
         this.peripheralExtensions = {};
+        this.peripheralCapabilities = {};
     }
 
-    registerPeripheralExtension (extensionId, extension) {
+    registerPeripheralExtension (
+        extensionId,
+        extension,
+        capabilities = []
+    ) {
         this.peripheralExtensions[extensionId] = extension;
+        this.peripheralCapabilities[extensionId] =
+            Array.from(capabilities);
     }
 }
+
+tap.test(
+    'Arduino UNO registers the neutral Bluetooth serial capability',
+    t => {
+        const runtime = new MockRuntime();
+        const peripheral =
+            new ArduinoUnoPeripheral(runtime);
+
+        t.equal(
+            runtime.peripheralExtensions.arduinoUno,
+            peripheral
+        );
+
+        t.same(
+            runtime.peripheralCapabilities.arduinoUno,
+            [
+                'bluetoothSerial'
+            ]
+        );
+
+        t.end();
+    }
+);
 
 tap.test(
     'Arduino UNO Stage reserves protocol values for Bluetooth serial transport',
