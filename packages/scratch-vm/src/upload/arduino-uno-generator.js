@@ -8,8 +8,7 @@ const ArduinoUnoBoardProfile =
     require('./board-profiles/arduino-uno-board-profile');
 
 const {
-    EASYBLOX_BT_INTERNAL_IDENTIFIERS,
-    getEasyBloxBtRuntimeLines
+    EASYBLOX_BT_INTERNAL_IDENTIFIERS
 } = require('./easyblox-bt-arduino-runtime');
 
 /**
@@ -189,7 +188,7 @@ class ArduinoUnoGenerator {
 
         if (usesEasyBloxBt) {
             lines.push(
-                ...getEasyBloxBtRuntimeLines(),
+                '#include "EasyBlox.h"',
                 ''
             );
         }
@@ -3050,6 +3049,15 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Report whether an Upload IR requires EasyBlox BT support.
+     * @param {object} ir EasyBlox Upload IR.
+     * @returns {boolean} True when EasyBlox BT support is required.
+     */
+    usesEasyBloxBt (ir) {
+        return this._usesEasyBloxBt(ir);
+    }
+
+    /**
      * Recursively detect EasyBlox BT IR use.
      * @param {unknown} value IR value.
      * @returns {boolean} True when EasyBlox BT support is required.
@@ -3974,8 +3982,7 @@ class ArduinoUnoGenerator {
 
             case 'EasyBloxBtInit':
                 lines.push(
-                    `${indent}easybloxBtSerial.begin(9600);`,
-                    `${indent}easybloxBtSerial.listen();`
+                    `${indent}easybloxBtBegin();`
                 );
                 break;
 

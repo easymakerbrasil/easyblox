@@ -34,6 +34,10 @@ const ArduinoUnoBoardProfile =
 const ArduinoUnoGenerator =
     require('./upload/arduino-uno-generator');
 
+const {
+    getEasyBloxBtSupportFiles
+} = require('./upload/easyblox-bt-arduino-runtime');
+
 const {loadCostume} = require('./import/load-costume.js');
 const {loadSound} = require('./import/load-sound.js');
 const {serializeSounds, serializeCostumes} = require('./serialization/serialize-assets');
@@ -3071,6 +3075,21 @@ class VirtualMachine extends EventEmitter {
             code:
                 this.generateArduinoUnoUploadCode(),
             supportFiles: []
+        };
+    }    generateArduinoUnoUploadBuildBundle () {
+        const ir =
+            this._getValidatedArduinoUnoUploadIr();
+
+        const generator =
+            new ArduinoUnoGenerator();
+
+        return {
+            code:
+                generator.generate(ir),
+            supportFiles:
+                generator.usesEasyBloxBt(ir) ?
+                    getEasyBloxBtSupportFiles() :
+                    []
         };
     }
 }
