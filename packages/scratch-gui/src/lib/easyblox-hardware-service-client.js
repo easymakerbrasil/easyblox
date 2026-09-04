@@ -56,15 +56,26 @@ class EasyBloxHardwareServiceClient {
 
     build ({
         boardId,
-        code
+        code,
+        supportFiles
     }) {
+        const body = {
+            boardId,
+            code
+        };
+
+        if (
+            typeof supportFiles !==
+            'undefined'
+        ) {
+            body.supportFiles =
+                supportFiles;
+        }
+
         return this._request(
             '/v1/build',
             'POST',
-            {
-                boardId,
-                code
-            }
+            body
         );
     }
 

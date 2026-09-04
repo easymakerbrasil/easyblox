@@ -601,6 +601,26 @@ describe('GUI program mode propagation', () => {
                     ].join('\n')
                 ),
 
+            generateArduinoUnoUploadBuildBundle:
+                jest.fn().mockReturnValue({
+                    code:
+                        [
+                            'void setup() {',
+                            '}',
+                            '',
+                            'void loop() {',
+                            '}'
+                        ].join('\n'),
+                    supportFiles: [
+                        {
+                            name:
+                                'EasyBlox.h',
+                            content:
+                                '#pragma once\n'
+                        }
+                    ]
+                }),
+
             getPeripheralIsConnected:
                 jest.fn().mockReturnValue(true),
 
@@ -676,6 +696,32 @@ describe('GUI program mode propagation', () => {
 
         expect(runEasyBloxUpload)
             .toHaveBeenCalledTimes(1);
+
+        expect(
+            vm.generateArduinoUnoUploadBuildBundle
+        ).toHaveBeenCalledTimes(1);
+
+        expect(runEasyBloxUpload)
+            .toHaveBeenCalledWith(
+                expect.objectContaining({
+                    code:
+                        [
+                            'void setup() {',
+                            '}',
+                            '',
+                            'void loop() {',
+                            '}'
+                        ].join('\n'),
+                    supportFiles: [
+                        {
+                            name:
+                                'EasyBlox.h',
+                            content:
+                                '#pragma once\n'
+                        }
+                    ]
+                })
+            );
 
         expect(
             runEasyBloxStageFirmwareRestore

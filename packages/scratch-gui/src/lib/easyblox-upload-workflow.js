@@ -125,6 +125,7 @@ export const runEasyBloxUpload =
         boardId,
         boardName,
         code,
+        supportFiles,
         cachedPortHint,
         client,
         onStatus
@@ -183,7 +184,8 @@ export const runEasyBloxUpload =
             const build =
                 await client.build({
                     boardId,
-                    code
+                    code,
+                    supportFiles
                 });
 
             buildId =

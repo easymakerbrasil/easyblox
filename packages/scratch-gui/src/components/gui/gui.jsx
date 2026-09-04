@@ -832,6 +832,8 @@ export const GUIComponent = props => {
         }
 
         try {
+            const buildBundle =
+                vm.generateArduinoUnoUploadBuildBundle();
             const serialConfig =
                 typeof vm
                     .getArduinoUnoUploadSerialConfig ===
@@ -867,7 +869,9 @@ export const GUIComponent = props => {
                     boardName:
                         board.name,
                     code:
-                        uploadPreviewCode,
+                        buildBundle.code,
+                    supportFiles:
+                        buildBundle.supportFiles,
                     cachedPortHint:
                         uploadPortHint,
                     client:
@@ -950,7 +954,6 @@ export const GUIComponent = props => {
     }, [
         selectedBoard,
         uploadPortHint,
-        uploadPreviewCode,
         updateSerialMonitorState,
         vm
     ]);

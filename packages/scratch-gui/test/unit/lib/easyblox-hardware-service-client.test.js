@@ -47,7 +47,15 @@ describe(
                     boardId:
                         'arduino-uno',
                     code:
-                        'void setup(){}'
+                        'void setup(){}',
+                    supportFiles: [
+                        {
+                            name:
+                                'EasyBlox.h',
+                            content:
+                                '#pragma once\n'
+                        }
+                    ]
                 });
 
             expect(result.buildId)
@@ -68,6 +76,28 @@ describe(
                             })
                     })
                 );
+
+            const requestOptions =
+                fetchImpl.mock.calls[0][1];
+
+            expect(
+                JSON.parse(
+                    requestOptions.body
+                )
+            ).toEqual({
+                boardId:
+                    'arduino-uno',
+                code:
+                    'void setup(){}',
+                supportFiles: [
+                    {
+                        name:
+                            'EasyBlox.h',
+                        content:
+                            '#pragma once\n'
+                    }
+                ]
+            });
         });
 
         test('preserves semantic service errors without exposing transport details', async () => {

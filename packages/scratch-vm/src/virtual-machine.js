@@ -3060,6 +3060,19 @@ class VirtualMachine extends EventEmitter {
 
         return generator.generate(ir);
     }
+
+    /**
+     * Generate the complete Arduino UNO build bundle.
+     * The sketch remains independent from auxiliary build support files.
+     * @returns {object} Arduino build bundle.
+     */
+    generateArduinoUnoUploadBuildBundle () {
+        return {
+            code:
+                this.generateArduinoUnoUploadCode(),
+            supportFiles: []
+        };
+    }
 }
 
 module.exports = VirtualMachine;

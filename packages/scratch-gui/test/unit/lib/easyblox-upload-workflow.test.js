@@ -148,6 +148,64 @@ describe(
                 });
         });
 
+        test('forwards build support files without interpreting them', async () => {
+            const client =
+                createClient();
+
+            const supportFiles = [
+                {
+                    name:
+                        'EasyBlox.h',
+                    content:
+                        '#pragma once\n'
+                },
+                {
+                    name:
+                        'EasyBloxBluetooth.cpp',
+                    content:
+                        'void easybloxBluetoothRuntime() {}\n'
+                }
+            ];
+
+            const vm = {
+                getPeripheralConnectionInfo:
+                    jest.fn()
+                        .mockReturnValue(
+                            USB_INFO
+                        ),
+                getPeripheralIsConnected:
+                    jest.fn()
+                        .mockReturnValue(
+                            false
+                        ),
+                disconnectPeripheral:
+                    jest.fn()
+            };
+
+            await runEasyBloxUpload({
+                vm,
+                board:
+                    BOARD,
+                boardId:
+                    'arduino-uno',
+                boardName:
+                    'Arduino UNO',
+                code:
+                    CODE,
+                supportFiles,
+                client
+            });
+
+            expect(client.build)
+                .toHaveBeenCalledWith({
+                    boardId:
+                        'arduino-uno',
+                    code:
+                        CODE,
+                    supportFiles
+                });
+        });
+
         test('does not disconnect the board when compilation fails', async () => {
             const client =
                 createClient();
