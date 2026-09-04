@@ -275,6 +275,194 @@ test(
 );
 
 test(
+    'BuildService materializes generic support files beside the Arduino sketch',
+    async () => {
+        const processRunner =
+            async (
+                file,
+                args
+            ) => {
+                const sketchDirectory =
+                    args[
+                        args.length - 1
+                    ];
+
+                assert.equal(
+                    file,
+                    FAKE_CLI
+                );
+
+                assert.equal(
+                    await fs.readFile(
+                        path.join(
+                            sketchDirectory,
+                            'EasyBlox.h'
+                        ),
+                        'utf8'
+                    ),
+                    '#pragma once\n'
+                );
+
+                assert.equal(
+                    await fs.readFile(
+                        path.join(
+                            sketchDirectory,
+                            'EasyBloxBluetooth.cpp'
+                        ),
+                        'utf8'
+                    ),
+                    'void easybloxBluetoothRuntime() {}\n'
+                );
+
+                return {
+                    exitCode: 0,
+                    stdout: 'compiled',
+                    stderr: ''
+                };
+            };
+
+        const service =
+            new BuildService({
+                toolchainProvider:
+                    createResolvedToolchainProvider(),
+                processRunner
+            });
+
+        const artifact =
+            await service.compile({
+                boardId:
+                    'arduino-uno',
+                code:
+                    GENERATED_CODE,
+                supportFiles: [
+                    {
+                        name:
+                            'EasyBlox.h',
+                        content:
+                            '#pragma once\n'
+                    },
+                    {
+                        name:
+                            'EasyBloxBluetooth.cpp',
+                        content:
+                            'void easybloxBluetoothRuntime() {}\n'
+                    }
+                ]
+            });
+
+        await service.cleanup(
+            artifact
+        );
+    }
+);
+
+test(
+    'BuildService rejects unsafe or conflicting support files before invoking the toolchain',
+    async () => {
+        const service =
+            new BuildService({
+                toolchainProvider:
+                    createResolvedToolchainProvider(),
+                processRunner:
+                    async () => {
+                        throw new Error(
+                            'TOOLCHAIN_SHOULD_NOT_RUN'
+                        );
+                    }
+            });
+
+        const invalidSupportFiles = [
+            [
+                {
+                    name:
+                        '../EasyBlox.h',
+                    content:
+                        'unsafe'
+                }
+            ],
+            [
+                {
+                    name:
+                        'nested/EasyBlox.h',
+                    content:
+                        'unsafe'
+                }
+            ],
+            [
+                {
+                    name:
+                        'nested\\EasyBlox.h',
+                    content:
+                        'unsafe'
+                }
+            ],
+            [
+                {
+                    name:
+                        'EasyBloxUpload.ino',
+                    content:
+                        'conflict'
+                }
+            ],
+            [
+                {
+                    name:
+                        'easybloxupload.ino',
+                    content:
+                        'case-insensitive conflict'
+                }
+            ],
+            [
+                {
+                    name:
+                        'EasyBlox.h',
+                    content:
+                        42
+                }
+            ],
+            [
+                {
+                    name:
+                        'EasyBlox.h',
+                    content:
+                        'first'
+                },
+                {
+                    name:
+                        'easyblox.h',
+                    content:
+                        'duplicate'
+                }
+            ],
+            'not-an-array'
+        ];
+
+        for (
+            const supportFiles
+            of invalidSupportFiles
+        ) {
+            await assert.rejects(
+                service.compile({
+                    boardId:
+                        'arduino-uno',
+                    code:
+                        GENERATED_CODE,
+                    supportFiles
+                }),
+                error => {
+                    assert.equal(
+                        error.code,
+                        'INVALID_BUILD_REQUEST'
+                    );
+
+                    return true;
+                }
+            );
+        }
+    }
+);
+
+test(
     'BuildService rejects an empty source before invoking the toolchain',
     async () => {
         let providerCalled = false;

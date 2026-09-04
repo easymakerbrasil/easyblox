@@ -34,9 +34,17 @@ class BuildService {
         const code =
             request && request.code;
 
+        const supportFiles =
+            request &&
+            typeof request.supportFiles !==
+                'undefined' ?
+                request.supportFiles :
+                [];
+
         this._validateRequest(
             boardId,
-            code
+            code,
+            supportFiles
         );
 
         const toolchain =
@@ -96,6 +104,20 @@ class BuildService {
                 code,
                 'utf8'
             );
+
+            for (
+                const supportFile
+                of supportFiles
+            ) {
+                await this._fs.writeFile(
+                    path.join(
+                        sketchDirectory,
+                        supportFile.name
+                    ),
+                    supportFile.content,
+                    'utf8'
+                );
+            }
 
             await this._processRunner(
                 toolchain.cliPath,
@@ -183,7 +205,11 @@ class BuildService {
         return true;
     }
 
-    _validateRequest (boardId, code) {
+    _validateRequest (
+        boardId,
+        code,
+        supportFiles
+    ) {
         if (
             typeof boardId !== 'string' ||
             boardId.length === 0
@@ -203,6 +229,77 @@ class BuildService {
                 'Build requires Arduino source code'
             );
         }
+
+
+        if (!Array.isArray(supportFiles)) {
+            throw new HardwareServiceError(
+                'INVALID_BUILD_REQUEST',
+                'Build support files must be an array'
+            );
+        }
+
+        const occupiedNames =
+            new Set([
+                `${SKETCH_NAME}.ino`
+                    .toLowerCase()
+            ]);
+
+        for (
+            const supportFile
+            of supportFiles
+        ) {
+            if (
+                !supportFile ||
+                typeof supportFile !==
+                    'object' ||
+                Array.isArray(supportFile) ||
+                typeof supportFile.name !==
+                    'string' ||
+                supportFile.name.length === 0 ||
+                typeof supportFile.content !==
+                    'string'
+            ) {
+                throw new HardwareServiceError(
+                    'INVALID_BUILD_REQUEST',
+                    'Build support file is invalid'
+                );
+            }
+
+            if (
+                supportFile.name === '.' ||
+                supportFile.name === '..' ||
+                supportFile.name.includes('/') ||
+                supportFile.name.includes('\\') ||
+                path.isAbsolute(
+                    supportFile.name
+                )
+            ) {
+                throw new HardwareServiceError(
+                    'INVALID_BUILD_REQUEST',
+                    'Build support file name is unsafe'
+                );
+            }
+
+            const normalizedName =
+                supportFile.name
+                    .toLowerCase();
+
+            if (
+                occupiedNames.has(
+                    normalizedName
+                )
+            ) {
+                throw new HardwareServiceError(
+                    'INVALID_BUILD_REQUEST',
+                    'Build support file name conflicts with another file'
+                );
+            }
+
+            occupiedNames.add(
+                normalizedName
+            );
+        }
+
     }
 
     async _removeWorkspace (

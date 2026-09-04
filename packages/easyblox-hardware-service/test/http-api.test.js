@@ -291,7 +291,15 @@ test(
                         boardId:
                             'arduino-uno',
                         code:
-                            'void setup(){}'
+                            'void setup(){}',
+                        supportFiles: [
+                            {
+                                name:
+                                    'EasyBlox.h',
+                                content:
+                                    '#pragma once\n'
+                            }
+                        ]
                     }
                 });
 
@@ -336,9 +344,22 @@ test(
                 'COM11'
             );
 
-            assert.equal(
-                compileCalls.length,
-                1
+            assert.deepEqual(
+                compileCalls[0],
+                {
+                    boardId:
+                        'arduino-uno',
+                    code:
+                        'void setup(){}',
+                    supportFiles: [
+                        {
+                            name:
+                                'EasyBlox.h',
+                            content:
+                                '#pragma once\n'
+                        }
+                    ]
+                }
             );
 
             assert.equal(

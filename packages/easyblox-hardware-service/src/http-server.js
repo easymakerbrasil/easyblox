@@ -366,7 +366,9 @@ class HardwareHttpServer {
                 boardId:
                     body.boardId,
                 code:
-                    body.code
+                    body.code,
+                supportFiles:
+                    body.supportFiles
             });
 
         const buildId =
