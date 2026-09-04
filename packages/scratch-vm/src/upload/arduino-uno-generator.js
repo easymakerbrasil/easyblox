@@ -7,6 +7,11 @@ const VALUE_TYPES =
 const ArduinoUnoBoardProfile =
     require('./board-profiles/arduino-uno-board-profile');
 
+const {
+    EASYBLOX_BT_INTERNAL_IDENTIFIERS,
+    getEasyBloxBtRuntimeLines
+} = require('./easyblox-bt-arduino-runtime');
+
 /**
  * Generate deterministic Arduino UNO C++ from EasyBlox semantic IR.
  */
@@ -36,12 +41,6 @@ class ArduinoUnoGenerator {
         const procedures = Array.isArray(ir.procedures) ?
             ir.procedures :
             [];
-
-        const reservedIdentifiers = this._initializeDataSymbols(
-            variables,
-            lists,
-            procedures
-        );
 
         const procedureStatements = [];
 
@@ -166,6 +165,18 @@ class ArduinoUnoGenerator {
             loopStatements
         );
 
+        const usesEasyBloxBt = this._usesEasyBloxBt([
+            analysisSetupStatements,
+            loopStatements
+        ]);
+
+        const reservedIdentifiers = this._initializeDataSymbols(
+            variables,
+            lists,
+            procedures,
+            usesEasyBloxBt
+        );
+
         /*
         * Internal temporary identifiers must never collide with normalized
         * identifiers defined by the student.
@@ -175,6 +186,13 @@ class ArduinoUnoGenerator {
         );
 
         const lines = [];
+
+        if (usesEasyBloxBt) {
+            lines.push(
+                ...getEasyBloxBtRuntimeLines(),
+                ''
+            );
+        }
 
         if (lcdInitialization) {
             lines.push(
@@ -2377,10 +2395,16 @@ class ArduinoUnoGenerator {
      * @param {Array<object>} variables Variable declarations.
      * @param {Array<object>} lists List declarations.
      * @param {Array<object>} procedures Procedure declarations.
+     * @param {boolean} usesEasyBloxBt Whether Bluetooth runtime is emitted.
      * @returns {Array<string>} Identifiers reserved from internal allocation.
      * @private
      */
-    _initializeDataSymbols (variables, lists, procedures) {
+    _initializeDataSymbols (
+        variables,
+        lists,
+        procedures,
+        usesEasyBloxBt = false
+    ) {
         this._variablesById = new Map();
         this._listsById = new Map();
         this._proceduresById = new Map();
@@ -2395,6 +2419,17 @@ class ArduinoUnoGenerator {
         */
         globalUsed.add('easybloxUltrasonicRead');
         reservedForInternals.add('easybloxUltrasonicRead');
+
+        if (usesEasyBloxBt) {
+            for (
+                const identifier
+                of EASYBLOX_BT_INTERNAL_IDENTIFIERS
+            ) {
+                globalUsed.add(identifier);
+                reservedForInternals.add(identifier);
+            }
+        }
+
         const dhtInternalIdentifiers = [
             'EASYBLOX_DHT_CACHE_INTERVAL_MS',
             'EASYBLOX_DHT_FIRST_PIN',
@@ -3012,6 +3047,35 @@ class ArduinoUnoGenerator {
         }
 
         return rows;
+    }
+
+    /**
+     * Recursively detect EasyBlox BT IR use.
+     * @param {unknown} value IR value.
+     * @returns {boolean} True when EasyBlox BT support is required.
+     * @private
+     */
+    _usesEasyBloxBt (value) {
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._usesEasyBloxBt(item)
+            );
+        }
+
+        if (!value || typeof value !== 'object') {
+            return false;
+        }
+
+        if (
+            typeof value.type === 'string' &&
+            value.type.startsWith('EasyBloxBt')
+        ) {
+            return true;
+        }
+
+        return Object.keys(value).some(key =>
+            this._usesEasyBloxBt(value[key])
+        );
     }
 
     /**
@@ -3908,6 +3972,49 @@ class ArduinoUnoGenerator {
                 break;
             }
 
+            case 'EasyBloxBtInit':
+                lines.push(
+                    `${indent}easybloxBtSerial.begin(9600);`,
+                    `${indent}easybloxBtSerial.listen();`
+                );
+                break;
+
+            case 'EasyBloxBtSendText':
+                lines.push(
+                    `${indent}easybloxBtSendText(${
+                        this._generateExpression(statement.channel)
+                    }, ${
+                        this._generateExpression(statement.value)
+                    });`
+                );
+                break;
+
+            case 'EasyBloxBtSendNumber':
+                lines.push(
+                    `${indent}easybloxBtSendNumber(${
+                        this._generateExpression(statement.channel)
+                    }, ${
+                        this._generateExpression(statement.value)
+                    });`
+                );
+                break;
+
+            case 'EasyBloxBtWaitText':
+                lines.push(
+                    `${indent}easybloxBtWaitText(${
+                        this._generateExpression(statement.channel)
+                    });`
+                );
+                break;
+
+            case 'EasyBloxBtWaitNumber':
+                lines.push(
+                    `${indent}easybloxBtWaitNumber(${
+                        this._generateExpression(statement.channel)
+                    });`
+                );
+                break;
+
             default:
                 throw new Error(
                     `Unsupported Arduino UNO IR statement: ${
@@ -3994,6 +4101,12 @@ class ArduinoUnoGenerator {
 
         case 'BooleanLiteral':
             return expression.value ? 'true' : 'false';
+
+        case 'EasyBloxBtReceivedTextExpression':
+            return 'easybloxBtReceivedText';
+
+        case 'EasyBloxBtReceivedNumberExpression':
+            return 'easybloxBtReceivedNumber';
 
         case 'DigitalReadExpression':
             return `(digitalRead(${expression.pin}) == HIGH)`;
