@@ -3,6 +3,7 @@ const BlockExecutionMode = require('../../extension-support/block-execution-mode
 const BlockType = require('../../extension-support/block-type');
 
 const {
+    EASYBLOX_BT_CHANNEL,
     EBCP_CONTRACT
 } = require('../../connectivity/easyblox-connectivity-contract');
 
@@ -41,6 +42,18 @@ class Scratch3EasyBloxBtBlocks {
         this._connectivitySession = null;
         this._bluetoothSerialProvider = null;
         this._receivedByThread = new WeakMap();
+
+        if (
+            this.runtime &&
+            typeof this.runtime.on === 'function'
+        ) {
+            this.runtime.on(
+                'PROJECT_STOP_ALL',
+                () => {
+                    this._connectivityRuntime.clearWaiters();
+                }
+            );
+        }
     }
 
     /**
@@ -69,15 +82,11 @@ class Scratch3EasyBloxBtBlocks {
                     executionMode: BlockExecutionMode.BOTH,
                     requiredBoardCapability:
                         REQUIRED_BOARD_CAPABILITY,
-                    text: 'enviar texto [TEXT] no canal [CHANNEL]',
+                    text: 'enviar texto [TEXT]',
                     arguments: {
                         TEXT: {
                             type: ArgumentType.STRING,
                             defaultValue: 'Olá'
-                        },
-                        CHANNEL: {
-                            type: ArgumentType.STRING,
-                            defaultValue: 'cmd'
                         }
                     }
                 },
@@ -87,13 +96,7 @@ class Scratch3EasyBloxBtBlocks {
                     executionMode: BlockExecutionMode.BOTH,
                     requiredBoardCapability:
                         REQUIRED_BOARD_CAPABILITY,
-                    text: 'aguardar texto no canal [CHANNEL]',
-                    arguments: {
-                        CHANNEL: {
-                            type: ArgumentType.STRING,
-                            defaultValue: 'cmd'
-                        }
-                    }
+                    text: 'aguardar texto'
                 },
                 {
                     opcode: 'receivedText',
@@ -109,15 +112,11 @@ class Scratch3EasyBloxBtBlocks {
                     executionMode: BlockExecutionMode.BOTH,
                     requiredBoardCapability:
                         REQUIRED_BOARD_CAPABILITY,
-                    text: 'enviar número [NUMBER] no canal [CHANNEL]',
+                    text: 'enviar número [NUMBER]',
                     arguments: {
                         NUMBER: {
                             type: ArgumentType.NUMBER,
                             defaultValue: 0
-                        },
-                        CHANNEL: {
-                            type: ArgumentType.STRING,
-                            defaultValue: 'valor'
                         }
                     }
                 },
@@ -127,13 +126,7 @@ class Scratch3EasyBloxBtBlocks {
                     executionMode: BlockExecutionMode.BOTH,
                     requiredBoardCapability:
                         REQUIRED_BOARD_CAPABILITY,
-                    text: 'aguardar número no canal [CHANNEL]',
-                    arguments: {
-                        CHANNEL: {
-                            type: ArgumentType.STRING,
-                            defaultValue: 'valor'
-                        }
-                    }
+                    text: 'aguardar número'
                 },
                 {
                     opcode: 'receivedNumber',
@@ -281,10 +274,9 @@ class Scratch3EasyBloxBtBlocks {
     }
 
     /**
-     * Send an EasyBlox BT TEXT message.
+     * Send an EasyBlox BT TEXT message on the fixed internal EBCP channel.
      * @param {object} args block arguments.
      * @param {string} args.TEXT text payload.
-     * @param {string} args.CHANNEL EasyBlox BT channel.
      * @returns {?number} EBCP application sequence, or null when unavailable.
      */
     sendText (args) {
@@ -294,22 +286,21 @@ class Scratch3EasyBloxBtBlocks {
 
         return this._connectivitySession.send(
             TEXT,
-            args.CHANNEL,
+            EASYBLOX_BT_CHANNEL,
             args.TEXT
         );
     }
 
     /**
-     * Wait for an EasyBlox BT TEXT message on a channel.
+     * Wait for an EasyBlox BT TEXT message on the fixed internal EBCP channel.
      * @param {object} args block arguments
-     * @param {string} args.CHANNEL EasyBlox BT channel
      * @param {object} util Scratch block utility
      * @returns {Promise<void>} resolves when a matching message is consumed
      */
     waitText (args, util) {
         return this._connectivityRuntime.waitFor(
             TEXT,
-            args.CHANNEL
+            EASYBLOX_BT_CHANNEL
         ).then(message => {
             const state =
                 this._getReceivedState(util);
@@ -336,10 +327,9 @@ class Scratch3EasyBloxBtBlocks {
     }
 
     /**
-     * Send an EasyBlox BT NUMBER message.
+     * Send an EasyBlox BT NUMBER message on the fixed internal EBCP channel.
      * @param {object} args block arguments.
      * @param {number} args.NUMBER numeric payload.
-     * @param {string} args.CHANNEL EasyBlox BT channel.
      * @returns {?number} EBCP application sequence, or null when unavailable.
      */
     sendNumber (args) {
@@ -349,22 +339,21 @@ class Scratch3EasyBloxBtBlocks {
 
         return this._connectivitySession.send(
             NUMBER,
-            args.CHANNEL,
+            EASYBLOX_BT_CHANNEL,
             args.NUMBER
         );
     }
 
     /**
-     * Wait for an EasyBlox BT NUMBER message on a channel.
+     * Wait for an EasyBlox BT NUMBER message on the fixed internal EBCP channel.
      * @param {object} args block arguments
-     * @param {string} args.CHANNEL EasyBlox BT channel
      * @param {object} util Scratch block utility
      * @returns {Promise<void>} resolves when a matching message is consumed
      */
     waitNumber (args, util) {
         return this._connectivityRuntime.waitFor(
             NUMBER,
-            args.CHANNEL
+            EASYBLOX_BT_CHANNEL
         ).then(message => {
             const state =
                 this._getReceivedState(util);

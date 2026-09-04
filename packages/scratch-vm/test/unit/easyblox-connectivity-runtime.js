@@ -666,6 +666,85 @@ tap.test('connectivity runtime keeps active waiters across a new session', async
     t.equal(message.payload, 'primeira mensagem');
 });
 
+tap.test('connectivity runtime can discard pending waiters without consuming future messages', async t => {
+    const runtime = new EasyBloxConnectivityRuntime();
+
+    let staleTextResolved = false;
+    let staleNumberResolved = false;
+
+    runtime.waitFor(
+        TEXT,
+        '1'
+    ).then(() => {
+        staleTextResolved = true;
+    });
+
+    runtime.waitFor(
+        NUMBER,
+        '1'
+    ).then(() => {
+        staleNumberResolved = true;
+    });
+
+    await Promise.resolve();
+
+    runtime.clearWaiters();
+
+    const currentTextWait = runtime.waitFor(
+        TEXT,
+        '1'
+    );
+
+    const currentNumberWait = runtime.waitFor(
+        NUMBER,
+        '1'
+    );
+
+    runtime.receive({
+        type: TEXT,
+        sequence: 1,
+        channel: '1',
+        payload: 'novo texto'
+    });
+
+    runtime.receive({
+        type: NUMBER,
+        sequence: 2,
+        channel: '1',
+        payload: 42.5
+    });
+
+    const [
+        textMessage,
+        numberMessage
+    ] = await Promise.all([
+        currentTextWait,
+        currentNumberWait
+    ]);
+
+    t.equal(
+        staleTextResolved,
+        false,
+        'discarded TEXT waiter does not consume a future message'
+    );
+
+    t.equal(
+        staleNumberResolved,
+        false,
+        'discarded NUMBER waiter does not consume a future message'
+    );
+
+    t.equal(
+        textMessage.payload,
+        'novo texto'
+    );
+
+    t.equal(
+        numberMessage.payload,
+        42.5
+    );
+});
+
 tap.test('connectivity runtime advances its session generation on HELLO and HELLO_ACK', t => {
     const runtime = new EasyBloxConnectivityRuntime();
 

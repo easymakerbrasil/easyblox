@@ -84,7 +84,7 @@ const createNumberShadow = (
 });
 
 tap.test(
-    'EasyBlox BT Upload extracts sendText and reserves the shared D2/D3 UART',
+    'EasyBlox BT Upload extracts sendText with the fixed EBCP channel and reserves the shared D2/D3 UART',
     t => {
         const runtime = createRuntimeWithBlocks([
             createUploadHat('bt_send_text'),
@@ -98,11 +98,6 @@ tap.test(
                         name: 'TEXT',
                         block: 'bt_text',
                         shadow: 'bt_text'
-                    },
-                    CHANNEL: {
-                        name: 'CHANNEL',
-                        block: 'bt_channel',
-                        shadow: 'bt_channel'
                     }
                 },
                 fields: {},
@@ -113,11 +108,6 @@ tap.test(
                 'bt_text',
                 'bt_send_text',
                 'Olá'
-            ),
-            createTextShadow(
-                'bt_channel',
-                'bt_send_text',
-                'cmd'
             )
         ]);
 
@@ -135,7 +125,7 @@ tap.test(
                     },
                     channel: {
                         type: 'TextLiteral',
-                        value: 'cmd'
+                        value: '1'
                     }
                 }],
                 loop: [],
@@ -164,11 +154,6 @@ tap.test(
                         name: 'NUMBER',
                         block: 'bt_number',
                         shadow: 'bt_number'
-                    },
-                    CHANNEL: {
-                        name: 'CHANNEL',
-                        block: 'bt_channel',
-                        shadow: 'bt_channel'
                     }
                 },
                 fields: {},
@@ -201,7 +186,7 @@ tap.test(
                     },
                     channel: {
                         type: 'TextLiteral',
-                        value: 'valor'
+                        value: '1'
                     }
                 }],
                 loop: [],
@@ -230,11 +215,6 @@ tap.test(
                         name: 'TEXT',
                         block: 'bt_text',
                         shadow: 'bt_text'
-                    },
-                    CHANNEL: {
-                        name: 'CHANNEL',
-                        block: 'bt_text_channel',
-                        shadow: 'bt_text_channel'
                     }
                 },
                 fields: {},
@@ -261,11 +241,6 @@ tap.test(
                         name: 'NUMBER',
                         block: 'bt_number',
                         shadow: 'bt_number'
-                    },
-                    CHANNEL: {
-                        name: 'CHANNEL',
-                        block: 'bt_number_channel',
-                        shadow: 'bt_number_channel'
                     }
                 },
                 fields: {},
@@ -276,11 +251,6 @@ tap.test(
                 'bt_number',
                 'bt_send_number',
                 42
-            ),
-            createTextShadow(
-                'bt_number_channel',
-                'bt_send_number',
-                'valor'
             )
         ]);
 
@@ -695,22 +665,11 @@ tap.test(
                 opcode: 'easybloxBt_waitText',
                 next: null,
                 parent: 'bt_init',
-                inputs: {
-                    CHANNEL: {
-                        name: 'CHANNEL',
-                        block: 'bt_channel',
-                        shadow: 'bt_channel'
-                    }
-                },
+                inputs: {},
                 fields: {},
                 topLevel: false,
                 shadow: false
-            },
-            createTextShadow(
-                'bt_channel',
-                'bt_wait',
-                'cmd'
-            )
+            }
         ]);
 
         const extractor =
@@ -727,7 +686,7 @@ tap.test(
                         type: 'EasyBloxBtWaitText',
                         channel: {
                             type: 'TextLiteral',
-                            value: 'cmd'
+                            value: '1'
                         }
                     }
                 ],
@@ -762,22 +721,11 @@ tap.test(
                 opcode: 'easybloxBt_waitNumber',
                 next: null,
                 parent: 'bt_init',
-                inputs: {
-                    CHANNEL: {
-                        name: 'CHANNEL',
-                        block: 'bt_channel',
-                        shadow: 'bt_channel'
-                    }
-                },
+                inputs: {},
                 fields: {},
                 topLevel: false,
                 shadow: false
-            },
-            createTextShadow(
-                'bt_channel',
-                'bt_wait',
-                'valor'
-            )
+            }
         ]);
 
         const extractor =
@@ -794,7 +742,7 @@ tap.test(
                         type: 'EasyBloxBtWaitNumber',
                         channel: {
                             type: 'TextLiteral',
-                            value: 'valor'
+                            value: '1'
                         }
                     }
                 ],

@@ -1,5 +1,6 @@
 const {
-    CONNECTIVITY_RESOURCES
+    CONNECTIVITY_RESOURCES,
+    EASYBLOX_BT_CHANNEL
 } = require('../connectivity/easyblox-connectivity-contract');
 
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
@@ -1099,11 +1100,10 @@ class UploadProgramExtractor {
                     block,
                     'TEXT'
                 ),
-                channel: this._extractExpressionInput(
-                    blocks,
-                    block,
-                    'CHANNEL'
-                )
+                channel: {
+                    type: 'TextLiteral',
+                    value: EASYBLOX_BT_CHANNEL
+                }
             };
 
         case EASYBLOX_BT_WAIT_TEXT_OPCODE:
@@ -1111,11 +1111,10 @@ class UploadProgramExtractor {
 
             return {
                 type: 'EasyBloxBtWaitText',
-                channel: this._extractExpressionInput(
-                    blocks,
-                    block,
-                    'CHANNEL'
-                )
+                channel: {
+                    type: 'TextLiteral',
+                    value: EASYBLOX_BT_CHANNEL
+                }
             };
 
         case EASYBLOX_BT_SEND_NUMBER_OPCODE:
@@ -1128,11 +1127,10 @@ class UploadProgramExtractor {
                     block,
                     'NUMBER'
                 ),
-                channel: this._extractExpressionInput(
-                    blocks,
-                    block,
-                    'CHANNEL'
-                )
+                channel: {
+                    type: 'TextLiteral',
+                    value: EASYBLOX_BT_CHANNEL
+                }
             };
 
         case EASYBLOX_BT_WAIT_NUMBER_OPCODE:
@@ -1140,11 +1138,10 @@ class UploadProgramExtractor {
 
             return {
                 type: 'EasyBloxBtWaitNumber',
-                channel: this._extractExpressionInput(
-                    blocks,
-                    block,
-                    'CHANNEL'
-                )
+                channel: {
+                    type: 'TextLiteral',
+                    value: EASYBLOX_BT_CHANNEL
+                }
             };
 
         case WAIT_OPCODE:

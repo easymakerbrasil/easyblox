@@ -148,7 +148,7 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT send text block exposes only text and channel',
+    'EasyBlox BT send text block exposes only the text payload',
     t => {
         const block = getBlock('sendText');
 
@@ -164,7 +164,7 @@ tap.test(
 
         t.equal(
             block.text,
-            'enviar texto [TEXT] no canal [CHANNEL]'
+            'enviar texto [TEXT]'
         );
 
         t.same(
@@ -173,10 +173,6 @@ tap.test(
                 TEXT: {
                     type: ArgumentType.STRING,
                     defaultValue: 'Olá'
-                },
-                CHANNEL: {
-                    type: ArgumentType.STRING,
-                    defaultValue: 'cmd'
                 }
             }
         );
@@ -186,7 +182,7 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT wait text block exposes only a channel input',
+    'EasyBlox BT wait text block exposes no public arguments',
     t => {
         const block = getBlock('waitText');
 
@@ -212,17 +208,12 @@ tap.test(
 
         t.equal(
             block.text,
-            'aguardar texto no canal [CHANNEL]'
+            'aguardar texto'
         );
 
         t.same(
-            block.arguments,
-            {
-                CHANNEL: {
-                    type: ArgumentType.STRING,
-                    defaultValue: 'cmd'
-                }
-            }
+            block.arguments || {},
+            {}
         );
 
         t.end();
@@ -259,7 +250,7 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT send number block exposes only number and channel',
+    'EasyBlox BT send number block exposes only the numeric payload',
     t => {
         const block = getBlock('sendNumber');
 
@@ -275,7 +266,7 @@ tap.test(
 
         t.equal(
             block.text,
-            'enviar número [NUMBER] no canal [CHANNEL]'
+            'enviar número [NUMBER]'
         );
 
         t.same(
@@ -284,10 +275,6 @@ tap.test(
                 NUMBER: {
                     type: ArgumentType.NUMBER,
                     defaultValue: 0
-                },
-                CHANNEL: {
-                    type: ArgumentType.STRING,
-                    defaultValue: 'valor'
                 }
             }
         );
@@ -297,7 +284,7 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT wait number block exposes only a channel input',
+    'EasyBlox BT wait number block exposes no public arguments',
     t => {
         const block = getBlock('waitNumber');
 
@@ -323,17 +310,12 @@ tap.test(
 
         t.equal(
             block.text,
-            'aguardar número no canal [CHANNEL]'
+            'aguardar número'
         );
 
         t.same(
-            block.arguments,
-            {
-                CHANNEL: {
-                    type: ArgumentType.STRING,
-                    defaultValue: 'valor'
-                }
-            }
+            block.arguments || {},
+            {}
         );
 
         t.end();
@@ -379,7 +361,8 @@ tap.test(
             'TX_PIN',
             'PIN',
             'BAUD',
-            'BAUD_RATE'
+            'BAUD_RATE',
+            'CHANNEL'
         ]);
 
         for (const block of getBlocks()) {
@@ -493,7 +476,111 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT Stage waitText blocks for TEXT on the requested channel and stores it for that thread',
+    'EasyBlox BT Stage discards pending TEXT and NUMBER waits when the project stops',
+    async t => {
+        let projectStopAllHandler = null;
+
+        const runtime = {
+            on: (eventName, handler) => {
+                if (eventName === 'PROJECT_STOP_ALL') {
+                    projectStopAllHandler = handler;
+                }
+            }
+        };
+
+        const extension =
+            new Scratch3EasyBloxBtBlocks(runtime);
+
+        t.type(
+            projectStopAllHandler,
+            'function',
+            'EasyBlox BT registers a PROJECT_STOP_ALL lifecycle handler'
+        );
+
+        if (typeof projectStopAllHandler !== 'function') {
+            t.end();
+            return;
+        }
+
+        const staleThread = {};
+
+        extension.waitText(
+            {},
+            {
+                thread: staleThread
+            }
+        );
+
+        extension.waitNumber(
+            {},
+            {
+                thread: staleThread
+            }
+        );
+
+        projectStopAllHandler();
+
+        const currentThread = {};
+
+        const currentTextWait = extension.waitText(
+            {},
+            {
+                thread: currentThread
+            }
+        );
+
+        const currentNumberWait = extension.waitNumber(
+            {},
+            {
+                thread: currentThread
+            }
+        );
+
+        extension._connectivityRuntime.receive({
+            type: TEXT,
+            sequence: 1,
+            channel: '1',
+            payload: 'novo texto'
+        });
+
+        extension._connectivityRuntime.receive({
+            type: NUMBER,
+            sequence: 2,
+            channel: '1',
+            payload: 42.5
+        });
+
+        await Promise.all([
+            currentTextWait,
+            currentNumberWait
+        ]);
+
+        t.equal(
+            extension.receivedText(
+                {},
+                {
+                    thread: currentThread
+                }
+            ),
+            'novo texto',
+            'current TEXT wait receives the first future TEXT message'
+        );
+
+        t.equal(
+            extension.receivedNumber(
+                {},
+                {
+                    thread: currentThread
+                }
+            ),
+            42.5,
+            'current NUMBER wait receives the first future NUMBER message'
+        );
+    }
+);
+
+tap.test(
+    'EasyBlox BT Stage waitText uses the fixed EBCP channel and stores it for that thread',
     async t => {
         const extension = createExtension();
         const thread = {};
@@ -512,9 +599,7 @@ tap.test(
         };
 
         const wait = extension.waitText(
-            {
-                CHANNEL: 'cmd'
-            },
+            {},
             {
                 thread
             }
@@ -531,7 +616,7 @@ tap.test(
             [
                 {
                     type: TEXT,
-                    channel: 'cmd'
+                    channel: '1'
                 }
             ]
         );
@@ -548,7 +633,7 @@ tap.test(
         deferred.resolve({
             type: TEXT,
             sequence: 1,
-            channel: 'cmd',
+            channel: '1',
             payload: 'ligar'
         });
 
@@ -565,7 +650,7 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT Stage waitNumber blocks for NUMBER on the requested channel and stores it for that thread',
+    'EasyBlox BT Stage waitNumber uses the fixed EBCP channel and stores it for that thread',
     async t => {
         const extension = createExtension();
         const thread = {};
@@ -584,9 +669,7 @@ tap.test(
         };
 
         const wait = extension.waitNumber(
-            {
-                CHANNEL: 'valor'
-            },
+            {},
             {
                 thread
             }
@@ -603,7 +686,7 @@ tap.test(
             [
                 {
                     type: NUMBER,
-                    channel: 'valor'
+                    channel: '1'
                 }
             ]
         );
@@ -620,7 +703,7 @@ tap.test(
         deferred.resolve({
             type: NUMBER,
             sequence: 2,
-            channel: 'valor',
+            channel: '1',
             payload: 42.5
         });
 
@@ -643,29 +726,27 @@ tap.test(
         const threadA = {};
         const threadB = {};
 
+        let textWaitCount = 0;
+
         extension._connectivityRuntime = {
             waitFor: (type, channel) => {
-                if (
-                    type === TEXT &&
-                    channel === 'a'
-                ) {
-                    return Promise.resolve({
-                        type: TEXT,
-                        sequence: 1,
-                        channel,
-                        payload: 'texto A'
-                    });
-                }
+                t.equal(
+                    channel,
+                    '1',
+                    'all waits use the fixed internal EBCP channel'
+                );
 
-                if (
-                    type === TEXT &&
-                    channel === 'b'
-                ) {
+                if (type === TEXT) {
+                    textWaitCount++;
+
                     return Promise.resolve({
                         type: TEXT,
-                        sequence: 2,
+                        sequence: textWaitCount,
                         channel,
-                        payload: 'texto B'
+                        payload:
+                            textWaitCount === 1 ?
+                                'texto A' :
+                                'texto B'
                     });
                 }
 
@@ -679,27 +760,21 @@ tap.test(
         };
 
         await extension.waitText(
-            {
-                CHANNEL: 'a'
-            },
+            {},
             {
                 thread: threadA
             }
         );
 
         await extension.waitText(
-            {
-                CHANNEL: 'b'
-            },
+            {},
             {
                 thread: threadB
             }
         );
 
         await extension.waitNumber(
-            {
-                CHANNEL: 'valor'
-            },
+            {},
             {
                 thread: threadA
             }
@@ -749,14 +824,12 @@ tap.test(
         extension._connectivityRuntime.receive({
             type: TEXT,
             sequence: 1,
-            channel: 'cmd',
+            channel: '1',
             payload: 'ligar'
         });
 
         await extension.waitText(
-            {
-                CHANNEL: 'cmd'
-            },
+            {},
             {
                 thread
             }
@@ -765,14 +838,12 @@ tap.test(
         extension._connectivityRuntime.receive({
             type: NUMBER,
             sequence: 2,
-            channel: 'valor',
+            channel: '1',
             payload: 42
         });
 
         await extension.waitNumber(
-            {
-                CHANNEL: 'valor'
-            },
+            {},
             {
                 thread
             }
@@ -822,14 +893,12 @@ tap.test(
         extension._connectivityRuntime.receive({
             type: TEXT,
             sequence: 1,
-            channel: 'cmd',
+            channel: '1',
             payload: 'novo texto'
         });
 
         await extension.waitText(
-            {
-                CHANNEL: 'cmd'
-            },
+            {},
             {
                 thread
             }
@@ -838,14 +907,12 @@ tap.test(
         extension._connectivityRuntime.receive({
             type: NUMBER,
             sequence: 2,
-            channel: 'valor',
+            channel: '1',
             payload: 99
         });
 
         await extension.waitNumber(
-            {
-                CHANNEL: 'valor'
-            },
+            {},
             {
                 thread
             }
@@ -940,6 +1007,105 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox BT Stage reassembles EBCP when Bluetooth data arrives one byte at a time',
+    async t => {
+        const writes = [];
+
+        let bluetoothDataCallback = null;
+
+        const peripheral = {
+            onBluetoothSerialData: callback => {
+                bluetoothDataCallback = callback;
+            },
+
+            initBluetoothSerial: () =>
+                Promise.resolve(0x40),
+
+            writeBluetoothSerial: data => {
+                writes.push(
+                    Buffer.from(data)
+                );
+
+                return 0x41;
+            },
+
+            isConnected: () =>
+                true
+        };
+
+        const runtime = {
+            on: () => {},
+
+            getPeripheralExtensionByCapability: () =>
+                peripheral
+        };
+
+        const extension =
+            new Scratch3EasyBloxBtBlocks(runtime);
+
+        await extension.init();
+
+        t.type(
+            bluetoothDataCallback,
+            'function',
+            'Bluetooth receive callback is installed'
+        );
+
+        const thread = {};
+
+        const wait =
+            extension.waitText(
+                {},
+                {
+                    thread
+                }
+            );
+
+        const frame =
+            encodeFrame({
+                type: TEXT,
+                sequence: 0x40,
+                channel: '1',
+                payload: 'fragmentado'
+            });
+
+        for (const byte of frame) {
+            bluetoothDataCallback(
+                Uint8Array.from([
+                    byte
+                ])
+            );
+        }
+
+        await wait;
+
+        t.equal(
+            extension.receivedText(
+                {},
+                {
+                    thread
+                }
+            ),
+            'fragmentado',
+            'TEXT is reconstructed from one-byte Bluetooth chunks'
+        );
+
+        t.same(
+            writes[0],
+            encodeFrame({
+                type: EBCP_CONTROL_TYPES.ACK,
+                sequence: 0,
+                channel: '',
+                payload: Buffer.from([
+                    0x40
+                ])
+            }),
+            'reassembled TEXT is acknowledged'
+        );
+    }
+);
+
+tap.test(
     'EasyBlox BT Stage connects the neutral Bluetooth provider to the EBCP session',
     async t => {
         const order = [];
@@ -1018,15 +1184,13 @@ tap.test(
             encodeFrame({
                 type: TEXT,
                 sequence: 0x21,
-                channel: 'cmd',
+                channel: '1',
                 payload: 'ligar'
             })
         );
 
         await extension.waitText(
-            {
-                CHANNEL: 'cmd'
-            },
+            {},
             {
                 thread
             }
@@ -1057,15 +1221,13 @@ tap.test(
             encodeFrame({
                 type: NUMBER,
                 sequence: 0x22,
-                channel: 'valor',
+                channel: '1',
                 payload: 42.5
             })
         );
 
         await extension.waitNumber(
-            {
-                CHANNEL: 'valor'
-            },
+            {},
             {
                 thread
             }

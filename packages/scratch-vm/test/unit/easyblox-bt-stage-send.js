@@ -77,8 +77,7 @@ tap.test(
 
         t.equal(
             extension.sendText({
-                TEXT: 'ligar',
-                CHANNEL: 'cmd'
+                TEXT: 'ligar'
             }),
             null,
             'text send is unavailable before init'
@@ -86,11 +85,64 @@ tap.test(
 
         t.equal(
             extension.sendNumber({
-                NUMBER: 42,
-                CHANNEL: 'valor'
+                NUMBER: 42
             }),
             null,
             'number send is unavailable before init'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Stage maps public sends to the fixed EBCP channel',
+    async t => {
+        const writes = [];
+
+        const peripheral = {
+            onBluetoothSerialData: () => {},
+
+            initBluetoothSerial: () =>
+                Promise.resolve(0x40),
+
+            writeBluetoothSerial: data => {
+                writes.push(
+                    Buffer.from(data)
+                );
+
+                return 0x41;
+            }
+        };
+
+        const runtime = {
+            getPeripheralExtensionByCapability: () =>
+                peripheral
+        };
+
+        const extension =
+            new Scratch3EasyBloxBtBlocks(runtime);
+
+        await extension.init();
+
+        extension.sendText({
+            TEXT: 'ligar'
+        });
+
+        extension.sendNumber({
+            NUMBER: 42.5
+        });
+
+        t.equal(
+            decodeFrame(writes[0]).channel,
+            '1',
+            'TEXT uses the fixed internal EBCP channel'
+        );
+
+        t.equal(
+            decodeFrame(writes[1]).channel,
+            '1',
+            'NUMBER uses the fixed internal EBCP channel'
         );
 
         t.end();
@@ -138,13 +190,9 @@ tap.test(
                 EBCP_CONTRACT.maxPayloadBytes
             );
 
-        const textChannel =
-            'abcdefghijklmnop';
-
         const textSequence =
             extension.sendText({
-                TEXT: textPayload,
-                CHANNEL: textChannel
+                TEXT: textPayload
             });
 
         t.equal(
@@ -167,22 +215,22 @@ tap.test(
 
         t.equal(
             writes[1].length,
-            24,
-            'remaining EBCP bytes are sent in the second chunk'
+            9,
+            'remaining fixed-channel EBCP bytes are sent in the second chunk'
         );
 
         const expectedTextFrame =
             encodeFrame({
                 type: TEXT,
                 sequence: 1,
-                channel: textChannel,
+                channel: '1',
                 payload: textPayload
             });
 
         t.equal(
             expectedTextFrame.length,
-            EBCP_CONTRACT.maxFrameBytes,
-            'test exercises the canonical maximum EBCP frame'
+            41,
+            'maximum EasyBlox BT TEXT payload uses a 41-byte fixed-channel frame'
         );
 
         t.same(
@@ -198,8 +246,7 @@ tap.test(
 
         const numberSequence =
             extension.sendNumber({
-                NUMBER: 42.5,
-                CHANNEL: 'valor'
+                NUMBER: 42.5
             });
 
         t.equal(
@@ -219,7 +266,7 @@ tap.test(
             encodeFrame({
                 type: NUMBER,
                 sequence: 2,
-                channel: 'valor',
+                channel: '1',
                 payload: 42.5
             }),
             'NUMBER is encoded as the canonical EBCP frame'

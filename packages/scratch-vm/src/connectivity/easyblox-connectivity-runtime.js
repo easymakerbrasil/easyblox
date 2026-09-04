@@ -95,6 +95,13 @@ class EasyBloxConnectivityRuntime {
             });
         });
     }
+
+    /**
+     * Discard all currently pending message waiters.
+     */
+    clearWaiters () {
+        this._waiters = [];
+    }
 }
 
 module.exports = {

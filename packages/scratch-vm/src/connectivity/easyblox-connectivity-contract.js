@@ -2,6 +2,8 @@ const CONNECTIVITY_RESOURCES = Object.freeze({
     SOFTWARE_UART_D2_D3: 'SOFTWARE_UART_D2_D3'
 });
 
+const EASYBLOX_BT_CHANNEL = '1';
+
 const BLUETOOTH_SERIAL_CONTRACT = Object.freeze({
     modules: Object.freeze([
         'HC-05',
@@ -54,6 +56,7 @@ const EBCP_CONTRACT = Object.freeze({
 
 module.exports = {
     CONNECTIVITY_RESOURCES,
+    EASYBLOX_BT_CHANNEL,
     BLUETOOTH_SERIAL_CONTRACT,
     EBCP_CONTRACT
 };
