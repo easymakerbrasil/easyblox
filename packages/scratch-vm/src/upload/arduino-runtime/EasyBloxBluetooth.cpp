@@ -18,6 +18,8 @@ const char EASYBLOX_BT_CHANNEL[] = EASYBLOX_BT_CHANNEL_VALUE;
 
 SoftwareSerial easybloxBtSerial(2, 3);
 
+extern void easybloxUserLoop();
+
 void easybloxBtBegin() {
     easybloxBtSerial.begin(9600);
     easybloxBtSerial.listen();
@@ -341,6 +343,11 @@ void easybloxBtPoll() {
             easybloxBtPushByte(static_cast<uint8_t>(value));
         }
     }
+}
+
+void loop() {
+    easybloxBtPoll();
+    easybloxUserLoop();
 }
 
 void easybloxBtWaitText(const String &channel) {

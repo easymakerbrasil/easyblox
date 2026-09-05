@@ -3,6 +3,11 @@ const tap = require('tap');
 const ArduinoUnoGenerator =
     require('../../src/upload/arduino-uno-generator');
 
+const {
+    EASYBLOX_BT_INTERNAL_IDENTIFIERS,
+    getEasyBloxBtSupportFiles
+} = require('../../src/upload/easyblox-bt-arduino-runtime');
+
 const createIr = (
     setup = [],
     loop = []
@@ -295,6 +300,84 @@ tap.test(
             sketch,
             /easybloxBtSendAck\s*\(/,
             'ACK implementation is not exposed in the sketch'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload services EBCP continuously without exposing runtime maintenance in the pedagogical sketch',
+    t => {
+        const supportFiles =
+            getEasyBloxBtSupportFiles();
+
+        const easyBloxHeader =
+            supportFiles.find(file =>
+                file.name === 'EasyBlox.h'
+            ).content;
+
+        const bluetoothRuntime =
+            supportFiles.find(file =>
+                file.name ===
+                    'EasyBloxBluetooth.cpp'
+            ).content;
+
+        t.match(
+            easyBloxHeader,
+            /#define\s+loop\s+easybloxUserLoop/,
+            'runtime privately redirects the pedagogical Arduino loop'
+        );
+
+        t.match(
+            bluetoothRuntime,
+            /extern\s+void\s+easybloxUserLoop\s*\(\s*\)\s*;/,
+            'runtime can invoke the redirected pedagogical loop'
+        );
+
+        t.match(
+            bluetoothRuntime,
+            /void\s+loop\s*\(\s*\)\s*\{[\s\S]*?easybloxBtPoll\s*\(\s*\)\s*;[\s\S]*?easybloxUserLoop\s*\(\s*\)\s*;[\s\S]*?\}/,
+            'runtime-owned Arduino loop services EBCP before running the pedagogical loop'
+        );
+
+        t.ok(
+            EASYBLOX_BT_INTERNAL_IDENTIFIERS
+                .includes(
+                    'easybloxUserLoop'
+                ),
+            'redirected loop identifier is reserved from student symbols'
+        );
+
+        const generator =
+            new ArduinoUnoGenerator();
+
+        const sketch =
+            generator.generate(
+                createIr([
+                    {
+                        type:
+                            'EasyBloxBtInit'
+                    }
+                ])
+            );
+
+        t.match(
+            sketch,
+            /void\s+loop\s*\(\s*\)/,
+            'pedagogical preview keeps the canonical Arduino loop'
+        );
+
+        t.notMatch(
+            sketch,
+            /easybloxUserLoop/,
+            'runtime loop redirection stays hidden from the pedagogical preview'
+        );
+
+        t.notMatch(
+            sketch,
+            /easybloxBtPoll\s*\(/,
+            'runtime poller stays hidden from the pedagogical preview'
         );
 
         t.end();

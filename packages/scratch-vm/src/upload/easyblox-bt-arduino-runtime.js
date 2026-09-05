@@ -48,7 +48,8 @@ const EASYBLOX_BT_INTERNAL_IDENTIFIERS = Object.freeze([
     'easybloxBtPushByte',
     'easybloxBtPoll',
     'easybloxBtWaitText',
-    'easybloxBtWaitNumber'
+    'easybloxBtWaitNumber',
+    'easybloxUserLoop'
 ]);
 
 const runtimeFileNames = [
