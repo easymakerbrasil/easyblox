@@ -333,3 +333,35 @@ test('Bluetooth Serial Transport can reconnect after an unexpected port close', 
         'COM12'
     );
 });
+
+test('Bluetooth Serial Transport notifies an unexpected physical disconnect', async () => {
+    const adapter =
+        createFakeAdapter();
+
+    const transport =
+        new BluetoothSerialTransport({
+            serialAdapter: adapter
+        });
+
+    const disconnects = [];
+
+    transport.onDisconnect(() => {
+        disconnects.push(
+            'disconnected'
+        );
+    });
+
+    await transport.connect({
+        deviceId: 'COM12'
+    });
+
+    adapter.createdPorts[0].isOpen = false;
+    adapter.createdPorts[0].emit('close');
+
+    assert.deepEqual(
+        disconnects,
+        [
+            'disconnected'
+        ]
+    );
+});

@@ -1,15 +1,28 @@
 const http = require('node:http');
 const {randomUUID} = require('node:crypto');
+const {WebSocketServer} = require('ws');
 
+const BluetoothSerialTransport =
+    require('./bluetooth-serial-transport');
+const BluetoothSocketSession =
+    require('./bluetooth-socket-session');
 const BuildService = require('./build-service');
 const HardwareServiceError = require('./hardware-service-error');
 const UploadService = require('./upload-service');
 const StageFirmwareManager =
     require('./stage-firmware-manager');
 
+const SerialPortAdapter =
+    require('./serial-port-adapter');
+
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8602;
 const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
+
+const BLUETOOTH_WEBSOCKET_PATH =
+    '/v1/bluetooth';
+const BLUETOOTH_WEBSOCKET_PROTOCOL =
+    'easyblox-controller-v1';
 
 const DEFAULT_ALLOWED_ORIGINS = Object.freeze([
     'http://localhost:8601',
@@ -80,6 +93,19 @@ class HardwareHttpServer {
                     this._uploadService
             });
 
+        this._bluetoothTransportFactory =
+            options.bluetoothTransportFactory ||
+            (() =>
+                new BluetoothSerialTransport({
+                    serialAdapter:
+                        new SerialPortAdapter()
+                }));
+
+        this._bluetoothWebSocketServer =
+            new WebSocketServer({
+                noServer: true
+            });
+
         this._builds = new Map();
 
         this._server = http.createServer(
@@ -96,6 +122,21 @@ class HardwareHttpServer {
                         request.headers.origin
                     );
                 });
+            }
+        );
+
+        this._server.on(
+            'upgrade',
+            (
+                request,
+                socket,
+                head
+            ) => {
+                this._handleUpgrade(
+                    request,
+                    socket,
+                    head
+                );
             }
         );
     }
@@ -184,6 +225,149 @@ class HardwareHttpServer {
                 );
             }
         );
+    }
+
+    _handleUpgrade (
+        request,
+        socket,
+        head
+    ) {
+        const origin =
+            request.headers.origin ||
+            null;
+
+        if (
+            !this._isLoopbackHost(
+                request.headers.host
+            )
+        ) {
+            this._rejectUpgrade(
+                socket,
+                403,
+                'Forbidden'
+            );
+
+            return;
+        }
+
+        if (
+            !this._isAllowedOrigin(
+                origin
+            )
+        ) {
+            this._rejectUpgrade(
+                socket,
+                403,
+                'Forbidden'
+            );
+
+            return;
+        }
+
+        let url;
+
+        try {
+            url =
+                new URL(
+                    request.url,
+                    `http://${DEFAULT_HOST}`
+                );
+        } catch (error) {
+            this._rejectUpgrade(
+                socket,
+                400,
+                'Bad Request'
+            );
+
+            return;
+        }
+
+        if (
+            url.pathname !==
+                BLUETOOTH_WEBSOCKET_PATH
+        ) {
+            this._rejectUpgrade(
+                socket,
+                404,
+                'Not Found'
+            );
+
+            return;
+        }
+
+        const deviceId =
+            url.searchParams
+                .get('deviceId');
+
+        if (
+            typeof deviceId !== 'string' ||
+            deviceId.trim().length === 0
+        ) {
+            this._rejectUpgrade(
+                socket,
+                400,
+                'Bad Request'
+            );
+
+            return;
+        }
+
+        if (
+            !this._hasBluetoothWebSocketProtocol(
+                request
+            )
+        ) {
+            this._rejectUpgrade(
+                socket,
+                426,
+                'Upgrade Required'
+            );
+
+            return;
+        }
+
+        this._bluetoothWebSocketServer
+            .handleUpgrade(
+                request,
+                socket,
+                head,
+                webSocket => {
+                    let transport;
+                    let session;
+
+                    try {
+                        transport =
+                            this
+                                ._bluetoothTransportFactory();
+
+                        session =
+                            new BluetoothSocketSession({
+                                socket:
+                                    webSocket,
+                                transport
+                            });
+                    } catch (error) {
+                        webSocket.close(
+                            1011,
+                            'Bluetooth service error'
+                        );
+
+                        return;
+                    }
+
+                    Promise.resolve(
+                        session.start({
+                            deviceId:
+                                deviceId.trim()
+                        })
+                    ).catch(() => {
+                        webSocket.close(
+                            1011,
+                            'Bluetooth connection failed'
+                        );
+                    });
+                }
+            );
     }
 
     async _handleRequest (
@@ -566,6 +750,28 @@ class HardwareHttpServer {
         }
     }
 
+    _hasBluetoothWebSocketProtocol (
+        request
+    ) {
+        const header =
+            request.headers[
+                'sec-websocket-protocol'
+            ];
+
+        if (typeof header !== 'string') {
+            return false;
+        }
+
+        return header
+            .split(',')
+            .map(protocol =>
+                protocol.trim()
+            )
+            .includes(
+                BLUETOOTH_WEBSOCKET_PROTOCOL
+            );
+    }
+
     _isAllowedOrigin (origin) {
         return (
             !origin ||
@@ -625,6 +831,29 @@ class HardwareHttpServer {
         response.setHeader(
             'Access-Control-Max-Age',
             '600'
+        );
+    }
+
+    _rejectUpgrade (
+        socket,
+        statusCode,
+        statusText
+    ) {
+        if (
+            !socket ||
+            socket.destroyed
+        ) {
+            return;
+        }
+
+        socket.end(
+            [
+                `HTTP/1.1 ${statusCode} ${statusText}`,
+                'Connection: close',
+                'Content-Length: 0',
+                '',
+                ''
+            ].join('\r\n')
         );
     }
 

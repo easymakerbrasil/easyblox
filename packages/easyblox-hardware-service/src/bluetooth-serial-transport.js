@@ -18,6 +18,7 @@ class BluetoothSerialTransport {
         this._state = 'disconnected';
         this._dataListeners = [];
         this._errorListeners = [];
+        this._disconnectListeners = [];
     }
 
     async listDevices () {
@@ -52,6 +53,16 @@ class BluetoothSerialTransport {
         }
 
         this._errorListeners.push(listener);
+    }
+
+    onDisconnect (listener) {
+        if (typeof listener !== 'function') {
+            throw new Error(
+                'Bluetooth serial disconnect listener must be a function'
+            );
+        }
+
+        this._disconnectListeners.push(listener);
     }
 
     async connect ({deviceId}) {
@@ -238,6 +249,12 @@ class BluetoothSerialTransport {
         this._port = null;
         this._portHandlers = null;
         this._state = 'disconnected';
+
+        for (const listener of [
+            ...this._disconnectListeners
+        ]) {
+            listener();
+        }
     }
 
     _detachPortListeners (
