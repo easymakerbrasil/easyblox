@@ -16,6 +16,7 @@
   "author": "Scratch Foundation",
   "workspaces": [
   "packages/easyblox-hardware-service",
+  "packages/easyblox-controller-core",
   "packages/task-herder",
     "packages/scratch-storage",
     "packages/scratch-svg-renderer",
