@@ -12,10 +12,15 @@ const {
     ControllerEvents
 } = require('./controller-events');
 
+const {
+    ControllerConnectivityClient
+} = require('./controller-connectivity-client');
+
 module.exports = {
     ControllerModel,
     CONTROLLER_COMPONENT_TYPES,
     ControllerState,
     CONTROLLER_MODES,
-    ControllerEvents
+    ControllerEvents,
+    ControllerConnectivityClient
 };

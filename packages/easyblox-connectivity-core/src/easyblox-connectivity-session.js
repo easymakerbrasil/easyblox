@@ -24,6 +24,24 @@ class EasyBloxConnectivitySession {
         this._write = write;
         this._parser = new EasyBloxConnectivityParser();
         this._nextOutgoingSequence = 1;
+        this._sessionReadyResolver = null;
+    }
+
+    /**
+     * Initiate an EBCP session handshake.
+     * Resolves when the peer replies with HELLO_ACK.
+     * @returns {Promise<void>} resolves when the session is established
+     */
+    start () {
+        const ready = new Promise(resolve => {
+            this._sessionReadyResolver = resolve;
+        });
+
+        this._writeControl(
+            EBCP_CONTROL_TYPES.HELLO
+        );
+
+        return ready;
     }
 
     /**
@@ -100,6 +118,13 @@ class EasyBloxConnectivitySession {
 
         if (frame.type === EBCP_CONTROL_TYPES.HELLO_ACK) {
             this._runtime.receive(frame);
+
+            if (this._sessionReadyResolver) {
+                const resolve = this._sessionReadyResolver;
+                this._sessionReadyResolver = null;
+                resolve();
+            }
+
             return;
         }
 
