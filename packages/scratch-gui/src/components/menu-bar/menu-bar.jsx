@@ -48,6 +48,10 @@ import {
 
 import createEasyBloxProjectFileService from '../../lib/easyblox-project-file-service';
 import downloadBlob from '../../lib/download-blob';
+import {
+    isControllerOpen,
+    toggleController
+} from '../../reducers/controller-desktop';
 import {projectTitleInitialState} from '../../reducers/project-title';
 import {PLATFORM} from '../../lib/platform';
 
@@ -468,6 +472,23 @@ class MenuBar extends React.Component {
                 </div>
 
                                <div className={styles.rightControlsGroup}>
+                    <button
+                        aria-label="Controlador"
+                        aria-pressed={this.props.controllerOpen}
+                        className={classNames(
+                            styles.menuBarItem,
+                            styles.controllerButton,
+                            {
+                                [styles.controllerButtonActive]:
+                                    this.props.controllerOpen
+                            }
+                        )}
+                        title="Controlador"
+                        type="button"
+                        onClick={this.props.onToggleController}
+                    >
+                        Controlador
+                    </button>
                     <div className={styles.hardwareControlGroup}>
                         <HardwareControls
                             connectionState={this.props.connectionState}
@@ -576,6 +597,8 @@ MenuBar.propTypes = {
     onShare: PropTypes.func,
     onStartSelectingFileUpload: PropTypes.func,
     onToggleLoginOpen: PropTypes.func,
+    controllerOpen: PropTypes.bool,
+    onToggleController: PropTypes.func,
 
     connectionState: PropTypes.oneOf([
         'disconnected',
@@ -621,6 +644,7 @@ MenuBar.propTypes = {
 MenuBar.defaultProps = {
     logo: scratchLogo,
     onShare: () => {},
+    controllerOpen: false,
     programMode: 'stage',
     connectionState: 'disconnected',
     onSelectBoard: () => {},
@@ -645,6 +669,9 @@ const mapStateToProps = (state, ownProps) => {
         isShowingProject: getIsShowingProject(loadingState),
         loginMenuOpen: loginMenuOpen(state),
         projectTitle: state.scratchGui.projectTitle,
+        controllerOpen:
+            ownProps.controllerOpen ??
+            isControllerOpen(state),
         username: ownProps.username ?? (user ? user.username : null),
         avatarBadge: ownProps.avatarBadge ?? (user ? user.membership_avatar_badge : null),
         userIsEducator: permissions && permissions.educator,
@@ -685,7 +712,10 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
     onClickRemix: () => dispatch(remixProject()),
     onRequestCloseLogin: () => dispatch(closeLoginMenu()),
     onSeeCommunity: ownProps.onSeeCommunity ?? (() => dispatch(setPlayer(true))),
-    onSetTimeTravelMode: mode => dispatch(setTimeTravel(mode))
+    onSetTimeTravelMode: mode => dispatch(setTimeTravel(mode)),
+    onToggleController:
+        ownProps.onToggleController ??
+        (() => dispatch(toggleController()))
 });
 
 export default compose(

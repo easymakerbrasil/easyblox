@@ -4,6 +4,7 @@ import assetDragReducer, {assetDragInitialState} from './asset-drag';
 import cardsReducer, {cardsInitialState} from './cards';
 import colorPickerReducer, {colorPickerInitialState} from './color-picker';
 import connectionModalReducer, {connectionModalInitialState} from './connection-modal';
+import controllerDesktopReducer, {controllerDesktopInitialState} from './controller-desktop';
 import customProceduresReducer, {customProceduresInitialState} from './custom-procedures';
 import blockDragReducer, {blockDragInitialState} from './block-drag';
 import dynamicAssetsReducer, {dynamicAssetsInitialState} from './dynamic-assets';
@@ -45,6 +46,7 @@ const buildInitialState = (config: GUIConfig) => ({
     colorPicker: colorPickerInitialState,
     config,
     connectionModal: connectionModalInitialState,
+    controllerDesktop: controllerDesktopInitialState,
     customProcedures: customProceduresInitialState,
     dynamicAssets: dynamicAssetsInitialState,
     editorTab: editorTabInitialState,
@@ -154,6 +156,7 @@ const guiReducer = combineReducers({
     cards: cardsReducer,
     colorPicker: colorPickerReducer,
     connectionModal: connectionModalReducer,
+    controllerDesktop: controllerDesktopReducer,
     config: configReducer,
     dynamicAssets: dynamicAssetsReducer,
     customProcedures: customProceduresReducer,

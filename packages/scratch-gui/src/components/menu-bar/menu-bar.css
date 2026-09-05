@@ -267,6 +267,40 @@
     padding-right: 0.25rem;
 }
 
+.controller-button {
+    flex-shrink: 0;
+
+    height: 2rem;
+    margin-right: 0.4rem;
+    padding: 0 0.7rem;
+
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 0.4rem;
+
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.controller-button:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+.controller-button-active {
+    background: #ffc800;
+    border-color: #ffc800;
+    color: #282828;
+}
+
+.controller-button-active:hover {
+    background: #ffc800;
+    border-color: #ffc800;
+}
+
 .settings-control {
     flex-shrink: 0;
     padding-left: 0.25rem;

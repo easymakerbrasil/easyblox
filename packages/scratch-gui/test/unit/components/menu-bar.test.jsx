@@ -30,6 +30,9 @@ describe('MenuBar Component', () => {
             settings: {
                 colorMode: DEFAULT_MODE
             },
+            controllerDesktop: {
+                isOpen: false
+            },
             timeTravel: {
                 year: 'NOW'
             },
@@ -217,8 +220,97 @@ describe('MenuBar Component', () => {
             const onClickAbout = jest.fn();
             const {container} = renderWithIntl(getComponent({onClickAbout}));
             const button = container.querySelector('button[aria-label="About menu"]');
-    
+
             expect(onClickAbout).toHaveBeenCalledTimes(0);
+        });
+    });
+
+    describe('EasyBlox Controller integration', () => {
+        test('shows the Controller action in the top bar', () => {
+            const {getByRole} =
+                renderWithIntl(
+                    getComponent()
+                );
+
+            expect(
+                getByRole(
+                    'button',
+                    {
+                        name:
+                            'Controlador'
+                    }
+                )
+            ).toBeTruthy();
+        });
+
+        test('clicking Controller delegates window toggling to the GUI state layer', () => {
+            const onToggleController =
+                jest.fn();
+
+            const {getByRole} =
+                renderWithIntl(
+                    getComponent({
+                        onToggleController
+                    })
+                );
+
+            fireEvent.click(
+                getByRole(
+                    'button',
+                    {
+                        name:
+                            'Controlador'
+                    }
+                )
+            );
+
+            expect(
+                onToggleController
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        test('Controller action reflects open state and stays before the hardware controls', () => {
+            const {getByRole} =
+                renderWithIntl(
+                    getComponent({
+                        controllerOpen:
+                            true
+                    })
+                );
+
+            const controllerButton =
+                getByRole(
+                    'button',
+                    {
+                        name:
+                            'Controlador'
+                    }
+                );
+
+            const boardButton =
+                getByRole(
+                    'button',
+                    {
+                        name:
+                            'Selecionar placa'
+                    }
+                );
+
+            expect(
+                controllerButton
+                    .getAttribute(
+                        'aria-pressed'
+                    )
+            ).toBe('true');
+
+            expect(
+                controllerButton
+                    .compareDocumentPosition(
+                        boardButton
+                    ) &
+                    Node
+                        .DOCUMENT_POSITION_FOLLOWING
+            ).toBeTruthy();
         });
     });
 });
