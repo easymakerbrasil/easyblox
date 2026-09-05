@@ -435,5 +435,263 @@ describe(
                 onRequestClose
             ).toHaveBeenCalledTimes(1);
         });
+        test('opens a Controller module from the hub and returns to the hub', () => {
+            render(
+                <ControllerDesktopWindow
+                    isOpen
+                    onRequestClose={jest.fn()}
+                />
+            );
+
+            fireEvent.click(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Abrir Joystick'
+                    }
+                )
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Joystick'
+                    }
+                )
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Voltar aos controles'
+                    }
+                )
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByRole(
+                    'button',
+                    {
+                        name:
+                            'Abrir Gamepad'
+                    }
+                )
+            ).not.toBeInTheDocument();
+
+            fireEvent.click(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Voltar aos controles'
+                    }
+                )
+            );
+
+            expect(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Abrir Gamepad'
+                    }
+                )
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByRole(
+                    'heading',
+                    {
+                        name:
+                            'Joystick'
+                    }
+                )
+            ).not.toBeInTheDocument();
+        });
+
+        test('supports navigation to every approved Controller v1 module', () => {
+            const moduleNames = [
+                'Gamepad',
+                'Joystick',
+                'Slider',
+                'Botão',
+                'Chave',
+                'Indicador',
+                'Serial'
+            ];
+
+            const {unmount} =
+                render(
+                    <ControllerDesktopWindow
+                        isOpen
+                        onRequestClose={jest.fn()}
+                    />
+                );
+
+            unmount();
+
+            for (
+                const moduleName of
+                    moduleNames
+            ) {
+                const view =
+                    render(
+                        <ControllerDesktopWindow
+                            isOpen
+                            onRequestClose={jest.fn()}
+                        />
+                    );
+
+                fireEvent.click(
+                    screen.getByRole(
+                        'button',
+                        {
+                            name:
+                                `Abrir ${moduleName}`
+                        }
+                    )
+                );
+
+                expect(
+                    screen.getByRole(
+                        'heading',
+                        {
+                            name:
+                                moduleName
+                        }
+                    )
+                ).toBeInTheDocument();
+
+                view.unmount();
+            }
+        });
+
+        test('keeps the floating window position while navigating between hub and module', () => {
+            Object.defineProperty(
+                window,
+                'innerWidth',
+                {
+                    configurable: true,
+                    value: 1200
+                }
+            );
+
+            Object.defineProperty(
+                window,
+                'innerHeight',
+                {
+                    configurable: true,
+                    value: 800
+                }
+            );
+
+            render(
+                <ControllerDesktopWindow
+                    isOpen
+                    onRequestClose={jest.fn()}
+                />
+            );
+
+            const dialog =
+                screen.getByRole(
+                    'dialog',
+                    {
+                        name:
+                            'Controlador EasyBlox'
+                    }
+                );
+
+            dialog.getBoundingClientRect =
+                () => ({
+                    bottom: 350,
+                    height: 270,
+                    left: 360,
+                    right: 840,
+                    top: 80,
+                    width: 480,
+                    x: 360,
+                    y: 80,
+                    toJSON: () => ({})
+                });
+
+            const dragHandle =
+                screen
+                    .getByText(
+                        'Controlador'
+                    )
+                    .closest(
+                        'header'
+                    );
+
+            fireEvent.mouseDown(
+                dragHandle,
+                {
+                    button: 0,
+                    clientX: 380,
+                    clientY: 100
+                }
+            );
+
+            fireEvent.mouseMove(
+                window,
+                {
+                    clientX: 480,
+                    clientY: 180
+                }
+            );
+
+            fireEvent.mouseUp(
+                window
+            );
+
+            expect(
+                dialog.style.left
+            ).toBe('460px');
+
+            expect(
+                dialog.style.top
+            ).toBe('160px');
+
+            fireEvent.click(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Abrir Gamepad'
+                    }
+                )
+            );
+
+            expect(
+                dialog.style.left
+            ).toBe('460px');
+
+            expect(
+                dialog.style.top
+            ).toBe('160px');
+
+            fireEvent.click(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Voltar aos controles'
+                    }
+                )
+            );
+
+            expect(
+                dialog.style.left
+            ).toBe('460px');
+
+            expect(
+                dialog.style.top
+            ).toBe('160px');
+        });
     }
 );

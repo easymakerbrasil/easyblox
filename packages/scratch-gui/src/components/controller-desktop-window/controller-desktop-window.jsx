@@ -36,6 +36,11 @@ const ControllerDesktopWindow = ({
         setDragState
     ] = React.useState(null);
 
+    const [
+        activeModule,
+        setActiveModule
+    ] = React.useState(null);
+
     React.useEffect(
         () => {
             if (!dragState) {
@@ -186,30 +191,75 @@ const ControllerDesktopWindow = ({
             </header>
 
             <div className={styles.content}>
-                <div className={styles.introduction}>
-                    <strong className={styles.introductionTitle}>
-                        Controles
-                    </strong>
-                    <span className={styles.introductionText}>
-                        Escolha uma função para controlar seu projeto.
-                    </span>
-                </div>
+                {activeModule ? (
+                    <div className={styles.moduleView}>
+                        <div className={styles.moduleViewHeader}>
+                            <button
+                                aria-label="Voltar aos controles"
+                                className={styles.backButton}
+                                type="button"
+                                onClick={() => {
+                                    setActiveModule(null);
+                                }}
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    className={styles.backArrow}
+                                >
+                                    ‹
+                                </span>
+                                <span>
+                                    Voltar
+                                </span>
+                            </button>
 
-                <div className={styles.moduleGrid}>
-                    {CONTROLLER_MODULES.map(moduleName => (
-                        <button
-                            aria-label={`Abrir ${moduleName}`}
-                            className={styles.moduleCard}
-                            key={moduleName}
-                            type="button"
-                        >
-                            <span className={styles.moduleAccent} />
-                            <span className={styles.moduleName}>
-                                {moduleName}
+                            <div className={styles.moduleHeadingGroup}>
+                                <span className={styles.moduleHeadingAccent} />
+                                <h3 className={styles.moduleHeading}>
+                                    {activeModule}
+                                </h3>
+                            </div>
+                        </div>
+
+                        <div className={styles.moduleWorkspace}>
+                            <p className={styles.modulePlaceholder}>
+                                Configure este controle para usar no seu projeto.
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <div className={styles.introduction}>
+                            <strong className={styles.introductionTitle}>
+                                Controles
+                            </strong>
+                            <span className={styles.introductionText}>
+                                Escolha uma função para controlar seu projeto.
                             </span>
-                        </button>
-                    ))}
-                </div>
+                        </div>
+
+                        <div className={styles.moduleGrid}>
+                            {CONTROLLER_MODULES.map(moduleName => (
+                                <button
+                                    aria-label={`Abrir ${moduleName}`}
+                                    className={styles.moduleCard}
+                                    key={moduleName}
+                                    type="button"
+                                    onClick={() => {
+                                        setActiveModule(
+                                            moduleName
+                                        );
+                                    }}
+                                >
+                                    <span className={styles.moduleAccent} />
+                                    <span className={styles.moduleName}>
+                                        {moduleName}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
             </div>
         </section>
     );
