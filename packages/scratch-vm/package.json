@@ -64,6 +64,7 @@
     "allow-incomplete-coverage": true
   },
   "dependencies": {
+    "@easymaker/easyblox-connectivity-core": "0.1.0",
     "@scratch/scratch-render": "15.0.1",
     "@scratch/scratch-storage": "15.0.1",
     "@scratch/scratch-svg-renderer": "15.0.1",

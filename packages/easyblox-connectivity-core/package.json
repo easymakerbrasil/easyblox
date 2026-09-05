@@ -1,0 +1,15 @@
+{
+  "name": "@easymaker/easyblox-connectivity-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Transport-neutral EBCP protocol, runtime, and session infrastructure for EasyBlox.",
+  "license": "AGPL-3.0-only",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "node --check src/index.js && node --check src/ebcp-contract.js && node --check src/easyblox-connectivity-protocol.js && node --check src/easyblox-connectivity-runtime.js && node --check src/easyblox-connectivity-session.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "buffer": "6.0.3"
+  }
+}

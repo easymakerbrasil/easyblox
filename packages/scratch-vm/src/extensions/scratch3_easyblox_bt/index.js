@@ -1,6 +1,7 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockExecutionMode = require('../../extension-support/block-execution-mode');
 const BlockType = require('../../extension-support/block-type');
+const Cast = require('../../util/cast');
 
 const {
     EASYBLOX_BT_CHANNEL,
@@ -340,7 +341,7 @@ class Scratch3EasyBloxBtBlocks {
         return this._connectivitySession.send(
             NUMBER,
             EASYBLOX_BT_CHANNEL,
-            args.NUMBER
+            Cast.toNumber(args.NUMBER)
         );
     }
 

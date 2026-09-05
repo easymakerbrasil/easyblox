@@ -150,6 +150,63 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox BT Stage casts Scratch numeric arguments before EBCP encoding',
+    async t => {
+        const writes = [];
+
+        const peripheral = {
+            onBluetoothSerialData: () => {},
+
+            initBluetoothSerial: () =>
+                Promise.resolve(0x40),
+
+            writeBluetoothSerial: data => {
+                writes.push(
+                    Buffer.from(data)
+                );
+
+                return 0x41;
+            }
+        };
+
+        const runtime = {
+            getPeripheralExtensionByCapability: () =>
+                peripheral
+        };
+
+        const extension =
+            new Scratch3EasyBloxBtBlocks(runtime);
+
+        await extension.init();
+
+        const sequence =
+            extension.sendNumber({
+                NUMBER: '12.5'
+            });
+
+        t.equal(
+            sequence,
+            1,
+            'Scratch numeric string is accepted as an outgoing NUMBER'
+        );
+
+        t.equal(
+            writes.length,
+            1,
+            'numeric argument produces one EBCP NUMBER frame'
+        );
+
+        t.equal(
+            decodeFrame(writes[0]).payload,
+            12.5,
+            'Scratch numeric string is normalized to a JavaScript number'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
     'EasyBlox BT Stage encodes and fragments outgoing TEXT and NUMBER frames',
     async t => {
         const writes = [];
