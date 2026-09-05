@@ -100,6 +100,60 @@ describe(
             });
         });
 
+        test('lists Bluetooth devices through the canonical local service endpoint', async () => {
+            const fetchImpl =
+                jest.fn()
+                    .mockResolvedValue(
+                        createResponse({
+                            payload: {
+                                devices: [
+                                    {
+                                        id:
+                                            'COM12',
+                                        label:
+                                            'HC-06'
+                                    }
+                                ]
+                            }
+                        })
+                    );
+
+            const client =
+                new EasyBloxHardwareServiceClient({
+                    fetchImpl
+                });
+
+            const result =
+                await client
+                    .listBluetoothDevices();
+
+            expect(result)
+                .toEqual({
+                    devices: [
+                        {
+                            id:
+                                'COM12',
+                            label:
+                                'HC-06'
+                        }
+                    ]
+                });
+
+            expect(fetchImpl)
+                .toHaveBeenCalledWith(
+                    'http://127.0.0.1:8602/v1/bluetooth/devices',
+                    expect.objectContaining({
+                        method:
+                            'GET',
+                        headers:
+                            expect.objectContaining({
+                                'X-EasyBlox-Client':
+                                    'scratch-gui'
+                            })
+                    })
+                );
+        });
+
         test('preserves semantic service errors without exposing transport details', async () => {
             const fetchImpl =
                 jest.fn()

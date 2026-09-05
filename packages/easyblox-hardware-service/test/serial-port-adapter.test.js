@@ -37,7 +37,8 @@ test('Serial Port Adapter lists available ports with a best-effort friendly labe
         },
         {
             path: 'COM12',
-            friendlyName: 'EasyMaker-37'
+            friendlyName: 'Serial Padrão por link Bluetooth',
+            pnpId: 'BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}'
         },
         {
             path: 'COM13',
@@ -62,7 +63,8 @@ test('Serial Port Adapter lists available ports with a best-effort friendly labe
             },
             {
                 path: 'COM12',
-                label: 'EasyMaker-37'
+                label: 'Serial Padrão por link Bluetooth',
+                pnpId: 'BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}'
             },
             {
                 path: 'COM13',

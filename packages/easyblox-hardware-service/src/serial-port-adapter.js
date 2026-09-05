@@ -14,7 +14,16 @@ class SerialPortAdapter {
             label:
                 port.friendlyName ||
                 port.manufacturer ||
-                port.path
+                port.path,
+            ...(
+                typeof port.pnpId === 'string' &&
+                port.pnpId.length > 0 ?
+                    {
+                        pnpId:
+                            port.pnpId
+                    } :
+                    {}
+            )
         }));
     }
 

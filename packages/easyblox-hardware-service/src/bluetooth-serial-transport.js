@@ -1,5 +1,44 @@
 const BLUETOOTH_BAUD_RATE = 9600;
 
+const isBluetoothSerialCandidate =
+    port => {
+        if (!port) {
+            return false;
+        }
+
+        const pnpId =
+            typeof port.pnpId === 'string' ?
+                port.pnpId :
+                '';
+
+        if (
+            /^BTH(?:ENUM|MODEM)\\/i.test(
+                pnpId
+            )
+        ) {
+            return true;
+        }
+
+        const label =
+            typeof port.label === 'string' ?
+                port.label :
+                '';
+
+        if (
+            /bluetooth/i.test(
+                label
+            )
+        ) {
+            return true;
+        }
+
+        return (
+            /\bHC[\s-]?0[56]\b/i.test(
+                label
+            )
+        );
+    };
+
 class BluetoothSerialTransport {
     constructor ({serialAdapter}) {
         if (
@@ -25,10 +64,17 @@ class BluetoothSerialTransport {
         const ports =
             await this._serialAdapter.list();
 
-        return ports.map(port => ({
-            id: port.path,
-            label: port.label || port.path
-        }));
+        return ports
+            .filter(
+                isBluetoothSerialCandidate
+            )
+            .map(port => ({
+                id:
+                    port.path,
+                label:
+                    port.label ||
+                    port.path
+            }));
     }
 
     getState () {

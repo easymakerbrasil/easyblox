@@ -174,6 +174,81 @@ test(
 );
 
 test(
+    'HTTP service exposes Bluetooth devices without public COM labels',
+    async () => {
+        const {
+            server,
+            port
+        } = await startServer({
+            bluetoothTransportFactory:
+                () => ({
+                    listDevices:
+                        async () => [
+                            {
+                                id:
+                                    'COM12',
+                                label:
+                                    'Serial Padrão por link Bluetooth (COM12)'
+                            },
+                            {
+                                id:
+                                    'COM13',
+                                label:
+                                    'HC-06'
+                            }
+                        ]
+                })
+        });
+
+        try {
+            const response =
+                await requestJson({
+                    port,
+                    path:
+                        '/v1/bluetooth/devices'
+                });
+
+            assert.equal(
+                response.statusCode,
+                200
+            );
+
+            assert.deepEqual(
+                response.body,
+                {
+                    devices: [
+                        {
+                            id:
+                                'COM12',
+                            label:
+                                'Serial Padrão por link Bluetooth'
+                        },
+                        {
+                            id:
+                                'COM13',
+                            label:
+                                'HC-06'
+                        }
+                    ]
+                }
+            );
+
+            assert.equal(
+                response.body.devices.some(
+                    device =>
+                        /COM\d+/i.test(
+                            device.label
+                        )
+                ),
+                false
+            );
+        } finally {
+            await server.close();
+        }
+    }
+);
+
+test(
     'HTTP service rejects browser requests from an unapproved origin',
     async () => {
         const {

@@ -37,12 +37,26 @@ class FakeSerialPort extends EventEmitter {
 const createFakeAdapter = () => {
     const ports = [
         {
+            path: 'COM1',
+            label: 'Porta de comunicação'
+        },
+        {
             path: 'COM11',
-            label: 'Arduino Uno'
+            label: 'USB-SERIAL CH340',
+            pnpId: 'USB\\VID_1A86&PID_7523'
         },
         {
             path: 'COM12',
-            label: 'EasyMaker-37'
+            label: 'Dispositivo serial',
+            pnpId: 'BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}'
+        },
+        {
+            path: 'COM13',
+            label: 'HC-06'
+        },
+        {
+            path: 'COM14',
+            label: 'Standard Serial over Bluetooth link'
         }
     ];
 
@@ -69,7 +83,7 @@ const createFakeAdapter = () => {
     };
 };
 
-test('Bluetooth Serial Transport lists serial devices without selecting one automatically', async () => {
+test('Bluetooth Serial Transport lists only Bluetooth serial candidates without selecting one automatically', async () => {
     const adapter =
         createFakeAdapter();
 
@@ -82,12 +96,16 @@ test('Bluetooth Serial Transport lists serial devices without selecting one auto
         await transport.listDevices(),
         [
             {
-                id: 'COM11',
-                label: 'Arduino Uno'
+                id: 'COM12',
+                label: 'Dispositivo serial'
             },
             {
-                id: 'COM12',
-                label: 'EasyMaker-37'
+                id: 'COM13',
+                label: 'HC-06'
+            },
+            {
+                id: 'COM14',
+                label: 'Standard Serial over Bluetooth link'
             }
         ]
     );

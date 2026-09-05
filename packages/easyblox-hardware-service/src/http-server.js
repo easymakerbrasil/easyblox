@@ -29,6 +29,35 @@ const DEFAULT_ALLOWED_ORIGINS = Object.freeze([
     'http://127.0.0.1:8601'
 ]);
 
+const sanitizeBluetoothDeviceLabel =
+    label => {
+        const source =
+            typeof label === 'string' ?
+                label :
+                '';
+
+        const sanitized =
+            source
+                .replace(
+                    /\(\s*COM\s*\d+\s*\)/gi,
+                    ''
+                )
+                .replace(
+                    /\bCOM\s*\d+\b/gi,
+                    ''
+                )
+                .replace(
+                    /\s{2,}/g,
+                    ' '
+                )
+                .trim();
+
+        return (
+            sanitized ||
+            'Dispositivo Bluetooth'
+        );
+    };
+
 const statusForErrorCode = code => {
     switch (code) {
     case 'INVALID_REQUEST':
@@ -440,6 +469,18 @@ class HardwareHttpServer {
         );
 
         if (
+            request.method === 'GET' &&
+            url.pathname ===
+                '/v1/bluetooth/devices'
+        ) {
+            await this._handleBluetoothDevices(
+                response
+            );
+
+            return;
+        }
+
+        if (
             request.method === 'POST' &&
             url.pathname === '/v1/build'
         ) {
@@ -534,6 +575,162 @@ class HardwareHttpServer {
                 );
             }
         }
+    }
+
+    async _handleBluetoothDevices (
+        response
+    ) {
+        let transport;
+
+        try {
+            transport =
+                this
+                    ._bluetoothTransportFactory();
+        } catch (error) {
+            throw new HardwareServiceError(
+                'PORT_DISCOVERY_FAILED',
+                'Bluetooth device discovery failed',
+                {
+                    cause: error
+                }
+            );
+        }
+
+        if (
+            !transport ||
+            typeof transport.listDevices !==
+                'function'
+        ) {
+            throw new HardwareServiceError(
+                'PORT_DISCOVERY_FAILED',
+                'Bluetooth device discovery failed'
+            );
+        }
+
+        let devices;
+
+        try {
+            devices =
+                await transport
+                    .listDevices();
+        } catch (error) {
+            throw new HardwareServiceError(
+                'PORT_DISCOVERY_FAILED',
+                'Bluetooth device discovery failed',
+                {
+                    cause: error
+                }
+            );
+        }
+
+        const publicDevices =
+            Array.isArray(devices) ?
+                devices
+                    .filter(device =>
+                        device &&
+                        typeof device.id ===
+                            'string' &&
+                        device.id
+                            .trim()
+                            .length > 0
+                    )
+                    .map(device => ({
+                        id:
+                            device.id
+                                .trim(),
+                        label:
+                            sanitizeBluetoothDeviceLabel(
+                                device.label
+                            )
+                    })) :
+                [];
+
+        this._sendJson(
+            response,
+            200,
+            {
+                devices:
+                    publicDevices
+            }
+        );
+    }
+
+    async _handleBluetoothDevices (
+        response
+    ) {
+        let transport;
+
+        try {
+            transport =
+                this
+                    ._bluetoothTransportFactory();
+        } catch (error) {
+            throw new HardwareServiceError(
+                'PORT_DISCOVERY_FAILED',
+                'Bluetooth device discovery failed',
+                {
+                    cause: error
+                }
+            );
+        }
+
+        if (
+            !transport ||
+            typeof transport.listDevices !==
+                'function'
+        ) {
+            throw new HardwareServiceError(
+                'PORT_DISCOVERY_FAILED',
+                'Bluetooth device discovery failed'
+            );
+        }
+
+        let devices;
+
+        try {
+            devices =
+                await transport
+                    .listDevices();
+        } catch (error) {
+            throw new HardwareServiceError(
+                'PORT_DISCOVERY_FAILED',
+                'Bluetooth device discovery failed',
+                {
+                    cause: error
+                }
+            );
+        }
+
+        const publicDevices =
+            Array.isArray(devices) ?
+                devices
+                    .filter(device =>
+                        device &&
+                        typeof device.id ===
+                            'string' &&
+                        device.id
+                            .trim()
+                            .length > 0
+                    )
+                    .map(device => ({
+                        id:
+                            device.id
+                                .trim(),
+                        label:
+                            sanitizeBluetoothDeviceLabel(
+                                device.label
+                            )
+                    })) :
+                [];
+
+        this._sendJson(
+            response,
+            200,
+            {
+                devices:
+                    publicDevices
+            }
+        );
     }
 
     async _handleBuild (

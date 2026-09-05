@@ -54,6 +54,13 @@ class EasyBloxHardwareServiceClient {
         );
     }
 
+    listBluetoothDevices () {
+        return this._request(
+            '/v1/bluetooth/devices',
+            'GET'
+        );
+    }
+
     build ({
         boardId,
         code,
