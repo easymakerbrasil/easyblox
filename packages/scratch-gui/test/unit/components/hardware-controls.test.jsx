@@ -29,7 +29,36 @@ describe('HardwareControls', () => {
         expect(onSelectBoard).toHaveBeenCalledTimes(1);
     });
 
-    test('shows Arduino UNO as the active board', () => {
+    test('keeps the board selector visually neutral when no board is selected', () => {
+        render(
+            <HardwareControls
+                connectionState="disconnected"
+                selectedBoard={null}
+                onConnect={jest.fn()}
+                onDisconnect={jest.fn()}
+                onSelectBoard={jest.fn()}
+            />
+        );
+
+        const boardButton =
+            screen.getByRole('button', {
+                name: 'Selecionar placa'
+            });
+
+        expect(boardButton)
+            .toHaveAttribute(
+                'aria-pressed',
+                'false'
+            );
+
+        expect(
+            boardButton.className
+        ).not.toContain(
+            'board-button-selected'
+        );
+    });
+
+    test('shows Arduino UNO as the visually selected board', () => {
         render(
             <HardwareControls
                 connectionState="disconnected"
@@ -40,11 +69,19 @@ describe('HardwareControls', () => {
             />
         );
 
-        expect(
+        const boardButton =
             screen.getByRole('button', {
                 name: 'Alterar placa'
-            })
-        ).toHaveTextContent('Arduino UNO');
+            });
+
+        expect(boardButton)
+            .toHaveTextContent('Arduino UNO');
+
+        expect(boardButton)
+            .toHaveAttribute(
+                'aria-pressed',
+                'true'
+            );
 
         expect(
             screen.queryByRole('combobox')

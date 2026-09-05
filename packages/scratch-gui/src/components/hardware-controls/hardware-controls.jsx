@@ -130,6 +130,7 @@ const HardwareControls = ({
 
             <button
                 aria-label={boardAriaLabel}
+                aria-pressed={Boolean(board)}
                 className={styles.boardButton}
                 onClick={onSelectBoard}
                 type="button"
