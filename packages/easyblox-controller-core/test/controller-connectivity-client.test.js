@@ -10,6 +10,7 @@ const controllerCore = require('..');
 
 const {
     EBCP_CONTRACT,
+    EBCP_CONTROL_TYPES,
     encodeFrame,
     decodeFrame
 } = require('@easymaker/easyblox-connectivity-core');
@@ -184,4 +185,60 @@ test('Controller Connectivity Client starts an EBCP session without exposing pro
     }));
 
     await ready;
+});
+
+test('Controller Connectivity Client probes peer liveness without exposing protocol details', async () => {
+    const writes = [];
+
+    const client =
+        new ControllerConnectivityClient({
+            write: frame => {
+                writes.push(
+                    Buffer.from(frame)
+                );
+            }
+        });
+
+    const alive =
+        client.probe();
+
+    assert.equal(
+        writes.length,
+        1
+    );
+
+    const ping =
+        decodeFrame(
+            writes[0]
+        );
+
+    assert.equal(
+        ping.type,
+        EBCP_CONTROL_TYPES.PING
+    );
+
+    assert.equal(
+        ping.sequence,
+        0
+    );
+
+    assert.equal(
+        ping.channel,
+        ''
+    );
+
+    client.receive(
+        encodeFrame({
+            type:
+                EBCP_CONTROL_TYPES.PONG,
+            sequence:
+                0,
+            channel:
+                '',
+            payload:
+                Buffer.alloc(0)
+        })
+    );
+
+    await alive;
 });

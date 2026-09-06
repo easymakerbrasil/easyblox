@@ -22,9 +22,238 @@ const clampPosition = (
         Math.max(maximum, 0)
     );
 
+const DEFAULT_CONNECTION_STATE = {
+    status:
+        'disconnected',
+    devices: [],
+    errorCode:
+        null
+};
+
+const ControllerConnectionStatus = ({
+    connectionState,
+    onConnect,
+    onDisconnect,
+    onSelectDevice
+}) => {
+    const {
+        status,
+        devices = [],
+        errorCode
+    } = connectionState;
+
+    if (
+        status === 'disconnected'
+    ) {
+        const message =
+            errorCode ===
+                'connection-lost' ?
+                'Conexão Bluetooth perdida' :
+                'Bluetooth desconectado';
+
+        return (
+            <div className={styles.connectionBar}>
+                <div className={styles.connectionStatus}>
+                    <span
+                        aria-hidden="true"
+                        className={styles.connectionDot}
+                    />
+                    <span>
+                        {message}
+                    </span>
+                </div>
+
+                <button
+                    className={styles.connectionButton}
+                    type="button"
+                    onClick={onConnect}
+                >
+                    Conectar
+                </button>
+            </div>
+        );
+    }
+
+    if (
+        status === 'discovering'
+    ) {
+        return (
+            <div className={styles.connectionBar}>
+                <div className={styles.connectionStatus}>
+                    <span
+                        aria-hidden="true"
+                        className={styles.connectionDotBusy}
+                    />
+                    <span>
+                        Procurando Bluetooth...
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
+    if (
+        status === 'connecting'
+    ) {
+        return (
+            <div className={styles.connectionBar}>
+                <div className={styles.connectionStatus}>
+                    <span
+                        aria-hidden="true"
+                        className={styles.connectionDotBusy}
+                    />
+                    <span>
+                        Conectando Bluetooth...
+                    </span>
+                </div>
+            </div>
+        );
+    }
+
+    if (
+        status === 'connected'
+    ) {
+        return (
+            <div className={styles.connectionBar}>
+                <div className={styles.connectionStatus}>
+                    <span
+                        aria-hidden="true"
+                        className={styles.connectionDotConnected}
+                    />
+                    <span>
+                        Bluetooth conectado
+                    </span>
+                </div>
+
+                <button
+                    className={styles.connectionButton}
+                    type="button"
+                    onClick={onDisconnect}
+                >
+                    Desconectar
+                </button>
+            </div>
+        );
+    }
+
+    if (
+        status === 'selecting'
+    ) {
+        return (
+            <div
+                className={
+                    styles.connectionSelection
+                }
+            >
+                <span
+                    className={
+                        styles.connectionSelectionTitle
+                    }
+                >
+                    Escolha o dispositivo Bluetooth
+                </span>
+
+                <div
+                    className={
+                        styles.connectionDevices
+                    }
+                >
+                    {devices.map(device => (
+                        <button
+                            className={
+                                styles.deviceButton
+                            }
+                            key={device.key}
+                            type="button"
+                            onClick={() => {
+                                onSelectDevice(
+                                    device.key
+                                );
+                            }}
+                        >
+                            {device.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    if (
+        status === 'no-devices'
+    ) {
+        return (
+            <div className={styles.connectionBar}>
+                <span className={styles.connectionMessage}>
+                    Nenhum dispositivo Bluetooth encontrado
+                </span>
+
+                <button
+                    className={styles.connectionButton}
+                    type="button"
+                    onClick={onConnect}
+                >
+                    Procurar novamente
+                </button>
+            </div>
+        );
+    }
+
+    const errorMessage =
+        errorCode ===
+            'discovery-failed' ?
+            'Não foi possível procurar dispositivos Bluetooth' :
+            'Não foi possível conectar ao dispositivo Bluetooth';
+
+    return (
+        <div className={styles.connectionBar}>
+            <span className={styles.connectionMessage}>
+                {errorMessage}
+            </span>
+
+            <button
+                className={styles.connectionButton}
+                type="button"
+                onClick={onConnect}
+            >
+                Tentar novamente
+            </button>
+        </div>
+    );
+};
+
+ControllerConnectionStatus.propTypes = {
+    connectionState:
+        PropTypes.shape({
+            status:
+                PropTypes.string,
+            devices:
+                PropTypes.arrayOf(
+                    PropTypes.shape({
+                        key:
+                            PropTypes.string,
+                        label:
+                            PropTypes.string
+                    })
+                ),
+            errorCode:
+                PropTypes.string
+        }).isRequired,
+    onConnect:
+        PropTypes.func.isRequired,
+    onDisconnect:
+        PropTypes.func.isRequired,
+    onSelectDevice:
+        PropTypes.func.isRequired
+};
+
 const ControllerDesktopWindow = ({
+    connectionState,
     isOpen,
-    onRequestClose
+    onConnect,
+    onDisconnect,
+    onRequestClose,
+    onSelectDevice
 }) => {
     const [
         position,
@@ -190,6 +419,13 @@ const ControllerDesktopWindow = ({
                 </button>
             </header>
 
+            <ControllerConnectionStatus
+                connectionState={connectionState}
+                onConnect={onConnect}
+                onDisconnect={onDisconnect}
+                onSelectDevice={onSelectDevice}
+            />
+
             <div className={styles.content}>
                 {activeModule ? (
                     <div className={styles.moduleView}>
@@ -266,12 +502,45 @@ const ControllerDesktopWindow = ({
 };
 
 ControllerDesktopWindow.propTypes = {
-    isOpen: PropTypes.bool,
-    onRequestClose: PropTypes.func.isRequired
+    connectionState:
+        PropTypes.shape({
+            status:
+                PropTypes.string,
+            devices:
+                PropTypes.arrayOf(
+                    PropTypes.shape({
+                        key:
+                            PropTypes.string,
+                        label:
+                            PropTypes.string
+                    })
+                ),
+            errorCode:
+                PropTypes.string
+        }),
+    isOpen:
+        PropTypes.bool,
+    onConnect:
+        PropTypes.func,
+    onDisconnect:
+        PropTypes.func,
+    onRequestClose:
+        PropTypes.func.isRequired,
+    onSelectDevice:
+        PropTypes.func
 };
 
 ControllerDesktopWindow.defaultProps = {
-    isOpen: false
+    connectionState:
+        DEFAULT_CONNECTION_STATE,
+    isOpen:
+        false,
+    onConnect:
+        () => {},
+    onDisconnect:
+        () => {},
+    onSelectDevice:
+        () => {}
 };
 
 export default ControllerDesktopWindow;

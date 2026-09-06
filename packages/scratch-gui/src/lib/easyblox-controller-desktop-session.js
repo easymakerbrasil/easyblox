@@ -31,6 +31,13 @@ class EasyBloxControllerDesktopSession {
 
         this._connection.onDisconnect(
             () => {
+                if (
+                    this._state.status !==
+                        'connected'
+                ) {
+                    return;
+                }
+
                 this._deviceIds.clear();
 
                 this._setState({

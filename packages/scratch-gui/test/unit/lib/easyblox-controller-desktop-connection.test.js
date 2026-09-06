@@ -98,7 +98,10 @@ class FakeConnectivityClient {
             createDeferred();
 
         this.startSessionCalls = 0;
+        this.probeCalls = 0;
         this.received = [];
+
+        this._pendingProbes = [];
 
         FakeConnectivityClient.instances
             .push(this);
@@ -130,6 +133,27 @@ class FakeConnectivityClient {
                 'EBCP handshake failed'
             )
         );
+    }
+
+    probe () {
+        const deferred =
+            createDeferred();
+
+        this.probeCalls += 1;
+
+        this._pendingProbes.push(
+            deferred
+        );
+
+        return deferred.promise;
+    }
+
+    resolveProbe (
+        index = 0
+    ) {
+        this._pendingProbes[
+            index
+        ].resolve();
     }
 
     write (bytes) {
@@ -556,6 +580,146 @@ describe(
                     'connected',
                     'disconnected'
                 ]);
+        });
+
+        test('keeps the Desktop connection alive while EBCP liveness probes receive PONG', async () => {
+            jest.useFakeTimers();
+
+            try {
+                const transport =
+                    new FakeTransport();
+
+                const connection =
+                    new EasyBloxControllerDesktopConnection({
+                        transport,
+                        ConnectivityClientClass:
+                            FakeConnectivityClient,
+                        livenessIntervalMs:
+                            1000,
+                        livenessTimeoutMs:
+                            500
+                    });
+
+                const connecting =
+                    connection.connect({
+                        deviceId:
+                            'COM12'
+                    });
+
+                await Promise.resolve();
+
+                const client =
+                    FakeConnectivityClient
+                        .instances[0];
+
+                client.resolveSession();
+
+                await connecting;
+
+                jest.advanceTimersByTime(
+                    1000
+                );
+
+                expect(
+                    client.probeCalls
+                ).toBe(1);
+
+                client.resolveProbe();
+
+                await Promise.resolve();
+                await Promise.resolve();
+
+                expect(
+                    connection.getState()
+                ).toBe(
+                    'connected'
+                );
+
+                expect(
+                    transport.disconnectCalls
+                ).toBe(0);
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        test('reports a lost Desktop connection when an EBCP liveness probe times out even if the serial transport stays open', async () => {
+            jest.useFakeTimers();
+
+            try {
+                const transport =
+                    new FakeTransport();
+
+                const connection =
+                    new EasyBloxControllerDesktopConnection({
+                        transport,
+                        ConnectivityClientClass:
+                            FakeConnectivityClient,
+                        livenessIntervalMs:
+                            1000,
+                        livenessTimeoutMs:
+                            500
+                    });
+
+                const disconnects = [];
+
+                connection.onDisconnect(
+                    () => {
+                        disconnects.push(
+                            'disconnected'
+                        );
+                    }
+                );
+
+                const connecting =
+                    connection.connect({
+                        deviceId:
+                            'COM12'
+                    });
+
+                await Promise.resolve();
+
+                const client =
+                    FakeConnectivityClient
+                        .instances[0];
+
+                client.resolveSession();
+
+                await connecting;
+
+                jest.advanceTimersByTime(
+                    1000
+                );
+
+                expect(
+                    client.probeCalls
+                ).toBe(1);
+
+                jest.advanceTimersByTime(
+                    500
+                );
+
+                await Promise.resolve();
+                await Promise.resolve();
+
+                expect(
+                    connection.getState()
+                ).toBe(
+                    'disconnected'
+                );
+
+                expect(
+                    transport.disconnectCalls
+                ).toBe(1);
+
+                expect(
+                    disconnects
+                ).toEqual([
+                    'disconnected'
+                ]);
+            } finally {
+                jest.useRealTimers();
+            }
         });
 
         test('validates observable state listeners before registering them', () => {

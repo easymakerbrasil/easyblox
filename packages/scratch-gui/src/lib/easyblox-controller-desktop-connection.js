@@ -5,6 +5,11 @@ import {
 import EasyBloxControllerDesktopTransport
     from './easyblox-controller-desktop-transport';
 
+const DEFAULT_LIVENESS_INTERVAL_MS =
+    2000;
+const DEFAULT_LIVENESS_TIMEOUT_MS =
+    3000;
+
 class EasyBloxControllerDesktopConnection {
     constructor (options = {}) {
         this._transport =
@@ -20,6 +25,26 @@ class EasyBloxControllerDesktopConnection {
         this._stateListeners = [];
         this._disconnectListeners = [];
 
+        this._livenessIntervalMs =
+            Number.isFinite(
+                options.livenessIntervalMs
+            ) &&
+            options.livenessIntervalMs > 0 ?
+                options.livenessIntervalMs :
+                DEFAULT_LIVENESS_INTERVAL_MS;
+
+        this._livenessTimeoutMs =
+            Number.isFinite(
+                options.livenessTimeoutMs
+            ) &&
+            options.livenessTimeoutMs > 0 ?
+                options.livenessTimeoutMs :
+                DEFAULT_LIVENESS_TIMEOUT_MS;
+
+        this._livenessTimer = null;
+        this._livenessTimeoutTimer = null;
+        this._probeInFlight = false;
+
         this._transport.onData(
             bytes => {
                 if (!this._client) {
@@ -34,27 +59,7 @@ class EasyBloxControllerDesktopConnection {
 
         this._transport.onDisconnect(
             () => {
-                if (
-                    this._state ===
-                        'disconnected'
-                ) {
-                    return;
-                }
-
-                this._client = null;
-                this._setState(
-                    'disconnected'
-                );
-
-                for (
-                    const listener of
-                        [
-                            ...this
-                                ._disconnectListeners
-                        ]
-                ) {
-                    listener();
-                }
+                this._handleUnexpectedDisconnect();
             }
         );
     }
@@ -144,6 +149,8 @@ class EasyBloxControllerDesktopConnection {
         this._setState(
             'connected'
         );
+
+        this._startLivenessWatch();
     }
 
     disconnect () {
@@ -154,6 +161,8 @@ class EasyBloxControllerDesktopConnection {
             return false;
         }
 
+        this._stopLivenessWatch();
+
         this._client = null;
         this._setState(
             'disconnected'
@@ -162,6 +171,180 @@ class EasyBloxControllerDesktopConnection {
         this._transport.disconnect();
 
         return true;
+    }
+
+    _startLivenessWatch () {
+        this._stopLivenessWatch();
+
+        this._livenessTimer =
+            setInterval(
+                () => {
+                    this._probeLiveness();
+                },
+                this._livenessIntervalMs
+            );
+    }
+
+    _stopLivenessWatch () {
+        if (
+            this._livenessTimer !==
+                null
+        ) {
+            clearInterval(
+                this._livenessTimer
+            );
+
+            this._livenessTimer =
+                null;
+        }
+
+        if (
+            this._livenessTimeoutTimer !==
+                null
+        ) {
+            clearTimeout(
+                this._livenessTimeoutTimer
+            );
+
+            this._livenessTimeoutTimer =
+                null;
+        }
+
+        this._probeInFlight =
+            false;
+    }
+
+    _probeLiveness () {
+        if (
+            this._state !==
+                'connected' ||
+            !this._client ||
+            this._probeInFlight
+        ) {
+            return;
+        }
+
+        const client =
+            this._client;
+
+        this._probeInFlight =
+            true;
+
+        let probe;
+
+        try {
+            probe =
+                client.probe();
+        } catch (error) {
+            this._handleLivenessFailure(
+                client
+            );
+
+            return;
+        }
+
+        this._livenessTimeoutTimer =
+            setTimeout(
+                () => {
+                    this._livenessTimeoutTimer =
+                        null;
+
+                    if (
+                        this._state !==
+                            'connected' ||
+                        this._client !==
+                            client ||
+                        !this._probeInFlight
+                    ) {
+                        return;
+                    }
+
+                    this._handleLivenessFailure(
+                        client
+                    );
+                },
+                this._livenessTimeoutMs
+            );
+
+        Promise.resolve(
+            probe
+        ).then(
+            () => {
+                if (
+                    this._state !==
+                        'connected' ||
+                    this._client !==
+                        client ||
+                    !this._probeInFlight
+                ) {
+                    return;
+                }
+
+                if (
+                    this._livenessTimeoutTimer !==
+                        null
+                ) {
+                    clearTimeout(
+                        this._livenessTimeoutTimer
+                    );
+
+                    this._livenessTimeoutTimer =
+                        null;
+                }
+
+                this._probeInFlight =
+                    false;
+            },
+            () => {
+                this._handleLivenessFailure(
+                    client
+                );
+            }
+        );
+    }
+
+    _handleLivenessFailure (
+        client
+    ) {
+        if (
+            this._state !==
+                'connected' ||
+            this._client !==
+                client
+        ) {
+            return;
+        }
+
+        this._handleUnexpectedDisconnect();
+
+        this._transport.disconnect();
+    }
+
+    _handleUnexpectedDisconnect () {
+        if (
+            this._state ===
+                'disconnected'
+        ) {
+            return;
+        }
+
+        this._stopLivenessWatch();
+
+        this._client = null;
+
+        this._setState(
+            'disconnected'
+        );
+
+        for (
+            const listener of
+                [
+                    ...this
+                        ._disconnectListeners
+                ]
+        ) {
+            listener();
+        }
     }
 
     _setState (state) {

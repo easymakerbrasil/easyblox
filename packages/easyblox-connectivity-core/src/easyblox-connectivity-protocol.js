@@ -7,7 +7,9 @@ const {
 const EBCP_CONTROL_TYPES = Object.freeze({
     ACK: 0x80,
     HELLO: 0x81,
-    HELLO_ACK: 0x82
+    HELLO_ACK: 0x82,
+    PING: 0x83,
+    PONG: 0x84
 });
 
 const FRAME_HEADER_BYTES = 7;
@@ -29,7 +31,9 @@ const _calculateChecksum = frame => {
 const _isControlType = type =>
     type === EBCP_CONTROL_TYPES.ACK ||
     type === EBCP_CONTROL_TYPES.HELLO ||
-    type === EBCP_CONTROL_TYPES.HELLO_ACK;
+    type === EBCP_CONTROL_TYPES.HELLO_ACK ||
+    type === EBCP_CONTROL_TYPES.PING ||
+    type === EBCP_CONTROL_TYPES.PONG;
 
 const _isSupportedType = type =>
     type === EBCP_CONTRACT.messageTypes.TEXT ||
@@ -103,11 +107,17 @@ const _encodeControlPayload = (type, payload) => {
     }
 
     if (
-        (type === EBCP_CONTROL_TYPES.HELLO ||
-            type === EBCP_CONTROL_TYPES.HELLO_ACK) &&
+        (
+            type === EBCP_CONTROL_TYPES.HELLO ||
+            type === EBCP_CONTROL_TYPES.HELLO_ACK ||
+            type === EBCP_CONTROL_TYPES.PING ||
+            type === EBCP_CONTROL_TYPES.PONG
+        ) &&
         payload.length !== 0
     ) {
-        throw new Error('EBCP handshake payload must be empty');
+        throw new Error(
+            'EBCP zero-payload control frame must be empty'
+        );
     }
 
     return Buffer.from(payload);
@@ -317,11 +327,17 @@ const decodeFrame = frame => {
     }
 
     if (
-        (type === EBCP_CONTROL_TYPES.HELLO ||
-            type === EBCP_CONTROL_TYPES.HELLO_ACK) &&
+        (
+            type === EBCP_CONTROL_TYPES.HELLO ||
+            type === EBCP_CONTROL_TYPES.HELLO_ACK ||
+            type === EBCP_CONTROL_TYPES.PING ||
+            type === EBCP_CONTROL_TYPES.PONG
+        ) &&
         payloadBytes.length !== 0
     ) {
-        throw new Error('EBCP handshake payload must be empty');
+        throw new Error(
+            'EBCP zero-payload control frame must be empty'
+        );
     }
 
     return {

@@ -11,6 +11,8 @@ constexpr uint8_t EASYBLOX_EBCP_TYPE_BOOLEAN = 0x03;
 constexpr uint8_t EASYBLOX_EBCP_ACK = 0x80;
 constexpr uint8_t EASYBLOX_EBCP_HELLO = 0x81;
 constexpr uint8_t EASYBLOX_EBCP_HELLO_ACK = 0x82;
+constexpr uint8_t EASYBLOX_EBCP_PING = 0x83;
+constexpr uint8_t EASYBLOX_EBCP_PONG = 0x84;
 constexpr uint8_t EASYBLOX_EBCP_MAX_CHANNEL_BYTES = 16;
 constexpr uint8_t EASYBLOX_EBCP_MAX_PAYLOAD_BYTES = 32;
 constexpr uint8_t EASYBLOX_EBCP_MAX_FRAME_BYTES = 56;
@@ -157,6 +159,16 @@ void easybloxBtSendHelloAck() {
     );
 }
 
+void easybloxBtSendPong() {
+    easybloxBtSendFrame(
+        EASYBLOX_EBCP_PONG,
+        0,
+        "",
+        0,
+        0
+    );
+}
+
 void easybloxBtResetReceive(uint8_t possibleMagic = 0) {
     easybloxBtRxLength = 0;
 
@@ -189,6 +201,15 @@ void easybloxBtProcessFrame() {
     }
 
     if (checksum != easybloxBtRxBuffer[checksumIndex]) {
+        return;
+    }
+
+    if (type == EASYBLOX_EBCP_PING) {
+        easybloxBtSendPong();
+        return;
+    }
+
+    if (type == EASYBLOX_EBCP_PONG) {
         return;
     }
 
@@ -343,6 +364,22 @@ void easybloxBtPoll() {
             easybloxBtPushByte(static_cast<uint8_t>(value));
         }
     }
+}
+
+void easybloxDelay(unsigned long milliseconds) {
+    const unsigned long startedAt =
+        millis();
+
+    while (
+        static_cast<unsigned long>(
+            millis() - startedAt
+        ) < milliseconds
+    ) {
+        easybloxBtPoll();
+        delay(1);
+    }
+
+    easybloxBtPoll();
 }
 
 void loop() {

@@ -9,6 +9,24 @@ import '@testing-library/jest-dom';
 import ControllerDesktopWindow
     from '../../../src/components/controller-desktop-window/controller-desktop-window.jsx';
 
+const createConnectionProps =
+    (overrides = {}) => ({
+        connectionState: {
+            status:
+                'disconnected',
+            devices: [],
+            errorCode:
+                null
+        },
+        onConnect:
+            jest.fn(),
+        onDisconnect:
+            jest.fn(),
+        onSelectDevice:
+            jest.fn(),
+        ...overrides
+    });
+
 describe(
     'ControllerDesktopWindow',
     () => {
@@ -692,6 +710,363 @@ describe(
             expect(
                 dialog.style.top
             ).toBe('160px');
+        });
+
+        test('shows the disconnected Bluetooth state and delegates the connect action', () => {
+            const connectionProps =
+                createConnectionProps();
+
+            render(
+                <ControllerDesktopWindow
+                    isOpen
+                    onRequestClose={jest.fn()}
+                    {...connectionProps}
+                />
+            );
+
+            expect(
+                screen.getByText(
+                    'Bluetooth desconectado'
+                )
+            ).toBeInTheDocument();
+
+            fireEvent.click(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Conectar'
+                    }
+                )
+            );
+
+            expect(
+                connectionProps.onConnect
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        test('shows the Bluetooth discovery, connecting and connected lifecycle', () => {
+            const connectionProps =
+                createConnectionProps({
+                    connectionState: {
+                        status:
+                            'discovering',
+                        devices: [],
+                        errorCode:
+                            null
+                    }
+                });
+
+            const {rerender} =
+                render(
+                    <ControllerDesktopWindow
+                        isOpen
+                        onRequestClose={jest.fn()}
+                        {...connectionProps}
+                    />
+                );
+
+            expect(
+                screen.getByText(
+                    'Procurando Bluetooth...'
+                )
+            ).toBeInTheDocument();
+
+            rerender(
+                <ControllerDesktopWindow
+                    isOpen
+                    connectionState={{
+                        status:
+                            'connecting',
+                        devices: [],
+                        errorCode:
+                            null
+                    }}
+                    onConnect={
+                        connectionProps.onConnect
+                    }
+                    onDisconnect={
+                        connectionProps.onDisconnect
+                    }
+                    onRequestClose={jest.fn()}
+                    onSelectDevice={
+                        connectionProps.onSelectDevice
+                    }
+                />
+            );
+
+            expect(
+                screen.getByText(
+                    'Conectando Bluetooth...'
+                )
+            ).toBeInTheDocument();
+
+            rerender(
+                <ControllerDesktopWindow
+                    isOpen
+                    connectionState={{
+                        status:
+                            'connected',
+                        devices: [],
+                        errorCode:
+                            null
+                    }}
+                    onConnect={
+                        connectionProps.onConnect
+                    }
+                    onDisconnect={
+                        connectionProps.onDisconnect
+                    }
+                    onRequestClose={jest.fn()}
+                    onSelectDevice={
+                        connectionProps.onSelectDevice
+                    }
+                />
+            );
+
+            expect(
+                screen.getByText(
+                    'Bluetooth conectado'
+                )
+            ).toBeInTheDocument();
+
+            fireEvent.click(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Desconectar'
+                    }
+                )
+            );
+
+            expect(
+                connectionProps.onDisconnect
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        test('shows only friendly Bluetooth choices and delegates an opaque device key', () => {
+            const connectionProps =
+                createConnectionProps({
+                    connectionState: {
+                        status:
+                            'selecting',
+                        devices: [
+                            {
+                                key:
+                                    'device-1',
+                                label:
+                                    'Controle A'
+                            },
+                            {
+                                key:
+                                    'device-2',
+                                label:
+                                    'Controle B'
+                            }
+                        ],
+                        errorCode:
+                            null
+                    }
+                });
+
+            render(
+                <ControllerDesktopWindow
+                    isOpen
+                    onRequestClose={jest.fn()}
+                    {...connectionProps}
+                />
+            );
+
+            expect(
+                screen.getByText(
+                    'Escolha o dispositivo Bluetooth'
+                )
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    /COM\d+/i
+                )
+            ).not.toBeInTheDocument();
+
+            fireEvent.click(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Controle B'
+                    }
+                )
+            );
+
+            expect(
+                connectionProps
+                    .onSelectDevice
+            ).toHaveBeenCalledWith(
+                'device-2'
+            );
+        });
+
+        test('offers another Bluetooth search when no compatible device is found', () => {
+            const connectionProps =
+                createConnectionProps({
+                    connectionState: {
+                        status:
+                            'no-devices',
+                        devices: [],
+                        errorCode:
+                            null
+                    }
+                });
+
+            render(
+                <ControllerDesktopWindow
+                    isOpen
+                    onRequestClose={jest.fn()}
+                    {...connectionProps}
+                />
+            );
+
+            expect(
+                screen.getByText(
+                    'Nenhum dispositivo Bluetooth encontrado'
+                )
+            ).toBeInTheDocument();
+
+            fireEvent.click(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Procurar novamente'
+                    }
+                )
+            );
+
+            expect(
+                connectionProps.onConnect
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        test('shows pedagogical Bluetooth errors without exposing transport details', () => {
+            const connectionProps =
+                createConnectionProps({
+                    connectionState: {
+                        status:
+                            'error',
+                        devices: [],
+                        errorCode:
+                            'connection-failed'
+                    }
+                });
+
+            const {rerender} =
+                render(
+                    <ControllerDesktopWindow
+                        isOpen
+                        onRequestClose={jest.fn()}
+                        {...connectionProps}
+                    />
+                );
+
+            expect(
+                screen.getByText(
+                    'Não foi possível conectar ao dispositivo Bluetooth'
+                )
+            ).toBeInTheDocument();
+
+            expect(
+                screen.queryByText(
+                    /COM\d+|WebSocket|EBCP|9600/i
+                )
+            ).not.toBeInTheDocument();
+
+            rerender(
+                <ControllerDesktopWindow
+                    isOpen
+                    connectionState={{
+                        status:
+                            'disconnected',
+                        devices: [],
+                        errorCode:
+                            'connection-lost'
+                    }}
+                    onConnect={
+                        connectionProps.onConnect
+                    }
+                    onDisconnect={
+                        connectionProps.onDisconnect
+                    }
+                    onRequestClose={jest.fn()}
+                    onSelectDevice={
+                        connectionProps.onSelectDevice
+                    }
+                />
+            );
+
+            expect(
+                screen.getByText(
+                    'Conexão Bluetooth perdida'
+                )
+            ).toBeInTheDocument();
+        });
+
+        test('keeps the global Bluetooth state visible while browsing a Controller module', () => {
+            const connectionProps =
+                createConnectionProps({
+                    connectionState: {
+                        status:
+                            'connected',
+                        devices: [],
+                        errorCode:
+                            null
+                    }
+                });
+
+            render(
+                <ControllerDesktopWindow
+                    isOpen
+                    onRequestClose={jest.fn()}
+                    {...connectionProps}
+                />
+            );
+
+            fireEvent.click(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Abrir Joystick'
+                    }
+                )
+            );
+
+            expect(
+                screen.getByRole(
+                    'heading',
+                    {
+                        name:
+                            'Joystick'
+                    }
+                )
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByText(
+                    'Bluetooth conectado'
+                )
+            ).toBeInTheDocument();
+
+            expect(
+                screen.getByRole(
+                    'button',
+                    {
+                        name:
+                            'Desconectar'
+                    }
+                )
+            ).toBeInTheDocument();
         });
     }
 );

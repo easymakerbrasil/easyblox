@@ -345,6 +345,52 @@ describe(
             );
         });
 
+        test('does not report connection-lost when a late disconnect follows a failed connection attempt', async () => {
+            const {
+                connection,
+                hardwareServiceClient,
+                session
+            } = createSession();
+
+            hardwareServiceClient.devices = [
+                {
+                    id:
+                        'COM12',
+                    label:
+                        'Controle'
+                }
+            ];
+
+            connection.connectError =
+                new Error(
+                    'native connection failure'
+                );
+
+            await session.connect();
+
+            expect(
+                session.getState()
+            ).toEqual({
+                status:
+                    'error',
+                devices: [],
+                errorCode:
+                    'connection-failed'
+            });
+
+            connection.emitDisconnect();
+
+            expect(
+                session.getState()
+            ).toEqual({
+                status:
+                    'error',
+                devices: [],
+                errorCode:
+                    'connection-failed'
+            });
+        });
+
         test('disconnects explicitly and reports an unexpected physical connection loss separately', async () => {
             const {
                 connection,

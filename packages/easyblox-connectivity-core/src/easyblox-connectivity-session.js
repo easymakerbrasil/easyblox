@@ -25,6 +25,8 @@ class EasyBloxConnectivitySession {
         this._parser = new EasyBloxConnectivityParser();
         this._nextOutgoingSequence = 1;
         this._sessionReadyResolver = null;
+        this._probeResolver = null;
+        this._probePromise = null;
     }
 
     /**
@@ -42,6 +44,30 @@ class EasyBloxConnectivitySession {
         );
 
         return ready;
+    }
+
+    /**
+     * Probe peer liveness without establishing a new application session.
+     * Resolves when the peer replies with PONG.
+     * Concurrent probes reuse the pending probe.
+     * @returns {Promise<void>} resolves when the peer proves liveness
+     */
+    probe () {
+        if (this._probePromise) {
+            return this._probePromise;
+        }
+
+        this._probePromise =
+            new Promise(resolve => {
+                this._probeResolver =
+                    resolve;
+            });
+
+        this._writeControl(
+            EBCP_CONTROL_TYPES.PING
+        );
+
+        return this._probePromise;
     }
 
     /**
@@ -103,6 +129,36 @@ class EasyBloxConnectivitySession {
      */
     _handleFrame (frame) {
         if (frame.type === EBCP_CONTROL_TYPES.ACK) {
+            return;
+        }
+
+        if (
+            frame.type ===
+                EBCP_CONTROL_TYPES.PING
+        ) {
+            this._writeControl(
+                EBCP_CONTROL_TYPES.PONG
+            );
+
+            return;
+        }
+
+        if (
+            frame.type ===
+                EBCP_CONTROL_TYPES.PONG
+        ) {
+            if (this._probeResolver) {
+                const resolve =
+                    this._probeResolver;
+
+                this._probeResolver =
+                    null;
+                this._probePromise =
+                    null;
+
+                resolve();
+            }
+
             return;
         }
 

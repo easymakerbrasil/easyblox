@@ -27,6 +27,10 @@ class ControllerConnectivityClient {
         return this._session.start();
     }
 
+    probe () {
+        return this._session.probe();
+    }
+
     sendText (text) {
         return this._session.send(
             TEXT,

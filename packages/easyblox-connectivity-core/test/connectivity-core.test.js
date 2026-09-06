@@ -46,6 +46,15 @@ test('Connectivity Core preserves the canonical EBCP v1 contract', () => {
     );
 
     assert.equal(EBCP_CONTRACT.version, 0x01);
+    assert.equal(
+        EBCP_CONTROL_TYPES.PING,
+        0x83
+    );
+
+    assert.equal(
+        EBCP_CONTROL_TYPES.PONG,
+        0x84
+    );
     assert.equal(EBCP_CONTRACT.maxChannelBytes, 16);
     assert.equal(EBCP_CONTRACT.maxPayloadBytes, 32);
     assert.equal(EBCP_CONTRACT.maxFrameBytes, 56);

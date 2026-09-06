@@ -114,6 +114,136 @@
     padding: 0.8rem 0.9rem 0.9rem;
 }
 
+.connection-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+
+    min-height: 2.35rem;
+    padding: 0.35rem 0.7rem;
+
+    border-bottom: 1px solid rgba(40, 40, 40, 0.1);
+
+    background: #ffffff;
+    color: #282828;
+
+    font-size: 0.7rem;
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    min-width: 0;
+
+    font-weight: 600;
+}
+
+.connection-dot,
+.connection-dot-busy,
+.connection-dot-connected {
+    flex: 0 0 auto;
+
+    width: 0.55rem;
+    height: 0.55rem;
+
+    border-radius: 50%;
+}
+
+.connection-dot {
+    background: #9b9b9b;
+}
+
+.connection-dot-busy {
+    border: 2px solid rgba(40, 40, 40, 0.25);
+    border-top-color: #ffc800;
+
+    background: transparent;
+
+    animation:
+        controller-connection-spin
+        0.8s
+        linear
+        infinite;
+}
+
+.connection-dot-connected {
+    background: #43a047;
+}
+
+.connection-button,
+.device-button {
+    flex: 0 0 auto;
+
+    min-height: 1.75rem;
+    padding: 0 0.6rem;
+
+    border: 1px solid rgba(40, 40, 40, 0.16);
+    border-radius: 0.4rem;
+
+    background: #f7f7f7;
+    color: #282828;
+
+    cursor: pointer;
+
+    font-size: 0.67rem;
+    font-weight: 600;
+
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
+}
+
+.connection-button:hover,
+.device-button:hover {
+    border-color: #ffc800;
+    background: rgba(255, 200, 0, 0.1);
+}
+
+.connection-button:focus-visible,
+.device-button:focus-visible {
+    outline: 2px solid #ffc800;
+    outline-offset: 2px;
+}
+
+.connection-message {
+    min-width: 0;
+
+    font-weight: 600;
+}
+
+.connection-selection {
+    padding: 0.45rem 0.7rem 0.55rem;
+
+    border-bottom: 1px solid rgba(40, 40, 40, 0.1);
+
+    background: #ffffff;
+    color: #282828;
+}
+
+.connection-selection-title {
+    display: block;
+
+    margin-bottom: 0.4rem;
+
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.connection-devices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+@keyframes controller-connection-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .introduction {
     display: flex;
     align-items: baseline;
