@@ -92,9 +92,15 @@ describe(
             const session =
                 new FakeSession();
 
+            const onConnectionStateChange =
+                jest.fn();
+
             render(
                 <ControllerDesktopWindowContainer
                     isOpen
+                    onConnectionStateChange={
+                        onConnectionStateChange
+                    }
                     onRequestClose={jest.fn()}
                     session={session}
                 />
@@ -125,6 +131,12 @@ describe(
             });
 
             expect(
+                onConnectionStateChange
+            ).toHaveBeenLastCalledWith(
+                true
+            );
+
+            expect(
                 screen.getByText(
                     'Bluetooth conectado'
                 )
@@ -143,6 +155,24 @@ describe(
             expect(
                 session.disconnectCalls
             ).toBe(1);
+
+            act(() => {
+                session.emitState({
+                    status:
+                        'disconnected',
+                    devices: [],
+                    connectedDeviceLabel:
+                        null,
+                    errorCode:
+                        null
+                });
+            });
+
+            expect(
+                onConnectionStateChange
+            ).toHaveBeenLastCalledWith(
+                false
+            );
         });
 
         test('closing and reopening the Controller does not disconnect its active session', () => {

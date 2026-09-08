@@ -5,8 +5,12 @@ const CLOSE_CONTROLLER =
 const TOGGLE_CONTROLLER =
     'scratch-gui/controller-desktop/TOGGLE';
 
+const SET_CONTROLLER_CONNECTED =
+'scratch-gui/controller-desktop/SET_CONNECTED';
+
 const controllerDesktopInitialState = {
-    isOpen: false
+    isOpen: false,
+    isConnected: false
 };
 
 const reducer = function (
@@ -24,13 +28,21 @@ const reducer = function (
             ...state,
             isOpen: false
         };
-    case TOGGLE_CONTROLLER:
-        return {
-            ...state,
-            isOpen: !state.isOpen
-        };
-    default:
-        return state;
+        case TOGGLE_CONTROLLER:
+            return {
+                ...state,
+                isOpen: !state.isOpen
+            };
+        case SET_CONTROLLER_CONNECTED:
+            return {
+                ...state,
+                isConnected:
+                    Boolean(
+                        action.isConnected
+                    )
+            };
+        default:
+            return state;
     }
 };
 
@@ -46,6 +58,16 @@ const toggleController = () => ({
     type: TOGGLE_CONTROLLER
 });
 
+const setControllerConnected =
+    isConnected => ({
+        type:
+            SET_CONTROLLER_CONNECTED,
+        isConnected:
+            Boolean(
+                isConnected
+            )
+    });
+
 const isControllerOpen = state =>
     Boolean(
         state &&
@@ -54,11 +76,21 @@ const isControllerOpen = state =>
         state.scratchGui.controllerDesktop.isOpen
     );
 
+const isControllerConnected = state =>
+    Boolean(
+        state &&
+        state.scratchGui &&
+        state.scratchGui.controllerDesktop &&
+        state.scratchGui.controllerDesktop.isConnected
+    );
+
 export {
     reducer as default,
     controllerDesktopInitialState,
     openController,
     closeController,
     toggleController,
-    isControllerOpen
+    setControllerConnected,
+    isControllerOpen,
+    isControllerConnected
 };

@@ -193,6 +193,62 @@ describe('MenuBar Component', () => {
         });
     });
 
+    describe('Controller active state', () => {
+        test('keeps the Controller button active while Bluetooth remains connected with the window closed', () => {
+            const {
+                getByRole
+            } = renderWithIntl(
+                getComponent({
+                    controllerOpen:
+                        false,
+                    controllerConnected:
+                        true
+                })
+            );
+
+            expect(
+                getByRole(
+                    'button',
+                    {
+                        name:
+                            'Controlador'
+                    }
+                ).getAttribute(
+                    'aria-pressed'
+                )
+            ).toBe(
+                'true'
+            );
+        });
+
+        test('leaves the Controller button inactive when the window and Bluetooth session are both inactive', () => {
+            const {
+                getByRole
+            } = renderWithIntl(
+                getComponent({
+                    controllerOpen:
+                        false,
+                    controllerConnected:
+                        false
+                })
+            );
+
+            expect(
+                getByRole(
+                    'button',
+                    {
+                        name:
+                            'Controlador'
+                    }
+                ).getAttribute(
+                    'aria-pressed'
+                )
+            ).toBe(
+                'false'
+            );
+        });
+    });
+
     test('menu bar with no About handler has no About button', () => {
         const {container} = renderWithIntl(getComponent());
         const button = container.querySelector('button[aria-label="About menu"]');

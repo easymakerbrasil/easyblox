@@ -49,9 +49,11 @@ import {
 import createEasyBloxProjectFileService from '../../lib/easyblox-project-file-service';
 import downloadBlob from '../../lib/download-blob';
 import {
+    isControllerConnected,
     isControllerOpen,
     toggleController
 } from '../../reducers/controller-desktop';
+
 import {projectTitleInitialState} from '../../reducers/project-title';
 import {PLATFORM} from '../../lib/platform';
 
@@ -337,6 +339,10 @@ class MenuBar extends React.Component {
         }
     }
     render () {
+        const controllerActive =
+            this.props.controllerOpen ||
+            this.props.controllerConnected;
+
         const remixMessage = (
             <FormattedMessage
                 defaultMessage="Remix"
@@ -472,15 +478,15 @@ class MenuBar extends React.Component {
                 </div>
 
                                <div className={styles.rightControlsGroup}>
-                    <button
+                               <button
                         aria-label="Controlador"
-                        aria-pressed={this.props.controllerOpen}
+                        aria-pressed={controllerActive}
                         className={classNames(
                             styles.menuBarItem,
                             styles.controllerButton,
                             {
                                 [styles.controllerButtonActive]:
-                                    this.props.controllerOpen
+                                    controllerActive
                             }
                         )}
                         title="Controlador"
@@ -597,6 +603,7 @@ MenuBar.propTypes = {
     onShare: PropTypes.func,
     onStartSelectingFileUpload: PropTypes.func,
     onToggleLoginOpen: PropTypes.func,
+    controllerConnected: PropTypes.bool,
     controllerOpen: PropTypes.bool,
     onToggleController: PropTypes.func,
 
@@ -644,6 +651,7 @@ MenuBar.propTypes = {
 MenuBar.defaultProps = {
     logo: scratchLogo,
     onShare: () => {},
+    controllerConnected: false,
     controllerOpen: false,
     programMode: 'stage',
     connectionState: 'disconnected',
@@ -669,6 +677,9 @@ const mapStateToProps = (state, ownProps) => {
         isShowingProject: getIsShowingProject(loadingState),
         loginMenuOpen: loginMenuOpen(state),
         projectTitle: state.scratchGui.projectTitle,
+        controllerConnected:
+            ownProps.controllerConnected ??
+            isControllerConnected(state),
         controllerOpen:
             ownProps.controllerOpen ??
             isControllerOpen(state),

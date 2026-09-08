@@ -9,11 +9,13 @@ import EasyBloxControllerDesktopSession
 
 import {
     closeController,
-    isControllerOpen
+    isControllerOpen,
+    setControllerConnected
 } from '../reducers/controller-desktop';
 
 export const ControllerDesktopWindowContainer = ({
     isOpen,
+    onConnectionStateChange,
     onRequestClose,
     session
 }) => {
@@ -45,6 +47,19 @@ export const ControllerDesktopWindowContainer = ({
                     }
                 ),
         [controllerSession]
+    );
+
+    React.useEffect(
+        () => {
+            onConnectionStateChange(
+                connectionState.status ===
+                    'connected'
+            );
+        },
+        [
+            connectionState.status,
+            onConnectionStateChange
+        ]
     );
 
     const handleConnect =
@@ -82,6 +97,8 @@ export const ControllerDesktopWindowContainer = ({
 ControllerDesktopWindowContainer.propTypes = {
     isOpen:
         PropTypes.bool,
+    onConnectionStateChange:
+        PropTypes.func,
     onRequestClose:
         PropTypes.func.isRequired,
     session:
@@ -102,6 +119,8 @@ ControllerDesktopWindowContainer.propTypes = {
 ControllerDesktopWindowContainer.defaultProps = {
     isOpen:
         false,
+    onConnectionStateChange:
+        () => {},
     session:
         null
 };
@@ -112,6 +131,13 @@ const mapStateToProps = state => ({
 });
 
 const mapDispatchToProps = dispatch => ({
+    onConnectionStateChange:
+        isConnected =>
+            dispatch(
+                setControllerConnected(
+                    isConnected
+                )
+            ),
     onRequestClose:
         () => dispatch(
             closeController()
