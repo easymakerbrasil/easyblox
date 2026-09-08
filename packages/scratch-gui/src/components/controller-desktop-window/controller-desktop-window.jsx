@@ -26,6 +26,8 @@ const DEFAULT_CONNECTION_STATE = {
     status:
         'disconnected',
     devices: [],
+    connectedDeviceLabel:
+        null,
     errorCode:
         null
 };
@@ -39,6 +41,7 @@ const ControllerConnectionStatus = ({
     const {
         status,
         devices = [],
+        connectedDeviceLabel,
         errorCode
     } = connectionState;
 
@@ -121,7 +124,9 @@ const ControllerConnectionStatus = ({
                         className={styles.connectionDotConnected}
                     />
                     <span>
-                        Bluetooth conectado
+                        {connectedDeviceLabel ?
+                            `Bluetooth conectado · ${connectedDeviceLabel}` :
+                            'Bluetooth conectado'}
                     </span>
                 </div>
 
@@ -236,6 +241,8 @@ ControllerConnectionStatus.propTypes = {
                             PropTypes.string
                     })
                 ),
+            connectedDeviceLabel:
+                PropTypes.string,
             errorCode:
                 PropTypes.string
         }).isRequired,
@@ -515,6 +522,8 @@ ControllerDesktopWindow.propTypes = {
                             PropTypes.string
                     })
                 ),
+            connectedDeviceLabel:
+                PropTypes.string,
             errorCode:
                 PropTypes.string
         }),

@@ -7,9 +7,26 @@ const createInitialState = () => ({
     status:
         'disconnected',
     devices: [],
+    connectedDeviceLabel:
+        null,
     errorCode:
         null
 });
+
+const getFriendlyDeviceLabel =
+    device => {
+        const label =
+            device &&
+            typeof device.label ===
+                'string' ?
+                device.label.trim() :
+                '';
+
+        return (
+            label ||
+            'Dispositivo Bluetooth'
+        );
+    };
 
 class EasyBloxControllerDesktopSession {
     constructor (options = {}) {
@@ -61,6 +78,9 @@ class EasyBloxControllerDesktopSession {
                         ...device
                     })
                 ),
+            connectedDeviceLabel:
+                this._state
+                    .connectedDeviceLabel,
             errorCode:
                 this._state.errorCode
         };
@@ -164,7 +184,10 @@ class EasyBloxControllerDesktopSession {
             devices.length === 1
         ) {
             return this._connectDevice(
-                devices[0].id
+                devices[0].id,
+                getFriendlyDeviceLabel(
+                    devices[0]
+                )
             );
         }
 
@@ -182,11 +205,9 @@ class EasyBloxControllerDesktopSession {
                     return {
                         key,
                         label:
-                            typeof device.label ===
-                                'string' &&
-                            device.label.length > 0 ?
-                                device.label :
-                                'Dispositivo Bluetooth'
+                            getFriendlyDeviceLabel(
+                                device
+                            )
                     };
                 }
             );
@@ -216,12 +237,23 @@ class EasyBloxControllerDesktopSession {
                 key
             );
 
-        if (!deviceId) {
+        const publicDevice =
+            this._state.devices.find(
+                device =>
+                    device.key ===
+                    key
+            );
+
+        if (
+            !deviceId ||
+            !publicDevice
+        ) {
             return false;
         }
 
         return this._connectDevice(
-            deviceId
+            deviceId,
+            publicDevice.label
         );
     }
 
@@ -240,7 +272,8 @@ class EasyBloxControllerDesktopSession {
     }
 
     async _connectDevice (
-        deviceId
+        deviceId,
+        deviceLabel
     ) {
         this._deviceIds.clear();
 
@@ -273,6 +306,8 @@ class EasyBloxControllerDesktopSession {
             status:
                 'connected',
             devices: [],
+            connectedDeviceLabel:
+                deviceLabel,
             errorCode:
                 null
         });
@@ -281,7 +316,11 @@ class EasyBloxControllerDesktopSession {
     }
 
     _setState (state) {
-        this._state = state;
+        this._state = {
+            connectedDeviceLabel:
+                null,
+            ...state
+        };
 
         const publicState =
             this.getState();

@@ -111,6 +111,95 @@ test('Bluetooth Serial Transport lists only Bluetooth serial candidates without 
     );
 });
 
+test(
+    'Bluetooth Serial Transport exposes the paired device name and ignores the local Bluetooth serial endpoint',
+    async () => {
+        const remotePnpId =
+            'BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0002\\7&14754451&0&00220401442C_C00000000';
+
+        const localPnpId =
+            'BTHENUM\\{00001101-0000-1000-8000-00805F9B34FB}_LOCALMFG&0000\\7&14754451&0&000000000000_00000002';
+
+        const resolverCalls = [];
+
+        const adapter = {
+            async list () {
+                return [
+                    {
+                        path:
+                            'COM3',
+                        label:
+                            'USB-SERIAL CH340',
+                        pnpId:
+                            'USB\\VID_1A86&PID_7523'
+                    },
+                    {
+                        path:
+                            'COM4',
+                        label:
+                            'Serial Padrão por link Bluetooth (COM4)',
+                        pnpId:
+                            remotePnpId
+                    },
+                    {
+                        path:
+                            'COM5',
+                        label:
+                            'Serial Padrão por link Bluetooth (COM5)',
+                        pnpId:
+                            localPnpId
+                    }
+                ];
+            },
+
+            createPort () {
+                throw new Error(
+                    'Port creation is not expected in this test'
+                );
+            }
+        };
+
+        const transport =
+            new BluetoothSerialTransport({
+                serialAdapter:
+                    adapter,
+                deviceNameResolver: {
+                    async resolve ({
+                        pnpId
+                    }) {
+                        resolverCalls.push(
+                            pnpId
+                        );
+
+                        return pnpId ===
+                            remotePnpId ?
+                            'EasyMaker-37' :
+                            null;
+                    }
+                }
+            });
+
+        assert.deepEqual(
+            await transport.listDevices(),
+            [
+                {
+                    id:
+                        'COM4',
+                    label:
+                        'EasyMaker-37'
+                }
+            ]
+        );
+
+        assert.deepEqual(
+            resolverCalls,
+            [
+                remotePnpId
+            ]
+        );
+    }
+);
+
 test('Bluetooth Serial Transport connects using the fixed EasyBlox BT serial settings', async () => {
     const adapter =
         createFakeAdapter();

@@ -15,6 +15,12 @@ const StageFirmwareManager =
 const SerialPortAdapter =
     require('./serial-port-adapter');
 
+    const {
+        WindowsBluetoothDeviceNameResolver
+    } = require(
+        './windows-bluetooth-device-name-resolver'
+    );
+
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8602;
 const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
@@ -122,12 +128,14 @@ class HardwareHttpServer {
                     this._uploadService
             });
 
-        this._bluetoothTransportFactory =
+            this._bluetoothTransportFactory =
             options.bluetoothTransportFactory ||
             (() =>
                 new BluetoothSerialTransport({
                     serialAdapter:
-                        new SerialPortAdapter()
+                        new SerialPortAdapter(),
+                    deviceNameResolver:
+                        new WindowsBluetoothDeviceNameResolver()
                 }));
 
         this._bluetoothWebSocketServer =
@@ -575,84 +583,6 @@ class HardwareHttpServer {
                 );
             }
         }
-    }
-
-    async _handleBluetoothDevices (
-        response
-    ) {
-        let transport;
-
-        try {
-            transport =
-                this
-                    ._bluetoothTransportFactory();
-        } catch (error) {
-            throw new HardwareServiceError(
-                'PORT_DISCOVERY_FAILED',
-                'Bluetooth device discovery failed',
-                {
-                    cause: error
-                }
-            );
-        }
-
-        if (
-            !transport ||
-            typeof transport.listDevices !==
-                'function'
-        ) {
-            throw new HardwareServiceError(
-                'PORT_DISCOVERY_FAILED',
-                'Bluetooth device discovery failed'
-            );
-        }
-
-        let devices;
-
-        try {
-            devices =
-                await transport
-                    .listDevices();
-        } catch (error) {
-            throw new HardwareServiceError(
-                'PORT_DISCOVERY_FAILED',
-                'Bluetooth device discovery failed',
-                {
-                    cause: error
-                }
-            );
-        }
-
-        const publicDevices =
-            Array.isArray(devices) ?
-                devices
-                    .filter(device =>
-                        device &&
-                        typeof device.id ===
-                            'string' &&
-                        device.id
-                            .trim()
-                            .length > 0
-                    )
-                    .map(device => ({
-                        id:
-                            device.id
-                                .trim(),
-                        label:
-                            sanitizeBluetoothDeviceLabel(
-                                device.label
-                            )
-                    })) :
-                [];
-
-        this._sendJson(
-            response,
-            200,
-            {
-                devices:
-                    publicDevices
-            }
-        );
     }
 
     async _handleBluetoothDevices (

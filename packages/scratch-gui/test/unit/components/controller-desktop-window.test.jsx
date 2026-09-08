@@ -15,6 +15,8 @@ const createConnectionProps =
             status:
                 'disconnected',
             devices: [],
+            connectedDeviceLabel:
+                null,
             errorCode:
                 null
         },
@@ -808,6 +810,8 @@ describe(
                         status:
                             'connected',
                         devices: [],
+                        connectedDeviceLabel:
+                            'EasyMaker-37',
                         errorCode:
                             null
                     }}
@@ -826,7 +830,7 @@ describe(
 
             expect(
                 screen.getByText(
-                    'Bluetooth conectado'
+                    'Bluetooth conectado · EasyMaker-37'
                 )
             ).toBeInTheDocument();
 
@@ -1019,6 +1023,8 @@ describe(
                         status:
                             'connected',
                         devices: [],
+                        connectedDeviceLabel:
+                            'EasyMaker-37',
                         errorCode:
                             null
                     }
@@ -1054,7 +1060,7 @@ describe(
 
             expect(
                 screen.getByText(
-                    'Bluetooth conectado'
+                    'Bluetooth conectado · EasyMaker-37'
                 )
             ).toBeInTheDocument();
 

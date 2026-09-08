@@ -1,3 +1,9 @@
+const {
+    extractRemoteBluetoothAddress
+} = require(
+    './windows-bluetooth-device-name-resolver'
+);
+
 const BLUETOOTH_BAUD_RATE = 9600;
 
 const isBluetoothSerialCandidate =
@@ -11,13 +17,21 @@ const isBluetoothSerialCandidate =
                 port.pnpId :
                 '';
 
-        if (
-            /^BTH(?:ENUM|MODEM)\\/i.test(
-                pnpId
-            )
-        ) {
-            return true;
-        }
+                if (
+                    /^BTH(?:ENUM|MODEM)\\/i.test(
+                        pnpId
+                    )
+                ) {
+                    if (
+                        /&0&0{12}_[0-9A-F]+$/i.test(
+                            pnpId
+                        )
+                    ) {
+                        return false;
+                    }
+
+                    return true;
+                }
 
         const label =
             typeof port.label === 'string' ?
@@ -39,8 +53,11 @@ const isBluetoothSerialCandidate =
         );
     };
 
-class BluetoothSerialTransport {
-    constructor ({serialAdapter}) {
+    class BluetoothSerialTransport {
+        constructor ({
+            serialAdapter,
+            deviceNameResolver = null
+        }) {
         if (
             !serialAdapter ||
             typeof serialAdapter.list !== 'function' ||
@@ -52,6 +69,18 @@ class BluetoothSerialTransport {
         }
 
         this._serialAdapter = serialAdapter;
+        if (
+            deviceNameResolver &&
+            typeof deviceNameResolver.resolve !==
+                'function'
+        ) {
+            throw new Error(
+                'Bluetooth serial transport requires a valid device name resolver'
+            );
+        }
+
+        this._deviceNameResolver =
+            deviceNameResolver;
         this._port = null;
         this._portHandlers = null;
         this._state = 'disconnected';
@@ -64,17 +93,55 @@ class BluetoothSerialTransport {
         const ports =
             await this._serialAdapter.list();
 
-        return ports
-            .filter(
+        const devices = [];
+
+        for (
+            const port of ports.filter(
                 isBluetoothSerialCandidate
             )
-            .map(port => ({
+        ) {
+            let label =
+                port.label ||
+                port.path;
+
+            const remoteAddress =
+                extractRemoteBluetoothAddress(
+                    port.pnpId
+                );
+
+            if (
+                remoteAddress &&
+                this._deviceNameResolver
+            ) {
+                const resolvedLabel =
+                    await this
+                        ._deviceNameResolver
+                        .resolve({
+                            pnpId:
+                                port.pnpId
+                        });
+
+                if (
+                    typeof resolvedLabel ===
+                        'string' &&
+                    resolvedLabel
+                        .trim()
+                        .length > 0
+                ) {
+                    label =
+                        resolvedLabel
+                            .trim();
+                }
+            }
+
+            devices.push({
                 id:
                     port.path,
-                label:
-                    port.label ||
-                    port.path
-            }));
+                label
+            });
+        }
+
+        return devices;
     }
 
     getState () {

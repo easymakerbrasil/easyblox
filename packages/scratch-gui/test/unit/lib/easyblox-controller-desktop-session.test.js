@@ -103,6 +103,8 @@ describe(
                 status:
                     'disconnected',
                 devices: [],
+                connectedDeviceLabel:
+                    null,
                 errorCode:
                     null
             });
@@ -163,6 +165,8 @@ describe(
                 status:
                     'connected',
                 devices: [],
+                connectedDeviceLabel:
+                    'Controle da Sala',
                 errorCode:
                     null
             });
@@ -215,6 +219,8 @@ describe(
                             'Controle B'
                     }
                 ],
+                connectedDeviceLabel:
+                    null,
                 errorCode:
                     null
             });
@@ -246,6 +252,13 @@ describe(
             ).toBe(
                 'connected'
             );
+
+            expect(
+                session.getState()
+                    .connectedDeviceLabel
+            ).toBe(
+                'Controle B'
+            );
         });
 
         test('reports that no compatible Bluetooth device was found without attempting a connection', async () => {
@@ -266,6 +279,8 @@ describe(
                 status:
                     'no-devices',
                 devices: [],
+                connectedDeviceLabel:
+                    null,
                 errorCode:
                     null
             });
@@ -290,6 +305,8 @@ describe(
                 status:
                     'error',
                 devices: [],
+                connectedDeviceLabel:
+                    null,
                 errorCode:
                     'discovery-failed'
             });
@@ -332,6 +349,8 @@ describe(
                 status:
                     'error',
                 devices: [],
+                connectedDeviceLabel:
+                    null,
                 errorCode:
                     'connection-failed'
             });
@@ -374,6 +393,8 @@ describe(
                 status:
                     'error',
                 devices: [],
+                connectedDeviceLabel:
+                    null,
                 errorCode:
                     'connection-failed'
             });
@@ -386,6 +407,8 @@ describe(
                 status:
                     'error',
                 devices: [],
+                connectedDeviceLabel:
+                    null,
                 errorCode:
                     'connection-failed'
             });
@@ -423,6 +446,8 @@ describe(
                 status:
                     'disconnected',
                 devices: [],
+                connectedDeviceLabel:
+                    null,
                 errorCode:
                     null
             });
@@ -437,6 +462,8 @@ describe(
                 status:
                     'disconnected',
                 devices: [],
+                connectedDeviceLabel:
+                    null,
                 errorCode:
                     'connection-lost'
             });
