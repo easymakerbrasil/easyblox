@@ -85,6 +85,80 @@ class FakeSession {
     }
 }
 
+class FakeVM {
+    constructor () {
+        this._listeners =
+            new Map();
+    }
+
+    addListener (eventName, listener) {
+        if (!this._listeners.has(eventName)) {
+            this._listeners.set(
+                eventName,
+                new Set()
+            );
+        }
+
+        this._listeners
+            .get(eventName)
+            .add(listener);
+    }
+
+    removeListener (eventName, listener) {
+        const listeners =
+            this._listeners.get(
+                eventName
+            );
+
+        if (!listeners) {
+            return;
+        }
+
+        listeners.delete(
+            listener
+        );
+    }
+
+    emit (eventName) {
+        const listeners =
+            this._listeners.get(
+                eventName
+            );
+
+        if (!listeners) {
+            return;
+        }
+
+        for (
+            const listener of
+            [...listeners]
+        ) {
+            listener();
+        }
+    }
+
+    listenerCount (eventName) {
+        const listeners =
+            this._listeners.get(
+                eventName
+            );
+
+        return listeners ?
+            listeners.size :
+            0;
+    }
+}
+
+class FakeProjectBridge {
+    constructor () {
+        this.refreshCalls = 0;
+    }
+
+    refreshFromVM () {
+        this.refreshCalls += 1;
+    }
+}
+
 describe(
     'ControllerDesktopWindowContainer',
     () => {
@@ -173,6 +247,52 @@ describe(
             ).toHaveBeenLastCalledWith(
                 false
             );
+        });
+
+        test('refreshes the Controller project bridge when the VM loads a project', () => {
+            const session =
+                new FakeSession();
+
+            const vm =
+                new FakeVM();
+
+            const projectBridge =
+                new FakeProjectBridge();
+
+            const {unmount} =
+                render(
+                    <ControllerDesktopWindowContainer
+                        isOpen={false}
+                        onRequestClose={jest.fn()}
+                        projectBridge={projectBridge}
+                        session={session}
+                        vm={vm}
+                    />
+                );
+
+            expect(
+                vm.listenerCount(
+                    'PROJECT_LOADED'
+                )
+            ).toBe(1);
+
+            act(() => {
+                vm.emit(
+                    'PROJECT_LOADED'
+                );
+            });
+
+            expect(
+                projectBridge.refreshCalls
+            ).toBe(1);
+
+            unmount();
+
+            expect(
+                vm.listenerCount(
+                    'PROJECT_LOADED'
+                )
+            ).toBe(0);
         });
 
         test('closing and reopening the Controller does not disconnect its active session', () => {

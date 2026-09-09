@@ -1819,15 +1819,16 @@ test('VirtualMachine persists and rehydrates EasyBlox project context with canon
             sourceVm.toJSON()
         );
 
-    t.same(
-        serializedStageProject.easybloxProject,
-        {
-            schemaVersion: 1,
-            selectedBoardId: 'arduino-uno',
-            programMode: 'stage'
-        },
-        'Stage project serialization preserves the selected board'
-    );
+        t.same(
+            serializedStageProject.easybloxProject,
+            {
+                schemaVersion: 1,
+                selectedBoardId: 'arduino-uno',
+                programMode: 'stage',
+                controllerComponents: []
+            },
+            'Stage project serialization preserves the selected board'
+        );
 
     /*
      * A project with no selected board is always a Stage project.
@@ -1839,15 +1840,16 @@ test('VirtualMachine persists and rehydrates EasyBlox project context with canon
             sourceVm.toJSON()
         );
 
-    t.same(
-        serializedNoBoardProject.easybloxProject,
-        {
-            schemaVersion: 1,
-            selectedBoardId: null,
-            programMode: 'stage'
-        },
-        'project serialization preserves the absence of a selected board'
-    );
+        t.same(
+            serializedNoBoardProject.easybloxProject,
+            {
+                schemaVersion: 1,
+                selectedBoardId: null,
+                programMode: 'stage',
+                controllerComponents: []
+            },
+            'project serialization preserves the absence of a selected board'
+        );
 
     /*
      * Restore the logical board and enter Upload before the canonical
@@ -1868,15 +1870,16 @@ test('VirtualMachine persists and rehydrates EasyBlox project context with canon
     const serializedProjectJSON =
         JSON.parse(serializedProject);
 
-    t.same(
-        serializedProjectJSON.easybloxProject,
-        {
-            schemaVersion: 1,
-            selectedBoardId: 'arduino-uno',
-            programMode: 'upload'
-        },
-        'Upload project serialization preserves board and program mode'
-    );
+        t.same(
+            serializedProjectJSON.easybloxProject,
+            {
+                schemaVersion: 1,
+                selectedBoardId: 'arduino-uno',
+                programMode: 'upload',
+                controllerComponents: []
+            },
+            'Upload project serialization preserves board and program mode'
+        );
 
     t.match(
         serializedProject,
@@ -1983,6 +1986,96 @@ test('VirtualMachine persists and rehydrates EasyBlox project context with canon
             programMode: 'stage'
         },
         'Upload without a selected board falls back safely to Stage'
+    );
+});
+
+test('VirtualMachine persists and rehydrates EasyBlox Controller components', async t => {
+    const sourceVm =
+        new VirtualMachine();
+
+    const sprite =
+        new Sprite(
+            null,
+            sourceVm.runtime
+        );
+
+    sprite.name = 'Stage';
+
+    const stage =
+        sprite.createClone();
+
+    stage.isStage = true;
+    stage.isOriginal = true;
+
+    sourceVm.runtime.targets = [
+        stage
+    ];
+
+    sourceVm.editingTarget =
+        stage;
+
+    sourceVm.runtime.setEditingTarget(
+        stage
+    );
+
+    sourceVm.setEasyBloxControllerComponents([
+        {
+            id: 'action-button',
+            type: 'button',
+            label: 'Botão 1'
+        }
+    ]);
+
+    const componentSnapshot =
+        sourceVm.getEasyBloxControllerComponents();
+
+    componentSnapshot[0].label =
+        'Alterado fora da VM';
+
+    t.same(
+        sourceVm.getEasyBloxControllerComponents(),
+        [{
+            id: 'action-button',
+            type: 'button',
+            label: 'Botão 1'
+        }],
+        'Controller component snapshots do not expose mutable VM state'
+    );
+
+    const serializedProject =
+        JSON.parse(
+            sourceVm.toJSON()
+        );
+
+    t.same(
+        serializedProject.easybloxProject.controllerComponents,
+        [{
+            id: 'action-button',
+            type: 'button',
+            label: 'Botão 1'
+        }],
+        'project serialization preserves Controller component identity and label'
+    );
+
+    serializedProject.projectVersion =
+        3;
+
+    const reloadedVm =
+        new VirtualMachine();
+
+    await reloadedVm.deserializeProject(
+        serializedProject,
+        null
+    );
+
+    t.same(
+        reloadedVm.getEasyBloxControllerComponents(),
+        [{
+            id: 'action-button',
+            type: 'button',
+            label: 'Botão 1'
+        }],
+        'project reload restores Controller components'
     );
 });
 

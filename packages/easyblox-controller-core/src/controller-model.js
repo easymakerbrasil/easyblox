@@ -42,6 +42,23 @@ class ControllerModel {
         return true;
     }
 
+    setComponentLabel (id, label) {
+        const componentIndex = this._components.findIndex(
+            existingComponent => existingComponent.id === id
+        );
+
+        if (componentIndex === -1) {
+            return false;
+        }
+
+        this._components[componentIndex] = {
+            ...this._components[componentIndex],
+            label
+        };
+
+        return true;
+    }
+
     addComponent (component) {
         if (
             component === null ||

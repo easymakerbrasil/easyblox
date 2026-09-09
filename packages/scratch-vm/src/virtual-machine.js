@@ -289,6 +289,7 @@ class VirtualMachine extends EventEmitter {
         this.editingTarget = null;
         this._easybloxUploadPrograms = null;
         this._easybloxArduinoUnoControllerBindingManifest = [];
+        this._easybloxControllerComponents = [];
         this._easybloxProgramMode = 'stage';
         this._easybloxActiveBoardId = null;
         this._easybloxSelectedBoardId = null;
@@ -643,7 +644,9 @@ class VirtualMachine extends EventEmitter {
                 selectedBoardId:
                     projectContext.selectedBoardId,
                 programMode:
-                    projectContext.programMode
+                    projectContext.programMode,
+                controllerComponents:
+                    this.getEasyBloxControllerComponents()
             };
         }
 
@@ -710,6 +713,14 @@ class VirtualMachine extends EventEmitter {
              * has restored its own board/mode state.
              */
             this._easybloxActiveBoardId = null;
+
+            this.setEasyBloxControllerComponents(
+                Array.isArray(
+                    serializedEasyBloxProject.controllerComponents
+                ) ?
+                    serializedEasyBloxProject.controllerComponents :
+                    []
+            );
         }
 
         if (typeof performance !== 'undefined') {
@@ -1717,6 +1728,39 @@ class VirtualMachine extends EventEmitter {
                 sourceBlocks
             );
         }
+    }
+
+    /**
+     * Replace the persistable EasyBlox Controller component description.
+     * Component semantics remain owned by the GUI/Controller layer.
+     * @param {Array<object>} components Serializable Controller components.
+     */
+    setEasyBloxControllerComponents (components) {
+        if (!Array.isArray(components)) {
+            throw new Error(
+                'EasyBlox Controller components must be an array'
+            );
+        }
+
+        this._easybloxControllerComponents =
+            components.map(component => ({
+                ...component
+            }));
+    }
+    /**
+     * Return an independent snapshot of the persistable Controller components.
+     * @returns {Array<object>} Serializable Controller component snapshot.
+     */
+    getEasyBloxControllerComponents () {
+        if (!Array.isArray(this._easybloxControllerComponents)) {
+            return [];
+        }
+
+        return this._easybloxControllerComponents.map(
+            component => ({
+                ...component
+            })
+        );
     }
 
     /**

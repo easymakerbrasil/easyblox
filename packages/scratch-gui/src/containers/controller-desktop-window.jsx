@@ -6,6 +6,8 @@ import ControllerDesktopWindow
     from '../components/controller-desktop-window/controller-desktop-window.jsx';
 import EasyBloxControllerDesktopSession
     from '../lib/easyblox-controller-desktop-session';
+import EasyBloxControllerProjectBridge
+    from '../lib/easyblox-controller-project-bridge';
 
 import {
     closeController,
@@ -17,7 +19,9 @@ export const ControllerDesktopWindowContainer = ({
     isOpen,
     onConnectionStateChange,
     onRequestClose,
-    session
+    projectBridge,
+    session,
+    vm
 }) => {
     const [
         controllerSession
@@ -25,6 +29,20 @@ export const ControllerDesktopWindowContainer = ({
         () =>
             session ||
             new EasyBloxControllerDesktopSession()
+    );
+
+    const [
+        controllerProjectBridge
+    ] = React.useState(
+        () =>
+            projectBridge ||
+            (
+                vm ?
+                    new EasyBloxControllerProjectBridge({
+                        vm
+                    }) :
+                    null
+            )
     );
 
     const [
@@ -47,6 +65,39 @@ export const ControllerDesktopWindowContainer = ({
                     }
                 ),
         [controllerSession]
+    );
+
+    React.useEffect(
+        () => {
+            if (
+                !vm ||
+                !controllerProjectBridge
+            ) {
+                return;
+            }
+
+            const handleProjectLoaded =
+                () => {
+                    controllerProjectBridge
+                        .refreshFromVM();
+                };
+
+            vm.addListener(
+                'PROJECT_LOADED',
+                handleProjectLoaded
+            );
+
+            return () => {
+                vm.removeListener(
+                    'PROJECT_LOADED',
+                    handleProjectLoaded
+                );
+            };
+        },
+        [
+            controllerProjectBridge,
+            vm
+        ]
     );
 
     React.useEffect(
@@ -75,7 +126,7 @@ export const ControllerDesktopWindowContainer = ({
         };
 
     const handleSelectDevice =
-        key => {
+        function (key) {
             controllerSession
                 .selectDevice(
                     key
@@ -101,6 +152,11 @@ ControllerDesktopWindowContainer.propTypes = {
         PropTypes.func,
     onRequestClose:
         PropTypes.func.isRequired,
+    projectBridge:
+        PropTypes.shape({
+            refreshFromVM:
+                PropTypes.func.isRequired
+        }),
     session:
         PropTypes.shape({
             connect:
@@ -113,6 +169,19 @@ ControllerDesktopWindowContainer.propTypes = {
                 PropTypes.func.isRequired,
             selectDevice:
                 PropTypes.func.isRequired
+        }),
+    vm:
+        PropTypes.shape({
+            addListener:
+                PropTypes.func.isRequired,
+            getEasyBloxControllerComponents:
+                PropTypes.func,
+            removeListener:
+                PropTypes.func.isRequired,
+            setArduinoUnoControllerBindingManifest:
+                PropTypes.func,
+            setEasyBloxControllerComponents:
+                PropTypes.func
         })
 };
 
@@ -121,28 +190,41 @@ ControllerDesktopWindowContainer.defaultProps = {
         false,
     onConnectionStateChange:
         () => {},
+    projectBridge:
+        null,
     session:
+        null,
+    vm:
         null
 };
 
-const mapStateToProps = state => ({
-    isOpen:
-        isControllerOpen(state)
-});
+const mapStateToProps =
+    function (state) {
+        return {
+            isOpen:
+                isControllerOpen(state),
+            vm:
+                state.scratchGui.vm
+        };
+    };
 
-const mapDispatchToProps = dispatch => ({
-    onConnectionStateChange:
-        isConnected =>
-            dispatch(
-                setControllerConnected(
-                    isConnected
+const mapDispatchToProps =
+    function (dispatch) {
+        return {
+            onConnectionStateChange:
+                function (isConnected) {
+                    return dispatch(
+                        setControllerConnected(
+                            isConnected
+                        )
+                    );
+                },
+            onRequestClose:
+                () => dispatch(
+                    closeController()
                 )
-            ),
-    onRequestClose:
-        () => dispatch(
-            closeController()
-        )
-});
+        };
+    };
 
 export default connect(
     mapStateToProps,

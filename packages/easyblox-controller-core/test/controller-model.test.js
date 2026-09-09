@@ -180,3 +180,38 @@ test('Controller Model removes a component by its internal id', () => {
         false
     );
 });
+
+test('Controller Model changes only the visual label while preserving internal identity', () => {
+    const model = new ControllerModel();
+
+    model.addComponent({
+        id: 'action-button',
+        type: CONTROLLER_COMPONENT_TYPES.BUTTON,
+        label: 'Botão 1'
+    });
+
+    assert.equal(
+        model.setComponentLabel(
+            'action-button',
+            'Ligar LED'
+        ),
+        true
+    );
+
+    assert.deepEqual(
+        model.getComponents(),
+        [{
+            id: 'action-button',
+            type: 'button',
+            label: 'Ligar LED'
+        }]
+    );
+
+    assert.equal(
+        model.setComponentLabel(
+            'missing-button',
+            'Outro'
+        ),
+        false
+    );
+});
