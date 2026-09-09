@@ -2,11 +2,11 @@
   "name": "@easymaker/easyblox-controller-core",
   "version": "0.1.0",
   "private": true,
-  "description": "Shared controller model, state, and event infrastructure for EasyBlox.",
+  "description": "Shared controller model, state, binding, and event infrastructure for EasyBlox.",
   "license": "AGPL-3.0-only",
   "main": "src/index.js",
   "scripts": {
-    "build": "node --check src/index.js && node --check src/controller-model.js && node --check src/controller-state.js && node --check src/controller-events.js && node --check src/controller-connectivity-client.js",
+    "build": "node --check src/index.js && node --check src/controller-model.js && node --check src/controller-state.js && node --check src/controller-events.js && node --check src/controller-binding-contract.js && node --check src/controller-binding.js && node --check src/controller-binding-message.js && node --check src/controller-binding-state-store.js && node --check src/controller-connectivity-client.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
