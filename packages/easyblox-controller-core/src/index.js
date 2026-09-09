@@ -39,6 +39,16 @@ const {
     ControllerBindingStateStore
 } = require('./controller-binding-state-store');
 
+const {
+    CONTROLLER_BINDING_WIRE_CONTRACT,
+    ControllerBindingWireRegistry,
+    getControllerBindingWireChannel
+} = require('./controller-binding-wire');
+
+const {
+    ControllerBindingWireCodec
+} = require('./controller-binding-wire-codec');
+
 module.exports = {
     ControllerModel,
     CONTROLLER_COMPONENT_TYPES,
@@ -56,5 +66,9 @@ module.exports = {
     validateControllerBindingValue,
     CONTROLLER_BINDING_MESSAGE_KINDS,
     createControllerBindingMessage,
-    ControllerBindingStateStore
+    ControllerBindingStateStore,
+    CONTROLLER_BINDING_WIRE_CONTRACT,
+    ControllerBindingWireRegistry,
+    getControllerBindingWireChannel,
+    ControllerBindingWireCodec
 };
