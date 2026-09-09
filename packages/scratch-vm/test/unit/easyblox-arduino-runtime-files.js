@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const test = require('tap').test;
 const {
-    EASYBLOX_BT_INTERNAL_IDENTIFIERS
+    EASYBLOX_BT_INTERNAL_IDENTIFIERS,
+    getEasyBloxBtSupportFiles
 } = require(
     '../../src/upload/easyblox-bt-arduino-runtime'
 );
@@ -271,6 +272,212 @@ test(
 );
 
 test(
+    'EasyBlox Bluetooth config carries only the Controller Binding channels required by the build',
+    t => {
+        const supportFiles =
+            getEasyBloxBtSupportFiles({
+                controllerBindingChannels: [
+                    'C1.7A34E291',
+                    'C1.11223344'
+                ]
+            });
+
+        const config =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                    'EasyBloxConfig.h'
+            ).content;
+
+        t.match(
+            config,
+            /#define\s+EASYBLOX_CONTROLLER_BINDING_COUNT\s+2/,
+            'config declares exactly the required binding count'
+        );
+
+        t.match(
+            config,
+            /"C1\.7A34E291"/,
+            'config carries the first canonical binding channel'
+        );
+
+        t.match(
+            config,
+            /"C1\.11223344"/,
+            'config carries the second canonical binding channel'
+        );
+
+        const defaultConfig =
+            getEasyBloxBtSupportFiles()
+                .find(
+                    file =>
+                        file.name ===
+                        'EasyBloxConfig.h'
+                ).content;
+
+        t.match(
+            defaultConfig,
+            /#define\s+EASYBLOX_CONTROLLER_BINDING_COUNT\s+0/,
+            'ordinary Bluetooth builds allocate no Controller Binding entries'
+        );
+
+        t.end();
+    }
+);
+
+test(
+    'EasyBlox Bluetooth runtime routes configured Controller Binding NUMBER frames into non-blocking state cache',
+    t => {
+        const source =
+            fs.readFileSync(
+                path.join(
+                    sourceDirectory,
+                    'EasyBloxBluetooth.cpp'
+                ),
+                'utf8'
+            );
+
+        t.match(
+            source,
+            /float\s+easybloxBtBindingNumberValues\s*\[/,
+            'runtime owns numeric binding state storage'
+        );
+
+        t.match(
+            source,
+            /int16_t\s+easybloxBtFindControllerBinding\s*\(\s*const String\s*&channel\s*\)/,
+            'runtime resolves configured binding channels'
+        );
+
+        const processStart =
+            source.indexOf(
+                'void easybloxBtProcessFrame()'
+            );
+
+        const processEnd =
+            source.indexOf(
+                'void easybloxBtPushByte',
+                processStart
+            );
+
+        const processFrameSource =
+            source.slice(
+                processStart,
+                processEnd
+            );
+
+        const bindingRouteIndex =
+            processFrameSource.indexOf(
+                'easybloxBtFindControllerBinding'
+            );
+
+        const legacyRouteIndex =
+            processFrameSource.indexOf(
+                'channel != EASYBLOX_BT_CHANNEL'
+            );
+
+        t.ok(
+            bindingRouteIndex >= 0 &&
+            legacyRouteIndex >= 0 &&
+            bindingRouteIndex <
+                legacyRouteIndex,
+            'Controller Binding route is evaluated before the legacy channel filter'
+        );
+
+        t.match(
+            processFrameSource,
+            /controllerBindingIndex\s*>=\s*0[\s\S]*?type\s*!=\s*EASYBLOX_EBCP_TYPE_NUMBER[\s\S]*?return\s*;/,
+            'Controller Binding v1 accepts NUMBER wire values only'
+        );
+
+        t.match(
+            processFrameSource,
+            /easybloxBtBindingNumberValues\s*\[[\s\S]*?controllerBindingIndex[\s\S]*?\]\s*=\s*value\.number\s*;/,
+            'received NUMBER updates the binding state cache'
+        );
+
+        t.end();
+    }
+);
+
+test(
+    'EasyBlox Controller Binding state reporters are non-blocking and reset on EBCP session restart',
+    t => {
+        const header =
+            fs.readFileSync(
+                path.join(
+                    sourceDirectory,
+                    'EasyBlox.h'
+                ),
+                'utf8'
+            );
+
+        const source =
+            fs.readFileSync(
+                path.join(
+                    sourceDirectory,
+                    'EasyBloxBluetooth.cpp'
+                ),
+                'utf8'
+            );
+
+        t.match(
+            header,
+            /float\s+easybloxControllerBindingNumber\s*\(\s*uint8_t\s+bindingIndex\s*\)\s*;/,
+            'runtime exposes a numeric state reporter to generated code'
+        );
+
+        t.match(
+            header,
+            /bool\s+easybloxControllerBindingBoolean\s*\(\s*uint8_t\s+bindingIndex\s*\)\s*;/,
+            'runtime exposes the Boolean view used by Button and Toggle'
+        );
+
+        const numberStart =
+            source.indexOf(
+                'float easybloxControllerBindingNumber'
+            );
+
+        const numberEnd =
+            source.indexOf(
+                'bool easybloxControllerBindingBoolean',
+                numberStart
+            );
+
+        const numberReporterSource =
+            source.slice(
+                numberStart,
+                numberEnd
+            );
+
+        t.notMatch(
+            numberReporterSource,
+            /\bwhile\b|\bdelay\s*\(|easybloxBtPoll\s*\(/,
+            'state reporter never waits or polls synchronously'
+        );
+
+        t.match(
+            source,
+            /bool\s+easybloxControllerBindingBoolean[\s\S]*?easybloxControllerBindingNumber[\s\S]*?!=\s*0\.0f/,
+            'Boolean reporter derives false or true from NUMBER state'
+        );
+
+        const resetCalls =
+            source.match(
+                /easybloxBtResetControllerBindings\s*\(\s*\)\s*;/g
+            ) || [];
+
+        t.ok(
+            resetCalls.length >=
+                2,
+            'HELLO and HELLO_ACK reset stale Controller Binding state'
+        );
+
+        t.end();
+    }
+);
+
+test(
     'generated browser runtime mirror matches the canonical C++ sources',
     t => {
         if (
@@ -316,14 +523,21 @@ test(
                 continue;
             }
 
+            const canonicalSource =
+                fs.readFileSync(
+                    sourcePath,
+                    'utf8'
+                )
+                    .replace(
+                        /\r\n/g,
+                        '\n'
+                    );
+
             t.equal(
                 EASYBLOX_ARDUINO_RUNTIME_SOURCES[
                     name
                 ],
-                fs.readFileSync(
-                    sourcePath,
-                    'utf8'
-                ),
+                canonicalSource,
                 `${name} browser mirror matches its canonical C++ source`
             );
         }
