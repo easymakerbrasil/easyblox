@@ -288,6 +288,7 @@ class VirtualMachine extends EventEmitter {
         this.runtime.dispose();
         this.editingTarget = null;
         this._easybloxUploadPrograms = null;
+        this._easybloxArduinoUnoControllerBindingManifest = [];
         this._easybloxProgramMode = 'stage';
         this._easybloxActiveBoardId = null;
         this._easybloxSelectedBoardId = null;
@@ -2989,6 +2990,27 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Supply the internal Controller Binding manifest used by Arduino UNO
+     * Upload builds. The GUI/Controller layer owns component semantics and
+     * passes only stable identities plus their resolved wire channels.
+     * @param {Array<object>} bindings Controller Binding build manifest.
+     */
+    setArduinoUnoControllerBindingManifest (bindings) {
+        if (!Array.isArray(bindings)) {
+            throw new Error(
+                'Arduino UNO Controller Binding manifest must be an array'
+            );
+        }
+
+        this._easybloxArduinoUnoControllerBindingManifest =
+            bindings.map(
+                binding => ({
+                    ...binding
+                })
+            );
+    }
+
+    /**
      * Extract and validate the canonical Arduino UNO Upload program.
      * This is the semantic source used both for generated C++ and
      * Upload-runtime metadata such as the Serial Monitor baud rate.
@@ -3009,6 +3031,21 @@ class VirtualMachine extends EventEmitter {
         );
 
         const ir = extractor.extract();
+
+        if (
+            Array.isArray(
+                this._easybloxArduinoUnoControllerBindingManifest
+            ) &&
+            this._easybloxArduinoUnoControllerBindingManifest.length >
+                0
+        ) {
+            ir.controllerBindings =
+                this._easybloxArduinoUnoControllerBindingManifest.map(
+                    binding => ({
+                        ...binding
+                    })
+                );
+        }
 
         contextValidator.validate(ir);
         typeValidator.validate(ir);
@@ -3071,24 +3108,34 @@ class VirtualMachine extends EventEmitter {
      * @returns {object} Arduino build bundle.
      */
     generateArduinoUnoUploadBuildBundle () {
-        return {
-            code:
-                this.generateArduinoUnoUploadCode(),
-            supportFiles: []
-        };
-    }    generateArduinoUnoUploadBuildBundle () {
         const ir =
             this._getValidatedArduinoUnoUploadIr();
 
         const generator =
             new ArduinoUnoGenerator();
 
+        const controllerBindingChannels =
+            generator.getControllerBindingChannels(
+                ir
+            );
+
+        const usesEasyBloxRuntime =
+            generator.usesEasyBloxBt(
+                ir
+            ) ||
+            controllerBindingChannels.length >
+                0;
+
         return {
             code:
-                generator.generate(ir),
+                generator.generate(
+                    ir
+                ),
             supportFiles:
-                generator.usesEasyBloxBt(ir) ?
-                    getEasyBloxBtSupportFiles() :
+                usesEasyBloxRuntime ?
+                    getEasyBloxBtSupportFiles({
+                        controllerBindingChannels
+                    }) :
                     []
         };
     }
