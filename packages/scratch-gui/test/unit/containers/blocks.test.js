@@ -1343,6 +1343,33 @@ test('preserves incompatible blocks without freezing portable BOTH descendants a
             'stage-both'
         );
 
+    const standaloneBothBlock =
+        document.createElement('block');
+
+    standaloneBothBlock.setAttribute(
+        'type',
+        'control_wait'
+    );
+
+    standaloneBothBlock.setAttribute(
+        'id',
+        'stage-standalone-both'
+    );
+
+    standaloneBothBlock.setAttribute(
+        'x',
+        '280'
+    );
+
+    standaloneBothBlock.setAttribute(
+        'y',
+        '120'
+    );
+
+    stageWorkspaceDom.appendChild(
+        standaloneBothBlock
+    );
+
     const uploadWorkspaceDom =
         createWorkspaceDom(
             'arduinoUno_whenArduinoUnoStart',
@@ -1463,6 +1490,44 @@ test('preserves incompatible blocks without freezing portable BOTH descendants a
             );
 
         expect(preservedStageHat).not.toBeNull();
+
+        const preservedStandaloneBoth =
+            stageToUploadDom.querySelector(
+                '[id="stage-standalone-both"]'
+            );
+
+        expect(
+            preservedStandaloneBoth
+        ).not.toBeNull();
+
+        expect(
+            preservedStandaloneBoth &&
+            preservedStandaloneBoth.getAttribute(
+                'disabled'
+            )
+        ).toBeNull();
+
+        expect(
+            preservedStandaloneBoth &&
+            preservedStandaloneBoth.getAttribute(
+                'movable'
+            )
+        ).toBeNull();
+
+        expect(
+            preservedStandaloneBoth &&
+            preservedStandaloneBoth.getAttribute(
+                'deletable'
+            )
+        ).toBeNull();
+
+        expect(
+            preservedStandaloneBoth &&
+            preservedStandaloneBoth.getAttribute(
+                'editable'
+            )
+        ).toBeNull();
+
         expect(preservedStageWrite).not.toBeNull();
         expect(preservedStageWait).not.toBeNull();
 

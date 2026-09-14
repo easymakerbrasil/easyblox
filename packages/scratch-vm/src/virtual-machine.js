@@ -286,6 +286,18 @@ class VirtualMachine extends EventEmitter {
      */
     clear () {
         this.runtime.dispose();
+
+        if (
+            typeof this.runtime
+                .setEasyBloxActiveProgramBlocks ===
+                'function'
+        ) {
+            this.runtime
+                .setEasyBloxActiveProgramBlocks(
+                    null
+                );
+        }
+
         this.editingTarget = null;
         this._easybloxUploadPrograms = null;
         this._easybloxArduinoUnoControllerBindingManifest = [];
@@ -1794,6 +1806,17 @@ class VirtualMachine extends EventEmitter {
         ) {
             this._easybloxProgramMode = 'stage';
             this._easybloxActiveBoardId = null;
+
+            if (
+                typeof this.runtime
+                    .setEasyBloxActiveProgramBlocks ===
+                    'function'
+            ) {
+                this.runtime
+                    .setEasyBloxActiveProgramBlocks(
+                        null
+                    );
+            }
         }
     }
 
@@ -1879,6 +1902,24 @@ class VirtualMachine extends EventEmitter {
         if (mode === 'upload') {
             this._easybloxSelectedBoardId =
                 boardId;
+        }
+
+        if (
+            typeof this.runtime
+                .setEasyBloxActiveProgramBlocks ===
+                'function'
+        ) {
+            const activeProgramBlocks =
+                mode === 'upload' ?
+                    this.getOrCreateUploadProgram(
+                        boardId
+                    ).blocks :
+                    null;
+
+            this.runtime
+                .setEasyBloxActiveProgramBlocks(
+                    activeProgramBlocks
+                );
         }
     }
 

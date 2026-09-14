@@ -264,6 +264,16 @@ class Runtime extends EventEmitter {
         this._editingTarget = null;
 
         /**
+         * Optional EasyBlox Upload block container currently owning the visible
+         * programming workspace. Null means Stage resolves through Scratch
+         * targets normally.
+         * @type {?Blocks}
+         * @private
+         */
+        this._easybloxActiveProgramBlocks =
+            null;
+
+        /**
          * Map to look up a block primitive's implementation function by its opcode.
          * This is a two-step lookup: package name first, then primitive name.
          * @type {Object.<string, Function>}
@@ -807,6 +817,65 @@ class Runtime extends EventEmitter {
      */
     static get THREAD_STEP_INTERVAL_COMPATIBILITY () {
         return 1000 / 30;
+    }
+
+    /**
+     * Set the Upload block container currently owning the EasyBlox workspace.
+     * Null restores normal Stage target resolution.
+     * @param {?Blocks} blocks Active Upload block container, or null.
+     */
+    setEasyBloxActiveProgramBlocks (blocks) {
+        if (
+            blocks !== null &&
+            (
+                typeof blocks !== 'object' ||
+                typeof blocks.getBlock !==
+                    'function'
+            )
+        ) {
+            throw new Error(
+                'EasyBlox active program blocks must be a Blocks container or null'
+            );
+        }
+
+        this._easybloxActiveProgramBlocks =
+            blocks;
+    }
+
+    /**
+     * Resolve the block container visible to EasyBlox extensions.
+     * Upload owns an independent Blocks instance; Stage resolves through the
+     * requested Scratch target.
+     * @param {?string} targetId Scratch target currently being edited.
+     * @returns {?Blocks} Active EasyBlox block container.
+     */
+    getEasyBloxActiveProgramBlocks (targetId) {
+        if (this._easybloxActiveProgramBlocks) {
+            return this._easybloxActiveProgramBlocks;
+        }
+
+        let target = null;
+
+        if (
+            typeof targetId === 'string' &&
+            targetId.length > 0
+        ) {
+            target =
+                this.getTargetById(
+                    targetId
+                );
+        }
+
+        if (!target) {
+            target =
+                this.getEditingTarget() ||
+                this.getTargetForStage();
+        }
+
+        return target &&
+            target.blocks ?
+            target.blocks :
+            null;
     }
 
     /**

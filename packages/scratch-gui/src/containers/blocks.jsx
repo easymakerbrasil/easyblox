@@ -835,7 +835,21 @@ class Blocks extends React.Component {
                     );
                 });
 
-            if (!containsIncompatibleBlock) {
+            const topLevelExecutionMode =
+                getExecutionMode.call(
+                    runtime,
+                    topLevelBlock.getAttribute(
+                        'type'
+                    )
+                );
+
+            const containsPortableTopLevelBlock =
+                topLevelExecutionMode === 'both';
+
+            if (
+                !containsIncompatibleBlock &&
+                !containsPortableTopLevelBlock
+            ) {
                 return;
             }
 

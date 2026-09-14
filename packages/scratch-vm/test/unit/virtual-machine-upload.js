@@ -1814,6 +1814,15 @@ test('VirtualMachine persists and rehydrates EasyBlox project context with canon
         null
     );
 
+    t.equal(
+        sourceVm.runtime
+            .getEasyBloxActiveProgramBlocks(
+                stage.id
+            ),
+        stage.blocks,
+        'Stage exposes the editing target block container to EasyBlox extensions'
+    );
+
     const serializedStageProject =
         JSON.parse(
             sourceVm.toJSON()
@@ -1864,6 +1873,15 @@ test('VirtualMachine persists and rehydrates EasyBlox project context with canon
         'arduino-uno'
     );
 
+    t.equal(
+        sourceVm.runtime
+            .getEasyBloxActiveProgramBlocks(
+                stage.id
+            ),
+        sourceUploadProgram.blocks,
+        'Upload exposes its independent canonical block container to EasyBlox extensions'
+    );
+
     const serializedProject =
         sourceVm.toJSON();
 
@@ -1885,6 +1903,39 @@ test('VirtualMachine persists and rehydrates EasyBlox project context with canon
         serializedProject,
         /roundtrip_upload_block/,
         'serialized project contains the canonical Upload script'
+    );
+
+    sourceVm.setEasyBloxSelectedBoard(
+        null
+    );
+
+    t.equal(
+        sourceVm.runtime
+            .getEasyBloxActiveProgramBlocks(
+                stage.id
+            ),
+        stage.blocks,
+        'removing the selected board clears the Upload block override'
+    );
+
+    sourceVm.setProgramContext(
+        'upload',
+        'arduino-uno'
+    );
+
+    sourceVm.clear();
+
+    const activeBlocksAfterClear =
+        sourceVm.runtime
+            .getEasyBloxActiveProgramBlocks(
+                stage.id
+            );
+
+    t.equal(
+        activeBlocksAfterClear ===
+            sourceUploadProgram.blocks,
+        false,
+        'clearing the project cannot retain a stale Upload block container'
     );
 
     const reloadedVm =
