@@ -1,0 +1,15 @@
+{
+    "name": "@easymaker/easyblox-windows-bluetooth",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Shared Windows Bluetooth SPP infrastructure for the EasyMaker ecosystem.",
+    "license": "AGPL-3.0-only",
+    "main": "src/index.js",
+    "scripts": {
+        "build": "node --check src/index.js && node --check src/process-runner.js && node --check src/bluetooth-serial-transport.js && node --check src/serial-port-adapter.js && node --check src/windows-bluetooth-device-name-resolver.js",
+        "test": "node --test test/*.test.js"
+    },
+    "dependencies": {
+        "serialport": "^13.0.0"
+    }
+}

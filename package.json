@@ -16,6 +16,7 @@
   "author": "Scratch Foundation",
   "workspaces": [
   "packages/easyblox-hardware-service",
+  "packages/easyblox-windows-bluetooth",
   "packages/easyblox-controller-core",
   "packages/easyblox-connectivity-core",
   "packages/easyconect-core",

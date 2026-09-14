@@ -2,8 +2,14 @@ const http = require('node:http');
 const {randomUUID} = require('node:crypto');
 const {WebSocketServer} = require('ws');
 
-const BluetoothSerialTransport =
-    require('./bluetooth-serial-transport');
+const {
+    BluetoothSerialTransport,
+    SerialPortAdapter,
+    WindowsBluetoothDeviceNameResolver
+} = require(
+    '@easymaker/easyblox-windows-bluetooth'
+);
+
 const BluetoothSocketSession =
     require('./bluetooth-socket-session');
 const BuildService = require('./build-service');
@@ -11,15 +17,6 @@ const HardwareServiceError = require('./hardware-service-error');
 const UploadService = require('./upload-service');
 const StageFirmwareManager =
     require('./stage-firmware-manager');
-
-const SerialPortAdapter =
-    require('./serial-port-adapter');
-
-    const {
-        WindowsBluetoothDeviceNameResolver
-    } = require(
-        './windows-bluetooth-device-name-resolver'
-    );
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8602;
