@@ -13,6 +13,10 @@ const {
     validateEasyConectSignalValue
 } = require('./easyconect-registry');
 
+const {
+    EasyConectState
+} = require('./easyconect-state');
+
 module.exports = {
     EASYCONECT_SIGNAL_TYPES,
     EASYCONECT_SIGNAL_DIRECTIONS,
@@ -22,5 +26,6 @@ module.exports = {
     EASYCONECT_MODULES,
     getEasyConectModuleContract,
     getEasyConectSignalContract,
-    validateEasyConectSignalValue
+    validateEasyConectSignalValue,
+    EasyConectState
 };
