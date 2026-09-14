@@ -23,9 +23,10 @@ const getDefaultSignalValue =
         );
     };
 
-class EasyConectState {
-    constructor () {
-        this._values = new Map();
+const createDefaultSignalValues =
+    () => {
+        const values =
+            new Map();
 
         for (
             const moduleContract of
@@ -35,7 +36,7 @@ class EasyConectState {
                 const signalContract of
                 moduleContract.signals
             ) {
-                this._values.set(
+                values.set(
                     signalContract.id,
                     getDefaultSignalValue(
                         signalContract
@@ -43,6 +44,14 @@ class EasyConectState {
                 );
             }
         }
+
+        return values;
+    };
+
+class EasyConectState {
+    constructor () {
+        this._values =
+            createDefaultSignalValues();
     }
 
     getSignalValue (signalId) {
@@ -77,6 +86,96 @@ class EasyConectState {
         );
 
         return value;
+    }
+
+    reset () {
+        this._values =
+            createDefaultSignalValues();
+    }
+
+    applySnapshot (snapshot) {
+        if (
+            !snapshot ||
+            typeof snapshot !==
+                'object' ||
+            Array.isArray(snapshot)
+        ) {
+            throw new Error(
+                'EasyConect snapshot must be an object'
+            );
+        }
+
+        if (
+            !snapshot.values ||
+            typeof snapshot.values !==
+                'object' ||
+            Array.isArray(
+                snapshot.values
+            )
+        ) {
+            throw new Error(
+                'EasyConect snapshot values must be an object'
+            );
+        }
+
+        const providedSignalIds =
+            Object.keys(
+                snapshot.values
+            );
+
+        for (
+            const signalId of
+            providedSignalIds
+        ) {
+            if (
+                !getEasyConectSignalContract(
+                    signalId
+                )
+            ) {
+                throw new Error(
+                    `Unknown EasyConect snapshot signal: ${signalId}`
+                );
+            }
+        }
+
+        const nextValues =
+            new Map();
+
+        for (
+            const signalId of
+            this._values.keys()
+        ) {
+            if (
+                !Object.prototype
+                    .hasOwnProperty
+                    .call(
+                        snapshot.values,
+                        signalId
+                    )
+            ) {
+                throw new Error(
+                    `Missing EasyConect snapshot signal: ${signalId}`
+                );
+            }
+
+            const value =
+                snapshot.values[
+                    signalId
+                ];
+
+            validateEasyConectSignalValue(
+                signalId,
+                value
+            );
+
+            nextValues.set(
+                signalId,
+                value
+            );
+        }
+
+        this._values =
+            nextValues;
     }
 
     getSnapshot () {
