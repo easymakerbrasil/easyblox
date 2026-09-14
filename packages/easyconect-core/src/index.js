@@ -17,6 +17,12 @@ const {
     EasyConectState
 } = require('./easyconect-state');
 
+const {
+    EASYCONECT_TRANSPORT_METHODS,
+    validateEasyConectTransport,
+    validateEasyConectDeviceId
+} = require('./easyconect-transport');
+
 module.exports = {
     EASYCONECT_SIGNAL_TYPES,
     EASYCONECT_SIGNAL_DIRECTIONS,
@@ -27,5 +33,8 @@ module.exports = {
     getEasyConectModuleContract,
     getEasyConectSignalContract,
     validateEasyConectSignalValue,
-    EasyConectState
+    EasyConectState,
+    EASYCONECT_TRANSPORT_METHODS,
+    validateEasyConectTransport,
+    validateEasyConectDeviceId
 };
