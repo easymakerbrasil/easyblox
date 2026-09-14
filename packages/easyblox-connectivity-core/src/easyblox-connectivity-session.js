@@ -75,7 +75,7 @@ class EasyBloxConnectivitySession {
      * Application sequence zero remains reserved for control frames.
      * @param {number} type EBCP application message type.
      * @param {string} channel Application channel.
-     * @param {string|number} payload Application payload.
+     * @param {string|number|boolean} payload Application payload.
      * @returns {number} Sequence allocated to the outgoing message.
      */
     send (type, channel, payload) {
