@@ -30,7 +30,10 @@ const EBCP_CONTRACT = Object.freeze({
         min: 0x80,
         max: 0xFF
     }),
-    acknowledgement: 'stop-and-wait',
+
+    acknowledgement: 'receipt-ack',
+    retransmission: 'none',
+    duplicateSuppression: 'last-sequence',
     handshake: true,
 
     channelMinBytes: 1,

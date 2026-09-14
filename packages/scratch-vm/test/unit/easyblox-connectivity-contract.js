@@ -69,7 +69,21 @@ tap.test('EBCP v1 reserves the control message range for handshake and acknowled
         max: 0xFF
     });
 
-    t.equal(EBCP_CONTRACT.acknowledgement, 'stop-and-wait');
+    t.equal(
+        EBCP_CONTRACT.acknowledgement,
+        'receipt-ack'
+    );
+
+    t.equal(
+        EBCP_CONTRACT.retransmission,
+        'none'
+    );
+
+    t.equal(
+        EBCP_CONTRACT.duplicateSuppression,
+        'last-sequence'
+    );
+
     t.equal(EBCP_CONTRACT.handshake, true);
 
     t.end();
