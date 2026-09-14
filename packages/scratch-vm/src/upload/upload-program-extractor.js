@@ -2269,6 +2269,25 @@ class UploadProgramExtractor {
      * @private
      */
     _readMenuValue (blocks, block, inputName) {
+        const directFields =
+            blocks.getFields(block);
+
+        const directField =
+            directFields &&
+            directFields[inputName];
+
+        if (
+            directField &&
+            typeof directField.value !==
+                'undefined' &&
+            directField.value !==
+                null
+        ) {
+            return String(
+                directField.value
+            );
+        }
+
         const inputs = blocks.getInputs(block);
         const input = inputs && inputs[inputName];
 

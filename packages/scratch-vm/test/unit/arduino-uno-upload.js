@@ -16380,6 +16380,44 @@ const createTypedDataProcedureIrFixture = () => {
     };
 };
 
+tap.test('Arduino UNO Upload extracts menu value stored directly as a field', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('lcd_mode'),
+        {
+            id: 'lcd_mode',
+            opcode: 'displays_lcdMode',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {},
+            fields: {
+                MODE: {
+                    name: 'MODE',
+                    value: '4'
+                }
+            },
+            topLevel: false,
+            shadow: false
+        }
+    ]);
+
+    const extractor =
+        new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor.extract(),
+        {
+            setup: [{
+                type: 'LcdMode',
+                mode: '4'
+            }],
+            loop: []
+        },
+        'direct menu field produces the same semantic value as a menu shadow'
+    );
+
+    t.end();
+});
+
 tap.test(
     'Arduino UNO Upload extracts explicit Display initializers as one batch',
     t => {
