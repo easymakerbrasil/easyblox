@@ -21,6 +21,11 @@ const EBCP_CONTRACT = Object.freeze({
     numberEncoding: 'ieee754-binary32',
     numberPayloadBytes: 4,
 
+    booleanEncoding: 'uint8-0-or-1',
+    booleanPayloadBytes: 1,
+    booleanFalseByte: 0x00,
+    booleanTrueByte: 0x01,
+
     controlTypeRange: Object.freeze({
         min: 0x80,
         max: 0xFF

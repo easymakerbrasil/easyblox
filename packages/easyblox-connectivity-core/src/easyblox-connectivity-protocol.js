@@ -38,6 +38,7 @@ const _isControlType = type =>
 const _isSupportedType = type =>
     type === EBCP_CONTRACT.messageTypes.TEXT ||
     type === EBCP_CONTRACT.messageTypes.NUMBER ||
+    type === EBCP_CONTRACT.messageTypes.BOOLEAN ||
     _isControlType(type);
 
 const _validateSequence = sequence => {
@@ -89,6 +90,29 @@ const _encodeNumberPayload = payload => {
 
     const encoded = Buffer.alloc(EBCP_CONTRACT.numberPayloadBytes);
     encoded.writeFloatLE(payload, 0);
+
+    return encoded;
+};
+
+const _encodeBooleanPayload = payload => {
+    if (typeof payload !== 'boolean') {
+        throw new Error(
+            'EBCP BOOLEAN payload must be a boolean'
+        );
+    }
+
+    const encoded =
+        Buffer.alloc(
+            EBCP_CONTRACT
+                .booleanPayloadBytes
+        );
+
+    encoded[0] =
+        payload ?
+            EBCP_CONTRACT
+                .booleanTrueByte :
+            EBCP_CONTRACT
+                .booleanFalseByte;
 
     return encoded;
 };
@@ -150,6 +174,10 @@ const encodeFrame = ({
         _validatePublicChannel(channel);
         channelBuffer = Buffer.from(channel, 'ascii');
         payloadBuffer = _encodeNumberPayload(payload);
+    } else if (type === EBCP_CONTRACT.messageTypes.BOOLEAN) {
+        _validatePublicChannel(channel);
+        channelBuffer = Buffer.from(channel, 'ascii');
+        payloadBuffer = _encodeBooleanPayload(payload);
     } else {
         _validateControlChannel(channel);
 
@@ -310,6 +338,47 @@ const decodeFrame = frame => {
             sequence,
             channel,
             payload
+        };
+    }
+
+    if (type === EBCP_CONTRACT.messageTypes.BOOLEAN) {
+        _validatePublicChannel(channel);
+
+        if (
+            payloadBytes.length !==
+                EBCP_CONTRACT
+                    .booleanPayloadBytes
+        ) {
+            throw new Error(
+                `EBCP BOOLEAN payload must contain ${EBCP_CONTRACT.booleanPayloadBytes} byte`
+            );
+        }
+
+        const encodedValue =
+            payloadBytes[0];
+
+        if (
+            encodedValue !==
+                EBCP_CONTRACT
+                    .booleanFalseByte &&
+            encodedValue !==
+                EBCP_CONTRACT
+                    .booleanTrueByte
+        ) {
+            throw new Error(
+                'EBCP BOOLEAN payload byte must be 0 or 1'
+            );
+        }
+
+        return {
+            version,
+            type,
+            sequence,
+            channel,
+            payload:
+                encodedValue ===
+                EBCP_CONTRACT
+                    .booleanTrueByte
         };
     }
 
