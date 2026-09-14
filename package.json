@@ -20,6 +20,7 @@
   "packages/easyblox-controller-core",
   "packages/easyblox-connectivity-core",
   "packages/easyconect-core",
+  "packages/easyconect-windows",
   "packages/task-herder",
     "packages/scratch-storage",
     "packages/scratch-svg-renderer",
