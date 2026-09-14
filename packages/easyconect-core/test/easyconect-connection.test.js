@@ -12,6 +12,7 @@ const {
 );
 
 const {
+    EASYCONECT_CONNECTION_STATES,
     EasyConectConnection
 } = require('../src');
 
@@ -566,5 +567,541 @@ test('EasyConect disconnects cleanly and disables protocol operations', async ()
                 CHANNEL
             ),
         /requires an active connection/i
+    );
+});
+
+test('EasyConect exposes canonical connection states and starts disconnected', () => {
+    assert.deepEqual(
+        EASYCONECT_CONNECTION_STATES,
+        {
+            DISCONNECTED:
+                'disconnected',
+            CONNECTING:
+                'connecting',
+            CONNECTED:
+                'connected',
+            DISCONNECTING:
+                'disconnecting'
+        }
+    );
+
+    assert.equal(
+        Object.isFrozen(
+            EASYCONECT_CONNECTION_STATES
+        ),
+        true
+    );
+
+    const connection =
+        new EasyConectConnection({
+            transport:
+                new FakeTransport()
+        });
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .DISCONNECTED
+    );
+});
+
+test('EasyConect exposes the successful connection and explicit disconnect lifecycle', async () => {
+    const transport =
+        new FakeTransport();
+
+    const connection =
+        new EasyConectConnection({
+            transport
+        });
+
+    const states = [];
+    const disconnects = [];
+
+    connection.onStateChange(
+        state => {
+            states.push(
+                state
+            );
+        }
+    );
+
+    connection.onDisconnect(
+        () => {
+            disconnects.push(
+                'unexpected'
+            );
+        }
+    );
+
+    await connectReady(
+        connection,
+        transport
+    );
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .CONNECTED
+    );
+
+    await connection.disconnect();
+
+    assert.deepEqual(
+        states,
+        [
+            'connecting',
+            'connected',
+            'disconnecting',
+            'disconnected'
+        ]
+    );
+
+    assert.deepEqual(
+        disconnects,
+        []
+    );
+});
+
+test('EasyConect reports an unexpected transport disconnect exactly once', async () => {
+    const transport =
+        new FakeTransport();
+
+    const connection =
+        new EasyConectConnection({
+            transport
+        });
+
+    const states = [];
+    const disconnects = [];
+
+    connection.onStateChange(
+        state => {
+            states.push(
+                state
+            );
+        }
+    );
+
+    connection.onDisconnect(
+        () => {
+            disconnects.push(
+                'lost'
+            );
+        }
+    );
+
+    await connectReady(
+        connection,
+        transport
+    );
+
+    const waiting =
+        connection.waitFor(
+            BOOLEAN_TYPE,
+            CHANNEL
+        );
+
+    transport.emitDisconnect();
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .DISCONNECTED
+    );
+
+    assert.deepEqual(
+        states,
+        [
+            'connecting',
+            'connected',
+            'disconnected'
+        ]
+    );
+
+    assert.deepEqual(
+        disconnects,
+        [
+            'lost'
+        ]
+    );
+
+    await assert.rejects(
+        waiting,
+        /connection lost/i
+    );
+
+    transport.emitDisconnect();
+
+    assert.deepEqual(
+        disconnects,
+        [
+            'lost'
+        ]
+    );
+});
+
+test('EasyConect rejects pending waiters when explicitly disconnected', async () => {
+    const transport =
+        new FakeTransport();
+
+    const connection =
+        new EasyConectConnection({
+            transport
+        });
+
+    await connectReady(
+        connection,
+        transport
+    );
+
+    const waiting =
+        connection.waitFor(
+            BOOLEAN_TYPE,
+            CHANNEL
+        );
+
+    const waiterRejected =
+        assert.rejects(
+            waiting,
+            /connection closed/i
+        );
+
+    await connection.disconnect();
+
+    await waiterRejected;
+});
+
+test('EasyConect reports transport errors without declaring a disconnect', async () => {
+    const transport =
+        new FakeTransport();
+
+    const connection =
+        new EasyConectConnection({
+            transport
+        });
+
+    const errors = [];
+
+    connection.onError(
+        error => {
+            errors.push(
+                error
+            );
+        }
+    );
+
+    await connectReady(
+        connection,
+        transport
+    );
+
+    const error =
+        new Error(
+            'native transport error'
+        );
+
+    transport.emitError(
+        error
+    );
+
+    assert.deepEqual(
+        errors,
+        [
+            error
+        ]
+    );
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .CONNECTED
+    );
+});
+
+test('EasyConect reports asynchronous write errors without inventing a physical disconnect', async () => {
+    const transport =
+        new FakeTransport();
+
+    const connection =
+        new EasyConectConnection({
+            transport
+        });
+
+    const errors = [];
+
+    connection.onError(
+        error => {
+            errors.push(
+                error
+            );
+        }
+    );
+
+    await connectReady(
+        connection,
+        transport
+    );
+
+    const error =
+        new Error(
+            'physical write failed'
+        );
+
+    transport.failNextWrite(
+        error
+    );
+
+    await assert.rejects(
+        connection.send(
+            BOOLEAN_TYPE,
+            CHANNEL,
+            true
+        ),
+        /physical write failed/i
+    );
+
+    assert.deepEqual(
+        errors,
+        [
+            error
+        ]
+    );
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .CONNECTED
+    );
+});
+
+test('EasyConect lifecycle listeners validate inputs and return unsubscribe functions', async () => {
+    const transport =
+        new FakeTransport();
+
+    const connection =
+        new EasyConectConnection({
+            transport
+        });
+
+    assert.throws(
+        () =>
+            connection.onStateChange(
+                null
+            ),
+        /state listener must be a function/i
+    );
+
+    assert.throws(
+        () =>
+            connection.onError(
+                null
+            ),
+        /error listener must be a function/i
+    );
+
+    assert.throws(
+        () =>
+            connection.onDisconnect(
+                null
+            ),
+        /disconnect listener must be a function/i
+    );
+
+    const states = [];
+    const errors = [];
+    const disconnects = [];
+
+    const unsubscribeState =
+        connection.onStateChange(
+            state => {
+                states.push(
+                    state
+                );
+            }
+        );
+
+    const unsubscribeError =
+        connection.onError(
+            error => {
+                errors.push(
+                    error
+                );
+            }
+        );
+
+    const unsubscribeDisconnect =
+        connection.onDisconnect(
+            () => {
+                disconnects.push(
+                    'lost'
+                );
+            }
+        );
+
+    assert.equal(
+        typeof unsubscribeState,
+        'function'
+    );
+
+    assert.equal(
+        typeof unsubscribeError,
+        'function'
+    );
+
+    assert.equal(
+        typeof unsubscribeDisconnect,
+        'function'
+    );
+
+    unsubscribeState();
+    unsubscribeError();
+    unsubscribeDisconnect();
+
+    await connectReady(
+        connection,
+        transport
+    );
+
+    transport.emitError(
+        new Error(
+            'ignored'
+        )
+    );
+
+    transport.emitDisconnect();
+
+    assert.deepEqual(
+        states,
+        []
+    );
+
+    assert.deepEqual(
+        errors,
+        []
+    );
+
+    assert.deepEqual(
+        disconnects,
+        []
+    );
+});
+
+test('EasyConect isolates lifecycle observer failures from connection semantics', async () => {
+    const transport =
+        new FakeTransport();
+
+    const connection =
+        new EasyConectConnection({
+            transport
+        });
+
+    connection.onStateChange(
+        () => {
+            throw new Error(
+                'state observer failed'
+            );
+        }
+    );
+
+    connection.onError(
+        () => {
+            throw new Error(
+                'error observer failed'
+            );
+        }
+    );
+
+    connection.onDisconnect(
+        () => {
+            throw new Error(
+                'disconnect observer failed'
+            );
+        }
+    );
+
+    await connectReady(
+        connection,
+        transport
+    );
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .CONNECTED
+    );
+
+    assert.doesNotThrow(
+        () =>
+            transport.emitError(
+                new Error(
+                    'native transport error'
+                )
+            )
+    );
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .CONNECTED
+    );
+
+    assert.doesNotThrow(
+        () =>
+            transport.emitDisconnect()
+    );
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .DISCONNECTED
+    );
+});
+
+test('EasyConect returns to disconnected when the transport is lost during handshake', async () => {
+    const transport =
+        new FakeTransport();
+
+    const connection =
+        new EasyConectConnection({
+            transport
+        });
+
+    const states = [];
+
+    connection.onStateChange(
+        state => {
+            states.push(
+                state
+            );
+        }
+    );
+
+    const connecting =
+        connection.connect({
+            deviceId:
+                'opaque-device-1'
+        });
+
+    await flushMicrotasks();
+
+    transport.emitDisconnect();
+
+    await assert.rejects(
+        connecting,
+        /transport disconnected during connection/i
+    );
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .DISCONNECTED
+    );
+
+    assert.deepEqual(
+        states,
+        [
+            'connecting',
+            'disconnected'
+        ]
     );
 });

@@ -10,6 +10,18 @@ const {
     validateEasyConectDeviceId
 } = require('./easyconect-transport');
 
+const EASYCONECT_CONNECTION_STATES =
+    Object.freeze({
+        DISCONNECTED:
+            'disconnected',
+        CONNECTING:
+            'connecting',
+        CONNECTED:
+            'connected',
+        DISCONNECTING:
+            'disconnecting'
+    });
+
 class EasyConectConnection {
     constructor ({
         transport
@@ -27,11 +39,9 @@ class EasyConectConnection {
         this._session =
             null;
 
-        this._connecting =
-            false;
-
-        this._connected =
-            false;
+        this._state =
+            EASYCONECT_CONNECTION_STATES
+                .DISCONNECTED;
 
         this._writeChain =
             Promise.resolve();
@@ -41,6 +51,18 @@ class EasyConectConnection {
 
         this._connectionFailureReject =
             null;
+
+        this._stateListeners =
+            new Set();
+
+        this._errorListeners =
+            new Set();
+
+        this._disconnectListeners =
+            new Set();
+
+        this._waiterRejectors =
+            new Set();
 
         this._handleTransportData =
             this._handleTransportData
@@ -67,6 +89,70 @@ class EasyConectConnection {
         );
     }
 
+    getState () {
+        return this._state;
+    }
+
+    onStateChange (listener) {
+        if (
+            typeof listener !==
+                'function'
+        ) {
+            throw new Error(
+                'EasyConect state listener must be a function'
+            );
+        }
+
+        this._stateListeners.add(
+            listener
+        );
+
+        return () =>
+            this._stateListeners.delete(
+                listener
+            );
+    }
+
+    onError (listener) {
+        if (
+            typeof listener !==
+                'function'
+        ) {
+            throw new Error(
+                'EasyConect error listener must be a function'
+            );
+        }
+
+        this._errorListeners.add(
+            listener
+        );
+
+        return () =>
+            this._errorListeners.delete(
+                listener
+            );
+    }
+
+    onDisconnect (listener) {
+        if (
+            typeof listener !==
+                'function'
+        ) {
+            throw new Error(
+                'EasyConect disconnect listener must be a function'
+            );
+        }
+
+        this._disconnectListeners.add(
+            listener
+        );
+
+        return () =>
+            this._disconnectListeners.delete(
+                listener
+            );
+    }
+
     async connect ({
         deviceId
     } = {}) {
@@ -75,16 +161,19 @@ class EasyConectConnection {
         );
 
         if (
-            this._connecting ||
-            this._connected
+            this._state !==
+                EASYCONECT_CONNECTION_STATES
+                    .DISCONNECTED
         ) {
             throw new Error(
                 'EasyConect connection is already active'
             );
         }
 
-        this._connecting =
-            true;
+        this._setState(
+            EASYCONECT_CONNECTION_STATES
+                .CONNECTING
+        );
 
         const connectionFailure =
             new Promise(
@@ -141,10 +230,19 @@ class EasyConectConnection {
                 connectionFailure
             ]);
 
-            this._connected =
-                true;
+            this._setState(
+                EASYCONECT_CONNECTION_STATES
+                    .CONNECTED
+            );
         } catch (error) {
-            this._resetProtocol();
+            this._resetProtocol(
+                error
+            );
+
+            this._setState(
+                EASYCONECT_CONNECTION_STATES
+                    .DISCONNECTED
+            );
 
             try {
                 await Promise.resolve(
@@ -159,9 +257,6 @@ class EasyConectConnection {
 
             throw error;
         } finally {
-            this._connecting =
-                false;
-
             this._connectionFailureReject =
                 null;
         }
@@ -169,17 +264,34 @@ class EasyConectConnection {
 
     async disconnect () {
         if (
-            !this._connected &&
-            !this._session
+            this._state !==
+                EASYCONECT_CONNECTION_STATES
+                    .CONNECTED
         ) {
             return false;
         }
 
-        this._resetProtocol();
-
-        await Promise.resolve(
-            this._transport.disconnect()
+        this._setState(
+            EASYCONECT_CONNECTION_STATES
+                .DISCONNECTING
         );
+
+        this._resetProtocol(
+            new Error(
+                'EasyConect connection closed'
+            )
+        );
+
+        try {
+            await Promise.resolve(
+                this._transport.disconnect()
+            );
+        } finally {
+            this._setState(
+                EASYCONECT_CONNECTION_STATES
+                    .DISCONNECTED
+            );
+        }
 
         return true;
     }
@@ -212,9 +324,56 @@ class EasyConectConnection {
     ) {
         this._assertActive();
 
-        return this._runtime.waitFor(
-            type,
-            channel
+        const runtimeWait =
+            this._runtime.waitFor(
+                type,
+                channel
+            );
+
+        return new Promise(
+            (
+                resolve,
+                reject
+            ) => {
+                const rejectWaiter =
+                    error => {
+                        this._waiterRejectors
+                            .delete(
+                                rejectWaiter
+                            );
+
+                        reject(
+                            error
+                        );
+                    };
+
+                this._waiterRejectors.add(
+                    rejectWaiter
+                );
+
+                runtimeWait.then(
+                    message => {
+                        this._waiterRejectors
+                            .delete(
+                                rejectWaiter
+                            );
+
+                        resolve(
+                            message
+                        );
+                    },
+                    error => {
+                        this._waiterRejectors
+                            .delete(
+                                rejectWaiter
+                            );
+
+                        reject(
+                            error
+                        );
+                    }
+                );
+            }
         );
     }
 
@@ -258,38 +417,112 @@ class EasyConectConnection {
     }
 
     _handleTransportError (error) {
+        const normalizedError =
+            error instanceof Error ?
+                error :
+                new Error(
+                    'EasyConect transport error'
+                );
+
+        this._notifyListeners(
+            this._errorListeners,
+            normalizedError
+        );
+
         if (
-            this._connecting &&
+            this._state ===
+                EASYCONECT_CONNECTION_STATES
+                    .CONNECTING &&
             this._connectionFailureReject
         ) {
             this._connectionFailureReject(
-                error instanceof Error ?
-                    error :
-                    new Error(
-                        'EasyConect transport error'
-                    )
+                normalizedError
             );
         }
     }
 
     _handleTransportDisconnect () {
         if (
-            this._connecting &&
-            this._connectionFailureReject
+            this._state ===
+                EASYCONECT_CONNECTION_STATES
+                    .DISCONNECTED
         ) {
-            this._connectionFailureReject(
-                new Error(
-                    'EasyConect transport disconnected during connection'
-                )
-            );
+            return;
         }
 
-        this._resetProtocol();
+        if (
+            this._state ===
+                EASYCONECT_CONNECTION_STATES
+                    .CONNECTING
+        ) {
+            const error =
+                new Error(
+                    'EasyConect transport disconnected during connection'
+                );
+
+            if (
+                this._connectionFailureReject
+            ) {
+                this._connectionFailureReject(
+                    error
+                );
+            }
+
+            this._resetProtocol(
+                error
+            );
+
+            this._setState(
+                EASYCONECT_CONNECTION_STATES
+                    .DISCONNECTED
+            );
+
+            return;
+        }
+
+        if (
+            this._state ===
+                EASYCONECT_CONNECTION_STATES
+                    .DISCONNECTING
+        ) {
+            this._resetProtocol(
+                new Error(
+                    'EasyConect connection closed'
+                )
+            );
+
+            this._setState(
+                EASYCONECT_CONNECTION_STATES
+                    .DISCONNECTED
+            );
+
+            return;
+        }
+
+        const error =
+            new Error(
+                'EasyConect connection lost'
+            );
+
+        this._resetProtocol(
+            error
+        );
+
+        this._setState(
+            EASYCONECT_CONNECTION_STATES
+                .DISCONNECTED
+        );
+
+        this._notifyListeners(
+            this._disconnectListeners
+        );
     }
 
     _assertActive () {
         if (
-            !this._connected ||
+            this._state !==
+                EASYCONECT_CONNECTION_STATES
+                    .CONNECTED ||
             !this._session ||
             !this._runtime
         ) {
@@ -299,20 +532,68 @@ class EasyConectConnection {
         }
     }
 
-    _resetProtocol () {
+    _setState (state) {
+        if (
+            this._state ===
+                state
+        ) {
+            return;
+        }
+
+        this._state =
+            state;
+
+            this._notifyListeners(
+                this._stateListeners,
+                state
+            );
+        }
+
+        _notifyListeners (
+            listeners,
+            ...args
+        ) {
+            for (
+                const listener of
+                [...listeners]
+            ) {
+                try {
+                    listener(
+                        ...args
+                    );
+                } catch (error) {
+                    // Observer failures must not control connection lifecycle.
+                }
+            }
+        }
+
+        _resetProtocol (
+        waiterError =
+            new Error(
+                'EasyConect connection closed'
+            )
+    ) {
         if (this._runtime) {
             this._runtime
                 .clearWaiters();
         }
+
+        for (
+            const rejectWaiter of
+            [...this._waiterRejectors]
+        ) {
+            rejectWaiter(
+                waiterError
+            );
+        }
+
+        this._waiterRejectors.clear();
 
         this._runtime =
             null;
 
         this._session =
             null;
-
-        this._connected =
-            false;
 
         this._writeChain =
             Promise.resolve();
@@ -323,5 +604,6 @@ class EasyConectConnection {
 }
 
 module.exports = {
+    EASYCONECT_CONNECTION_STATES,
     EasyConectConnection
 };

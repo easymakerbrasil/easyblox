@@ -30,6 +30,7 @@ const {
 } = require('./easyconect-discovery');
 
 const {
+    EASYCONECT_CONNECTION_STATES,
     EasyConectConnection
 } = require('./easyconect-connection');
 
@@ -50,5 +51,6 @@ module.exports = {
     EASYCONECT_DISCOVERY_METHODS,
     validateEasyConectDiscovery,
     createEasyConectDevice,
+    EASYCONECT_CONNECTION_STATES,
     EasyConectConnection
 };
