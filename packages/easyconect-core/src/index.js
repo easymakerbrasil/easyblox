@@ -29,6 +29,10 @@ const {
     createEasyConectDevice
 } = require('./easyconect-discovery');
 
+const {
+    EasyConectConnection
+} = require('./easyconect-connection');
+
 module.exports = {
     EASYCONECT_SIGNAL_TYPES,
     EASYCONECT_SIGNAL_DIRECTIONS,
@@ -45,5 +49,6 @@ module.exports = {
     validateEasyConectDeviceId,
     EASYCONECT_DISCOVERY_METHODS,
     validateEasyConectDiscovery,
-    createEasyConectDevice
+    createEasyConectDevice,
+    EasyConectConnection
 };
