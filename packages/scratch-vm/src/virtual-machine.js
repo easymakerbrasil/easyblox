@@ -300,8 +300,6 @@ class VirtualMachine extends EventEmitter {
 
         this.editingTarget = null;
         this._easybloxUploadPrograms = null;
-        this._easybloxArduinoUnoControllerBindingManifest = [];
-        this._easybloxControllerComponents = [];
         this._easybloxProgramMode = 'stage';
         this._easybloxActiveBoardId = null;
         this._easybloxSelectedBoardId = null;
@@ -656,9 +654,7 @@ class VirtualMachine extends EventEmitter {
                 selectedBoardId:
                     projectContext.selectedBoardId,
                 programMode:
-                    projectContext.programMode,
-                controllerComponents:
-                    this.getEasyBloxControllerComponents()
+                    projectContext.programMode
             };
         }
 
@@ -726,13 +722,6 @@ class VirtualMachine extends EventEmitter {
              */
             this._easybloxActiveBoardId = null;
 
-            this.setEasyBloxControllerComponents(
-                Array.isArray(
-                    serializedEasyBloxProject.controllerComponents
-                ) ?
-                    serializedEasyBloxProject.controllerComponents :
-                    []
-            );
         }
 
         if (typeof performance !== 'undefined') {
@@ -1740,39 +1729,6 @@ class VirtualMachine extends EventEmitter {
                 sourceBlocks
             );
         }
-    }
-
-    /**
-     * Replace the persistable EasyBlox Controller component description.
-     * Component semantics remain owned by the GUI/Controller layer.
-     * @param {Array<object>} components Serializable Controller components.
-     */
-    setEasyBloxControllerComponents (components) {
-        if (!Array.isArray(components)) {
-            throw new Error(
-                'EasyBlox Controller components must be an array'
-            );
-        }
-
-        this._easybloxControllerComponents =
-            components.map(component => ({
-                ...component
-            }));
-    }
-    /**
-     * Return an independent snapshot of the persistable Controller components.
-     * @returns {Array<object>} Serializable Controller component snapshot.
-     */
-    getEasyBloxControllerComponents () {
-        if (!Array.isArray(this._easybloxControllerComponents)) {
-            return [];
-        }
-
-        return this._easybloxControllerComponents.map(
-            component => ({
-                ...component
-            })
-        );
     }
 
     /**
@@ -3075,27 +3031,6 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
-     * Supply the internal Controller Binding manifest used by Arduino UNO
-     * Upload builds. The GUI/Controller layer owns component semantics and
-     * passes only stable identities plus their resolved wire channels.
-     * @param {Array<object>} bindings Controller Binding build manifest.
-     */
-    setArduinoUnoControllerBindingManifest (bindings) {
-        if (!Array.isArray(bindings)) {
-            throw new Error(
-                'Arduino UNO Controller Binding manifest must be an array'
-            );
-        }
-
-        this._easybloxArduinoUnoControllerBindingManifest =
-            bindings.map(
-                binding => ({
-                    ...binding
-                })
-            );
-    }
-
-    /**
      * Extract and validate the canonical Arduino UNO Upload program.
      * This is the semantic source used both for generated C++ and
      * Upload-runtime metadata such as the Serial Monitor baud rate.
@@ -3116,21 +3051,6 @@ class VirtualMachine extends EventEmitter {
         );
 
         const ir = extractor.extract();
-
-        if (
-            Array.isArray(
-                this._easybloxArduinoUnoControllerBindingManifest
-            ) &&
-            this._easybloxArduinoUnoControllerBindingManifest.length >
-                0
-        ) {
-            ir.controllerBindings =
-                this._easybloxArduinoUnoControllerBindingManifest.map(
-                    binding => ({
-                        ...binding
-                    })
-                );
-        }
 
         contextValidator.validate(ir);
         typeValidator.validate(ir);
@@ -3199,28 +3119,16 @@ class VirtualMachine extends EventEmitter {
         const generator =
             new ArduinoUnoGenerator();
 
-        const controllerBindingChannels =
-            generator.getControllerBindingChannels(
-                ir
-            );
-
-        const usesEasyBloxRuntime =
-            generator.usesEasyBloxBt(
-                ir
-            ) ||
-            controllerBindingChannels.length >
-                0;
-
         return {
             code:
                 generator.generate(
                     ir
                 ),
             supportFiles:
-                usesEasyBloxRuntime ?
-                    getEasyBloxBtSupportFiles({
-                        controllerBindingChannels
-                    }) :
+                generator.usesEasyBloxBt(
+                    ir
+                ) ?
+                    getEasyBloxBtSupportFiles() :
                     []
         };
     }

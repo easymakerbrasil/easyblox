@@ -37,34 +37,9 @@ class ArduinoUnoGenerator {
             globals.lists :
             [];
 
-            const procedures = Array.isArray(ir.procedures) ?
+        const procedures = Array.isArray(ir.procedures) ?
             ir.procedures :
             [];
-
-        const controllerBindings =
-            this._normalizeControllerBindings(
-                ir &&
-                ir.controllerBindings
-            );
-
-        this._controllerBindingIndexes =
-            new Map();
-
-        controllerBindings.forEach(
-            (binding, index) => {
-                this._controllerBindingIndexes.set(
-                    this._getControllerBindingKey(
-                        binding.componentId,
-                        binding.port
-                    ),
-                    index
-                );
-            }
-        );
-
-        const usesControllerBindings =
-            controllerBindings.length >
-                0;
 
         const procedureStatements = [];
 
@@ -194,15 +169,11 @@ class ArduinoUnoGenerator {
             loopStatements
         ]);
 
-        const usesEasyBloxRuntime =
-            usesEasyBloxBt ||
-            usesControllerBindings;
-
         const reservedIdentifiers = this._initializeDataSymbols(
             variables,
             lists,
             procedures,
-            usesEasyBloxRuntime
+            usesEasyBloxBt
         );
 
         /*
@@ -214,7 +185,7 @@ class ArduinoUnoGenerator {
         );
 
         const lines = [];
-        if (usesEasyBloxRuntime) {
+        if (usesEasyBloxBt) {
             lines.push(
                 '#include "EasyBlox.h"',
                 ''
@@ -1230,23 +1201,6 @@ class ArduinoUnoGenerator {
         );
 
         lines.push('void setup() {');
-
-        const hasExplicitEasyBloxBtInit =
-            setupStatements.some(
-                statement =>
-                    statement &&
-                    statement.type ===
-                        'EasyBloxBtInit'
-            );
-
-        if (
-            usesControllerBindings &&
-            !hasExplicitEasyBloxBtInit
-        ) {
-            lines.push(
-                '    EasyBloxBT.begin();'
-            );
-        }
 
         for (const motor of motorConfigurations) {
             lines.push(
@@ -3103,180 +3057,6 @@ class ArduinoUnoGenerator {
     }
 
     /**
-     * Return Controller Binding wire channels in the exact runtime-index order.
-     * @param {object} ir EasyBlox Upload IR.
-     * @returns {Array<string>} Controller Binding wire channels.
-     */
-    getControllerBindingChannels (ir) {
-        return this._normalizeControllerBindings(
-            ir &&
-            ir.controllerBindings
-        ).map(
-            binding =>
-                binding.channel
-        );
-    }
-
-    /**
-     * Normalize the private Controller Binding build manifest.
-     * The manifest contains internal identities only; friendly labels never
-     * participate in generated firmware.
-     * @param {*} bindings Controller Binding manifest.
-     * @returns {Array<object>} Validated manifest.
-     * @private
-     */
-    _normalizeControllerBindings (bindings) {
-        if (
-            typeof bindings ===
-                'undefined' ||
-            bindings ===
-                null
-        ) {
-            return [];
-        }
-
-        if (!Array.isArray(bindings)) {
-            throw new Error(
-                'Controller Binding manifest must be an array'
-            );
-        }
-
-        const normalized =
-            [];
-
-        const identities =
-            new Set();
-
-        for (const binding of bindings) {
-            if (
-                !binding ||
-                typeof binding !==
-                    'object' ||
-                Array.isArray(
-                    binding
-                )
-            ) {
-                throw new Error(
-                    'Invalid Controller Binding manifest entry'
-                );
-            }
-
-            if (
-                typeof binding.componentId !==
-                    'string' ||
-                binding.componentId.trim().length ===
-                    0
-            ) {
-                throw new Error(
-                    'Controller Binding componentId must be a non-empty string'
-                );
-            }
-
-            if (
-                typeof binding.port !==
-                    'string' ||
-                binding.port.trim().length ===
-                    0
-            ) {
-                throw new Error(
-                    'Controller Binding port must be a non-empty string'
-                );
-            }
-
-            if (
-                typeof binding.channel !==
-                    'string' ||
-                !/^C1\.[0-9A-F]{8}$/.test(
-                    binding.channel
-                )
-            ) {
-                throw new Error(
-                    `Invalid Controller Binding channel: ${binding.channel}`
-                );
-            }
-
-            const key =
-                this._getControllerBindingKey(
-                    binding.componentId,
-                    binding.port
-                );
-
-            if (identities.has(key)) {
-                throw new Error(
-                    `Duplicate Controller Binding: ${
-                        binding.componentId
-                    }.${binding.port}`
-                );
-            }
-
-            identities.add(
-                key
-            );
-
-            normalized.push({
-                componentId:
-                    binding.componentId,
-                port:
-                    binding.port,
-                channel:
-                    binding.channel
-            });
-        }
-
-        return normalized;
-    }
-
-    /**
-     * Return the private build identity key for one component port.
-     * @param {string} componentId Controller component id.
-     * @param {string} port Canonical component port.
-     * @returns {string} Stable in-build identity key.
-     * @private
-     */
-    _getControllerBindingKey (
-        componentId,
-        port
-    ) {
-        return JSON.stringify([
-            componentId,
-            port
-        ]);
-    }
-
-    /**
-     * Resolve one Controller Binding reference to its private Arduino index.
-     * @param {string} componentId Controller component id.
-     * @param {string} port Canonical component port.
-     * @returns {number} Zero-based runtime cache index.
-     * @private
-     */
-    _getControllerBindingIndex (
-        componentId,
-        port
-    ) {
-        const key =
-            this._getControllerBindingKey(
-                componentId,
-                port
-            );
-
-        if (
-            !this._controllerBindingIndexes ||
-            !this._controllerBindingIndexes.has(
-                key
-            )
-        ) {
-            throw new Error(
-                `Unknown Controller Binding: ${componentId}.${port}`
-            );
-        }
-
-        return this._controllerBindingIndexes.get(
-            key
-        );
-    }
-
-    /**
      * Recursively detect EasyBlox BT IR use.
      * @param {unknown} value IR value.
      * @returns {boolean} True when EasyBlox BT support is required.
@@ -4319,14 +4099,6 @@ class ArduinoUnoGenerator {
 
         case 'BooleanLiteral':
             return expression.value ? 'true' : 'false';
-
-        case 'ControllerBindingBooleanExpression':
-            return `easybloxControllerBindingBoolean(${
-                this._getControllerBindingIndex(
-                    expression.componentId,
-                    expression.port
-                )
-            })`;
 
         case 'EasyBloxBtReceivedTextExpression':
             return 'EasyBloxBT.receivedText()';

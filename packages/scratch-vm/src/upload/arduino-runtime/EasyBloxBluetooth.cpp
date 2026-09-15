@@ -34,44 +34,6 @@ float easybloxBtReceivedNumber = 0.0f;
 bool easybloxBtTextReady = false;
 bool easybloxBtNumberReady = false;
 
-float easybloxBtBindingNumberValues[
-    EASYBLOX_CONTROLLER_BINDING_COUNT > 0 ?
-        EASYBLOX_CONTROLLER_BINDING_COUNT :
-        1
-] = {};
-
-int16_t easybloxBtFindControllerBinding(
-    const String &channel
-) {
-    for (
-        uint8_t index = 0;
-        index < EASYBLOX_CONTROLLER_BINDING_COUNT;
-        ++index
-    ) {
-        if (
-            channel ==
-            EASYBLOX_CONTROLLER_BINDING_CHANNELS[index]
-        ) {
-            return static_cast<int16_t>(
-                index
-            );
-        }
-    }
-
-    return -1;
-}
-
-void easybloxBtResetControllerBindings() {
-    for (
-        uint8_t index = 0;
-        index < EASYBLOX_CONTROLLER_BINDING_COUNT;
-        ++index
-    ) {
-        easybloxBtBindingNumberValues[index] =
-            0.0f;
-    }
-}
-
 uint8_t easybloxBtRxBuffer[EASYBLOX_EBCP_MAX_FRAME_BYTES] = {};
 uint8_t easybloxBtRxLength = 0;
 
@@ -255,7 +217,6 @@ void easybloxBtProcessFrame() {
         easybloxBtLastReceivedSequence = 0;
         easybloxBtTextReady = false;
         easybloxBtNumberReady = false;
-        easybloxBtResetControllerBindings();
         easybloxBtSendHelloAck();
         return;
     }
@@ -264,7 +225,6 @@ void easybloxBtProcessFrame() {
         easybloxBtLastReceivedSequence = 0;
         easybloxBtTextReady = false;
         easybloxBtNumberReady = false;
-        easybloxBtResetControllerBindings();
         return;
     }
 
@@ -306,51 +266,12 @@ void easybloxBtProcessFrame() {
         channel += static_cast<char>(easybloxBtRxBuffer[7 + index]);
     }
 
-    const uint8_t payloadOffset =
-        static_cast<uint8_t>(7 + channelLength);
-
-    const int16_t controllerBindingIndex =
-        easybloxBtFindControllerBinding(
-            channel
-        );
-
-    if (controllerBindingIndex >= 0) {
-        if (
-            type !=
-            EASYBLOX_EBCP_TYPE_NUMBER
-        ) {
-            return;
-        }
-
-        union {
-            float number;
-            uint8_t bytes[4];
-        } value;
-
-        for (
-            uint8_t index = 0;
-            index < 4;
-            ++index
-        ) {
-            value.bytes[index] =
-                easybloxBtRxBuffer[
-                    payloadOffset +
-                    index
-                ];
-        }
-
-        easybloxBtBindingNumberValues[
-            static_cast<uint8_t>(
-                controllerBindingIndex
-            )
-        ] = value.number;
-
-        return;
-    }
-
     if (channel != EASYBLOX_BT_CHANNEL) {
         return;
     }
+
+    const uint8_t payloadOffset =
+        static_cast<uint8_t>(7 + channelLength);
 
     if (type == EASYBLOX_EBCP_TYPE_TEXT) {
         String value;
@@ -443,32 +364,6 @@ void easybloxBtPoll() {
             easybloxBtPushByte(static_cast<uint8_t>(value));
         }
     }
-}
-
-float easybloxControllerBindingNumber(
-    uint8_t bindingIndex
-) {
-    if (
-        bindingIndex >=
-        EASYBLOX_CONTROLLER_BINDING_COUNT
-    ) {
-        return 0.0f;
-    }
-
-    return easybloxBtBindingNumberValues[
-        bindingIndex
-    ];
-}
-
-bool easybloxControllerBindingBoolean(
-    uint8_t bindingIndex
-) {
-    return (
-        easybloxControllerBindingNumber(
-            bindingIndex
-        ) !=
-        0.0f
-    );
 }
 
 void easybloxDelay(unsigned long milliseconds) {
