@@ -843,6 +843,9 @@ class UploadTypeValidator {
         case 'BooleanLiteral':
             return VALUE_TYPES.BOOLEAN;
 
+        case 'EasyBloxBtGamepadButtonPressedExpression':
+            return VALUE_TYPES.BOOLEAN;
+
         case 'EasyBloxBtReceivedTextExpression':
             return VALUE_TYPES.TEXT;
 

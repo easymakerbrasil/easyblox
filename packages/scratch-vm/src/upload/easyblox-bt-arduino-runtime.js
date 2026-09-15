@@ -9,11 +9,31 @@ const {
     './generated/easyblox-arduino-runtime-files'
 );
 
+const {
+    EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    getEasyConectWireChannel
+} = require(
+    '@easymaker/easyconect-core'
+);
+
 const EASYBLOX_BT_INTERNAL_IDENTIFIERS = Object.freeze([
     'EasyBloxBluetooth',
     'EasyBloxBT',
     'SoftwareSerial',
     'EASYBLOX_BT_CHANNEL',
+    'EasyBloxGamepadButton',
+    'EASYBLOX_GAMEPAD_BUTTON_COUNT',
+    'EASYBLOX_GAMEPAD_DPAD_UP_CHANNEL',
+    'EASYBLOX_GAMEPAD_DPAD_DOWN_CHANNEL',
+    'EASYBLOX_GAMEPAD_DPAD_LEFT_CHANNEL',
+    'EASYBLOX_GAMEPAD_DPAD_RIGHT_CHANNEL',
+    'EASYBLOX_GAMEPAD_ACTION_TOP_CHANNEL',
+    'EASYBLOX_GAMEPAD_ACTION_LEFT_CHANNEL',
+    'EASYBLOX_GAMEPAD_ACTION_BOTTOM_CHANNEL',
+    'EASYBLOX_GAMEPAD_ACTION_RIGHT_CHANNEL',
+    'easybloxBtGamepadState',
+    'easybloxBtResetGamepadState',
+    'easybloxBtGamepadIndexForChannel',
     'EASYBLOX_EBCP_MAGIC_0',
     'EASYBLOX_EBCP_MAGIC_1',
     'EASYBLOX_EBCP_VERSION',
@@ -65,11 +85,75 @@ const getEasyBloxBtConfigContent = () => {
                 .EASYBLOX_BT_CHANNEL
         );
 
+    const gamepadChannel =
+        signalId => {
+            const value =
+                getEasyConectWireChannel(
+                    signalId
+                );
+
+            if (!value) {
+                throw new Error(
+                    `Missing EasyConect wire channel: ${signalId}`
+                );
+            }
+
+            return JSON.stringify(value);
+        };
+
     return [
         '#pragma once',
         '',
         `#define EASYBLOX_BT_CHANNEL_VALUE ${
             JSON.stringify(channel)
+        }`,
+        `#define EASYBLOX_GAMEPAD_DPAD_UP_CHANNEL_VALUE ${
+            gamepadChannel(
+                EASYCONECT_GAMEPAD_SIGNAL_IDS
+                    .DPAD_UP
+            )
+        }`,
+        `#define EASYBLOX_GAMEPAD_DPAD_DOWN_CHANNEL_VALUE ${
+            gamepadChannel(
+                EASYCONECT_GAMEPAD_SIGNAL_IDS
+                    .DPAD_DOWN
+            )
+        }`,
+        `#define EASYBLOX_GAMEPAD_DPAD_LEFT_CHANNEL_VALUE ${
+            gamepadChannel(
+                EASYCONECT_GAMEPAD_SIGNAL_IDS
+                    .DPAD_LEFT
+            )
+        }`,
+        `#define EASYBLOX_GAMEPAD_DPAD_RIGHT_CHANNEL_VALUE ${
+            gamepadChannel(
+                EASYCONECT_GAMEPAD_SIGNAL_IDS
+                    .DPAD_RIGHT
+            )
+        }`,
+        `#define EASYBLOX_GAMEPAD_ACTION_TOP_CHANNEL_VALUE ${
+            gamepadChannel(
+                EASYCONECT_GAMEPAD_SIGNAL_IDS
+                    .ACTION_TOP
+            )
+        }`,
+        `#define EASYBLOX_GAMEPAD_ACTION_LEFT_CHANNEL_VALUE ${
+            gamepadChannel(
+                EASYCONECT_GAMEPAD_SIGNAL_IDS
+                    .ACTION_LEFT
+            )
+        }`,
+        `#define EASYBLOX_GAMEPAD_ACTION_BOTTOM_CHANNEL_VALUE ${
+            gamepadChannel(
+                EASYCONECT_GAMEPAD_SIGNAL_IDS
+                    .ACTION_BOTTOM
+            )
+        }`,
+        `#define EASYBLOX_GAMEPAD_ACTION_RIGHT_CHANNEL_VALUE ${
+            gamepadChannel(
+                EASYCONECT_GAMEPAD_SIGNAL_IDS
+                    .ACTION_RIGHT
+            )
         }`,
         ''
     ].join('\n');

@@ -18,6 +18,25 @@ constexpr uint8_t EASYBLOX_EBCP_MAX_PAYLOAD_BYTES = 32;
 constexpr uint8_t EASYBLOX_EBCP_MAX_FRAME_BYTES = 56;
 const char EASYBLOX_BT_CHANNEL[] = EASYBLOX_BT_CHANNEL_VALUE;
 
+const char EASYBLOX_GAMEPAD_DPAD_UP_CHANNEL[] =
+    EASYBLOX_GAMEPAD_DPAD_UP_CHANNEL_VALUE;
+const char EASYBLOX_GAMEPAD_DPAD_DOWN_CHANNEL[] =
+    EASYBLOX_GAMEPAD_DPAD_DOWN_CHANNEL_VALUE;
+const char EASYBLOX_GAMEPAD_DPAD_LEFT_CHANNEL[] =
+    EASYBLOX_GAMEPAD_DPAD_LEFT_CHANNEL_VALUE;
+const char EASYBLOX_GAMEPAD_DPAD_RIGHT_CHANNEL[] =
+    EASYBLOX_GAMEPAD_DPAD_RIGHT_CHANNEL_VALUE;
+const char EASYBLOX_GAMEPAD_ACTION_TOP_CHANNEL[] =
+    EASYBLOX_GAMEPAD_ACTION_TOP_CHANNEL_VALUE;
+const char EASYBLOX_GAMEPAD_ACTION_LEFT_CHANNEL[] =
+    EASYBLOX_GAMEPAD_ACTION_LEFT_CHANNEL_VALUE;
+const char EASYBLOX_GAMEPAD_ACTION_BOTTOM_CHANNEL[] =
+    EASYBLOX_GAMEPAD_ACTION_BOTTOM_CHANNEL_VALUE;
+const char EASYBLOX_GAMEPAD_ACTION_RIGHT_CHANNEL[] =
+    EASYBLOX_GAMEPAD_ACTION_RIGHT_CHANNEL_VALUE;
+
+constexpr uint8_t EASYBLOX_GAMEPAD_BUTTON_COUNT = 8;
+
 SoftwareSerial easybloxBtSerial(2, 3);
 
 extern void easybloxUserLoop();
@@ -33,6 +52,10 @@ String easybloxBtReceivedText = "";
 float easybloxBtReceivedNumber = 0.0f;
 bool easybloxBtTextReady = false;
 bool easybloxBtNumberReady = false;
+
+bool easybloxBtGamepadState[
+    EASYBLOX_GAMEPAD_BUTTON_COUNT
+] = {};
 
 uint8_t easybloxBtRxBuffer[EASYBLOX_EBCP_MAX_FRAME_BYTES] = {};
 uint8_t easybloxBtRxLength = 0;
@@ -178,6 +201,70 @@ void easybloxBtResetReceive(uint8_t possibleMagic = 0) {
     }
 }
 
+void easybloxBtResetGamepadState() {
+    for (
+        uint8_t index = 0;
+        index < EASYBLOX_GAMEPAD_BUTTON_COUNT;
+        ++index
+    ) {
+        easybloxBtGamepadState[index] = false;
+    }
+}
+
+int8_t easybloxBtGamepadIndexForChannel(
+    const String &channel
+) {
+    if (channel == EASYBLOX_GAMEPAD_DPAD_UP_CHANNEL) {
+        return static_cast<int8_t>(
+            EasyBloxGamepadButton::DpadUp
+        );
+    }
+
+    if (channel == EASYBLOX_GAMEPAD_DPAD_DOWN_CHANNEL) {
+        return static_cast<int8_t>(
+            EasyBloxGamepadButton::DpadDown
+        );
+    }
+
+    if (channel == EASYBLOX_GAMEPAD_DPAD_LEFT_CHANNEL) {
+        return static_cast<int8_t>(
+            EasyBloxGamepadButton::DpadLeft
+        );
+    }
+
+    if (channel == EASYBLOX_GAMEPAD_DPAD_RIGHT_CHANNEL) {
+        return static_cast<int8_t>(
+            EasyBloxGamepadButton::DpadRight
+        );
+    }
+
+    if (channel == EASYBLOX_GAMEPAD_ACTION_TOP_CHANNEL) {
+        return static_cast<int8_t>(
+            EasyBloxGamepadButton::ActionTop
+        );
+    }
+
+    if (channel == EASYBLOX_GAMEPAD_ACTION_LEFT_CHANNEL) {
+        return static_cast<int8_t>(
+            EasyBloxGamepadButton::ActionLeft
+        );
+    }
+
+    if (channel == EASYBLOX_GAMEPAD_ACTION_BOTTOM_CHANNEL) {
+        return static_cast<int8_t>(
+            EasyBloxGamepadButton::ActionBottom
+        );
+    }
+
+    if (channel == EASYBLOX_GAMEPAD_ACTION_RIGHT_CHANNEL) {
+        return static_cast<int8_t>(
+            EasyBloxGamepadButton::ActionRight
+        );
+    }
+
+    return -1;
+}
+
 void easybloxBtProcessFrame() {
     if (easybloxBtRxLength < 8) {
         return;
@@ -217,6 +304,7 @@ void easybloxBtProcessFrame() {
         easybloxBtLastReceivedSequence = 0;
         easybloxBtTextReady = false;
         easybloxBtNumberReady = false;
+        easybloxBtResetGamepadState();
         easybloxBtSendHelloAck();
         return;
     }
@@ -251,6 +339,25 @@ void easybloxBtProcessFrame() {
         return;
     }
 
+    if (
+        type == EASYBLOX_EBCP_TYPE_BOOLEAN &&
+        payloadLength != 1
+    ) {
+        return;
+    }
+
+    const uint8_t payloadOffset =
+        static_cast<uint8_t>(
+            7 + channelLength
+        );
+
+    if (
+        type == EASYBLOX_EBCP_TYPE_BOOLEAN &&
+        easybloxBtRxBuffer[payloadOffset] > 1
+    ) {
+        return;
+    }
+
     if (sequence == easybloxBtLastReceivedSequence) {
         easybloxBtSendAck(sequence);
         return;
@@ -263,15 +370,36 @@ void easybloxBtProcessFrame() {
     channel.reserve(channelLength);
 
     for (uint8_t index = 0; index < channelLength; ++index) {
-        channel += static_cast<char>(easybloxBtRxBuffer[7 + index]);
+        channel += static_cast<char>(
+            easybloxBtRxBuffer[7 + index]
+        );
+    }
+
+    if (type == EASYBLOX_EBCP_TYPE_BOOLEAN) {
+        const int8_t gamepadIndex =
+            easybloxBtGamepadIndexForChannel(
+                channel
+            );
+
+        if (gamepadIndex < 0) {
+            return;
+        }
+
+        easybloxBtGamepadState[
+            static_cast<uint8_t>(
+                gamepadIndex
+            )
+        ] =
+            easybloxBtRxBuffer[
+                payloadOffset
+            ] == 1;
+
+        return;
     }
 
     if (channel != EASYBLOX_BT_CHANNEL) {
         return;
     }
-
-    const uint8_t payloadOffset =
-        static_cast<uint8_t>(7 + channelLength);
 
     if (type == EASYBLOX_EBCP_TYPE_TEXT) {
         String value;
@@ -409,6 +537,7 @@ void easybloxBtWaitNumber(const String &channel) {
 
 
 void EasyBloxBluetooth::begin() {
+    easybloxBtResetGamepadState();
     easybloxBtBegin();
 }
 
@@ -448,6 +577,28 @@ const String &EasyBloxBluetooth::receivedText() const {
 
 float EasyBloxBluetooth::receivedNumber() const {
     return easybloxBtReceivedNumber;
+}
+
+bool EasyBloxBluetooth::gamepadButtonPressed(
+    EasyBloxGamepadButton button
+) {
+    easybloxBtPoll();
+
+    const uint8_t index =
+        static_cast<uint8_t>(
+            button
+        );
+
+    if (
+        index >=
+        EASYBLOX_GAMEPAD_BUTTON_COUNT
+    ) {
+        return false;
+    }
+
+    return easybloxBtGamepadState[
+        index
+    ];
 }
 
 EasyBloxBluetooth EasyBloxBT;

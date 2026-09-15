@@ -13,6 +13,10 @@ const UploadProgramExtractor =
 const UploadTypeValidator =
     require('../../src/upload/upload-type-validator');
 
+const {
+    EASYCONECT_GAMEPAD_SIGNAL_IDS
+} = require('@easymaker/easyconect-core');
+
 const SOFTWARE_UART_D2_D3 =
     CONNECTIVITY_RESOURCES.SOFTWARE_UART_D2_D3;
 
@@ -960,6 +964,94 @@ tap.test(
                 }]
             }),
             /EasyBlox BT parallel events are not supported/
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload extracts Gamepad pressed as a Boolean expression',
+    t => {
+        const signalId =
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_UP;
+
+        const runtime =
+            createRuntimeWithBlocks([
+                createUploadHat(
+                    'gamepad_if'
+                ),
+                {
+                    id: 'gamepad_if',
+                    opcode: 'control_if',
+                    next: null,
+                    parent: 'upload_hat',
+                    inputs: {
+                        CONDITION: {
+                            name: 'CONDITION',
+                            block:
+                                'gamepad_pressed',
+                            shadow: null
+                        }
+                    },
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'gamepad_pressed',
+                    opcode:
+                        'easybloxBt_isGamepadButtonPressed',
+                    next: null,
+                    parent: 'gamepad_if',
+                    inputs: {},
+                    fields: {
+                        BUTTON: {
+                            name: 'BUTTON',
+                            value: signalId
+                        }
+                    },
+                    topLevel: false,
+                    shadow: false
+                }
+            ]);
+
+        const extractor =
+            new UploadProgramExtractor(
+                runtime
+            );
+
+        const ir =
+            extractor.extract();
+
+        t.same(
+            ir.setup,
+            [{
+                type: 'If',
+                condition: {
+                    type:
+                        'EasyBloxBtGamepadButtonPressedExpression',
+                    signalId
+                },
+                body: []
+            }]
+        );
+
+        t.same(
+            ir.resources,
+            [
+                SOFTWARE_UART_D2_D3
+            ]
+        );
+
+        const validator =
+            new UploadTypeValidator();
+
+        t.equal(
+            validator.validate(ir),
+            ir,
+            'GAMEPAD reporter is a valid Boolean condition'
         );
 
         t.end();

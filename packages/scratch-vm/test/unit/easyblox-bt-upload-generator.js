@@ -8,6 +8,11 @@ const {
     getEasyBloxBtSupportFiles
 } = require('../../src/upload/easyblox-bt-arduino-runtime');
 
+const {
+    EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    getEasyConectWireChannel
+} = require('@easymaker/easyconect-core');
+
 const createIr = (
     setup = [],
     loop = []
@@ -378,6 +383,120 @@ tap.test(
             sketch,
             /easybloxBtPoll\s*\(/,
             'runtime poller stays hidden from the pedagogical preview'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload generator maps Gamepad Boolean state through the runtime facade',
+    t => {
+        const signalId =
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_UP;
+
+        const generator =
+            new ArduinoUnoGenerator();
+
+        const sketch =
+            generator.generate(
+                createIr([
+                    {
+                        type: 'If',
+                        condition: {
+                            type:
+                                'EasyBloxBtGamepadButtonPressedExpression',
+                            signalId
+                        },
+                        body: []
+                    }
+                ])
+            );
+
+        t.match(
+            sketch,
+            /#include "EasyBlox\.h"/,
+            'GAMEPAD requires the EasyBlox runtime'
+        );
+
+        t.match(
+            sketch,
+            /EasyBloxBT\.begin\s*\(\s*\)\s*;/,
+            'GAMEPAD starts Bluetooth automatically'
+        );
+
+        t.match(
+            sketch,
+            /EasyBloxBT\.gamepadButtonPressed\s*\(\s*EasyBloxGamepadButton::DpadUp\s*\)/,
+            'GAMEPAD condition uses the typed runtime facade'
+        );
+
+        t.notMatch(
+            sketch,
+            new RegExp(
+                getEasyConectWireChannel(
+                    signalId
+                ).replace(
+                    '.',
+                    '\\.'
+                )
+            ),
+            'wire channel stays outside the pedagogical sketch'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Arduino support files use canonical EasyConect Gamepad channels',
+    t => {
+        const supportFiles =
+            getEasyBloxBtSupportFiles();
+
+        const config =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                        'EasyBloxConfig.h'
+            );
+
+        const header =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                        'EasyBloxBluetooth.h'
+            );
+
+        t.ok(config);
+        t.ok(header);
+
+        for (
+            const signalId of
+            Object.values(
+                EASYCONECT_GAMEPAD_SIGNAL_IDS
+            )
+        ) {
+            t.match(
+                config.content,
+                getEasyConectWireChannel(
+                    signalId
+                ),
+                signalId
+            );
+        }
+
+        t.match(
+            header.content,
+            /enum class EasyBloxGamepadButton/,
+            'runtime exposes a typed GAMEPAD button enum'
+        );
+
+        t.match(
+            header.content,
+            /bool\s+gamepadButtonPressed\s*\(/,
+            'runtime exposes the GAMEPAD Boolean facade'
         );
 
         t.end();

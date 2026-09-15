@@ -11,6 +11,30 @@ const {
     EASYBLOX_BT_INTERNAL_IDENTIFIERS
 } = require('./easyblox-bt-arduino-runtime');
 
+const {
+    EASYCONECT_GAMEPAD_SIGNAL_IDS
+} = require('@easymaker/easyconect-core');
+
+const EASYBLOX_GAMEPAD_CPP_BUTTONS =
+    Object.freeze({
+        [EASYCONECT_GAMEPAD_SIGNAL_IDS.DPAD_UP]:
+            'EasyBloxGamepadButton::DpadUp',
+        [EASYCONECT_GAMEPAD_SIGNAL_IDS.DPAD_DOWN]:
+            'EasyBloxGamepadButton::DpadDown',
+        [EASYCONECT_GAMEPAD_SIGNAL_IDS.DPAD_LEFT]:
+            'EasyBloxGamepadButton::DpadLeft',
+        [EASYCONECT_GAMEPAD_SIGNAL_IDS.DPAD_RIGHT]:
+            'EasyBloxGamepadButton::DpadRight',
+        [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_TOP]:
+            'EasyBloxGamepadButton::ActionTop',
+        [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_LEFT]:
+            'EasyBloxGamepadButton::ActionLeft',
+        [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_BOTTOM]:
+            'EasyBloxGamepadButton::ActionBottom',
+        [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_RIGHT]:
+            'EasyBloxGamepadButton::ActionRight'
+    });
+
 /**
  * Generate deterministic Arduino UNO C++ from EasyBlox semantic IR.
  */
@@ -168,6 +192,15 @@ class ArduinoUnoGenerator {
             analysisSetupStatements,
             loopStatements
         ]);
+
+        const usesEasyBloxGamepad =
+            this._containsIrType(
+                [
+                    analysisSetupStatements,
+                    loopStatements
+                ],
+                'EasyBloxBtGamepadButtonPressedExpression'
+            );
 
         const reservedIdentifiers = this._initializeDataSymbols(
             variables,
@@ -1201,6 +1234,21 @@ class ArduinoUnoGenerator {
         );
 
         lines.push('void setup() {');
+
+        const hasExplicitEasyBloxBtInit =
+            this._containsIrType(
+                setupStatements,
+                'EasyBloxBtInit'
+            );
+
+        if (
+            usesEasyBloxGamepad &&
+            !hasExplicitEasyBloxBtInit
+        ) {
+            lines.push(
+                '    EasyBloxBT.begin();'
+            );
+        }
 
         for (const motor of motorConfigurations) {
             lines.push(
@@ -3057,6 +3105,44 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Recursively test whether an IR tree contains one exact node type.
+     * @param {*} value IR value.
+     * @param {string} type exact IR node type.
+     * @returns {boolean} true when found.
+     * @private
+     */
+    _containsIrType (value, type) {
+        if (Array.isArray(value)) {
+            return value.some(item =>
+                this._containsIrType(
+                    item,
+                    type
+                )
+            );
+        }
+
+        if (
+            !value ||
+            typeof value !== 'object'
+        ) {
+            return false;
+        }
+
+        if (value.type === type) {
+            return true;
+        }
+
+        return Object.keys(value).some(
+            key =>
+                this._containsIrType(
+                    value[key],
+                    type
+                )
+        );
+    }
+
+
+    /**
      * Recursively detect EasyBlox BT IR use.
      * @param {unknown} value IR value.
      * @returns {boolean} True when EasyBlox BT support is required.
@@ -4105,6 +4191,21 @@ class ArduinoUnoGenerator {
 
         case 'EasyBloxBtReceivedNumberExpression':
             return 'EasyBloxBT.receivedNumber()';
+
+        case 'EasyBloxBtGamepadButtonPressedExpression': {
+            const button =
+                EASYBLOX_GAMEPAD_CPP_BUTTONS[
+                    expression.signalId
+                ];
+
+            if (!button) {
+                throw new Error(
+                    `Unsupported EasyBlox BT GAMEPAD signal: ${expression.signalId}`
+                );
+            }
+
+            return `EasyBloxBT.gamepadButtonPressed(${button})`;
+        }
 
         case 'DigitalReadExpression':
             return `(digitalRead(${expression.pin}) == HIGH)`;

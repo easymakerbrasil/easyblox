@@ -3,6 +3,10 @@ const {
     EASYBLOX_BT_CHANNEL
 } = require('../connectivity/easyblox-connectivity-contract');
 
+const {
+    EASYCONECT_GAMEPAD_SIGNAL_IDS
+} = require('@easymaker/easyconect-core');
+
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
 const DIGITAL_READ_OPCODE = 'arduinoUno_digitalRead';
@@ -45,6 +49,15 @@ const EASYBLOX_BT_RECEIVED_TEXT_OPCODE = 'easybloxBt_receivedText';
 const EASYBLOX_BT_SEND_NUMBER_OPCODE = 'easybloxBt_sendNumber';
 const EASYBLOX_BT_WAIT_NUMBER_OPCODE = 'easybloxBt_waitNumber';
 const EASYBLOX_BT_RECEIVED_NUMBER_OPCODE = 'easybloxBt_receivedNumber';
+const EASYBLOX_BT_GAMEPAD_BUTTON_PRESSED_OPCODE =
+    'easybloxBt_isGamepadButtonPressed';
+
+const EASYBLOX_GAMEPAD_SIGNAL_IDS =
+    new Set(
+        Object.values(
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+        )
+    );
 const FOREVER_OPCODE = 'control_forever';
 const REPEAT_OPCODE = 'control_repeat';
 const IF_OPCODE = 'control_if';
@@ -1444,6 +1457,32 @@ class UploadProgramExtractor {
             return {
                 type: 'EasyBloxBtReceivedNumberExpression'
             };
+
+        case EASYBLOX_BT_GAMEPAD_BUTTON_PRESSED_OPCODE: {
+            this._reserveEasyBloxBtResource();
+
+            const signalId =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'BUTTON'
+                );
+
+            if (
+                !EASYBLOX_GAMEPAD_SIGNAL_IDS
+                    .has(signalId)
+            ) {
+                throw new Error(
+                    `Invalid EasyBlox BT GAMEPAD signal: ${signalId}`
+                );
+            }
+
+            return {
+                type:
+                    'EasyBloxBtGamepadButtonPressedExpression',
+                signalId
+            };
+        }
 
         case VARIABLE_REPORTER_OPCODE: {
             const fields = blocks.getFields(block);

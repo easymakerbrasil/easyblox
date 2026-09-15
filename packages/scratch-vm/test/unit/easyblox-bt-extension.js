@@ -46,7 +46,12 @@ const getBlocks = () =>
     createExtension()
         .getInfo()
         .blocks
-        .filter(block => block !== '---');
+        .filter(
+            block =>
+                block !== '---' &&
+                block.blockType !==
+                    BlockType.LABEL
+        );
 
 const getBlock = opcode =>
     getBlocks().find(block => block.opcode === opcode);
@@ -86,7 +91,7 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT exposes exactly the seven canonical v1 blocks',
+    'EasyBlox BT exposes exactly the eight canonical v1 blocks',
     t => {
         const blocks = getBlocks();
 
@@ -99,13 +104,15 @@ tap.test(
                 'receivedText',
                 'sendNumber',
                 'waitNumber',
-                'receivedNumber'
+                'receivedNumber',
+                'isGamepadButtonPressed'
+
             ]
         );
 
         t.equal(
             blocks.length,
-            7
+            8
         );
 
         t.end();
@@ -482,12 +489,14 @@ tap.test(
 tap.test(
     'EasyBlox BT Stage discards pending TEXT and NUMBER waits when the project stops',
     async t => {
-        let projectStopAllHandler = null;
+        const projectStopAllHandlers = [];
 
         const runtime = {
             on: (eventName, handler) => {
                 if (eventName === 'PROJECT_STOP_ALL') {
-                    projectStopAllHandler = handler;
+                    projectStopAllHandlers.push(
+                        handler
+                    );
                 }
             }
         };
@@ -495,13 +504,12 @@ tap.test(
         const extension =
             new Scratch3EasyBloxBtBlocks(runtime);
 
-        t.type(
-            projectStopAllHandler,
-            'function',
-            'EasyBlox BT registers a PROJECT_STOP_ALL lifecycle handler'
+        t.ok(
+            projectStopAllHandlers.length >= 1,
+            'EasyBlox BT registers PROJECT_STOP_ALL lifecycle handlers'
         );
 
-        if (typeof projectStopAllHandler !== 'function') {
+        if (projectStopAllHandlers.length === 0) {
             t.end();
             return;
         }
@@ -522,7 +530,12 @@ tap.test(
             }
         );
 
-        projectStopAllHandler();
+        for (
+            const handler of
+            projectStopAllHandlers
+        ) {
+            handler();
+        }
 
         const currentThread = {};
 
