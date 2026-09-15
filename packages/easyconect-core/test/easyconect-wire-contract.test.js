@@ -1,0 +1,114 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+const {
+    EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    EASYCONECT_SIGNAL_WIRE_CHANNELS,
+    getEasyConectWireChannel,
+    getEasyConectSignalIdForWireChannel
+} = require('../src');
+
+test(
+    'EasyConect Gamepad exposes canonical EBCP-safe wire channels',
+    () => {
+        assert.deepEqual(
+            EASYCONECT_SIGNAL_WIRE_CHANNELS,
+            {
+                [EASYCONECT_GAMEPAD_SIGNAL_IDS.DPAD_UP]:
+                    'gp.du',
+                [EASYCONECT_GAMEPAD_SIGNAL_IDS.DPAD_DOWN]:
+                    'gp.dd',
+                [EASYCONECT_GAMEPAD_SIGNAL_IDS.DPAD_LEFT]:
+                    'gp.dl',
+                [EASYCONECT_GAMEPAD_SIGNAL_IDS.DPAD_RIGHT]:
+                    'gp.dr',
+                [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_TOP]:
+                    'gp.at',
+                [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_LEFT]:
+                    'gp.al',
+                [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_BOTTOM]:
+                    'gp.ab',
+                [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_RIGHT]:
+                    'gp.ar'
+            }
+        );
+
+        assert.equal(
+            Object.isFrozen(
+                EASYCONECT_SIGNAL_WIRE_CHANNELS
+            ),
+            true
+        );
+
+        const channels =
+            Object.values(
+                EASYCONECT_SIGNAL_WIRE_CHANNELS
+            );
+
+        assert.equal(
+            new Set(channels).size,
+            channels.length
+        );
+
+        for (const channel of channels) {
+            assert.match(
+                channel,
+                /^[A-Za-z0-9_.-]{1,16}$/
+            );
+
+            assert.ok(
+                Buffer.byteLength(
+                    channel,
+                    'utf8'
+                ) <= 16
+            );
+        }
+    }
+);
+
+test(
+    'EasyConect Gamepad wire channels round-trip to canonical signal IDs',
+    () => {
+        for (
+            const [
+                signalId,
+                channel
+            ] of Object.entries(
+                EASYCONECT_SIGNAL_WIRE_CHANNELS
+            )
+        ) {
+            assert.equal(
+                getEasyConectWireChannel(
+                    signalId
+                ),
+                channel
+            );
+
+            assert.equal(
+                getEasyConectSignalIdForWireChannel(
+                    channel
+                ),
+                signalId
+            );
+        }
+    }
+);
+
+test(
+    'EasyConect wire contract rejects unknown signals and channels',
+    () => {
+        assert.equal(
+            getEasyConectWireChannel(
+                'gamepad.unknown'
+            ),
+            null
+        );
+
+        assert.equal(
+            getEasyConectSignalIdForWireChannel(
+                'gp.unknown'
+            ),
+            null
+        );
+    }
+);

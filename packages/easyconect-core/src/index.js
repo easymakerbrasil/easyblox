@@ -7,6 +7,12 @@ const {
 } = require('./easyconect-contract');
 
 const {
+    EASYCONECT_SIGNAL_WIRE_CHANNELS,
+    getEasyConectWireChannel,
+    getEasyConectSignalIdForWireChannel
+} = require('./easyconect-wire-contract');
+
+const {
     EASYCONECT_MODULES,
     getEasyConectModuleContract,
     getEasyConectSignalContract,
@@ -40,6 +46,9 @@ module.exports = {
     EASYCONECT_MODULE_IDS,
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_GAMEPAD_MODULE,
+    EASYCONECT_SIGNAL_WIRE_CHANNELS,
+    getEasyConectWireChannel,
+    getEasyConectSignalIdForWireChannel,
     EASYCONECT_MODULES,
     getEasyConectModuleContract,
     getEasyConectSignalContract,
