@@ -522,6 +522,76 @@ test('EasyConect rejects connection when transport disconnects during handshake'
     );
 });
 
+test('EasyConect explicit disconnect aborts a pending handshake without double-disconnecting transport', async () => {
+    const transport =
+        new FakeTransport();
+
+    const connection =
+        new EasyConectConnection({
+            transport
+        });
+
+    const states = [];
+
+    connection.onStateChange(
+        state => {
+            states.push(
+                state
+            );
+        }
+    );
+
+    const connecting =
+        connection.connect({
+            deviceId:
+                'opaque-device-1'
+        });
+
+    await flushMicrotasks();
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .CONNECTING
+    );
+
+    const disconnecting =
+        connection.disconnect();
+
+    assert.equal(
+        await disconnecting,
+        true
+    );
+
+    await assert.rejects(
+        connecting,
+        /connection closed/i
+    );
+
+    assert.equal(
+        transport.disconnectCalls,
+        1
+    );
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .DISCONNECTED
+    );
+
+    assert.deepEqual(
+        states,
+        [
+            EASYCONECT_CONNECTION_STATES
+                .CONNECTING,
+            EASYCONECT_CONNECTION_STATES
+                .DISCONNECTING,
+            EASYCONECT_CONNECTION_STATES
+                .DISCONNECTED
+        ]
+    );
+});
+
 test('EasyConect disconnects cleanly and disables protocol operations', async () => {
     const transport =
         new FakeTransport();

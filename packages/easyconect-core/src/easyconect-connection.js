@@ -52,6 +52,9 @@ class EasyConectConnection {
         this._connectionFailureReject =
             null;
 
+        this._connectionAbortError =
+            null;
+
         this._stateListeners =
             new Set();
 
@@ -235,34 +238,81 @@ class EasyConectConnection {
                     .CONNECTED
             );
         } catch (error) {
+            const isExplicitAbort =
+                error ===
+                this._connectionAbortError;
+
             this._resetProtocol(
                 error
             );
 
-            this._setState(
-                EASYCONECT_CONNECTION_STATES
-                    .DISCONNECTED
-            );
-
-            try {
-                await Promise.resolve(
-                    this._transport
-                        .disconnect()
+            if (!isExplicitAbort) {
+                this._setState(
+                    EASYCONECT_CONNECTION_STATES
+                        .DISCONNECTED
                 );
-            } catch (
-                disconnectError
-            ) {
-                // Preserve the original connection failure.
+
+                try {
+                    await Promise.resolve(
+                        this._transport
+                            .disconnect()
+                    );
+                } catch (
+                    disconnectError
+                ) {
+                    // Preserve the original connection failure.
+                }
             }
 
             throw error;
         } finally {
             this._connectionFailureReject =
                 null;
+
+            this._connectionAbortError =
+                null;
         }
     }
 
     async disconnect () {
+        if (
+            this._state ===
+                EASYCONECT_CONNECTION_STATES
+                    .CONNECTING
+        ) {
+            const abortError =
+                new Error(
+                    'EasyConect connection closed'
+                );
+
+            this._connectionAbortError =
+                abortError;
+
+            this._setState(
+                EASYCONECT_CONNECTION_STATES
+                    .DISCONNECTING
+            );
+
+            if (this._connectionFailureReject) {
+                this._connectionFailureReject(
+                    abortError
+                );
+            }
+
+            try {
+                await Promise.resolve(
+                    this._transport.disconnect()
+                );
+            } finally {
+                this._setState(
+                    EASYCONECT_CONNECTION_STATES
+                        .DISCONNECTED
+                );
+            }
+
+            return true;
+        }
+
         if (
             this._state !==
                 EASYCONECT_CONNECTION_STATES
