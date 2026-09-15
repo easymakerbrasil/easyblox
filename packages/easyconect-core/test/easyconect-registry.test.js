@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
     EASYCONECT_GAMEPAD_MODULE,
+    EASYCONECT_CONTROLS_MODULE,
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_MODULES,
     getEasyConectModuleContract,
@@ -14,7 +15,8 @@ test('EasyConect registry exposes the canonical module list', () => {
     assert.deepEqual(
         EASYCONECT_MODULES,
         [
-            EASYCONECT_GAMEPAD_MODULE
+            EASYCONECT_GAMEPAD_MODULE,
+            EASYCONECT_CONTROLS_MODULE
         ]
     );
 

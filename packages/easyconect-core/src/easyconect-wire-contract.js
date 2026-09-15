@@ -1,5 +1,6 @@
 const {
-    EASYCONECT_GAMEPAD_SIGNAL_IDS
+    EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    EASYCONECT_CONTROLS_SIGNAL_IDS
 } = require('./easyconect-contract');
 
 const EASYCONECT_SIGNAL_WIRE_CHANNELS =
@@ -19,7 +20,17 @@ const EASYCONECT_SIGNAL_WIRE_CHANNELS =
         [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_BOTTOM]:
             'gp.ab',
         [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_RIGHT]:
-            'gp.ar'
+            'gp.ar',
+        [EASYCONECT_CONTROLS_SIGNAL_IDS.JOYSTICK_X]:
+            'ct.jx',
+        [EASYCONECT_CONTROLS_SIGNAL_IDS.JOYSTICK_Y]:
+            'ct.jy',
+        [EASYCONECT_CONTROLS_SIGNAL_IDS.SLIDER]:
+            'ct.sl',
+        [EASYCONECT_CONTROLS_SIGNAL_IDS.BUTTON]:
+            'ct.bt',
+        [EASYCONECT_CONTROLS_SIGNAL_IDS.SWITCH]:
+            'ct.sw'
     });
 
 const EASYCONECT_WIRE_CHANNEL_SIGNAL_IDS =
@@ -59,7 +70,7 @@ const getEasyConectWireChannel = signalId => {
 /**
  * Resolve one canonical EasyConect signal from its EBCP wire channel.
  * @param {string} channel EBCP wire channel.
- * @returns {?string} EasyConect signal ID, or null when unknown.
+ * @returns {?string} canonical signal ID, or null when unknown.
  */
 const getEasyConectSignalIdForWireChannel =
     channel => {

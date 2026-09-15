@@ -3,13 +3,14 @@ const assert = require('node:assert/strict');
 
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    EASYCONECT_CONTROLS_SIGNAL_IDS,
     EASYCONECT_SIGNAL_WIRE_CHANNELS,
     getEasyConectWireChannel,
     getEasyConectSignalIdForWireChannel
 } = require('../src');
 
 test(
-    'EasyConect Gamepad exposes canonical EBCP-safe wire channels',
+    'EasyConect exposes canonical EBCP-safe wire channels',
     () => {
         assert.deepEqual(
             EASYCONECT_SIGNAL_WIRE_CHANNELS,
@@ -29,7 +30,17 @@ test(
                 [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_BOTTOM]:
                     'gp.ab',
                 [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_RIGHT]:
-                    'gp.ar'
+                    'gp.ar',
+                [EASYCONECT_CONTROLS_SIGNAL_IDS.JOYSTICK_X]:
+                    'ct.jx',
+                [EASYCONECT_CONTROLS_SIGNAL_IDS.JOYSTICK_Y]:
+                    'ct.jy',
+                [EASYCONECT_CONTROLS_SIGNAL_IDS.SLIDER]:
+                    'ct.sl',
+                [EASYCONECT_CONTROLS_SIGNAL_IDS.BUTTON]:
+                    'ct.bt',
+                [EASYCONECT_CONTROLS_SIGNAL_IDS.SWITCH]:
+                    'ct.sw'
             }
         );
 
@@ -67,7 +78,7 @@ test(
 );
 
 test(
-    'EasyConect Gamepad wire channels round-trip to canonical signal IDs',
+    'EasyConect wire channels round-trip to canonical signal IDs',
     () => {
         for (
             const [

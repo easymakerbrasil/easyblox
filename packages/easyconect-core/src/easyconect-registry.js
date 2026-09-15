@@ -1,11 +1,13 @@
 const {
     EASYCONECT_SIGNAL_TYPES,
-    EASYCONECT_GAMEPAD_MODULE
+    EASYCONECT_GAMEPAD_MODULE,
+    EASYCONECT_CONTROLS_MODULE
 } = require('./easyconect-contract');
 
 const EASYCONECT_MODULES =
     Object.freeze([
-        EASYCONECT_GAMEPAD_MODULE
+        EASYCONECT_GAMEPAD_MODULE,
+        EASYCONECT_CONTROLS_MODULE
     ]);
 
 const getEasyConectModuleContract =
@@ -86,6 +88,35 @@ const validateEasyConectSignalValue =
             ) {
                 throw new Error(
                     `EasyConect signal ${signalId} requires a boolean value`
+                );
+            }
+
+            return true;
+        }
+
+        if (
+            signalContract.type ===
+                EASYCONECT_SIGNAL_TYPES
+                    .NUMBER
+        ) {
+            if (
+                typeof value !==
+                    'number' ||
+                !Number.isFinite(value)
+            ) {
+                throw new Error(
+                    `EasyConect signal ${signalId} requires a finite number`
+                );
+            }
+
+            if (
+                value <
+                    signalContract.minimum ||
+                value >
+                    signalContract.maximum
+            ) {
+                throw new Error(
+                    `EasyConect signal ${signalId} requires a value between ${signalContract.minimum} and ${signalContract.maximum}`
                 );
             }
 

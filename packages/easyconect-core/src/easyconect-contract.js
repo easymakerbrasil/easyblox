@@ -13,7 +13,8 @@ const EASYCONECT_SIGNAL_DIRECTIONS =
 
 const EASYCONECT_MODULE_IDS =
     Object.freeze({
-        GAMEPAD: 'gamepad'
+        GAMEPAD: 'gamepad',
+        CONTROLS: 'controls'
     });
 
 const EASYCONECT_GAMEPAD_SIGNAL_IDS =
@@ -36,6 +37,20 @@ const EASYCONECT_GAMEPAD_SIGNAL_IDS =
             'gamepad.action.right'
     });
 
+const EASYCONECT_CONTROLS_SIGNAL_IDS =
+    Object.freeze({
+        JOYSTICK_X:
+            'controls.joystick.x',
+        JOYSTICK_Y:
+            'controls.joystick.y',
+        SLIDER:
+            'controls.slider',
+        BUTTON:
+            'controls.button',
+        SWITCH:
+            'controls.switch'
+    });
+
 const createBooleanInputSignal =
     id =>
         Object.freeze({
@@ -46,6 +61,24 @@ const createBooleanInputSignal =
             direction:
                 EASYCONECT_SIGNAL_DIRECTIONS
                     .INPUT
+        });
+
+const createNumberInputSignal =
+    (
+        id,
+        minimum,
+        maximum
+    ) =>
+        Object.freeze({
+            id,
+            type:
+                EASYCONECT_SIGNAL_TYPES
+                    .NUMBER,
+            direction:
+                EASYCONECT_SIGNAL_DIRECTIONS
+                    .INPUT,
+            minimum,
+            maximum
         });
 
 const EASYCONECT_GAMEPAD_MODULE =
@@ -90,10 +123,48 @@ const EASYCONECT_GAMEPAD_MODULE =
             ])
     });
 
+const EASYCONECT_CONTROLS_MODULE =
+    Object.freeze({
+        id:
+            EASYCONECT_MODULE_IDS
+                .CONTROLS,
+        signals:
+            Object.freeze([
+                createNumberInputSignal(
+                    EASYCONECT_CONTROLS_SIGNAL_IDS
+                        .JOYSTICK_X,
+                    -100,
+                    100
+                ),
+                createNumberInputSignal(
+                    EASYCONECT_CONTROLS_SIGNAL_IDS
+                        .JOYSTICK_Y,
+                    -100,
+                    100
+                ),
+                createNumberInputSignal(
+                    EASYCONECT_CONTROLS_SIGNAL_IDS
+                        .SLIDER,
+                    0,
+                    100
+                ),
+                createBooleanInputSignal(
+                    EASYCONECT_CONTROLS_SIGNAL_IDS
+                        .BUTTON
+                ),
+                createBooleanInputSignal(
+                    EASYCONECT_CONTROLS_SIGNAL_IDS
+                        .SWITCH
+                )
+            ])
+    });
+
 module.exports = {
     EASYCONECT_SIGNAL_TYPES,
     EASYCONECT_SIGNAL_DIRECTIONS,
     EASYCONECT_MODULE_IDS,
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
-    EASYCONECT_GAMEPAD_MODULE
+    EASYCONECT_GAMEPAD_MODULE,
+    EASYCONECT_CONTROLS_SIGNAL_IDS,
+    EASYCONECT_CONTROLS_MODULE
 };

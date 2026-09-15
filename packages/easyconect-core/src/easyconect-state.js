@@ -18,6 +18,14 @@ const getDefaultSignalValue =
             return false;
         }
 
+        if (
+            signalContract.type ===
+                EASYCONECT_SIGNAL_TYPES
+                    .NUMBER
+        ) {
+            return 0;
+        }
+
         throw new Error(
             `Unsupported EasyConect signal type: ${signalContract.type}`
         );

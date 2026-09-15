@@ -134,7 +134,12 @@ test('EasyConect snapshot contains every current canonical signal value', () => 
                 'gamepad.action.top': true,
                 'gamepad.action.left': false,
                 'gamepad.action.bottom': false,
-                'gamepad.action.right': false
+                'gamepad.action.right': false,
+                'controls.joystick.x': 0,
+                'controls.joystick.y': 0,
+                'controls.slider': 0,
+                'controls.button': false,
+                'controls.switch': false
             }
         }
     );
