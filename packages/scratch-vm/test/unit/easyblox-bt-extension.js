@@ -25,6 +25,10 @@ const NUMBER = EBCP_CONTRACT.messageTypes.NUMBER;
 const createExtension = () =>
     new Scratch3EasyBloxBtBlocks({});
 
+const getStageRuntime = extension =>
+    extension._stageConnectivity
+        ._connectivityRuntime;
+
 const createDeferred = () => {
     let resolve;
 
@@ -536,14 +540,14 @@ tap.test(
             }
         );
 
-        extension._connectivityRuntime.receive({
+        getStageRuntime(extension).receive({
             type: TEXT,
             sequence: 1,
             channel: '1',
             payload: 'novo texto'
         });
 
-        extension._connectivityRuntime.receive({
+        getStageRuntime(extension).receive({
             type: NUMBER,
             sequence: 2,
             channel: '1',
@@ -587,7 +591,8 @@ tap.test(
         const deferred = createDeferred();
         const calls = [];
 
-        extension._connectivityRuntime = {
+        extension._stageConnectivity = {
+            sessionGeneration: 0,
             waitFor: (type, channel) => {
                 calls.push({
                     type,
@@ -657,7 +662,8 @@ tap.test(
         const deferred = createDeferred();
         const calls = [];
 
-        extension._connectivityRuntime = {
+        extension._stageConnectivity = {
+            sessionGeneration: 0,
             waitFor: (type, channel) => {
                 calls.push({
                     type,
@@ -728,7 +734,8 @@ tap.test(
 
         let textWaitCount = 0;
 
-        extension._connectivityRuntime = {
+        extension._stageConnectivity = {
+            sessionGeneration: 0,
             waitFor: (type, channel) => {
                 t.equal(
                     channel,
@@ -821,7 +828,7 @@ tap.test(
         const extension = createExtension();
         const thread = {};
 
-        extension._connectivityRuntime.receive({
+        getStageRuntime(extension).receive({
             type: TEXT,
             sequence: 1,
             channel: '1',
@@ -835,7 +842,7 @@ tap.test(
             }
         );
 
-        extension._connectivityRuntime.receive({
+        getStageRuntime(extension).receive({
             type: NUMBER,
             sequence: 2,
             channel: '1',
@@ -865,7 +872,7 @@ tap.test(
             42
         );
 
-        extension._connectivityRuntime.receive({
+        getStageRuntime(extension).receive({
             type: EBCP_CONTROL_TYPES.HELLO,
             sequence: 0,
             channel: '',
@@ -890,7 +897,7 @@ tap.test(
             'HELLO invalidates number received in the previous session'
         );
 
-        extension._connectivityRuntime.receive({
+        getStageRuntime(extension).receive({
             type: TEXT,
             sequence: 1,
             channel: '1',
@@ -904,7 +911,7 @@ tap.test(
             }
         );
 
-        extension._connectivityRuntime.receive({
+        getStageRuntime(extension).receive({
             type: NUMBER,
             sequence: 2,
             channel: '1',
@@ -934,7 +941,7 @@ tap.test(
             99
         );
 
-        extension._connectivityRuntime.receive({
+        getStageRuntime(extension).receive({
             type: EBCP_CONTROL_TYPES.HELLO_ACK,
             sequence: 0,
             channel: '',

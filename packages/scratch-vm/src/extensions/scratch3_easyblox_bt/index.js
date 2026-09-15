@@ -9,12 +9,8 @@ const {
 } = require('../../connectivity/easyblox-connectivity-contract');
 
 const {
-    EasyBloxConnectivitySession
-} = require('../../connectivity/easyblox-connectivity-session');
-
-const {
-    EasyBloxConnectivityRuntime
-} = require('../../connectivity/easyblox-connectivity-runtime');
+    getEasyBloxStageConnectivity
+} = require('../../connectivity/easyblox-stage-connectivity');
 
 const EXTENSION_ID = 'easybloxBt';
 
@@ -23,8 +19,6 @@ const NUMBER = EBCP_CONTRACT.messageTypes.NUMBER;
 
 const REQUIRED_BOARD_CAPABILITY =
     'bluetoothSerial';
-
-const STAGE_TRANSPORT_CHUNK_BYTES = 32;
 
 /**
  * Scratch blocks for EasyBlox BT.
@@ -38,23 +32,9 @@ class Scratch3EasyBloxBtBlocks {
      */
     constructor (runtime) {
         this.runtime = runtime;
-        this._connectivityRuntime =
-            new EasyBloxConnectivityRuntime();
-        this._connectivitySession = null;
-        this._bluetoothSerialProvider = null;
+        this._stageConnectivity =
+            getEasyBloxStageConnectivity(runtime);
         this._receivedByThread = new WeakMap();
-
-        if (
-            this.runtime &&
-            typeof this.runtime.on === 'function'
-        ) {
-            this.runtime.on(
-                'PROJECT_STOP_ALL',
-                () => {
-                    this._connectivityRuntime.clearWaiters();
-                }
-            );
-        }
     }
 
     /**
@@ -161,7 +141,7 @@ class Scratch3EasyBloxBtBlocks {
         }
 
         const sessionGeneration =
-            this._connectivityRuntime.sessionGeneration;
+            this._stageConnectivity.sessionGeneration;
 
         let state =
             this._receivedByThread.get(thread);
@@ -186,92 +166,13 @@ class Scratch3EasyBloxBtBlocks {
     }
 
     /**
-     * Write one complete EBCP frame through the Stage Bluetooth transport.
-     * Stage payloads are limited to 32 bytes, while EBCP frames can be
-     * larger and therefore require transparent byte-stream fragmentation.
-     * @param {Uint8Array} data Complete encoded EBCP frame.
-     * @returns {?number} Last Stage sequence written, or null when unavailable.
-     */
-    _writeStageTransport (data) {
-        if (!this._bluetoothSerialProvider) {
-            return null;
-        }
-
-        let lastSequence = null;
-
-        for (
-            let offset = 0;
-            offset < data.length;
-            offset += STAGE_TRANSPORT_CHUNK_BYTES
-        ) {
-            const chunk =
-                data.subarray(
-                    offset,
-                    Math.min(
-                        offset + STAGE_TRANSPORT_CHUNK_BYTES,
-                        data.length
-                    )
-                );
-
-            lastSequence =
-                this._bluetoothSerialProvider
-                    .writeBluetoothSerial(
-                        Uint8Array.from(chunk)
-                    );
-
-            if (lastSequence === null) {
-                return null;
-            }
-        }
-
-        return lastSequence;
-    }
-
-    /**
-     * Initialize the EasyBlox BT Stage transport through a neutral
-     * Bluetooth Serial provider.
-     * @returns {?Promise<number>} Provider initialization result,
+     * Initialize the shared EasyBlox Stage Bluetooth connectivity.
+     * @returns {?Promise<number>} provider initialization result,
      * or null when the transport is unavailable.
      */
     init () {
-        if (
-            !this.runtime ||
-            typeof this.runtime
-                .getPeripheralExtensionByCapability !== 'function'
-        ) {
-            return null;
-        }
-
-        const provider =
-            this.runtime.getPeripheralExtensionByCapability(
-                REQUIRED_BOARD_CAPABILITY
-            );
-
-        if (
-            !provider ||
-            typeof provider.onBluetoothSerialData !== 'function' ||
-            typeof provider.initBluetoothSerial !== 'function' ||
-            typeof provider.writeBluetoothSerial !== 'function'
-        ) {
-            return null;
-        }
-
-        this._bluetoothSerialProvider = provider;
-
-        this._connectivitySession =
-            new EasyBloxConnectivitySession({
-                runtime: this._connectivityRuntime,
-                write: data =>
-                    this._writeStageTransport(data)
-            });
-
-        provider.onBluetoothSerialData(
-            data => {
-                this._connectivitySession.push(data);
-            }
-        );
-
-        return provider.initBluetoothSerial();
+        return this._stageConnectivity
+            .initializeBluetoothSerial();
     }
 
     /**
@@ -281,11 +182,7 @@ class Scratch3EasyBloxBtBlocks {
      * @returns {?number} EBCP application sequence, or null when unavailable.
      */
     sendText (args) {
-        if (!this._connectivitySession) {
-            return null;
-        }
-
-        return this._connectivitySession.send(
+        return this._stageConnectivity.send(
             TEXT,
             EASYBLOX_BT_CHANNEL,
             args.TEXT
@@ -299,7 +196,7 @@ class Scratch3EasyBloxBtBlocks {
      * @returns {Promise<void>} resolves when a matching message is consumed
      */
     waitText (args, util) {
-        return this._connectivityRuntime.waitFor(
+        return this._stageConnectivity.waitFor(
             TEXT,
             EASYBLOX_BT_CHANNEL
         ).then(message => {
@@ -334,11 +231,7 @@ class Scratch3EasyBloxBtBlocks {
      * @returns {?number} EBCP application sequence, or null when unavailable.
      */
     sendNumber (args) {
-        if (!this._connectivitySession) {
-            return null;
-        }
-
-        return this._connectivitySession.send(
+        return this._stageConnectivity.send(
             NUMBER,
             EASYBLOX_BT_CHANNEL,
             Cast.toNumber(args.NUMBER)
@@ -352,7 +245,7 @@ class Scratch3EasyBloxBtBlocks {
      * @returns {Promise<void>} resolves when a matching message is consumed
      */
     waitNumber (args, util) {
-        return this._connectivityRuntime.waitFor(
+        return this._stageConnectivity.waitFor(
             NUMBER,
             EASYBLOX_BT_CHANNEL
         ).then(message => {
