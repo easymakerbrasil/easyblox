@@ -14,7 +14,8 @@ const EASYCONECT_SIGNAL_DIRECTIONS =
 const EASYCONECT_MODULE_IDS =
     Object.freeze({
         GAMEPAD: 'gamepad',
-        CONTROLS: 'controls'
+        CONTROLS: 'controls',
+        MOTORS_SERVO: 'motorsServo'
     });
 
 const EASYCONECT_GAMEPAD_SIGNAL_IDS =
@@ -49,6 +50,22 @@ const EASYCONECT_CONTROLS_SIGNAL_IDS =
             'controls.button',
         SWITCH:
             'controls.switch'
+    });
+
+const EASYCONECT_MOTORS_SERVO_SIGNAL_IDS =
+    Object.freeze({
+        MOTOR_1:
+            'motorsServo.motor1',
+        MOTOR_2:
+            'motorsServo.motor2',
+        SERVO_1:
+            'motorsServo.servo1',
+        SERVO_2:
+            'motorsServo.servo2',
+        SERVO_3:
+            'motorsServo.servo3',
+        SERVO_4:
+            'motorsServo.servo4'
     });
 
 const createBooleanInputSignal =
@@ -159,6 +176,52 @@ const EASYCONECT_CONTROLS_MODULE =
             ])
     });
 
+const EASYCONECT_MOTORS_SERVO_MODULE =
+    Object.freeze({
+        id:
+            EASYCONECT_MODULE_IDS
+                .MOTORS_SERVO,
+        signals:
+            Object.freeze([
+                createNumberInputSignal(
+                    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                        .MOTOR_1,
+                    -100,
+                    100
+                ),
+                createNumberInputSignal(
+                    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                        .MOTOR_2,
+                    -100,
+                    100
+                ),
+                createNumberInputSignal(
+                    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                        .SERVO_1,
+                    0,
+                    180
+                ),
+                createNumberInputSignal(
+                    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                        .SERVO_2,
+                    0,
+                    180
+                ),
+                createNumberInputSignal(
+                    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                        .SERVO_3,
+                    0,
+                    180
+                ),
+                createNumberInputSignal(
+                    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                        .SERVO_4,
+                    0,
+                    180
+                )
+            ])
+    });
+
 module.exports = {
     EASYCONECT_SIGNAL_TYPES,
     EASYCONECT_SIGNAL_DIRECTIONS,
@@ -166,5 +229,7 @@ module.exports = {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_GAMEPAD_MODULE,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
-    EASYCONECT_CONTROLS_MODULE
+    EASYCONECT_CONTROLS_MODULE,
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
+    EASYCONECT_MOTORS_SERVO_MODULE
 };

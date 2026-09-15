@@ -7,8 +7,8 @@ const {
     EASYCONECT_SIGNAL_DIRECTIONS,
     EASYCONECT_MODULE_IDS,
     EASYCONECT_GAMEPAD_MODULE,
-    EASYCONECT_CONTROLS_SIGNAL_IDS,
     EASYCONECT_CONTROLS_MODULE,
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
     EASYCONECT_MOTORS_SERVO_MODULE,
     EASYCONECT_MODULES,
     EASYCONECT_SIGNAL_WIRE_CHANNELS,
@@ -20,42 +20,44 @@ const {
 } = require('../src');
 
 test(
-    'EasyConect exposes Controls as a stable module identity',
+    'EasyConect exposes Motors & Servo as a stable module identity',
     () => {
         assert.equal(
-            EASYCONECT_MODULE_IDS.CONTROLS,
-            'controls'
+            EASYCONECT_MODULE_IDS.MOTORS_SERVO,
+            'motorsServo'
         );
 
         assert.deepEqual(
-            EASYCONECT_CONTROLS_SIGNAL_IDS,
+            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
             {
-                JOYSTICK_X:
-                    'controls.joystick.x',
-                JOYSTICK_Y:
-                    'controls.joystick.y',
-                SLIDER:
-                    'controls.slider',
-                BUTTON:
-                    'controls.button',
-                SWITCH:
-                    'controls.switch'
+                MOTOR_1:
+                    'motorsServo.motor1',
+                MOTOR_2:
+                    'motorsServo.motor2',
+                SERVO_1:
+                    'motorsServo.servo1',
+                SERVO_2:
+                    'motorsServo.servo2',
+                SERVO_3:
+                    'motorsServo.servo3',
+                SERVO_4:
+                    'motorsServo.servo4'
             }
         );
     }
 );
 
 test(
-    'EasyConect Controls exposes the five canonical v1 input signals',
+    'EasyConect Motors & Servo exposes the six canonical v1 input signals',
     () => {
         assert.deepEqual(
-            EASYCONECT_CONTROLS_MODULE,
+            EASYCONECT_MOTORS_SERVO_MODULE,
             {
-                id: 'controls',
+                id: 'motorsServo',
                 signals: [
                     {
                         id:
-                            'controls.joystick.x',
+                            'motorsServo.motor1',
                         type:
                             EASYCONECT_SIGNAL_TYPES
                                 .NUMBER,
@@ -67,7 +69,7 @@ test(
                     },
                     {
                         id:
-                            'controls.joystick.y',
+                            'motorsServo.motor2',
                         type:
                             EASYCONECT_SIGNAL_TYPES
                                 .NUMBER,
@@ -79,7 +81,7 @@ test(
                     },
                     {
                         id:
-                            'controls.slider',
+                            'motorsServo.servo1',
                         type:
                             EASYCONECT_SIGNAL_TYPES
                                 .NUMBER,
@@ -87,27 +89,43 @@ test(
                             EASYCONECT_SIGNAL_DIRECTIONS
                                 .INPUT,
                         minimum: 0,
-                        maximum: 100
+                        maximum: 180
                     },
                     {
                         id:
-                            'controls.button',
+                            'motorsServo.servo2',
                         type:
                             EASYCONECT_SIGNAL_TYPES
-                                .BOOLEAN,
+                                .NUMBER,
                         direction:
                             EASYCONECT_SIGNAL_DIRECTIONS
-                                .INPUT
+                                .INPUT,
+                        minimum: 0,
+                        maximum: 180
                     },
                     {
                         id:
-                            'controls.switch',
+                            'motorsServo.servo3',
                         type:
                             EASYCONECT_SIGNAL_TYPES
-                                .BOOLEAN,
+                                .NUMBER,
                         direction:
                             EASYCONECT_SIGNAL_DIRECTIONS
-                                .INPUT
+                                .INPUT,
+                        minimum: 0,
+                        maximum: 180
+                    },
+                    {
+                        id:
+                            'motorsServo.servo4',
+                        type:
+                            EASYCONECT_SIGNAL_TYPES
+                                .NUMBER,
+                        direction:
+                            EASYCONECT_SIGNAL_DIRECTIONS
+                                .INPUT,
+                        minimum: 0,
+                        maximum: 180
                     }
                 ]
             }
@@ -116,18 +134,18 @@ test(
 );
 
 test(
-    'EasyConect canonical Controls contract is immutable',
+    'EasyConect canonical Motors & Servo contract is immutable',
     () => {
         assert.equal(
             Object.isFrozen(
-                EASYCONECT_CONTROLS_MODULE
+                EASYCONECT_MOTORS_SERVO_MODULE
             ),
             true
         );
 
         assert.equal(
             Object.isFrozen(
-                EASYCONECT_CONTROLS_MODULE
+                EASYCONECT_MOTORS_SERVO_MODULE
                     .signals
             ),
             true
@@ -135,7 +153,7 @@ test(
 
         for (
             const signal of
-            EASYCONECT_CONTROLS_MODULE
+            EASYCONECT_MOTORS_SERVO_MODULE
                 .signals
         ) {
             assert.equal(
@@ -147,7 +165,7 @@ test(
 );
 
 test(
-    'EasyConect registry includes and resolves canonical Controls signals',
+    'EasyConect registry includes and resolves canonical Motors & Servo signals',
     () => {
         assert.deepEqual(
             EASYCONECT_MODULES,
@@ -160,15 +178,15 @@ test(
 
         assert.equal(
             getEasyConectModuleContract(
-                'controls'
+                'motorsServo'
             ),
-            EASYCONECT_CONTROLS_MODULE
+            EASYCONECT_MOTORS_SERVO_MODULE
         );
 
         for (
             const signalId of
             Object.values(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
             )
         ) {
             const signal =
@@ -184,7 +202,7 @@ test(
             );
 
             assert.equal(
-                EASYCONECT_CONTROLS_MODULE
+                EASYCONECT_MOTORS_SERVO_MODULE
                     .signals
                     .includes(signal),
                 true
@@ -194,23 +212,38 @@ test(
 );
 
 test(
-    'EasyConect accepts canonical Controls numeric and boolean values',
+    'EasyConect accepts canonical Motors & Servo numeric values',
     () => {
-        const validNumbers = [
+        const validValues = [
             [
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .JOYSTICK_X,
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .MOTOR_1,
+                [-100, -1, 0, 1, 100]
+            ],
+            [
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .MOTOR_2,
                 [-100, 0, 100]
             ],
             [
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .JOYSTICK_Y,
-                [-100, 0, 100]
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_1,
+                [0, 90, 180]
             ],
             [
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .SLIDER,
-                [0, 50, 100]
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_2,
+                [0, 90, 180]
+            ],
+            [
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_3,
+                [0, 90, 180]
+            ],
+            [
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_4,
+                [0, 90, 180]
             ]
         ];
 
@@ -218,7 +251,7 @@ test(
             const [
                 signalId,
                 values
-            ] of validNumbers
+            ] of validValues
         ) {
             for (const value of values) {
                 assert.equal(
@@ -230,36 +263,11 @@ test(
                 );
             }
         }
-
-        for (
-            const signalId of [
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .BUTTON,
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .SWITCH
-            ]
-        ) {
-            assert.equal(
-                validateEasyConectSignalValue(
-                    signalId,
-                    true
-                ),
-                true
-            );
-
-            assert.equal(
-                validateEasyConectSignalValue(
-                    signalId,
-                    false
-                ),
-                true
-            );
-        }
     }
 );
 
 test(
-    'EasyConect rejects invalid Controls numeric values',
+    'EasyConect rejects invalid Motors & Servo numeric values',
     () => {
         const invalidNumbers = [
             NaN,
@@ -275,8 +283,8 @@ test(
             assert.throws(
                 () =>
                     validateEasyConectSignalValue(
-                        EASYCONECT_CONTROLS_SIGNAL_IDS
-                            .JOYSTICK_X,
+                        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                            .MOTOR_1,
                         value
                     ),
                 /requires a finite number/i
@@ -292,8 +300,8 @@ test(
             assert.throws(
                 () =>
                     validateEasyConectSignalValue(
-                        EASYCONECT_CONTROLS_SIGNAL_IDS
-                            .JOYSTICK_X,
+                        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                            .MOTOR_1,
                         value
                     ),
                 /between -100 and 100/i
@@ -303,157 +311,124 @@ test(
         for (
             const value of [
                 -1,
-                101
+                181
             ]
         ) {
             assert.throws(
                 () =>
                     validateEasyConectSignalValue(
-                        EASYCONECT_CONTROLS_SIGNAL_IDS
-                            .SLIDER,
+                        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                            .SERVO_1,
                         value
                     ),
-                /between 0 and 100/i
+                /between 0 and 180/i
             );
         }
     }
 );
 
 test(
-    'EasyConect state manages Controls values and canonical defaults',
+    'EasyConect state manages Motors & Servo values and canonical defaults',
     () => {
         const state =
             new EasyConectState();
 
-        assert.equal(
-            state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .JOYSTICK_X
-            ),
-            0
-        );
-
-        assert.equal(
-            state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .JOYSTICK_Y
-            ),
-            0
-        );
-
-        assert.equal(
-            state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .SLIDER
-            ),
-            0
-        );
-
-        assert.equal(
-            state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .BUTTON
-            ),
-            false
-        );
-
-        assert.equal(
-            state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .SWITCH
-            ),
-            false
-        );
+        for (
+            const signalId of
+            Object.values(
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            )
+        ) {
+            assert.equal(
+                state.getSignalValue(
+                    signalId
+                ),
+                0
+            );
+        }
 
         state.setSignalValue(
-            EASYCONECT_CONTROLS_SIGNAL_IDS
-                .JOYSTICK_X,
+            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .MOTOR_1,
             -35
         );
 
         state.setSignalValue(
-            EASYCONECT_CONTROLS_SIGNAL_IDS
-                .SLIDER,
-            75
+            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .MOTOR_2,
+            80
         );
 
         state.setSignalValue(
-            EASYCONECT_CONTROLS_SIGNAL_IDS
-                .BUTTON,
-            true
+            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .SERVO_4,
+            135
         );
 
         assert.equal(
             state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .JOYSTICK_X
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .MOTOR_1
             ),
             -35
         );
 
         assert.equal(
             state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .SLIDER
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .MOTOR_2
             ),
-            75
+            80
         );
 
         assert.equal(
             state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .BUTTON
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_4
             ),
-            true
+            135
         );
 
         state.reset();
 
-        assert.equal(
-            state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .JOYSTICK_X
-            ),
-            0
-        );
-
-        assert.equal(
-            state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .SLIDER
-            ),
-            0
-        );
-
-        assert.equal(
-            state.getSignalValue(
-                EASYCONECT_CONTROLS_SIGNAL_IDS
-                    .BUTTON
-            ),
-            false
-        );
+        for (
+            const signalId of
+            Object.values(
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            )
+        ) {
+            assert.equal(
+                state.getSignalValue(
+                    signalId
+                ),
+                0
+            );
+        }
     }
 );
 
 test(
-    'EasyConect Controls exposes canonical EBCP-safe wire channels',
+    'EasyConect Motors & Servo exposes canonical EBCP-safe wire channels',
     () => {
         const expectedChannels = {
-            [EASYCONECT_CONTROLS_SIGNAL_IDS
-                .JOYSTICK_X]:
-                'ct.jx',
-            [EASYCONECT_CONTROLS_SIGNAL_IDS
-                .JOYSTICK_Y]:
-                'ct.jy',
-            [EASYCONECT_CONTROLS_SIGNAL_IDS
-                .SLIDER]:
-                'ct.sl',
-            [EASYCONECT_CONTROLS_SIGNAL_IDS
-                .BUTTON]:
-                'ct.bt',
-            [EASYCONECT_CONTROLS_SIGNAL_IDS
-                .SWITCH]:
-                'ct.sw'
+            [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .MOTOR_1]:
+                'ms.m1',
+            [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .MOTOR_2]:
+                'ms.m2',
+            [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .SERVO_1]:
+                'ms.s1',
+            [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .SERVO_2]:
+                'ms.s2',
+            [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .SERVO_3]:
+                'ms.s3',
+            [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .SERVO_4]:
+                'ms.s4'
         };
 
         for (
@@ -488,6 +463,13 @@ test(
             assert.match(
                 channel,
                 /^[A-Za-z0-9_.-]{1,16}$/
+            );
+
+            assert.ok(
+                Buffer.byteLength(
+                    channel,
+                    'utf8'
+                ) <= 16
             );
         }
 

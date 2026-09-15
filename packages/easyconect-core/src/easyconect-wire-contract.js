@@ -1,6 +1,7 @@
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
-    EASYCONECT_CONTROLS_SIGNAL_IDS
+    EASYCONECT_CONTROLS_SIGNAL_IDS,
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
 } = require('./easyconect-contract');
 
 const EASYCONECT_SIGNAL_WIRE_CHANNELS =
@@ -30,7 +31,19 @@ const EASYCONECT_SIGNAL_WIRE_CHANNELS =
         [EASYCONECT_CONTROLS_SIGNAL_IDS.BUTTON]:
             'ct.bt',
         [EASYCONECT_CONTROLS_SIGNAL_IDS.SWITCH]:
-            'ct.sw'
+            'ct.sw',
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.MOTOR_1]:
+            'ms.m1',
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.MOTOR_2]:
+            'ms.m2',
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.SERVO_1]:
+            'ms.s1',
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.SERVO_2]:
+            'ms.s2',
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.SERVO_3]:
+            'ms.s3',
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.SERVO_4]:
+            'ms.s4'
     });
 
 const EASYCONECT_WIRE_CHANNEL_SIGNAL_IDS =

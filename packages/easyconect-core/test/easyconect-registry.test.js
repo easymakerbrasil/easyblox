@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
     EASYCONECT_GAMEPAD_MODULE,
     EASYCONECT_CONTROLS_MODULE,
+    EASYCONECT_MOTORS_SERVO_MODULE,
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_MODULES,
     getEasyConectModuleContract,
@@ -16,7 +17,8 @@ test('EasyConect registry exposes the canonical module list', () => {
         EASYCONECT_MODULES,
         [
             EASYCONECT_GAMEPAD_MODULE,
-            EASYCONECT_CONTROLS_MODULE
+            EASYCONECT_CONTROLS_MODULE,
+            EASYCONECT_MOTORS_SERVO_MODULE
         ]
     );
 

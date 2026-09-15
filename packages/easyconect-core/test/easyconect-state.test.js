@@ -139,7 +139,13 @@ test('EasyConect snapshot contains every current canonical signal value', () => 
                 'controls.joystick.y': 0,
                 'controls.slider': 0,
                 'controls.button': false,
-                'controls.switch': false
+                'controls.switch': false,
+                'motorsServo.motor1': 0,
+                'motorsServo.motor2': 0,
+                'motorsServo.servo1': 0,
+                'motorsServo.servo2': 0,
+                'motorsServo.servo3': 0,
+                'motorsServo.servo4': 0
             }
         }
     );
