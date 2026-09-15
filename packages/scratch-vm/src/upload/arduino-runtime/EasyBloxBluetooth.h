@@ -13,6 +13,11 @@ enum class EasyBloxGamepadButton : uint8_t {
     ActionRight
 };
 
+enum class EasyBloxControlsJoystickAxis : uint8_t {
+    Horizontal = 0,
+    Vertical
+};
+
 class EasyBloxBluetooth {
 public:
     void begin();
@@ -34,6 +39,16 @@ public:
     bool gamepadButtonPressed(
         EasyBloxGamepadButton button
     );
+
+    float controlsJoystickPosition(
+        EasyBloxControlsJoystickAxis axis
+    );
+
+    float controlsSliderValue();
+
+    bool controlsButtonPressed();
+
+    bool controlsSwitchOn();
 };
 
 extern EasyBloxBluetooth EasyBloxBT;

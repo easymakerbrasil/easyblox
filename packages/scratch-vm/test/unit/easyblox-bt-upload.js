@@ -14,7 +14,8 @@ const UploadTypeValidator =
     require('../../src/upload/upload-type-validator');
 
 const {
-    EASYCONECT_GAMEPAD_SIGNAL_IDS
+    EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    EASYCONECT_CONTROLS_SIGNAL_IDS
 } = require('@easymaker/easyconect-core');
 
 const SOFTWARE_UART_D2_D3 =
@@ -1052,6 +1053,432 @@ tap.test(
             validator.validate(ir),
             ir,
             'GAMEPAD reporter is a valid Boolean condition'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload extracts Controls joystick as a numeric expression',
+    t => {
+        const signalId =
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .JOYSTICK_X;
+
+        const runtime =
+            createRuntimeWithBlocks([
+                createUploadHat(
+                    'controls_if'
+                ),
+                {
+                    id: 'controls_if',
+                    opcode: 'control_if',
+                    next: null,
+                    parent: 'upload_hat',
+                    inputs: {
+                        CONDITION: {
+                            name: 'CONDITION',
+                            block:
+                                'controls_compare',
+                            shadow: null
+                        }
+                    },
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'controls_compare',
+                    opcode: 'operator_gt',
+                    next: null,
+                    parent: 'controls_if',
+                    inputs: {
+                        OPERAND1: {
+                            name: 'OPERAND1',
+                            block:
+                                'controls_joystick',
+                            shadow: null
+                        },
+                        OPERAND2: {
+                            name: 'OPERAND2',
+                            block:
+                                'controls_zero',
+                            shadow:
+                                'controls_zero'
+                        }
+                    },
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'controls_joystick',
+                    opcode:
+                        'easybloxBt_controlsJoystickPosition',
+                    next: null,
+                    parent:
+                        'controls_compare',
+                    inputs: {},
+                    fields: {
+                        AXIS: {
+                            name: 'AXIS',
+                            value: signalId
+                        }
+                    },
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'controls_zero',
+                    opcode: 'text',
+                    next: null,
+                    parent:
+                        'controls_compare',
+                    inputs: {},
+                    fields: {
+                        TEXT: {
+                            name: 'TEXT',
+                            value: '0'
+                        }
+                    },
+                    topLevel: false,
+                    shadow: true
+                }
+            ]);
+
+        const extractor =
+            new UploadProgramExtractor(
+                runtime
+            );
+
+        const ir =
+            extractor.extract();
+
+        t.same(
+            ir.setup,
+            [{
+                type: 'If',
+                condition: {
+                    type:
+                        'BinaryExpression',
+                    operator:
+                        'GreaterThan',
+                    left: {
+                        type:
+                            'EasyBloxBtControlsJoystickExpression',
+                        signalId
+                    },
+                    right: {
+                        type:
+                            'IntegerLiteral',
+                        value: 0
+                    }
+                },
+                body: []
+            }]
+        );
+
+        t.same(
+            ir.resources,
+            [
+                SOFTWARE_UART_D2_D3
+            ]
+        );
+
+        const validator =
+            new UploadTypeValidator();
+
+        t.equal(
+            validator.validate(ir),
+            ir,
+            'Controls joystick reporter is numeric'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload extracts Controls slider as a numeric expression',
+    t => {
+        const runtime =
+            createRuntimeWithBlocks([
+                createUploadHat(
+                    'controls_if'
+                ),
+                {
+                    id: 'controls_if',
+                    opcode: 'control_if',
+                    next: null,
+                    parent: 'upload_hat',
+                    inputs: {
+                        CONDITION: {
+                            name: 'CONDITION',
+                            block:
+                                'controls_compare',
+                            shadow: null
+                        }
+                    },
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'controls_compare',
+                    opcode: 'operator_gt',
+                    next: null,
+                    parent: 'controls_if',
+                    inputs: {
+                        OPERAND1: {
+                            name: 'OPERAND1',
+                            block:
+                                'controls_slider',
+                            shadow: null
+                        },
+                        OPERAND2: {
+                            name: 'OPERAND2',
+                            block:
+                                'controls_zero',
+                            shadow:
+                                'controls_zero'
+                        }
+                    },
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'controls_slider',
+                    opcode:
+                        'easybloxBt_controlsSliderValue',
+                    next: null,
+                    parent:
+                        'controls_compare',
+                    inputs: {},
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'controls_zero',
+                    opcode: 'text',
+                    next: null,
+                    parent:
+                        'controls_compare',
+                    inputs: {},
+                    fields: {
+                        TEXT: {
+                            name: 'TEXT',
+                            value: '0'
+                        }
+                    },
+                    topLevel: false,
+                    shadow: true
+                }
+            ]);
+
+        const extractor =
+            new UploadProgramExtractor(
+                runtime
+            );
+
+        const ir =
+            extractor.extract();
+
+        t.same(
+            ir.setup,
+            [{
+                type: 'If',
+                condition: {
+                    type:
+                        'BinaryExpression',
+                    operator:
+                        'GreaterThan',
+                    left: {
+                        type:
+                            'EasyBloxBtControlsSliderExpression'
+                    },
+                    right: {
+                        type:
+                            'IntegerLiteral',
+                        value: 0
+                    }
+                },
+                body: []
+            }]
+        );
+
+        t.same(
+            ir.resources,
+            [
+                SOFTWARE_UART_D2_D3
+            ]
+        );
+
+        const validator =
+            new UploadTypeValidator();
+
+        t.equal(
+            validator.validate(ir),
+            ir,
+            'Controls slider reporter is numeric'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload extracts Controls button as a Boolean expression',
+    t => {
+        const runtime =
+            createRuntimeWithBlocks([
+                createUploadHat(
+                    'controls_if'
+                ),
+                {
+                    id: 'controls_if',
+                    opcode: 'control_if',
+                    next: null,
+                    parent: 'upload_hat',
+                    inputs: {
+                        CONDITION: {
+                            name: 'CONDITION',
+                            block:
+                                'controls_button',
+                            shadow: null
+                        }
+                    },
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'controls_button',
+                    opcode:
+                        'easybloxBt_isControlsButtonPressed',
+                    next: null,
+                    parent: 'controls_if',
+                    inputs: {},
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                }
+            ]);
+
+        const extractor =
+            new UploadProgramExtractor(
+                runtime
+            );
+
+        const ir =
+            extractor.extract();
+
+        t.same(
+            ir.setup,
+            [{
+                type: 'If',
+                condition: {
+                    type:
+                        'EasyBloxBtControlsButtonExpression'
+                },
+                body: []
+            }]
+        );
+
+        t.same(
+            ir.resources,
+            [
+                SOFTWARE_UART_D2_D3
+            ]
+        );
+
+        const validator =
+            new UploadTypeValidator();
+
+        t.equal(
+            validator.validate(ir),
+            ir,
+            'Controls button reporter is Boolean'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload extracts Controls switch as a Boolean expression',
+    t => {
+        const runtime =
+            createRuntimeWithBlocks([
+                createUploadHat(
+                    'controls_if'
+                ),
+                {
+                    id: 'controls_if',
+                    opcode: 'control_if',
+                    next: null,
+                    parent: 'upload_hat',
+                    inputs: {
+                        CONDITION: {
+                            name: 'CONDITION',
+                            block:
+                                'controls_switch',
+                            shadow: null
+                        }
+                    },
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'controls_switch',
+                    opcode:
+                        'easybloxBt_isControlsSwitchOn',
+                    next: null,
+                    parent: 'controls_if',
+                    inputs: {},
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                }
+            ]);
+
+        const extractor =
+            new UploadProgramExtractor(
+                runtime
+            );
+
+        const ir =
+            extractor.extract();
+
+        t.same(
+            ir.setup,
+            [{
+                type: 'If',
+                condition: {
+                    type:
+                        'EasyBloxBtControlsSwitchExpression'
+                },
+                body: []
+            }]
+        );
+
+        t.same(
+            ir.resources,
+            [
+                SOFTWARE_UART_D2_D3
+            ]
+        );
+
+        const validator =
+            new UploadTypeValidator();
+
+        t.equal(
+            validator.validate(ir),
+            ir,
+            'Controls switch reporter is Boolean'
         );
 
         t.end();

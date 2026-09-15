@@ -188,6 +188,92 @@ test(
 );
 
 test(
+    'EasyBlox Bluetooth runtime routes EasyConect Controls before legacy fixed-channel fallbacks',
+    t => {
+        const source =
+            fs.readFileSync(
+                path.join(
+                    sourceDirectory,
+                    'EasyBloxBluetooth.cpp'
+                ),
+                'utf8'
+            );
+
+        const processStart =
+            source.indexOf(
+                'void easybloxBtProcessFrame()'
+            );
+
+        const processEnd =
+            source.indexOf(
+                'void easybloxBtPushByte',
+                processStart
+            );
+
+        const processFrameSource =
+            source.slice(
+                processStart,
+                processEnd
+            );
+
+        const booleanHandlers =
+            processFrameSource.match(
+                /if\s*\(\s*type\s*==\s*EASYBLOX_EBCP_TYPE_BOOLEAN\s*\)/g
+            ) || [];
+
+        t.equal(
+            booleanHandlers.length,
+            1,
+            'BOOLEAN traffic is routed through one canonical handler'
+        );
+
+        const buttonIndex =
+            processFrameSource.indexOf(
+                'channel == EASYBLOX_CONTROLS_BUTTON_CHANNEL'
+            );
+
+        const switchIndex =
+            processFrameSource.indexOf(
+                'channel == EASYBLOX_CONTROLS_SWITCH_CHANNEL'
+            );
+
+        const sliderIndex =
+            processFrameSource.indexOf(
+                'EASYBLOX_CONTROLS_SLIDER_CHANNEL'
+            );
+
+        const legacyChannelGateIndex =
+            processFrameSource.indexOf(
+                'if (channel != EASYBLOX_BT_CHANNEL)'
+            );
+
+        t.ok(
+            buttonIndex >= 0,
+            'CONTROLES button channel is handled'
+        );
+
+        t.ok(
+            switchIndex >= 0,
+            'CONTROLES switch channel is handled'
+        );
+
+        t.ok(
+            sliderIndex >= 0,
+            'CONTROLES slider channel is handled'
+        );
+
+        t.ok(
+            legacyChannelGateIndex > buttonIndex &&
+                legacyChannelGateIndex > switchIndex &&
+                legacyChannelGateIndex > sliderIndex,
+            'EasyConect Controls channels are routed before the legacy fixed-channel fallback'
+        );
+
+        t.end();
+    }
+);
+
+test(
     'EasyBlox Arduino delay remains cooperative with Bluetooth liveness',
     t => {
         const publicHeader =

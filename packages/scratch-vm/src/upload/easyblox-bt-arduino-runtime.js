@@ -11,6 +11,7 @@ const {
 
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    EASYCONECT_CONTROLS_SIGNAL_IDS,
     getEasyConectWireChannel
 } = require(
     '@easymaker/easyconect-core'
@@ -34,6 +35,18 @@ const EASYBLOX_BT_INTERNAL_IDENTIFIERS = Object.freeze([
     'easybloxBtGamepadState',
     'easybloxBtResetGamepadState',
     'easybloxBtGamepadIndexForChannel',
+    'EasyBloxControlsJoystickAxis',
+    'EASYBLOX_CONTROLS_JOYSTICK_X_CHANNEL',
+    'EASYBLOX_CONTROLS_JOYSTICK_Y_CHANNEL',
+    'EASYBLOX_CONTROLS_SLIDER_CHANNEL',
+    'EASYBLOX_CONTROLS_BUTTON_CHANNEL',
+    'EASYBLOX_CONTROLS_SWITCH_CHANNEL',
+    'easybloxBtControlsJoystickX',
+    'easybloxBtControlsJoystickY',
+    'easybloxBtControlsSlider',
+    'easybloxBtControlsButton',
+    'easybloxBtControlsSwitch',
+    'easybloxBtResetControlsState',
     'EASYBLOX_EBCP_MAGIC_0',
     'EASYBLOX_EBCP_MAGIC_1',
     'EASYBLOX_EBCP_VERSION',
@@ -85,7 +98,7 @@ const getEasyBloxBtConfigContent = () => {
                 .EASYBLOX_BT_CHANNEL
         );
 
-    const gamepadChannel =
+    const easyConectChannel =
         signalId => {
             const value =
                 getEasyConectWireChannel(
@@ -108,51 +121,81 @@ const getEasyBloxBtConfigContent = () => {
             JSON.stringify(channel)
         }`,
         `#define EASYBLOX_GAMEPAD_DPAD_UP_CHANNEL_VALUE ${
-            gamepadChannel(
+            easyConectChannel(
                 EASYCONECT_GAMEPAD_SIGNAL_IDS
                     .DPAD_UP
             )
         }`,
         `#define EASYBLOX_GAMEPAD_DPAD_DOWN_CHANNEL_VALUE ${
-            gamepadChannel(
+            easyConectChannel(
                 EASYCONECT_GAMEPAD_SIGNAL_IDS
                     .DPAD_DOWN
             )
         }`,
         `#define EASYBLOX_GAMEPAD_DPAD_LEFT_CHANNEL_VALUE ${
-            gamepadChannel(
+            easyConectChannel(
                 EASYCONECT_GAMEPAD_SIGNAL_IDS
                     .DPAD_LEFT
             )
         }`,
         `#define EASYBLOX_GAMEPAD_DPAD_RIGHT_CHANNEL_VALUE ${
-            gamepadChannel(
+            easyConectChannel(
                 EASYCONECT_GAMEPAD_SIGNAL_IDS
                     .DPAD_RIGHT
             )
         }`,
         `#define EASYBLOX_GAMEPAD_ACTION_TOP_CHANNEL_VALUE ${
-            gamepadChannel(
+            easyConectChannel(
                 EASYCONECT_GAMEPAD_SIGNAL_IDS
                     .ACTION_TOP
             )
         }`,
         `#define EASYBLOX_GAMEPAD_ACTION_LEFT_CHANNEL_VALUE ${
-            gamepadChannel(
+            easyConectChannel(
                 EASYCONECT_GAMEPAD_SIGNAL_IDS
                     .ACTION_LEFT
             )
         }`,
         `#define EASYBLOX_GAMEPAD_ACTION_BOTTOM_CHANNEL_VALUE ${
-            gamepadChannel(
+            easyConectChannel(
                 EASYCONECT_GAMEPAD_SIGNAL_IDS
                     .ACTION_BOTTOM
             )
         }`,
         `#define EASYBLOX_GAMEPAD_ACTION_RIGHT_CHANNEL_VALUE ${
-            gamepadChannel(
+            easyConectChannel(
                 EASYCONECT_GAMEPAD_SIGNAL_IDS
                     .ACTION_RIGHT
+            )
+        }`,
+        `#define EASYBLOX_CONTROLS_JOYSTICK_X_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_CONTROLS_SIGNAL_IDS
+                    .JOYSTICK_X
+            )
+        }`,
+        `#define EASYBLOX_CONTROLS_JOYSTICK_Y_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_CONTROLS_SIGNAL_IDS
+                    .JOYSTICK_Y
+            )
+        }`,
+        `#define EASYBLOX_CONTROLS_SLIDER_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_CONTROLS_SIGNAL_IDS
+                    .SLIDER
+            )
+        }`,
+        `#define EASYBLOX_CONTROLS_BUTTON_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_CONTROLS_SIGNAL_IDS
+                    .BUTTON
+            )
+        }`,
+        `#define EASYBLOX_CONTROLS_SWITCH_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_CONTROLS_SIGNAL_IDS
+                    .SWITCH
             )
         }`,
         ''

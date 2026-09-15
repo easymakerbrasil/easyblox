@@ -4,7 +4,8 @@ const {
 } = require('../connectivity/easyblox-connectivity-contract');
 
 const {
-    EASYCONECT_GAMEPAD_SIGNAL_IDS
+    EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    EASYCONECT_CONTROLS_SIGNAL_IDS
 } = require('@easymaker/easyconect-core');
 
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
@@ -52,12 +53,30 @@ const EASYBLOX_BT_RECEIVED_NUMBER_OPCODE = 'easybloxBt_receivedNumber';
 const EASYBLOX_BT_GAMEPAD_BUTTON_PRESSED_OPCODE =
     'easybloxBt_isGamepadButtonPressed';
 
+const EASYBLOX_BT_CONTROLS_JOYSTICK_POSITION_OPCODE =
+    'easybloxBt_controlsJoystickPosition';
+const EASYBLOX_BT_CONTROLS_SLIDER_VALUE_OPCODE =
+    'easybloxBt_controlsSliderValue';
+const EASYBLOX_BT_CONTROLS_BUTTON_PRESSED_OPCODE =
+    'easybloxBt_isControlsButtonPressed';
+const EASYBLOX_BT_CONTROLS_SWITCH_ON_OPCODE =
+    'easybloxBt_isControlsSwitchOn';
+
 const EASYBLOX_GAMEPAD_SIGNAL_IDS =
     new Set(
         Object.values(
             EASYCONECT_GAMEPAD_SIGNAL_IDS
         )
     );
+
+const EASYBLOX_CONTROLS_JOYSTICK_SIGNAL_IDS =
+    new Set([
+        EASYCONECT_CONTROLS_SIGNAL_IDS
+            .JOYSTICK_X,
+        EASYCONECT_CONTROLS_SIGNAL_IDS
+            .JOYSTICK_Y
+    ]);
+
 const FOREVER_OPCODE = 'control_forever';
 const REPEAT_OPCODE = 'control_repeat';
 const IF_OPCODE = 'control_if';
@@ -1483,6 +1502,56 @@ class UploadProgramExtractor {
                 signalId
             };
         }
+
+        case EASYBLOX_BT_CONTROLS_JOYSTICK_POSITION_OPCODE: {
+            this._reserveEasyBloxBtResource();
+
+            const signalId =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'AXIS'
+                );
+
+            if (
+                !EASYBLOX_CONTROLS_JOYSTICK_SIGNAL_IDS
+                    .has(signalId)
+            ) {
+                throw new Error(
+                    `Invalid EasyBlox BT CONTROLES joystick signal: ${signalId}`
+                );
+            }
+
+            return {
+                type:
+                    'EasyBloxBtControlsJoystickExpression',
+                signalId
+            };
+        }
+
+        case EASYBLOX_BT_CONTROLS_SLIDER_VALUE_OPCODE:
+            this._reserveEasyBloxBtResource();
+
+            return {
+                type:
+                    'EasyBloxBtControlsSliderExpression'
+            };
+
+        case EASYBLOX_BT_CONTROLS_BUTTON_PRESSED_OPCODE:
+            this._reserveEasyBloxBtResource();
+
+            return {
+                type:
+                    'EasyBloxBtControlsButtonExpression'
+            };
+
+        case EASYBLOX_BT_CONTROLS_SWITCH_ON_OPCODE:
+            this._reserveEasyBloxBtResource();
+
+            return {
+                type:
+                    'EasyBloxBtControlsSwitchExpression'
+            };
 
         case VARIABLE_REPORTER_OPCODE: {
             const fields = blocks.getFields(block);

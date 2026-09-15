@@ -10,6 +10,7 @@ const {
 
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    EASYCONECT_CONTROLS_SIGNAL_IDS,
     getEasyConectWireChannel
 } = require('@easymaker/easyconect-core');
 
@@ -450,6 +451,173 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox BT Upload generator maps Controls state through the runtime facade',
+    t => {
+        const joystickX =
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .JOYSTICK_X;
+        const joystickY =
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .JOYSTICK_Y;
+
+        const generator =
+            new ArduinoUnoGenerator();
+
+        const sketch =
+            generator.generate(
+                createIr([
+                    {
+                        type: 'If',
+                        condition: {
+                            type:
+                                'BinaryExpression',
+                            operator:
+                                'GreaterThan',
+                            left: {
+                                type:
+                                    'EasyBloxBtControlsJoystickExpression',
+                                signalId:
+                                    joystickX
+                            },
+                            right: {
+                                type:
+                                    'IntegerLiteral',
+                                value: 0
+                            }
+                        },
+                        body: []
+                    },
+                    {
+                        type: 'If',
+                        condition: {
+                            type:
+                                'BinaryExpression',
+                            operator:
+                                'GreaterThan',
+                            left: {
+                                type:
+                                    'EasyBloxBtControlsJoystickExpression',
+                                signalId:
+                                    joystickY
+                            },
+                            right: {
+                                type:
+                                    'IntegerLiteral',
+                                value: 0
+                            }
+                        },
+                        body: []
+                    },
+                    {
+                        type: 'If',
+                        condition: {
+                            type:
+                                'BinaryExpression',
+                            operator:
+                                'GreaterThan',
+                            left: {
+                                type:
+                                    'EasyBloxBtControlsSliderExpression'
+                            },
+                            right: {
+                                type:
+                                    'IntegerLiteral',
+                                value: 0
+                            }
+                        },
+                        body: []
+                    },
+                    {
+                        type: 'If',
+                        condition: {
+                            type:
+                                'EasyBloxBtControlsButtonExpression'
+                        },
+                        body: []
+                    },
+                    {
+                        type: 'If',
+                        condition: {
+                            type:
+                                'EasyBloxBtControlsSwitchExpression'
+                        },
+                        body: []
+                    }
+                ])
+            );
+
+        t.match(
+            sketch,
+            /#include "EasyBlox\.h"/,
+            'CONTROLES requires the EasyBlox runtime'
+        );
+
+        const beginCalls =
+            sketch.match(
+                /EasyBloxBT\.begin\s*\(\s*\)\s*;/g
+            ) || [];
+
+        t.equal(
+            beginCalls.length,
+            1,
+            'CONTROLES starts Bluetooth automatically exactly once'
+        );
+
+        t.match(
+            sketch,
+            /EasyBloxBT\.controlsJoystickPosition\s*\(\s*EasyBloxControlsJoystickAxis::Horizontal\s*\)/,
+            'horizontal joystick uses the typed runtime facade'
+        );
+
+        t.match(
+            sketch,
+            /EasyBloxBT\.controlsJoystickPosition\s*\(\s*EasyBloxControlsJoystickAxis::Vertical\s*\)/,
+            'vertical joystick uses the typed runtime facade'
+        );
+
+        t.match(
+            sketch,
+            /EasyBloxBT\.controlsSliderValue\s*\(\s*\)/,
+            'slider uses the typed runtime facade'
+        );
+
+        t.match(
+            sketch,
+            /EasyBloxBT\.controlsButtonPressed\s*\(\s*\)/,
+            'button uses the typed runtime facade'
+        );
+
+        t.match(
+            sketch,
+            /EasyBloxBT\.controlsSwitchOn\s*\(\s*\)/,
+            'switch uses the typed runtime facade'
+        );
+
+        for (
+            const signalId of
+            Object.values(
+                EASYCONECT_CONTROLS_SIGNAL_IDS
+            )
+        ) {
+            t.notMatch(
+                sketch,
+                new RegExp(
+                    getEasyConectWireChannel(
+                        signalId
+                    ).replace(
+                        '.',
+                        '\\.'
+                    )
+                ),
+                `${signalId} stays outside the pedagogical sketch`
+            );
+        }
+
+        t.end();
+    }
+);
+
+tap.test(
     'EasyBlox BT Arduino support files use canonical EasyConect Gamepad channels',
     t => {
         const supportFiles =
@@ -497,6 +665,78 @@ tap.test(
             header.content,
             /bool\s+gamepadButtonPressed\s*\(/,
             'runtime exposes the GAMEPAD Boolean facade'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Arduino support files expose canonical EasyConect Controls channels and facade',
+    t => {
+        const supportFiles =
+            getEasyBloxBtSupportFiles();
+
+        const config =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                        'EasyBloxConfig.h'
+            );
+
+        const header =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                        'EasyBloxBluetooth.h'
+            );
+
+        t.ok(config);
+        t.ok(header);
+
+        for (
+            const signalId of
+            Object.values(
+                EASYCONECT_CONTROLS_SIGNAL_IDS
+            )
+        ) {
+            t.match(
+                config.content,
+                getEasyConectWireChannel(
+                    signalId
+                ),
+                signalId
+            );
+        }
+
+        t.match(
+            header.content,
+            /enum class EasyBloxControlsJoystickAxis/,
+            'runtime exposes a typed CONTROLES joystick enum'
+        );
+
+        t.match(
+            header.content,
+            /float\s+controlsJoystickPosition\s*\(/,
+            'runtime exposes the CONTROLES joystick facade'
+        );
+
+        t.match(
+            header.content,
+            /float\s+controlsSliderValue\s*\(/,
+            'runtime exposes the CONTROLES slider facade'
+        );
+
+        t.match(
+            header.content,
+            /bool\s+controlsButtonPressed\s*\(/,
+            'runtime exposes the CONTROLES button facade'
+        );
+
+        t.match(
+            header.content,
+            /bool\s+controlsSwitchOn\s*\(/,
+            'runtime exposes the CONTROLES switch facade'
         );
 
         t.end();

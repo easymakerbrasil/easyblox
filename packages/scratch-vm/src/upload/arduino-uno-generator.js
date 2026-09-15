@@ -12,8 +12,12 @@ const {
 } = require('./easyblox-bt-arduino-runtime');
 
 const {
-    EASYCONECT_GAMEPAD_SIGNAL_IDS
-} = require('@easymaker/easyconect-core');
+    EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    EASYCONECT_CONTROLS_SIGNAL_IDS,
+    getEasyConectWireChannel
+} = require(
+    '@easymaker/easyconect-core'
+);
 
 const EASYBLOX_GAMEPAD_CPP_BUTTONS =
     Object.freeze({
@@ -34,6 +38,14 @@ const EASYBLOX_GAMEPAD_CPP_BUTTONS =
         [EASYCONECT_GAMEPAD_SIGNAL_IDS.ACTION_RIGHT]:
             'EasyBloxGamepadButton::ActionRight'
     });
+
+const EASYBLOX_CONTROLS_CPP_JOYSTICK_AXES =
+Object.freeze({
+    [EASYCONECT_CONTROLS_SIGNAL_IDS.JOYSTICK_X]:
+        'EasyBloxControlsJoystickAxis::Horizontal',
+    [EASYCONECT_CONTROLS_SIGNAL_IDS.JOYSTICK_Y]:
+        'EasyBloxControlsJoystickAxis::Vertical'
+});
 
 /**
  * Generate deterministic Arduino UNO C++ from EasyBlox semantic IR.
@@ -201,6 +213,26 @@ class ArduinoUnoGenerator {
                 ],
                 'EasyBloxBtGamepadButtonPressedExpression'
             );
+
+        const usesEasyBloxControls =
+        [
+            'EasyBloxBtControlsJoystickExpression',
+            'EasyBloxBtControlsSliderExpression',
+            'EasyBloxBtControlsButtonExpression',
+            'EasyBloxBtControlsSwitchExpression'
+        ].some(type =>
+            this._containsIrType(
+                [
+                    analysisSetupStatements,
+                    loopStatements
+                ],
+                type
+            )
+        );
+
+        const usesEasyConectHighLevelState =
+            usesEasyBloxGamepad ||
+            usesEasyBloxControls;
 
         const reservedIdentifiers = this._initializeDataSymbols(
             variables,
@@ -1242,7 +1274,7 @@ class ArduinoUnoGenerator {
             );
 
         if (
-            usesEasyBloxGamepad &&
+            usesEasyConectHighLevelState &&
             !hasExplicitEasyBloxBtInit
         ) {
             lines.push(
@@ -4207,6 +4239,29 @@ class ArduinoUnoGenerator {
             return `EasyBloxBT.gamepadButtonPressed(${button})`;
         }
 
+        case 'EasyBloxBtControlsJoystickExpression': {
+            const axis =
+                EASYBLOX_CONTROLS_CPP_JOYSTICK_AXES[
+                    expression.signalId
+                ];
+
+            if (!axis) {
+                throw new Error(
+                    `Unsupported EasyBlox BT CONTROLES joystick signal: ${expression.signalId}`
+                );
+            }
+
+            return `EasyBloxBT.controlsJoystickPosition(${axis})`;
+        }
+
+        case 'EasyBloxBtControlsSliderExpression':
+            return 'EasyBloxBT.controlsSliderValue()';
+
+        case 'EasyBloxBtControlsButtonExpression':
+            return 'EasyBloxBT.controlsButtonPressed()';
+
+        case 'EasyBloxBtControlsSwitchExpression':
+            return 'EasyBloxBT.controlsSwitchOn()';
         case 'DigitalReadExpression':
             return `(digitalRead(${expression.pin}) == HIGH)`;
 

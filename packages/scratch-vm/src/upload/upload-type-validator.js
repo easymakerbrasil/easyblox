@@ -846,6 +846,14 @@ class UploadTypeValidator {
         case 'EasyBloxBtGamepadButtonPressedExpression':
             return VALUE_TYPES.BOOLEAN;
 
+        case 'EasyBloxBtControlsJoystickExpression':
+        case 'EasyBloxBtControlsSliderExpression':
+            return VALUE_TYPES.DECIMAL;
+
+        case 'EasyBloxBtControlsButtonExpression':
+        case 'EasyBloxBtControlsSwitchExpression':
+            return VALUE_TYPES.BOOLEAN;
+
         case 'EasyBloxBtReceivedTextExpression':
             return VALUE_TYPES.TEXT;
 

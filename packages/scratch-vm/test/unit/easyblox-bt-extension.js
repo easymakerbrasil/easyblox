@@ -91,7 +91,7 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT exposes exactly the eight canonical v1 blocks',
+    'EasyBlox BT exposes exactly the twelve canonical v1 blocks',
     t => {
         const blocks = getBlocks();
 
@@ -105,14 +105,17 @@ tap.test(
                 'sendNumber',
                 'waitNumber',
                 'receivedNumber',
-                'isGamepadButtonPressed'
-
+                'isGamepadButtonPressed',
+                'controlsJoystickPosition',
+                'controlsSliderValue',
+                'isControlsButtonPressed',
+                'isControlsSwitchOn'
             ]
         );
 
         t.equal(
             blocks.length,
-            8
+            12
         );
 
         t.end();

@@ -34,7 +34,7 @@ const createExtension = () =>
     new Scratch3EasyBloxBtBlocks({});
 
 tap.test(
-    'EasyBlox BT groups communication and Gamepad in one extension',
+    'EasyBlox BT groups communication, Gamepad and Controls in one extension',
     t => {
         const info =
             createExtension().getInfo();
@@ -55,7 +55,8 @@ tap.test(
             labels,
             [
                 'Comunicação',
-                'GAMEPAD'
+                'GAMEPAD',
+                'CONTROLES'
             ]
         );
 

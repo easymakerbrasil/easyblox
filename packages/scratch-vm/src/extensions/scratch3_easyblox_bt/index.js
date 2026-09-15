@@ -15,6 +15,7 @@ const {
 const {
     EasyConectState,
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
+    EASYCONECT_CONTROLS_SIGNAL_IDS,
     getEasyConectWireChannel
 } = require('@easymaker/easyconect-core');
 
@@ -86,6 +87,109 @@ const GAMEPAD_BUTTONS =
         })
     ]);
 
+const CONTROLS_JOYSTICK_SIGNAL_IDS =
+    new Set([
+        EASYCONECT_CONTROLS_SIGNAL_IDS
+            .JOYSTICK_X,
+        EASYCONECT_CONTROLS_SIGNAL_IDS
+            .JOYSTICK_Y
+    ]);
+
+const CONTROLS_JOYSTICK_AXES =
+    Object.freeze([
+        Object.freeze({
+            text: 'horizontal',
+            value:
+                EASYCONECT_CONTROLS_SIGNAL_IDS
+                    .JOYSTICK_X
+        }),
+        Object.freeze({
+            text: 'vertical',
+            value:
+                EASYCONECT_CONTROLS_SIGNAL_IDS
+                    .JOYSTICK_Y
+        })
+    ]);
+
+const createEasyConectStageSignal =
+    (
+        signalId,
+        messageType
+    ) =>
+        Object.freeze({
+            signalId,
+            messageType
+        });
+
+const EASYCONECT_STAGE_SIGNALS =
+    Object.freeze([
+        createEasyConectStageSignal(
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_UP,
+            BOOLEAN
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_DOWN,
+            BOOLEAN
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_LEFT,
+            BOOLEAN
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_RIGHT,
+            BOOLEAN
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .ACTION_TOP,
+            BOOLEAN
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .ACTION_LEFT,
+            BOOLEAN
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .ACTION_BOTTOM,
+            BOOLEAN
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .ACTION_RIGHT,
+            BOOLEAN
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .JOYSTICK_X,
+            NUMBER
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .JOYSTICK_Y,
+            NUMBER
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .SLIDER,
+            NUMBER
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .BUTTON,
+            BOOLEAN
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .SWITCH,
+            BOOLEAN
+        )
+    ]);
+
 /**
  * Scratch blocks for EasyBlox BT.
  *
@@ -103,14 +207,14 @@ class Scratch3EasyBloxBtBlocks {
         this._receivedByThread = new WeakMap();
         this._easyConectState =
             new EasyConectState();
-        this._gamepadWatcherGeneration = 0;
-        this._gamepadWatchersActive = false;
+        this._easyConectWatcherGeneration = 0;
+        this._easyConectWatchersActive = false;
 
-        this._gamepadSessionGeneration =
+        this._easyConectSessionGeneration =
             this._stageConnectivity
                 .sessionGeneration;
 
-        this._gamepadStageInitialization =
+        this._easyConectStageInitialization =
             null;
 
         if (
@@ -124,12 +228,12 @@ class Scratch3EasyBloxBtBlocks {
                     this._easyConectState
                         .reset();
 
-                    this._gamepadSessionGeneration =
+                    this._easyConectSessionGeneration =
                         this._stageConnectivity
                             .sessionGeneration;
 
-                    ++this._gamepadWatcherGeneration;
-                    this._gamepadWatchersActive =
+                    ++this._easyConectWatcherGeneration;
+                    this._easyConectWatchersActive =
                         false;
                 }
             );
@@ -247,6 +351,71 @@ class Scratch3EasyBloxBtBlocks {
                                     .DPAD_UP
                         }
                     }
+                },
+                '---',
+                {
+                    blockType:
+                        BlockType.LABEL,
+                    text: 'CONTROLES'
+                },
+                {
+                    opcode:
+                        'controlsJoystickPosition',
+                    blockType:
+                        BlockType.REPORTER,
+                    executionMode:
+                        BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
+                    text:
+                        'posição [AXIS] do joystick',
+                    arguments: {
+                        AXIS: {
+                            type:
+                                ArgumentType.STRING,
+                            menu:
+                                'controlsJoystickAxis',
+                            defaultValue:
+                                EASYCONECT_CONTROLS_SIGNAL_IDS
+                                    .JOYSTICK_X
+                        }
+                    }
+                },
+                {
+                    opcode:
+                        'controlsSliderValue',
+                    blockType:
+                        BlockType.REPORTER,
+                    executionMode:
+                        BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
+                    text:
+                        'valor do slider'
+                },
+                {
+                    opcode:
+                        'isControlsButtonPressed',
+                    blockType:
+                        BlockType.BOOLEAN,
+                    executionMode:
+                        BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
+                    text:
+                        'botão está pressionado?'
+                },
+                {
+                    opcode:
+                        'isControlsSwitchOn',
+                    blockType:
+                        BlockType.BOOLEAN,
+                    executionMode:
+                        BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
+                    text:
+                        'chave está ligada?'
                 }
             ],
             menus: {
@@ -254,6 +423,11 @@ class Scratch3EasyBloxBtBlocks {
                     acceptReporters: false,
                     items:
                         GAMEPAD_BUTTONS
+                },
+                controlsJoystickAxis: {
+                    acceptReporters: false,
+                    items:
+                        CONTROLS_JOYSTICK_AXES
                 }
             }
         };
@@ -264,64 +438,69 @@ class Scratch3EasyBloxBtBlocks {
      * @returns {void}
      * @private
      */
-    _syncGamepadSessionState () {
+    _syncEasyConectSessionState () {
         const sessionGeneration =
             this._stageConnectivity
                 .sessionGeneration;
 
         if (
             sessionGeneration ===
-            this._gamepadSessionGeneration
+            this._easyConectSessionGeneration
         ) {
             return;
         }
 
         this._easyConectState.reset();
 
-        this._gamepadSessionGeneration =
+        this._easyConectSessionGeneration =
             sessionGeneration;
     }
 
     /**
-     * Arm one pending BOOLEAN receive for every canonical GAMEPAD signal.
+     * Arm one pending EBCP receive for every high-level EasyConect signal.
      * @returns {void}
      * @private
      */
-    _startGamepadStageWatchers () {
-        if (this._gamepadWatchersActive) {
+    _startEasyConectStageWatchers () {
+        if (
+            this._easyConectWatchersActive
+        ) {
             return;
         }
 
-        this._gamepadWatchersActive = true;
+        this._easyConectWatchersActive =
+            true;
 
         const watcherGeneration =
-            ++this._gamepadWatcherGeneration;
+            ++this._easyConectWatcherGeneration;
 
         for (
-            const signalId of
-            GAMEPAD_SIGNAL_IDS
+            const signal of
+            EASYCONECT_STAGE_SIGNALS
         ) {
-            this._watchGamepadStageSignal(
-                signalId,
+            this._watchEasyConectStageSignal(
+                signal,
                 watcherGeneration
             );
         }
     }
 
     /**
-     * Keep one pending EBCP waiter armed for one GAMEPAD signal.
-     * @param {string} signalId canonical EasyConect signal id.
+     * Keep one pending EBCP waiter armed for one EasyConect signal.
+     * @param {object} signal canonical Stage signal descriptor.
+     * @param {string} signal.signalId canonical EasyConect signal id.
+     * @param {number} signal.messageType EBCP application message type.
      * @param {number} watcherGeneration watcher generation.
      * @returns {void}
      * @private
      */
-    _watchGamepadStageSignal (
-        signalId,
+    _watchEasyConectStageSignal (
+        signal,
         watcherGeneration
     ) {
         const channel =
             getEasyConectWireChannel(
-                signalId
+                signal.signalId
             );
 
         if (!channel) {
@@ -330,27 +509,27 @@ class Scratch3EasyBloxBtBlocks {
 
         this._stageConnectivity
             .waitFor(
-                BOOLEAN,
+                signal.messageType,
                 channel
             )
             .then(message => {
                 if (
                     watcherGeneration !==
-                    this._gamepadWatcherGeneration
+                    this._easyConectWatcherGeneration
                 ) {
                     return;
                 }
 
-                this._syncGamepadSessionState();
+                this._syncEasyConectSessionState();
 
                 this._easyConectState
                     .setSignalValue(
-                        signalId,
+                        signal.signalId,
                         message.payload
                     );
 
-                this._watchGamepadStageSignal(
-                    signalId,
+                this._watchEasyConectStageSignal(
+                    signal,
                     watcherGeneration
                 );
             });
@@ -362,7 +541,7 @@ class Scratch3EasyBloxBtBlocks {
      * @returns {*} original initialization result.
      * @private
      */
-    _rememberGamepadStageInitialization (
+    _rememberEasyConectStageInitialization (
         initialization
     ) {
         if (!initialization) {
@@ -374,15 +553,15 @@ class Scratch3EasyBloxBtBlocks {
                 initialization
             );
 
-        this._gamepadStageInitialization =
+        this._easyConectStageInitialization =
             tracked;
 
         tracked.catch(() => {
             if (
-                this._gamepadStageInitialization ===
+                this._easyConectStageInitialization ===
                 tracked
             ) {
-                this._gamepadStageInitialization =
+                this._easyConectStageInitialization =
                     null;
             }
         });
@@ -396,17 +575,35 @@ class Scratch3EasyBloxBtBlocks {
      * @returns {void}
      * @private
      */
-    _ensureGamepadStageTransport () {
+    _ensureEasyConectStageTransport () {
         if (
-            this._gamepadStageInitialization
+            this._easyConectStageInitialization
         ) {
             return;
         }
 
-        this._rememberGamepadStageInitialization(
+        this._rememberEasyConectStageInitialization(
             this._stageConnectivity
                 .initializeBluetoothSerial()
         );
+    }
+
+    /**
+     * Read one high-level EasyConect Stage signal.
+     * Reception and Bluetooth initialization are shared by all modules.
+     * @param {string} signalId canonical EasyConect signal id.
+     * @returns {*} current canonical signal value.
+     * @private
+     */
+    _readEasyConectSignal (signalId) {
+        this._startEasyConectStageWatchers();
+        this._ensureEasyConectStageTransport();
+        this._syncEasyConectSessionState();
+
+        return this._easyConectState
+            .getSignalValue(
+                signalId
+            );
     }
 
     /**
@@ -460,7 +657,7 @@ class Scratch3EasyBloxBtBlocks {
      */
     init () {
         return this
-            ._rememberGamepadStageInitialization(
+            ._rememberEasyConectStageInitialization(
                 this._stageConnectivity
                     .initializeBluetoothSerial()
             );
@@ -581,14 +778,62 @@ class Scratch3EasyBloxBtBlocks {
             return false;
         }
 
-        this._startGamepadStageWatchers();
-        this._ensureGamepadStageTransport();
-        this._syncGamepadSessionState();
+        return this._readEasyConectSignal(
+            signalId
+        );
+    }
+    /**
+     * Report one canonical Controls joystick axis.
+     * @param {object} args block arguments.
+     * @returns {number} current joystick position.
+     */
+    controlsJoystickPosition (args) {
+        const signalId =
+            args && args.AXIS;
 
-        return this._easyConectState
-            .getSignalValue(
-                signalId
-            );
+        if (
+            !CONTROLS_JOYSTICK_SIGNAL_IDS
+                .has(signalId)
+        ) {
+            return 0;
+        }
+
+        return this._readEasyConectSignal(
+            signalId
+        );
+    }
+
+    /**
+     * Report the canonical Controls slider position.
+     * @returns {number} current slider value.
+     */
+    controlsSliderValue () {
+        return this._readEasyConectSignal(
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .SLIDER
+        );
+    }
+
+    /**
+     * Report whether the Controls button is pressed.
+     * @returns {boolean} current button state.
+     */
+    isControlsButtonPressed () {
+        return this._readEasyConectSignal(
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .BUTTON
+        );
+    }
+
+    /**
+     * Report whether the Controls switch is on.
+     * @returns {boolean} current switch state.
+     */
+    isControlsSwitchOn () {
+        return this._readEasyConectSignal(
+            EASYCONECT_CONTROLS_SIGNAL_IDS
+                .SWITCH
+        );
     }
 }
 
