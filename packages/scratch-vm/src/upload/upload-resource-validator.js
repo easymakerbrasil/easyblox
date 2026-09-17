@@ -201,6 +201,13 @@ class UploadResourceValidator {
         const displayGpioPins = new Set();
         const displayI2cPins = new Set();
 
+        this._collectEasyBloxBtActuatorBindings(
+            analysisStatements,
+            motorPins,
+            motorPwmPins,
+            servoPins
+        );
+
         for (const statement of setup) {
             if (!statement) {
                 continue;
@@ -313,6 +320,14 @@ class UploadResourceValidator {
                 if (servoPwmConflictPins.includes(pin)) {
                     throw new Error(
                         'Servo cannot be used with PWM on the selected pin'
+                    );
+                }
+            }
+
+            for (const pin of motorPwmPins) {
+                if (servoPwmConflictPins.includes(pin)) {
+                    throw new Error(
+                        'Servo cannot be used with Motor PWM on the selected pin'
                     );
                 }
             }
@@ -955,6 +970,179 @@ class UploadResourceValidator {
                     this._collectPwmWritePins(
                         statement.elseBody,
                         pwmWritePins
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Collect EasyConect remote actuator bindings as physical resources.
+     * @param {Array<object>} statements EasyBlox Upload IR statements.
+     * @param {Set<number>} motorPins Pins reserved by motors.
+     * @param {Set<number>} motorPwmPins PWM pins reserved by motors.
+     * @param {Set<number>} servoPins Pins reserved by servos.
+     * @returns {void}
+     * @private
+     */
+    _collectEasyBloxBtActuatorBindings (
+        statements,
+        motorPins,
+        motorPwmPins,
+        servoPins
+    ) {
+        for (const statement of statements) {
+            if (!statement) {
+                continue;
+            }
+
+            if (
+                statement.type ===
+                'EasyBloxBtMotorBinding'
+            ) {
+                const digitalPins =
+                    Array.isArray(
+                        this.boardProfile.digitalPins
+                    ) ?
+                        this.boardProfile.digitalPins :
+                        [];
+
+                const pwmPins =
+                    Array.isArray(
+                        this.boardProfile.pwmPins
+                    ) ?
+                        this.boardProfile.pwmPins :
+                        [];
+
+                if (
+                    !Number.isInteger(statement.in1Pin) ||
+                    !digitalPins.includes(statement.in1Pin)
+                ) {
+                    throw new Error(
+                        'Motor IN1 pin is not supported by the selected board'
+                    );
+                }
+
+                if (
+                    !Number.isInteger(statement.in2Pin) ||
+                    !digitalPins.includes(statement.in2Pin)
+                ) {
+                    throw new Error(
+                        'Motor IN2 pin is not supported by the selected board'
+                    );
+                }
+
+                if (
+                    !Number.isInteger(statement.pwmPin) ||
+                    !pwmPins.includes(statement.pwmPin)
+                ) {
+                    throw new Error(
+                        'Motor PWM pin is not supported by the selected board'
+                    );
+                }
+
+                const bindingPins = [
+                    statement.in1Pin,
+                    statement.in2Pin,
+                    statement.pwmPin
+                ];
+
+                if (
+                    new Set(bindingPins).size !==
+                    bindingPins.length
+                ) {
+                    throw new Error(
+                        'Motor pins must be different'
+                    );
+                }
+
+                if (
+                    bindingPins.some(pin =>
+                        motorPins.has(pin)
+                    )
+                ) {
+                    throw new Error(
+                        'Motors cannot share pins'
+                    );
+                }
+
+                for (const pin of bindingPins) {
+                    motorPins.add(pin);
+                }
+
+                motorPwmPins.add(
+                    statement.pwmPin
+                );
+            }
+
+            if (
+                statement.type ===
+                'EasyBloxBtServoBinding'
+            ) {
+                const supportedServoPins =
+                    Array.isArray(
+                        this.boardProfile
+                            .easyConectServoPins
+                    ) ?
+                        this.boardProfile
+                            .easyConectServoPins :
+                        [];
+
+                if (
+                    !Number.isInteger(statement.pin) ||
+                    !supportedServoPins.includes(
+                        statement.pin
+                    )
+                ) {
+                    throw new Error(
+                        'EasyConect servo pin is not supported by the selected board'
+                    );
+                }
+
+                servoPins.add(
+                    statement.pin
+                );
+            }
+
+            if (
+                (
+                    statement.type === 'Repeat' ||
+                    statement.type === 'If'
+                ) &&
+                Array.isArray(statement.body)
+            ) {
+                this._collectEasyBloxBtActuatorBindings(
+                    statement.body,
+                    motorPins,
+                    motorPwmPins,
+                    servoPins
+                );
+            }
+
+            if (statement.type === 'IfElse') {
+                if (
+                    Array.isArray(
+                        statement.thenBody
+                    )
+                ) {
+                    this._collectEasyBloxBtActuatorBindings(
+                        statement.thenBody,
+                        motorPins,
+                        motorPwmPins,
+                        servoPins
+                    );
+                }
+
+                if (
+                    Array.isArray(
+                        statement.elseBody
+                    )
+                ) {
+                    this._collectEasyBloxBtActuatorBindings(
+                        statement.elseBody,
+                        motorPins,
+                        motorPwmPins,
+                        servoPins
                     );
                 }
             }

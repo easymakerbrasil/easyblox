@@ -18,6 +18,18 @@ enum class EasyBloxControlsJoystickAxis : uint8_t {
     Vertical
 };
 
+enum class EasyBloxRemoteMotor : uint8_t {
+    Motor1 = 0,
+    Motor2
+};
+
+enum class EasyBloxRemoteServo : uint8_t {
+    Servo1 = 0,
+    Servo2,
+    Servo3,
+    Servo4
+};
+
 class EasyBloxBluetooth {
 public:
     void begin();
@@ -49,6 +61,18 @@ public:
     bool controlsButtonPressed();
 
     bool controlsSwitchOn();
+
+    void bindMotor(
+        EasyBloxRemoteMotor motor,
+        uint8_t in1Pin,
+        uint8_t in2Pin,
+        uint8_t pwmPin
+    );
+
+    void bindServo(
+        EasyBloxRemoteServo servo,
+        uint8_t pin
+    );
 };
 
 extern EasyBloxBluetooth EasyBloxBT;

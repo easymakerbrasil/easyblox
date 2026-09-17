@@ -13,9 +13,16 @@ const UploadProgramExtractor =
 const UploadTypeValidator =
     require('../../src/upload/upload-type-validator');
 
+const UploadResourceValidator =
+    require('../../src/upload/upload-resource-validator');
+
+const ArduinoUnoBoardProfile =
+    require('../../src/upload/board-profiles/arduino-uno-board-profile');
+
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
-    EASYCONECT_CONTROLS_SIGNAL_IDS
+    EASYCONECT_CONTROLS_SIGNAL_IDS,
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
 } = require('@easymaker/easyconect-core');
 
 const SOFTWARE_UART_D2_D3 =
@@ -1479,6 +1486,401 @@ tap.test(
             validator.validate(ir),
             ir,
             'Controls switch reporter is Boolean'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload extracts EasyConect motor binding and reserves the shared D2/D3 UART',
+    t => {
+        const runtime =
+            createRuntimeWithBlocks([
+                createUploadHat(
+                    'motor_binding'
+                ),
+                {
+                    id:
+                        'motor_binding',
+                    opcode:
+                        'easybloxBt_motorsServoMotorControl',
+                    next: null,
+                    parent:
+                        'upload_hat',
+                    inputs: {
+                        IN1: {
+                            name: 'IN1',
+                            block:
+                                'motor_in1',
+                            shadow:
+                                'motor_in1'
+                        },
+                        IN2: {
+                            name: 'IN2',
+                            block:
+                                'motor_in2',
+                            shadow:
+                                'motor_in2'
+                        },
+                        PWM: {
+                            name: 'PWM',
+                            block:
+                                'motor_pwm',
+                            shadow:
+                                'motor_pwm'
+                        }
+                    },
+                    fields: {
+                        MOTOR: {
+                            name:
+                                'MOTOR',
+                            value:
+                                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                                    .MOTOR_1
+                        }
+                    },
+                    topLevel: false,
+                    shadow: false
+                },
+                createNumberShadow(
+                    'motor_in1',
+                    'motor_binding',
+                    7
+                ),
+                createNumberShadow(
+                    'motor_in2',
+                    'motor_binding',
+                    8
+                ),
+                createNumberShadow(
+                    'motor_pwm',
+                    'motor_binding',
+                    5
+                )
+            ]);
+
+        const extractor =
+            new UploadProgramExtractor(
+                runtime
+            );
+
+        t.same(
+            extractor.extract(),
+            {
+                setup: [{
+                    type:
+                        'EasyBloxBtMotorBinding',
+                    signalId:
+                        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                            .MOTOR_1,
+                    in1Pin: 7,
+                    in2Pin: 8,
+                    pwmPin: 5
+                }],
+                loop: [],
+                resources: [
+                    SOFTWARE_UART_D2_D3
+                ]
+            }
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload extracts EasyConect servo binding and reserves the shared D2/D3 UART',
+    t => {
+        const runtime =
+            createRuntimeWithBlocks([
+                createUploadHat(
+                    'servo_binding'
+                ),
+                {
+                    id:
+                        'servo_binding',
+                    opcode:
+                        'easybloxBt_motorsServoServoControl',
+                    next: null,
+                    parent:
+                        'upload_hat',
+                    inputs: {
+                        PIN: {
+                            name: 'PIN',
+                            block:
+                                'servo_pin',
+                            shadow:
+                                'servo_pin'
+                        }
+                    },
+                    fields: {
+                        SERVO: {
+                            name:
+                                'SERVO',
+                            value:
+                                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                                    .SERVO_1
+                        }
+                    },
+                    topLevel: false,
+                    shadow: false
+                },
+                createNumberShadow(
+                    'servo_pin',
+                    'servo_binding',
+                    9
+                )
+            ]);
+
+        const extractor =
+            new UploadProgramExtractor(
+                runtime
+            );
+
+        t.same(
+            extractor.extract(),
+            {
+                setup: [{
+                    type:
+                        'EasyBloxBtServoBinding',
+                    signalId:
+                        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                            .SERVO_1,
+                    pin: 9
+                }],
+                loop: [],
+                resources: [
+                    SOFTWARE_UART_D2_D3
+                ]
+            }
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload accepts Motors Servo bindings without explicit legacy BT initialization',
+    t => {
+        const ir = {
+            setup: [{
+                type:
+                    'EasyBloxBtMotorBinding',
+                signalId:
+                    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                        .MOTOR_1,
+                in1Pin: 7,
+                in2Pin: 8,
+                pwmPin: 5
+            }, {
+                type:
+                    'EasyBloxBtServoBinding',
+                signalId:
+                    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                        .SERVO_1,
+                pin: 9
+            }],
+            loop: [],
+            resources: [
+                SOFTWARE_UART_D2_D3
+            ]
+        };
+
+        const validator =
+            new UploadTypeValidator();
+
+        t.equal(
+            validator.validate(ir),
+            ir,
+            'high-level EasyConect actuator bindings use automatic Bluetooth initialization'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload validates EasyConect motor and servo physical resources',
+    t => {
+        const validator =
+            new UploadResourceValidator(
+                ArduinoUnoBoardProfile
+            );
+
+        const validIr = {
+            setup: [{
+                type:
+                    'EasyBloxBtMotorBinding',
+                signalId:
+                    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                        .MOTOR_1,
+                in1Pin: 7,
+                in2Pin: 8,
+                pwmPin: 5
+            }, {
+                type:
+                    'EasyBloxBtServoBinding',
+                signalId:
+                    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                        .SERVO_1,
+                pin: 9
+            }],
+            loop: [],
+            resources: [
+                SOFTWARE_UART_D2_D3
+            ]
+        };
+
+        t.equal(
+            validator.validate(validIr),
+            validIr,
+            'valid remote actuator bindings are accepted'
+        );
+
+        t.throws(
+            () =>
+                validator.validate({
+                    setup: [{
+                        type:
+                            'EasyBloxBtMotorBinding',
+                        signalId:
+                            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                                .MOTOR_1,
+                        in1Pin: 2,
+                        in2Pin: 8,
+                        pwmPin: 5
+                    }],
+                    loop: [],
+                    resources: [
+                        SOFTWARE_UART_D2_D3
+                    ]
+                }),
+            'motor binding cannot use Bluetooth-reserved D2'
+        );
+
+        t.throws(
+            () =>
+                validator.validate({
+                    setup: [{
+                        type:
+                            'EasyBloxBtMotorBinding',
+                        signalId:
+                            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                                .MOTOR_1,
+                        in1Pin: 7,
+                        in2Pin: 7,
+                        pwmPin: 5
+                    }],
+                    loop: [],
+                    resources: [
+                        SOFTWARE_UART_D2_D3
+                    ]
+                }),
+            'motor binding requires distinct physical pins'
+        );
+
+        t.throws(
+            () =>
+                validator.validate({
+                    setup: [{
+                        type:
+                            'EasyBloxBtMotorBinding',
+                        signalId:
+                            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                                .MOTOR_1,
+                        in1Pin: 7,
+                        in2Pin: 8,
+                        pwmPin: 4
+                    }],
+                    loop: [],
+                    resources: [
+                        SOFTWARE_UART_D2_D3
+                    ]
+                }),
+            'motor binding requires an Arduino UNO PWM pin'
+        );
+
+        t.throws(
+            () =>
+                validator.validate({
+                    setup: [{
+                        type:
+                            'EasyBloxBtServoBinding',
+                        signalId:
+                            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                                .SERVO_1,
+                        pin: 6
+                    }],
+                    loop: [],
+                    resources: [
+                        SOFTWARE_UART_D2_D3
+                    ]
+                }),
+            'EasyConect servo binding is limited to the canonical EasyMaker servo ports'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload rejects remote motor PWM on Timer1 while Servo is active',
+    t => {
+        const validator =
+            new UploadResourceValidator(
+                ArduinoUnoBoardProfile
+            );
+
+        const createIr =
+            pwmPin => ({
+                setup: [{
+                    type:
+                        'EasyBloxBtMotorBinding',
+                    signalId:
+                        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                            .MOTOR_1,
+                    in1Pin: 7,
+                    in2Pin: 8,
+                    pwmPin
+                }, {
+                    type:
+                        'EasyBloxBtServoBinding',
+                    signalId:
+                        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                            .SERVO_1,
+                    pin: 5
+                }],
+                loop: [],
+                resources: [
+                    SOFTWARE_UART_D2_D3
+                ]
+            });
+
+        t.throws(
+            () =>
+                validator.validate(
+                    createIr(9)
+                ),
+            /Servo cannot be used with Motor PWM on the selected pin/,
+            'D9 PWM conflicts with Timer1 Servo use'
+        );
+
+        t.throws(
+            () =>
+                validator.validate(
+                    createIr(10)
+                ),
+            /Servo cannot be used with Motor PWM on the selected pin/,
+            'D10 PWM conflicts with Timer1 Servo use'
+        );
+
+        t.doesNotThrow(
+            () =>
+                validator.validate(
+                    createIr(11)
+                ),
+            'D11 PWM remains available because Timer2 is untouched'
         );
 
         t.end();

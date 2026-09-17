@@ -12,6 +12,7 @@ const {
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
     getEasyConectWireChannel
 } = require(
     '@easymaker/easyconect-core'
@@ -36,6 +37,8 @@ const EASYBLOX_BT_INTERNAL_IDENTIFIERS = Object.freeze([
     'easybloxBtResetGamepadState',
     'easybloxBtGamepadIndexForChannel',
     'EasyBloxControlsJoystickAxis',
+    'EasyBloxRemoteMotor',
+    'EasyBloxRemoteServo',
     'EASYBLOX_CONTROLS_JOYSTICK_X_CHANNEL',
     'EASYBLOX_CONTROLS_JOYSTICK_Y_CHANNEL',
     'EASYBLOX_CONTROLS_SLIDER_CHANNEL',
@@ -196,6 +199,42 @@ const getEasyBloxBtConfigContent = () => {
             easyConectChannel(
                 EASYCONECT_CONTROLS_SIGNAL_IDS
                     .SWITCH
+            )
+        }`,
+        `#define EASYBLOX_MOTORS_SERVO_MOTOR_1_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .MOTOR_1
+            )
+        }`,
+        `#define EASYBLOX_MOTORS_SERVO_MOTOR_2_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .MOTOR_2
+            )
+        }`,
+        `#define EASYBLOX_MOTORS_SERVO_SERVO_1_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_1
+            )
+        }`,
+        `#define EASYBLOX_MOTORS_SERVO_SERVO_2_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_2
+            )
+        }`,
+        `#define EASYBLOX_MOTORS_SERVO_SERVO_3_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_3
+            )
+        }`,
+        `#define EASYBLOX_MOTORS_SERVO_SERVO_4_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_4
             )
         }`,
         ''

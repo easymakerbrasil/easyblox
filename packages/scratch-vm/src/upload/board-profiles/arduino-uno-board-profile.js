@@ -111,6 +111,13 @@ const ArduinoUnoBoardProfile = Object.freeze({
         11
     ]),
 
+    easyConectServoPins: Object.freeze([
+        5,
+        9,
+        10,
+        11
+    ]),
+
     servoAngleRange: Object.freeze({
         min: 0,
         max: 180

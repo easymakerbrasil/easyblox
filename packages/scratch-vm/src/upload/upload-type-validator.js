@@ -619,6 +619,10 @@ class UploadTypeValidator {
             case 'EasyBloxBtInit':
                 break;
 
+            case 'EasyBloxBtMotorBinding':
+            case 'EasyBloxBtServoBinding':
+                break;
+
             case 'EasyBloxBtWaitText':
             case 'EasyBloxBtWaitNumber': {
                 const channelType =

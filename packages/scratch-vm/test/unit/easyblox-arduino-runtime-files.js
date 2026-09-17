@@ -357,6 +357,183 @@ test(
 );
 
 test(
+    'EasyBlox Motors Servo runtime provides signed motor and bounded Servo handlers',
+    t => {
+        const source =
+            fs.readFileSync(
+                path.join(
+                    sourceDirectory,
+                    'EasyBloxBluetooth.cpp'
+                ),
+                'utf8'
+            );
+
+        t.match(
+            source,
+            /easybloxBtApplyMotorValue\s*\(/,
+            'runtime has one canonical remote motor value handler'
+        );
+
+        t.match(
+            source,
+            /easybloxBtApplyServoValue\s*\(/,
+            'runtime has one canonical remote Servo value handler'
+        );
+
+        t.match(
+            source,
+            /void\s+easybloxBtApplyMotorValue\s*\([^)]*\)\s*\{[\s\S]*?digitalWrite\s*\(/,
+            'remote motor handler controls direction pins'
+        );
+
+        t.match(
+            source,
+            /void\s+easybloxBtApplyMotorValue\s*\([^)]*\)\s*\{[\s\S]*?analogWrite\s*\(/,
+            'remote motor handler controls PWM'
+        );
+
+        t.match(
+            source,
+            /void\s+easybloxBtApplyServoValue\s*\([^)]*\)\s*\{[\s\S]*?easybloxBtRemoteServoPulseTicks\s*\[\s*index\s*\]\s*=\s*easybloxBtServoPulseTicks\s*\(/,
+            'remote Servo handler writes normalized angles'
+        );
+
+        t.end();
+    }
+);
+
+test(
+    'EasyBlox Motors Servo runtime migrates Bluetooth to a Servo-safe Timer1 COMPB transport',
+    t => {
+        const source =
+            fs.readFileSync(
+                path.join(
+                    sourceDirectory,
+                    'EasyBloxBluetooth.cpp'
+                ),
+                'utf8'
+            );
+
+        t.match(
+            source,
+            /#include\s*<SoftwareSerial\.h>/,
+            'motor-only Bluetooth keeps the existing SoftwareSerial path'
+        );
+
+        t.notMatch(
+            source,
+            /#include\s*<Servo\.h>/,
+            'remote Servo does not depend on the Arduino Servo library'
+        );
+
+        t.match(
+            source,
+            /easybloxBtConfigureServoTimer1\s*\(/,
+            'runtime owns one canonical Timer1 Servo scheduler'
+        );
+
+        t.match(
+            source,
+            /easybloxBtServoPulseTicks\s*\(/,
+            'runtime converts Servo angles to Timer1 pulse ticks'
+        );
+
+        t.match(
+            source,
+            /easybloxBtServoSafeTransportActive/,
+            'runtime tracks whether the Servo-safe transport is active'
+        );
+
+        t.match(
+            source,
+            /easybloxBtActivateServoSafeTransport\s*\(/,
+            'runtime exposes one migration path from SoftwareSerial'
+        );
+
+        t.match(
+            source,
+            /ISR\s*\(\s*INT0_vect\s*\)/,
+            'Servo-safe Bluetooth RX starts from INT0 on D2'
+        );
+
+        t.match(
+            source,
+            /ISR\s*\(\s*TIMER1_COMPB_vect\s*\)/,
+            'Servo-safe UART sampling uses Timer1 COMPB'
+        );
+
+        t.notMatch(
+            source,
+            /TCCR2[A-B]?|TCNT2|OCR2[A-B]?|TIMSK2/,
+            'Servo-safe transport leaves Timer2 untouched'
+        );
+
+        t.match(
+            source,
+            /ISR\s*\(\s*TIMER1_COMPA_vect\s*\)/,
+            'runtime owns Timer1 COMPA for Servo pulse scheduling'
+        );
+
+        t.match(
+            source,
+            /easybloxBtHandleServoTimerCompareAInterrupt\s*\(/,
+            'Timer1 COMPA delegates to the canonical Servo scheduler'
+        );
+
+        t.end();
+    }
+);
+
+test(
+    'EasyBlox Motors Servo channels are routed before the legacy fixed-channel fallback',
+    t => {
+        const source =
+            fs.readFileSync(
+                path.join(
+                    sourceDirectory,
+                    'EasyBloxBluetooth.cpp'
+                ),
+                'utf8'
+            );
+
+        const motorIndex =
+            source.indexOf(
+                'EASYBLOX_MOTORS_SERVO_MOTOR_1_CHANNEL'
+            );
+
+        const servoIndex =
+            source.indexOf(
+                'EASYBLOX_MOTORS_SERVO_SERVO_1_CHANNEL'
+            );
+
+        const legacyChannelGateIndex =
+            source.indexOf(
+                'if (channel != EASYBLOX_BT_CHANNEL)'
+            );
+
+        t.ok(
+            motorIndex >= 0,
+            'remote motor channel is handled'
+        );
+
+        t.ok(
+            servoIndex >= 0,
+            'remote Servo channel is handled'
+        );
+
+        t.ok(
+            motorIndex >= 0 &&
+                servoIndex >= 0 &&
+                legacyChannelGateIndex > motorIndex &&
+                legacyChannelGateIndex > servoIndex,
+            'Motors Servo channels are consumed before the legacy fallback'
+        );
+
+        t.end();
+    }
+);
+
+test(
     'generated browser runtime mirror matches the canonical C++ sources',
     t => {
         if (

@@ -5,7 +5,8 @@ const {
 
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
-    EASYCONECT_CONTROLS_SIGNAL_IDS
+    EASYCONECT_CONTROLS_SIGNAL_IDS,
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
 } = require('@easymaker/easyconect-core');
 
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
@@ -62,6 +63,11 @@ const EASYBLOX_BT_CONTROLS_BUTTON_PRESSED_OPCODE =
 const EASYBLOX_BT_CONTROLS_SWITCH_ON_OPCODE =
     'easybloxBt_isControlsSwitchOn';
 
+const EASYBLOX_BT_MOTORS_SERVO_MOTOR_CONTROL_OPCODE =
+    'easybloxBt_motorsServoMotorControl';
+const EASYBLOX_BT_MOTORS_SERVO_SERVO_CONTROL_OPCODE =
+    'easybloxBt_motorsServoServoControl';
+
 const EASYBLOX_GAMEPAD_SIGNAL_IDS =
     new Set(
         Object.values(
@@ -75,6 +81,26 @@ const EASYBLOX_CONTROLS_JOYSTICK_SIGNAL_IDS =
             .JOYSTICK_X,
         EASYCONECT_CONTROLS_SIGNAL_IDS
             .JOYSTICK_Y
+    ]);
+
+const EASYBLOX_MOTORS_SERVO_MOTOR_SIGNAL_IDS =
+    new Set([
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .MOTOR_1,
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .MOTOR_2
+    ]);
+
+const EASYBLOX_MOTORS_SERVO_SERVO_SIGNAL_IDS =
+    new Set([
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .SERVO_1,
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .SERVO_2,
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .SERVO_3,
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .SERVO_4
     ]);
 
 const FOREVER_OPCODE = 'control_forever';
@@ -1175,6 +1201,82 @@ class UploadProgramExtractor {
                     value: EASYBLOX_BT_CHANNEL
                 }
             };
+
+        case EASYBLOX_BT_MOTORS_SERVO_MOTOR_CONTROL_OPCODE: {
+            this._reserveEasyBloxBtResource();
+
+            const signalId =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'MOTOR'
+                );
+
+            if (
+                !EASYBLOX_MOTORS_SERVO_MOTOR_SIGNAL_IDS
+                    .has(signalId)
+            ) {
+                throw new Error(
+                    `Unsupported EasyConect motor signal: ${signalId}`
+                );
+            }
+
+            return {
+                type:
+                    'EasyBloxBtMotorBinding',
+                signalId,
+                in1Pin:
+                    this._readNumberInput(
+                        blocks,
+                        block,
+                        'IN1'
+                    ),
+                in2Pin:
+                    this._readNumberInput(
+                        blocks,
+                        block,
+                        'IN2'
+                    ),
+                pwmPin:
+                    this._readNumberInput(
+                        blocks,
+                        block,
+                        'PWM'
+                    )
+            };
+        }
+
+        case EASYBLOX_BT_MOTORS_SERVO_SERVO_CONTROL_OPCODE: {
+            this._reserveEasyBloxBtResource();
+
+            const signalId =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'SERVO'
+                );
+
+            if (
+                !EASYBLOX_MOTORS_SERVO_SERVO_SIGNAL_IDS
+                    .has(signalId)
+            ) {
+                throw new Error(
+                    `Unsupported EasyConect servo signal: ${signalId}`
+                );
+            }
+
+            return {
+                type:
+                    'EasyBloxBtServoBinding',
+                signalId,
+                pin:
+                    this._readNumberInput(
+                        blocks,
+                        block,
+                        'PIN'
+                    )
+            };
+        }
 
         case WAIT_OPCODE:
             return {

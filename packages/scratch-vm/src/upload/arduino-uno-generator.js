@@ -14,6 +14,7 @@ const {
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
     getEasyConectWireChannel
 } = require(
     '@easymaker/easyconect-core'
@@ -46,6 +47,26 @@ Object.freeze({
     [EASYCONECT_CONTROLS_SIGNAL_IDS.JOYSTICK_Y]:
         'EasyBloxControlsJoystickAxis::Vertical'
 });
+
+const EASYBLOX_MOTORS_SERVO_CPP_MOTORS =
+    Object.freeze({
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.MOTOR_1]:
+            'EasyBloxRemoteMotor::Motor1',
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.MOTOR_2]:
+            'EasyBloxRemoteMotor::Motor2'
+    });
+
+const EASYBLOX_MOTORS_SERVO_CPP_SERVOS =
+    Object.freeze({
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.SERVO_1]:
+            'EasyBloxRemoteServo::Servo1',
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.SERVO_2]:
+            'EasyBloxRemoteServo::Servo2',
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.SERVO_3]:
+            'EasyBloxRemoteServo::Servo3',
+        [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.SERVO_4]:
+            'EasyBloxRemoteServo::Servo4'
+    });
 
 /**
  * Generate deterministic Arduino UNO C++ from EasyBlox semantic IR.
@@ -230,9 +251,24 @@ class ArduinoUnoGenerator {
             )
         );
 
+        const usesEasyBloxMotorsServo =
+        [
+            'EasyBloxBtMotorBinding',
+            'EasyBloxBtServoBinding'
+        ].some(type =>
+            this._containsIrType(
+                [
+                    analysisSetupStatements,
+                    loopStatements
+                ],
+                type
+            )
+        );
+
         const usesEasyConectHighLevelState =
             usesEasyBloxGamepad ||
-            usesEasyBloxControls;
+            usesEasyBloxControls ||
+            usesEasyBloxMotorsServo;
 
         const reservedIdentifiers = this._initializeDataSymbols(
             variables,
@@ -4102,6 +4138,42 @@ class ArduinoUnoGenerator {
                     `${indent}EasyBloxBT.begin();`
                 );
                 break;
+
+            case 'EasyBloxBtMotorBinding': {
+                const motor =
+                    EASYBLOX_MOTORS_SERVO_CPP_MOTORS[
+                        statement.signalId
+                    ];
+
+                if (!motor) {
+                    throw new Error(
+                        `Unsupported EasyBlox BT MOTORES & SERVO motor signal: ${statement.signalId}`
+                    );
+                }
+
+                lines.push(
+                    `${indent}EasyBloxBT.bindMotor(${motor}, ${statement.in1Pin}, ${statement.in2Pin}, ${statement.pwmPin});`
+                );
+                break;
+            }
+
+            case 'EasyBloxBtServoBinding': {
+                const servo =
+                    EASYBLOX_MOTORS_SERVO_CPP_SERVOS[
+                        statement.signalId
+                    ];
+
+                if (!servo) {
+                    throw new Error(
+                        `Unsupported EasyBlox BT MOTORES & SERVO Servo signal: ${statement.signalId}`
+                    );
+                }
+
+                lines.push(
+                    `${indent}EasyBloxBT.bindServo(${servo}, ${statement.pin});`
+                );
+                break;
+            }
 
             case 'EasyBloxBtSendText':
                 lines.push(

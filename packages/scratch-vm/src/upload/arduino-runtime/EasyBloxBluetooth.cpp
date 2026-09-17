@@ -1,6 +1,7 @@
 #include "EasyBloxBluetooth.h"
 #include "EasyBloxConfig.h"
 #include <SoftwareSerial.h>
+#include <avr/interrupt.h>
 
 constexpr uint8_t EASYBLOX_EBCP_MAGIC_0 = 0x45;
 constexpr uint8_t EASYBLOX_EBCP_MAGIC_1 = 0x42;
@@ -44,16 +45,913 @@ const char EASYBLOX_CONTROLS_BUTTON_CHANNEL[] =
     EASYBLOX_CONTROLS_BUTTON_CHANNEL_VALUE;
 const char EASYBLOX_CONTROLS_SWITCH_CHANNEL[] =
     EASYBLOX_CONTROLS_SWITCH_CHANNEL_VALUE;
+const char EASYBLOX_MOTORS_SERVO_MOTOR_1_CHANNEL[] =
+    EASYBLOX_MOTORS_SERVO_MOTOR_1_CHANNEL_VALUE;
+const char EASYBLOX_MOTORS_SERVO_MOTOR_2_CHANNEL[] =
+    EASYBLOX_MOTORS_SERVO_MOTOR_2_CHANNEL_VALUE;
+const char EASYBLOX_MOTORS_SERVO_SERVO_1_CHANNEL[] =
+    EASYBLOX_MOTORS_SERVO_SERVO_1_CHANNEL_VALUE;
+const char EASYBLOX_MOTORS_SERVO_SERVO_2_CHANNEL[] =
+    EASYBLOX_MOTORS_SERVO_SERVO_2_CHANNEL_VALUE;
+const char EASYBLOX_MOTORS_SERVO_SERVO_3_CHANNEL[] =
+    EASYBLOX_MOTORS_SERVO_SERVO_3_CHANNEL_VALUE;
+const char EASYBLOX_MOTORS_SERVO_SERVO_4_CHANNEL[] =
+    EASYBLOX_MOTORS_SERVO_SERVO_4_CHANNEL_VALUE;
 
 constexpr uint8_t EASYBLOX_GAMEPAD_BUTTON_COUNT = 8;
 
-SoftwareSerial easybloxBtSerial(2, 3);
+constexpr uint8_t EASYBLOX_REMOTE_MOTOR_COUNT = 2;
+constexpr uint8_t EASYBLOX_REMOTE_SERVO_COUNT = 4;
+
+constexpr uint8_t EASYBLOX_BT_RX_PIN = 2;
+constexpr uint8_t EASYBLOX_BT_TX_PIN = 3;
+constexpr uint32_t EASYBLOX_BT_BAUD_RATE = 9600;
+
+constexpr uint8_t EASYBLOX_BT_SAFE_BUFFER_SIZE = 64;
+constexpr uint8_t EASYBLOX_BT_SAFE_BUFFER_MASK =
+    EASYBLOX_BT_SAFE_BUFFER_SIZE - 1;
+
+constexpr uint32_t EASYBLOX_BT_TIMER1_PRESCALER = 8;
+constexpr uint32_t EASYBLOX_BT_TIMER1_TICKS_PER_SECOND =
+    F_CPU / EASYBLOX_BT_TIMER1_PRESCALER;
+
+constexpr uint16_t EASYBLOX_BT_BIT_TICKS =
+    static_cast<uint16_t>(
+        (
+            EASYBLOX_BT_TIMER1_TICKS_PER_SECOND +
+            EASYBLOX_BT_BAUD_RATE / 2
+        ) /
+        EASYBLOX_BT_BAUD_RATE
+    );
+
+constexpr uint16_t EASYBLOX_BT_FIRST_SAMPLE_TICKS =
+    static_cast<uint16_t>(
+        EASYBLOX_BT_BIT_TICKS +
+        EASYBLOX_BT_BIT_TICKS / 2
+    );
+
+struct EasyBloxRemoteMotorBinding {
+    bool bound;
+    uint8_t in1Pin;
+    uint8_t in2Pin;
+    uint8_t pwmPin;
+};
+
+EasyBloxRemoteMotorBinding easybloxBtRemoteMotors[
+    EASYBLOX_REMOTE_MOTOR_COUNT
+] = {};
+
+constexpr uint16_t EASYBLOX_BT_SERVO_MIN_PULSE_US =
+    544;
+
+constexpr uint16_t EASYBLOX_BT_SERVO_MAX_PULSE_US =
+    2400;
+
+constexpr uint16_t EASYBLOX_BT_SERVO_TRIM_US =
+    2;
+
+constexpr uint16_t EASYBLOX_BT_SERVO_FRAME_TICKS =
+    static_cast<uint16_t>(
+        EASYBLOX_BT_TIMER1_TICKS_PER_SECOND /
+        50UL
+    );
+
+constexpr uint16_t EASYBLOX_BT_TIMER1_TICKS_PER_MICROSECOND =
+    static_cast<uint16_t>(
+        EASYBLOX_BT_TIMER1_TICKS_PER_SECOND /
+        1000000UL
+    );
+
+volatile bool easybloxBtRemoteServoBound[
+    EASYBLOX_REMOTE_SERVO_COUNT
+] = {};
+
+volatile uint8_t easybloxBtRemoteServoPins[
+    EASYBLOX_REMOTE_SERVO_COUNT
+] = {};
+
+volatile uint16_t easybloxBtRemoteServoPulseTicks[
+    EASYBLOX_REMOTE_SERVO_COUNT
+] = {};
+
+bool easybloxBtServoTimer1Initialized =
+    false;
+
+volatile int8_t easybloxBtActiveServoSlotIndex =
+    -1;
+
+volatile uint16_t easybloxBtServoFrameStartedAt =
+    0;
+
+SoftwareSerial easybloxBtSerial(
+    EASYBLOX_BT_RX_PIN,
+    EASYBLOX_BT_TX_PIN
+);
+
+bool easybloxBtSerialInitialized = false;
+
+volatile bool easybloxBtServoSafeTransportActive = false;
+
+volatile bool easybloxBtSafeRxActive = false;
+volatile uint8_t easybloxBtSafeRxBitIndex = 0;
+volatile uint8_t easybloxBtSafeRxByte = 0;
+volatile uint16_t easybloxBtSafeRxNextAt = 0;
+
+volatile uint8_t easybloxBtSafeRxBuffer[
+    EASYBLOX_BT_SAFE_BUFFER_SIZE
+] = {};
+
+volatile uint8_t easybloxBtSafeRxHead = 0;
+volatile uint8_t easybloxBtSafeRxTail = 0;
+
+volatile bool easybloxBtSafeTxActive = false;
+volatile uint8_t easybloxBtSafeTxBitIndex = 0;
+volatile uint8_t easybloxBtSafeTxByte = 0;
+volatile uint16_t easybloxBtSafeTxNextAt = 0;
+
+volatile uint8_t easybloxBtSafeTxBuffer[
+    EASYBLOX_BT_SAFE_BUFFER_SIZE
+] = {};
+
+volatile uint8_t easybloxBtSafeTxHead = 0;
+volatile uint8_t easybloxBtSafeTxTail = 0;
 
 extern void easybloxUserLoop();
 
+uint8_t easybloxBtNextSafeBufferIndex(
+    uint8_t index
+) {
+    return static_cast<uint8_t>(
+        (index + 1) &
+        EASYBLOX_BT_SAFE_BUFFER_MASK
+    );
+}
+
+bool easybloxBtTimerReached(
+    uint16_t now,
+    uint16_t target
+) {
+    return static_cast<int16_t>(
+        now - target
+    ) >= 0;
+}
+
+bool easybloxBtHasBoundServo() {
+    for (
+        uint8_t index = 0;
+        index < EASYBLOX_REMOTE_SERVO_COUNT;
+        ++index
+    ) {
+        if (
+            easybloxBtRemoteServoBound[
+                index
+            ]
+        ) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+int8_t easybloxBtFindNextBoundServoSlot(
+    uint8_t startIndex
+) {
+    for (
+        uint8_t index = startIndex;
+        index < EASYBLOX_REMOTE_SERVO_COUNT;
+        ++index
+    ) {
+        if (
+            easybloxBtRemoteServoBound[
+                index
+            ]
+        ) {
+            return static_cast<int8_t>(
+                index
+            );
+        }
+    }
+
+    return -1;
+}
+
+void easybloxBtWriteServoPinFast(
+    uint8_t pin,
+    bool high
+) {
+    if (pin == 5) {
+        if (high) {
+            PORTD |=
+                _BV(PD5);
+        } else {
+            PORTD &=
+                static_cast<uint8_t>(
+                    ~_BV(PD5)
+                );
+        }
+
+        return;
+    }
+
+    if (pin == 9) {
+        if (high) {
+            PORTB |=
+                _BV(PB1);
+        } else {
+            PORTB &=
+                static_cast<uint8_t>(
+                    ~_BV(PB1)
+                );
+        }
+
+        return;
+    }
+
+    if (pin == 10) {
+        if (high) {
+            PORTB |=
+                _BV(PB2);
+        } else {
+            PORTB &=
+                static_cast<uint8_t>(
+                    ~_BV(PB2)
+                );
+        }
+
+        return;
+    }
+
+    if (pin == 11) {
+        if (high) {
+            PORTB |=
+                _BV(PB3);
+        } else {
+            PORTB &=
+                static_cast<uint8_t>(
+                    ~_BV(PB3)
+                );
+        }
+    }
+}
+
+void easybloxBtConfigureServoTimer1() {
+    if (
+        easybloxBtServoTimer1Initialized
+    ) {
+        return;
+    }
+
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    TCCR1A = 0;
+    TCCR1B = 0;
+
+    TIMSK1 = 0;
+
+    TCNT1 = 0;
+
+    easybloxBtActiveServoSlotIndex =
+        -1;
+
+    easybloxBtServoFrameStartedAt =
+        0;
+
+    OCR1A = 100;
+    OCR1B = 0;
+
+    TIFR1 =
+        _BV(OCF1A) |
+        _BV(OCF1B) |
+        _BV(TOV1);
+
+    TCCR1B =
+        _BV(CS11);
+
+    TIMSK1 |=
+        _BV(OCIE1A);
+
+    easybloxBtServoTimer1Initialized =
+        true;
+
+    SREG =
+        oldSreg;
+}
+
+uint16_t easybloxBtServoPulseTicks(
+    uint8_t angle
+) {
+    const uint16_t pulseUs =
+        static_cast<uint16_t>(
+            map(
+                angle,
+                0,
+                180,
+                EASYBLOX_BT_SERVO_MIN_PULSE_US,
+                EASYBLOX_BT_SERVO_MAX_PULSE_US
+            )
+        );
+
+    const uint16_t trimmedPulseUs =
+        pulseUs >
+            EASYBLOX_BT_SERVO_TRIM_US ?
+            static_cast<uint16_t>(
+                pulseUs -
+                EASYBLOX_BT_SERVO_TRIM_US
+            ) :
+            pulseUs;
+
+    return static_cast<uint16_t>(
+        trimmedPulseUs *
+        EASYBLOX_BT_TIMER1_TICKS_PER_MICROSECOND
+    );
+}
+
+void easybloxBtSetServoPulse(
+    uint8_t servoIndex,
+    uint8_t angle
+) {
+    const uint16_t pulseTicks =
+        easybloxBtServoPulseTicks(
+            angle
+        );
+
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    easybloxBtRemoteServoPulseTicks[
+        servoIndex
+    ] =
+        pulseTicks;
+
+    SREG =
+        oldSreg;
+}
+
+void easybloxBtHandleServoTimerCompareAInterrupt() {
+    const uint16_t now =
+        TCNT1;
+
+    if (
+        easybloxBtActiveServoSlotIndex >=
+        0
+    ) {
+        const uint8_t finishedSlot =
+            static_cast<uint8_t>(
+                easybloxBtActiveServoSlotIndex
+            );
+
+        easybloxBtWriteServoPinFast(
+            easybloxBtRemoteServoPins[
+                finishedSlot
+            ],
+            false
+        );
+
+        const int8_t nextSlot =
+            easybloxBtFindNextBoundServoSlot(
+                static_cast<uint8_t>(
+                    finishedSlot + 1
+                )
+            );
+
+        if (nextSlot >= 0) {
+            easybloxBtActiveServoSlotIndex =
+                nextSlot;
+
+            const uint8_t slot =
+                static_cast<uint8_t>(
+                    nextSlot
+                );
+
+            easybloxBtWriteServoPinFast(
+                easybloxBtRemoteServoPins[
+                    slot
+                ],
+                true
+            );
+
+            OCR1A =
+                static_cast<uint16_t>(
+                    now +
+                    easybloxBtRemoteServoPulseTicks[
+                        slot
+                    ]
+                );
+
+            return;
+        }
+
+        easybloxBtActiveServoSlotIndex =
+            -1;
+
+        const uint16_t elapsed =
+            static_cast<uint16_t>(
+                now -
+                easybloxBtServoFrameStartedAt
+            );
+
+        const uint16_t remaining =
+            elapsed <
+                EASYBLOX_BT_SERVO_FRAME_TICKS ?
+                static_cast<uint16_t>(
+                    EASYBLOX_BT_SERVO_FRAME_TICKS -
+                    elapsed
+                ) :
+                1;
+
+        OCR1A =
+            static_cast<uint16_t>(
+                now +
+                remaining
+            );
+
+        return;
+    }
+
+    easybloxBtServoFrameStartedAt =
+        now;
+
+    const int8_t firstSlot =
+        easybloxBtFindNextBoundServoSlot(
+            0
+        );
+
+    if (firstSlot < 0) {
+        TIMSK1 &=
+            static_cast<uint8_t>(
+                ~_BV(OCIE1A)
+            );
+
+        return;
+    }
+
+    easybloxBtActiveServoSlotIndex =
+        firstSlot;
+
+    const uint8_t slot =
+        static_cast<uint8_t>(
+            firstSlot
+        );
+
+    easybloxBtWriteServoPinFast(
+        easybloxBtRemoteServoPins[
+            slot
+        ],
+        true
+    );
+
+    OCR1A =
+        static_cast<uint16_t>(
+            now +
+            easybloxBtRemoteServoPulseTicks[
+                slot
+            ]
+        );
+}
+
+void easybloxBtScheduleCompareBUnsafe() {
+    bool hasNext = false;
+    uint16_t nextAt = 0;
+
+    if (easybloxBtSafeRxActive) {
+        nextAt =
+            easybloxBtSafeRxNextAt;
+        hasNext = true;
+    }
+
+    if (
+        easybloxBtSafeTxActive &&
+        (
+            !hasNext ||
+            static_cast<int16_t>(
+                easybloxBtSafeTxNextAt -
+                nextAt
+            ) < 0
+        )
+    ) {
+        nextAt =
+            easybloxBtSafeTxNextAt;
+        hasNext = true;
+    }
+
+    if (!hasNext) {
+        TIMSK1 &=
+            static_cast<uint8_t>(
+                ~_BV(OCIE1B)
+            );
+        return;
+    }
+
+    OCR1B = nextAt;
+    TIFR1 = _BV(OCF1B);
+    TIMSK1 |= _BV(OCIE1B);
+}
+
+void easybloxBtStartNextSafeTxUnsafe(
+    uint16_t now
+) {
+    if (
+        easybloxBtSafeTxHead ==
+        easybloxBtSafeTxTail
+    ) {
+        easybloxBtSafeTxActive =
+            false;
+
+        PORTD |= _BV(PD3);
+        return;
+    }
+
+    easybloxBtSafeTxByte =
+        easybloxBtSafeTxBuffer[
+            easybloxBtSafeTxTail
+        ];
+
+    easybloxBtSafeTxTail =
+        easybloxBtNextSafeBufferIndex(
+            easybloxBtSafeTxTail
+        );
+
+    easybloxBtSafeTxBitIndex = 0;
+    easybloxBtSafeTxActive = true;
+
+    PORTD &=
+        static_cast<uint8_t>(
+            ~_BV(PD3)
+        );
+
+    easybloxBtSafeTxNextAt =
+        static_cast<uint16_t>(
+            now +
+            EASYBLOX_BT_BIT_TICKS
+        );
+}
+
+bool easybloxBtEnqueueServoSafeTx(
+    uint8_t value
+) {
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    const uint8_t nextHead =
+        easybloxBtNextSafeBufferIndex(
+            easybloxBtSafeTxHead
+        );
+
+    if (
+        nextHead ==
+        easybloxBtSafeTxTail
+    ) {
+        SREG =
+            oldSreg;
+        return false;
+    }
+
+    easybloxBtSafeTxBuffer[
+        easybloxBtSafeTxHead
+    ] = value;
+
+    easybloxBtSafeTxHead =
+        nextHead;
+
+    if (!easybloxBtSafeTxActive) {
+        easybloxBtStartNextSafeTxUnsafe(
+            TCNT1
+        );
+
+        easybloxBtScheduleCompareBUnsafe();
+    }
+
+    SREG =
+        oldSreg;
+
+    return true;
+}
+
+bool easybloxBtDequeueServoSafeRx(
+    uint8_t &value
+) {
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    if (
+        easybloxBtSafeRxHead ==
+        easybloxBtSafeRxTail
+    ) {
+        SREG =
+            oldSreg;
+        return false;
+    }
+
+    value =
+        easybloxBtSafeRxBuffer[
+            easybloxBtSafeRxTail
+        ];
+
+    easybloxBtSafeRxTail =
+        easybloxBtNextSafeBufferIndex(
+            easybloxBtSafeRxTail
+        );
+
+    SREG =
+        oldSreg;
+
+    return true;
+}
+
+bool easybloxBtServoTimer1Active() {
+    return
+        easybloxBtServoTimer1Initialized;
+}
+
+void easybloxBtActivateServoSafeTransport() {
+    if (
+        easybloxBtServoSafeTransportActive ||
+        !easybloxBtServoTimer1Active()
+    ) {
+        return;
+    }
+
+    if (easybloxBtSerialInitialized) {
+        easybloxBtSerial.end();
+    }
+
+    pinMode(
+        EASYBLOX_BT_RX_PIN,
+        INPUT_PULLUP
+    );
+
+    pinMode(
+        EASYBLOX_BT_TX_PIN,
+        OUTPUT
+    );
+
+    digitalWrite(
+        EASYBLOX_BT_TX_PIN,
+        HIGH
+    );
+
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    easybloxBtSafeRxActive = false;
+    easybloxBtSafeRxBitIndex = 0;
+    easybloxBtSafeRxByte = 0;
+
+    easybloxBtSafeRxHead = 0;
+    easybloxBtSafeRxTail = 0;
+
+    easybloxBtSafeTxActive = false;
+    easybloxBtSafeTxBitIndex = 0;
+    easybloxBtSafeTxByte = 0;
+
+    easybloxBtSafeTxHead = 0;
+    easybloxBtSafeTxTail = 0;
+
+    TIMSK1 &=
+        static_cast<uint8_t>(
+            ~_BV(OCIE1B)
+        );
+
+    EICRA &=
+        static_cast<uint8_t>(
+            ~(
+                _BV(ISC01) |
+                _BV(ISC00)
+            )
+        );
+
+    EICRA |=
+        _BV(ISC01);
+
+    EIFR =
+        _BV(INTF0);
+
+    easybloxBtServoSafeTransportActive =
+        true;
+
+    EIMSK |=
+        _BV(INT0);
+
+    SREG =
+        oldSreg;
+}
+
+void easybloxBtEnsureServoSafeTransport() {
+    if (
+        !easybloxBtServoSafeTransportActive &&
+        easybloxBtServoTimer1Active()
+    ) {
+        easybloxBtActivateServoSafeTransport();
+    }
+}
+
+void easybloxBtHandleRxStartInterrupt() {
+    if (
+        !easybloxBtServoSafeTransportActive ||
+        easybloxBtSafeRxActive
+    ) {
+        return;
+    }
+
+    EIMSK &=
+        static_cast<uint8_t>(
+            ~_BV(INT0)
+        );
+
+    easybloxBtSafeRxActive = true;
+    easybloxBtSafeRxBitIndex = 0;
+    easybloxBtSafeRxByte = 0;
+
+    easybloxBtSafeRxNextAt =
+        static_cast<uint16_t>(
+            TCNT1 +
+            EASYBLOX_BT_FIRST_SAMPLE_TICKS
+        );
+
+    easybloxBtScheduleCompareBUnsafe();
+}
+
+void easybloxBtHandleTimer1CompareBInterrupt() {
+    const uint16_t now =
+        TCNT1;
+
+    if (
+        easybloxBtSafeRxActive &&
+        easybloxBtTimerReached(
+            now,
+            easybloxBtSafeRxNextAt
+        )
+    ) {
+        if (
+            easybloxBtSafeRxBitIndex <
+            8
+        ) {
+            if (
+                PIND &
+                _BV(PD2)
+            ) {
+                easybloxBtSafeRxByte |=
+                    static_cast<uint8_t>(
+                        1U <<
+                        easybloxBtSafeRxBitIndex
+                    );
+            }
+
+            ++easybloxBtSafeRxBitIndex;
+
+            easybloxBtSafeRxNextAt =
+                static_cast<uint16_t>(
+                    easybloxBtSafeRxNextAt +
+                    EASYBLOX_BT_BIT_TICKS
+                );
+        } else {
+            if (
+                PIND &
+                _BV(PD2)
+            ) {
+                const uint8_t nextHead =
+                    easybloxBtNextSafeBufferIndex(
+                        easybloxBtSafeRxHead
+                    );
+
+                if (
+                    nextHead !=
+                    easybloxBtSafeRxTail
+                ) {
+                    easybloxBtSafeRxBuffer[
+                        easybloxBtSafeRxHead
+                    ] =
+                        easybloxBtSafeRxByte;
+
+                    easybloxBtSafeRxHead =
+                        nextHead;
+                }
+            }
+
+            easybloxBtSafeRxActive =
+                false;
+
+            EIFR =
+                _BV(INTF0);
+
+            EIMSK |=
+                _BV(INT0);
+        }
+    }
+
+    if (
+        easybloxBtSafeTxActive &&
+        easybloxBtTimerReached(
+            now,
+            easybloxBtSafeTxNextAt
+        )
+    ) {
+        if (
+            easybloxBtSafeTxBitIndex <
+            8
+        ) {
+            if (
+                easybloxBtSafeTxByte &
+                static_cast<uint8_t>(
+                    1U <<
+                    easybloxBtSafeTxBitIndex
+                )
+            ) {
+                PORTD |=
+                    _BV(PD3);
+            } else {
+                PORTD &=
+                    static_cast<uint8_t>(
+                        ~_BV(PD3)
+                    );
+            }
+
+            ++easybloxBtSafeTxBitIndex;
+
+            easybloxBtSafeTxNextAt =
+                static_cast<uint16_t>(
+                    easybloxBtSafeTxNextAt +
+                    EASYBLOX_BT_BIT_TICKS
+                );
+        } else if (
+            easybloxBtSafeTxBitIndex ==
+            8
+        ) {
+            PORTD |=
+                _BV(PD3);
+
+            ++easybloxBtSafeTxBitIndex;
+
+            easybloxBtSafeTxNextAt =
+                static_cast<uint16_t>(
+                    easybloxBtSafeTxNextAt +
+                    EASYBLOX_BT_BIT_TICKS
+                );
+        } else {
+            easybloxBtStartNextSafeTxUnsafe(
+                now
+            );
+        }
+    }
+
+    easybloxBtScheduleCompareBUnsafe();
+}
+
+void easybloxBtWriteByte(
+    uint8_t value
+) {
+    easybloxBtEnsureServoSafeTransport();
+
+    if (
+        easybloxBtServoSafeTransportActive
+    ) {
+        while (
+            !easybloxBtEnqueueServoSafeTx(
+                value
+            )
+        ) {
+            // Timer1 COMPB drains the queue.
+        }
+
+        return;
+    }
+
+    easybloxBtSerial.write(
+        value
+    );
+}
+
 void easybloxBtBegin() {
-    easybloxBtSerial.begin(9600);
+    easybloxBtEnsureServoSafeTransport();
+
+    if (
+        easybloxBtServoSafeTransportActive
+    ) {
+        return;
+    }
+
+    easybloxBtSerial.begin(
+        EASYBLOX_BT_BAUD_RATE
+    );
+
     easybloxBtSerial.listen();
+
+    easybloxBtSerialInitialized =
+        true;
+
+    easybloxBtEnsureServoSafeTransport();
 }
 
 uint8_t easybloxBtNextSequence = 1;
@@ -89,8 +987,14 @@ uint8_t easybloxBtTakeSequence() {
     return sequence;
 }
 
-void easybloxBtWriteChecksummed(uint8_t value, uint8_t &checksum) {
-    easybloxBtSerial.write(value);
+void easybloxBtWriteChecksummed(
+    uint8_t value,
+    uint8_t &checksum
+) {
+    easybloxBtWriteByte(
+        value
+    );
+
     checksum ^= value;
 }
 
@@ -113,8 +1017,13 @@ void easybloxBtSendFrame(
 
     uint8_t checksum = 0;
 
-    easybloxBtSerial.write(EASYBLOX_EBCP_MAGIC_0);
-    easybloxBtSerial.write(EASYBLOX_EBCP_MAGIC_1);
+    easybloxBtWriteByte(
+        EASYBLOX_EBCP_MAGIC_0
+    );
+
+    easybloxBtWriteByte(
+        EASYBLOX_EBCP_MAGIC_1
+    );
 
     easybloxBtWriteChecksummed(EASYBLOX_EBCP_VERSION, checksum);
     easybloxBtWriteChecksummed(type, checksum);
@@ -133,7 +1042,9 @@ void easybloxBtSendFrame(
         easybloxBtWriteChecksummed(payload[index], checksum);
     }
 
-    easybloxBtSerial.write(checksum);
+    easybloxBtWriteByte(
+        checksum
+    );
 }
 
 void easybloxBtSendText(const String &channel, const String &value) {
@@ -288,6 +1199,117 @@ int8_t easybloxBtGamepadIndexForChannel(
     }
 
     return -1;
+}
+
+void easybloxBtApplyMotorValue(
+    uint8_t motorIndex,
+    float value
+) {
+    if (
+        motorIndex >=
+            EASYBLOX_REMOTE_MOTOR_COUNT ||
+        !easybloxBtRemoteMotors[
+            motorIndex
+        ].bound ||
+        !isfinite(value)
+    ) {
+        return;
+    }
+
+    int speedPercent =
+        static_cast<int>(
+            round(value)
+        );
+
+    if (speedPercent < -100) {
+        speedPercent = -100;
+    }
+
+    if (speedPercent > 100) {
+        speedPercent = 100;
+    }
+
+    const bool reverse =
+        speedPercent < 0;
+
+    const uint8_t speed =
+        static_cast<uint8_t>(
+            reverse ?
+                -speedPercent :
+                speedPercent
+        );
+
+    const uint8_t pwm =
+        static_cast<uint8_t>(
+            (
+                static_cast<uint16_t>(
+                    speed
+                ) *
+                255U +
+                50U
+            ) /
+            100U
+        );
+
+    const EasyBloxRemoteMotorBinding &binding =
+        easybloxBtRemoteMotors[
+            motorIndex
+        ];
+
+    digitalWrite(
+        binding.in1Pin,
+        reverse ?
+            LOW :
+            HIGH
+    );
+
+    digitalWrite(
+        binding.in2Pin,
+        reverse ?
+            HIGH :
+            LOW
+    );
+
+    analogWrite(
+        binding.pwmPin,
+        pwm
+    );
+}
+
+void easybloxBtApplyServoValue(
+    uint8_t servoIndex,
+    float value
+) {
+    if (
+        servoIndex >=
+            EASYBLOX_REMOTE_SERVO_COUNT ||
+        !easybloxBtRemoteServoBound[
+            servoIndex
+        ] ||
+        !isfinite(value)
+    ) {
+        return;
+    }
+
+    int angle =
+        static_cast<int>(
+            round(value)
+        );
+
+    if (angle < 0) {
+        angle = 0;
+    }
+
+    if (angle > 180) {
+        angle = 180;
+    }
+
+    easybloxBtSetServoPulse(
+        servoIndex,
+        static_cast<uint8_t>(
+            angle
+        )
+    );
 }
 
 void easybloxBtProcessFrame() {
@@ -473,6 +1495,72 @@ void easybloxBtProcessFrame() {
             return;
         }
 
+        if (
+            channel ==
+            EASYBLOX_MOTORS_SERVO_MOTOR_1_CHANNEL
+        ) {
+            easybloxBtApplyMotorValue(
+                0,
+                value.number
+            );
+            return;
+        }
+
+        if (
+            channel ==
+            EASYBLOX_MOTORS_SERVO_MOTOR_2_CHANNEL
+        ) {
+            easybloxBtApplyMotorValue(
+                1,
+                value.number
+            );
+            return;
+        }
+
+        if (
+            channel ==
+            EASYBLOX_MOTORS_SERVO_SERVO_1_CHANNEL
+        ) {
+            easybloxBtApplyServoValue(
+                0,
+                value.number
+            );
+            return;
+        }
+
+        if (
+            channel ==
+            EASYBLOX_MOTORS_SERVO_SERVO_2_CHANNEL
+        ) {
+            easybloxBtApplyServoValue(
+                1,
+                value.number
+            );
+            return;
+        }
+
+        if (
+            channel ==
+            EASYBLOX_MOTORS_SERVO_SERVO_3_CHANNEL
+        ) {
+            easybloxBtApplyServoValue(
+                2,
+                value.number
+            );
+            return;
+        }
+
+        if (
+            channel ==
+            EASYBLOX_MOTORS_SERVO_SERVO_4_CHANNEL
+        ) {
+            easybloxBtApplyServoValue(
+                3,
+                value.number
+            );
+            return;
+        }
+
         if (channel != EASYBLOX_BT_CHANNEL) {
             return;
         }
@@ -554,11 +1642,39 @@ void easybloxBtPushByte(uint8_t value) {
 }
 
 void easybloxBtPoll() {
-    while (easybloxBtSerial.available() > 0) {
-        const int value = easybloxBtSerial.read();
+    easybloxBtEnsureServoSafeTransport();
+
+    if (
+        easybloxBtServoSafeTransportActive
+    ) {
+        uint8_t value = 0;
+
+        while (
+            easybloxBtDequeueServoSafeRx(
+                value
+            )
+        ) {
+            easybloxBtPushByte(
+                value
+            );
+        }
+
+        return;
+    }
+
+    while (
+        easybloxBtSerial.available() >
+        0
+    ) {
+        const int value =
+            easybloxBtSerial.read();
 
         if (value >= 0) {
-            easybloxBtPushByte(static_cast<uint8_t>(value));
+            easybloxBtPushByte(
+                static_cast<uint8_t>(
+                    value
+                )
+            );
         }
     }
 }
@@ -702,6 +1818,144 @@ bool EasyBloxBluetooth::controlsSwitchOn() {
     easybloxBtPoll();
 
     return easybloxBtControlsSwitch;
+}
+
+void EasyBloxBluetooth::bindMotor(
+    EasyBloxRemoteMotor motor,
+    uint8_t in1Pin,
+    uint8_t in2Pin,
+    uint8_t pwmPin
+) {
+    const uint8_t index =
+        static_cast<uint8_t>(
+            motor
+        );
+
+    if (
+        index >=
+        EASYBLOX_REMOTE_MOTOR_COUNT
+    ) {
+        return;
+    }
+
+    EasyBloxRemoteMotorBinding &binding =
+        easybloxBtRemoteMotors[
+            index
+        ];
+
+    binding.bound = true;
+    binding.in1Pin = in1Pin;
+    binding.in2Pin = in2Pin;
+    binding.pwmPin = pwmPin;
+
+    pinMode(
+        in1Pin,
+        OUTPUT
+    );
+
+    pinMode(
+        in2Pin,
+        OUTPUT
+    );
+
+    pinMode(
+        pwmPin,
+        OUTPUT
+    );
+
+    easybloxBtApplyMotorValue(
+        index,
+        0.0f
+    );
+}
+
+void EasyBloxBluetooth::bindServo(
+    EasyBloxRemoteServo servo,
+    uint8_t pin
+) {
+    const uint8_t index =
+        static_cast<uint8_t>(
+            servo
+        );
+
+    if (
+        index >=
+        EASYBLOX_REMOTE_SERVO_COUNT
+    ) {
+        return;
+    }
+
+    const bool firstBoundServo =
+        !easybloxBtHasBoundServo();
+
+    if (
+        easybloxBtRemoteServoBound[
+            index
+        ] &&
+        easybloxBtRemoteServoPins[
+            index
+        ] != pin
+    ) {
+        easybloxBtWriteServoPinFast(
+            easybloxBtRemoteServoPins[
+                index
+            ],
+            false
+        );
+    }
+
+    pinMode(
+        pin,
+        OUTPUT
+    );
+
+    digitalWrite(
+        pin,
+        LOW
+    );
+
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    easybloxBtRemoteServoPins[
+        index
+    ] =
+        pin;
+
+    easybloxBtRemoteServoBound[
+        index
+    ] =
+        true;
+
+    easybloxBtRemoteServoPulseTicks[
+        index
+    ] =
+        easybloxBtServoPulseTicks(
+            0
+        );
+
+    SREG =
+        oldSreg;
+
+    if (firstBoundServo) {
+        easybloxBtConfigureServoTimer1();
+    }
+
+    easybloxBtActivateServoSafeTransport();
+}
+
+ISR(INT0_vect) {
+    easybloxBtHandleRxStartInterrupt();
+}
+
+ISR(TIMER1_COMPA_vect) {
+    easybloxBtHandleServoTimerCompareAInterrupt();
+}
+
+ISR(TIMER1_COMPB_vect) {
+    easybloxBtHandleTimer1CompareBInterrupt();
 }
 
 EasyBloxBluetooth EasyBloxBT;

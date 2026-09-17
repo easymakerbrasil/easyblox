@@ -11,6 +11,7 @@ const {
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
     getEasyConectWireChannel
 } = require('@easymaker/easyconect-core');
 
@@ -737,6 +738,209 @@ tap.test(
             header.content,
             /bool\s+controlsSwitchOn\s*\(/,
             'runtime exposes the CONTROLES switch facade'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload generator emits Motors Servo bindings through the typed runtime facade',
+    t => {
+        const generator =
+            new ArduinoUnoGenerator();
+
+        const sketch =
+            generator.generate(
+                createIr([
+                    {
+                        type:
+                            'EasyBloxBtMotorBinding',
+                        signalId:
+                            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                                .MOTOR_1,
+                        in1Pin: 7,
+                        in2Pin: 8,
+                        pwmPin: 5
+                    },
+                    {
+                        type:
+                            'EasyBloxBtServoBinding',
+                        signalId:
+                            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                                .SERVO_1,
+                        pin: 9
+                    }
+                ])
+            );
+
+        t.match(
+            sketch,
+            /#include "EasyBlox\.h"/,
+            'MOTORES & SERVO requires the EasyBlox runtime'
+        );
+
+        const beginCalls =
+            sketch.match(
+                /EasyBloxBT\.begin\s*\(\s*\)\s*;/g
+            ) || [];
+
+        t.equal(
+            beginCalls.length,
+            1,
+            'MOTORES & SERVO starts Bluetooth automatically exactly once'
+        );
+
+        const motorBindingPattern =
+            /EasyBloxBT\.bindMotor\s*\(\s*EasyBloxRemoteMotor::Motor1\s*,\s*7\s*,\s*8\s*,\s*5\s*\)\s*;/;
+
+        const servoBindingPattern =
+            /EasyBloxBT\.bindServo\s*\(\s*EasyBloxRemoteServo::Servo1\s*,\s*9\s*\)\s*;/;
+
+        t.match(
+            sketch,
+            motorBindingPattern,
+            'motor binding uses the typed runtime facade'
+        );
+
+        t.match(
+            sketch,
+            servoBindingPattern,
+            'servo binding uses the typed runtime facade'
+        );
+
+        const beginIndex =
+            sketch.indexOf(
+                'EasyBloxBT.begin();'
+            );
+
+        const motorBindingIndex =
+            sketch.search(
+                motorBindingPattern
+            );
+
+        const servoBindingIndex =
+            sketch.search(
+                servoBindingPattern
+            );
+
+        t.ok(
+            beginIndex >= 0 &&
+                motorBindingIndex > beginIndex &&
+                servoBindingIndex > beginIndex,
+            'Bluetooth starts before remote actuator bindings'
+        );
+
+        for (
+            const signalId of
+            Object.values(
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            )
+        ) {
+            t.notMatch(
+                sketch,
+                new RegExp(
+                    getEasyConectWireChannel(
+                        signalId
+                    ).replace(
+                        '.',
+                        '\\.'
+                    )
+                ),
+                `${signalId} stays outside the pedagogical sketch`
+            );
+        }
+
+        t.notMatch(
+            sketch,
+            /#include <Servo\.h>/,
+            'remote Servo implementation stays encapsulated in the runtime support file'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Arduino support files expose canonical Motors Servo channels and binding facade',
+    t => {
+        const supportFiles =
+            getEasyBloxBtSupportFiles();
+
+        const config =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                        'EasyBloxConfig.h'
+            );
+
+        const header =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                        'EasyBloxBluetooth.h'
+            );
+
+        const source =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                        'EasyBloxBluetooth.cpp'
+            );
+
+        t.ok(config);
+        t.ok(header);
+        t.ok(source);
+
+        for (
+            const signalId of
+            Object.values(
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            )
+        ) {
+            t.match(
+                config.content,
+                getEasyConectWireChannel(
+                    signalId
+                ),
+                signalId
+            );
+        }
+
+        t.match(
+            header.content,
+            /enum class EasyBloxRemoteMotor/,
+            'runtime exposes a typed remote motor enum'
+        );
+
+        t.match(
+            header.content,
+            /enum class EasyBloxRemoteServo/,
+            'runtime exposes a typed remote Servo enum'
+        );
+
+        t.match(
+            header.content,
+            /void\s+bindMotor\s*\(/,
+            'runtime exposes the motor binding facade'
+        );
+
+        t.match(
+            header.content,
+            /void\s+bindServo\s*\(/,
+            'runtime exposes the Servo binding facade'
+        );
+
+        t.match(
+            source.content,
+            /void\s+EasyBloxBluetooth::bindMotor\s*\(/,
+            'runtime implements motor binding'
+        );
+
+        t.match(
+            source.content,
+            /void\s+EasyBloxBluetooth::bindServo\s*\(/,
+            'runtime implements Servo binding'
         );
 
         t.end();
