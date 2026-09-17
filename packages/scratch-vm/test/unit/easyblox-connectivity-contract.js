@@ -2,14 +2,33 @@ const tap = require('tap');
 
 const {
     CONNECTIVITY_RESOURCES,
+    EASYBLOX_BT_CHANNEL,
     BLUETOOTH_SERIAL_CONTRACT,
     EBCP_CONTRACT
 } = require('../../src/connectivity/easyblox-connectivity-contract');
+
+const {
+    EASYCONECT_TERMINAL_CHANNEL
+} = require('@easymaker/easyconect-core');
 
 tap.test('EasyBlox connectivity contract defines the canonical shared D2/D3 software UART resource', t => {
     t.equal(
         CONNECTIVITY_RESOURCES.SOFTWARE_UART_D2_D3,
         'SOFTWARE_UART_D2_D3'
+    );
+
+    t.end();
+});
+
+tap.test('EasyBlox BT fixed channel aliases the canonical EasyConect Terminal channel', t => {
+    t.equal(
+        EASYBLOX_BT_CHANNEL,
+        EASYCONECT_TERMINAL_CHANNEL
+    );
+
+    t.equal(
+        EASYBLOX_BT_CHANNEL,
+        '1'
     );
 
     t.end();

@@ -2,11 +2,16 @@ const {
     EBCP_CONTRACT
 } = require('@easymaker/easyblox-connectivity-core');
 
+const {
+    EASYCONECT_TERMINAL_CHANNEL
+} = require('@easymaker/easyconect-core');
+
 const CONNECTIVITY_RESOURCES = Object.freeze({
     SOFTWARE_UART_D2_D3: 'SOFTWARE_UART_D2_D3'
 });
 
-const EASYBLOX_BT_CHANNEL = '1';
+const EASYBLOX_BT_CHANNEL =
+    EASYCONECT_TERMINAL_CHANNEL;
 
 const BLUETOOTH_SERIAL_CONTRACT = Object.freeze({
     modules: Object.freeze([
