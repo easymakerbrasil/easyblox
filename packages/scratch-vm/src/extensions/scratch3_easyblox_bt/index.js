@@ -16,6 +16,7 @@ const {
     EasyConectState,
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
     getEasyConectWireChannel
 } = require('@easymaker/easyconect-core');
 
@@ -111,6 +112,107 @@ const CONTROLS_JOYSTICK_AXES =
         })
     ]);
 
+const MOTORS_SERVO_MOTOR_SIGNAL_IDS =
+    new Set([
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .MOTOR_1,
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .MOTOR_2
+    ]);
+
+const MOTORS_SERVO_SERVO_SIGNAL_IDS =
+    new Set([
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .SERVO_1,
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .SERVO_2,
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .SERVO_3,
+        EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+            .SERVO_4
+    ]);
+
+const MOTORS_SERVO_MOTORS =
+    Object.freeze([
+        Object.freeze({
+            text: '1',
+            value:
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .MOTOR_1
+        }),
+        Object.freeze({
+            text: '2',
+            value:
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .MOTOR_2
+        })
+    ]);
+
+const MOTORS_SERVO_SERVOS =
+    Object.freeze([
+        Object.freeze({
+            text: '1',
+            value:
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_1
+        }),
+        Object.freeze({
+            text: '2',
+            value:
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_2
+        }),
+        Object.freeze({
+            text: '3',
+            value:
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_3
+        }),
+        Object.freeze({
+            text: '4',
+            value:
+                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                    .SERVO_4
+        })
+    ]);
+
+const MOTORS_SERVO_DIGITAL_PINS =
+Object.freeze([
+    {text: 'D4', value: '4'},
+    {text: 'D5', value: '5'},
+    {text: 'D6', value: '6'},
+    {text: 'D7', value: '7'},
+    {text: 'D8', value: '8'},
+    {text: 'D9', value: '9'},
+    {text: 'D10', value: '10'},
+    {text: 'D11', value: '11'},
+    {text: 'D12', value: '12'},
+    {text: 'D13', value: '13'},
+    {text: 'A0', value: '14'},
+    {text: 'A1', value: '15'},
+    {text: 'A2', value: '16'},
+    {text: 'A3', value: '17'},
+    {text: 'A4', value: '18'},
+    {text: 'A5', value: '19'}
+]);
+
+const MOTORS_SERVO_PWM_PINS =
+    Object.freeze([
+        {text: 'D5', value: '5'},
+        {text: 'D6', value: '6'},
+        {text: 'D9', value: '9'},
+        {text: 'D10', value: '10'},
+        {text: 'D11', value: '11'}
+    ]);
+
+const MOTORS_SERVO_SERVO_PINS =
+    Object.freeze([
+        {text: 'D5', value: '5'},
+        {text: 'D9', value: '9'},
+        {text: 'D10', value: '10'},
+        {text: 'D11', value: '11'}
+    ]);
+
 const createEasyConectStageSignal =
     (
         signalId,
@@ -187,6 +289,36 @@ const EASYCONECT_STAGE_SIGNALS =
             EASYCONECT_CONTROLS_SIGNAL_IDS
                 .SWITCH,
             BOOLEAN
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .MOTOR_1,
+            NUMBER
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .MOTOR_2,
+            NUMBER
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .SERVO_1,
+            NUMBER
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .SERVO_2,
+            NUMBER
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .SERVO_3,
+            NUMBER
+        ),
+        createEasyConectStageSignal(
+            EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                .SERVO_4,
+            NUMBER
         )
     ]);
 
@@ -207,6 +339,10 @@ class Scratch3EasyBloxBtBlocks {
         this._receivedByThread = new WeakMap();
         this._easyConectState =
             new EasyConectState();
+
+        this._easyConectRemoteActuatorBindings =
+            new Map();
+
         this._easyConectWatcherGeneration = 0;
         this._easyConectWatchersActive = false;
 
@@ -227,6 +363,9 @@ class Scratch3EasyBloxBtBlocks {
                 () => {
                     this._easyConectState
                         .reset();
+
+                    this._easyConectRemoteActuatorBindings
+                        .clear();
 
                     this._easyConectSessionGeneration =
                         this._stageConnectivity
@@ -416,6 +555,87 @@ class Scratch3EasyBloxBtBlocks {
                         REQUIRED_BOARD_CAPABILITY,
                     text:
                         'chave está ligada?'
+                },
+                '---',
+                {
+                    blockType:
+                        BlockType.LABEL,
+                    text:
+                        'MOTORES & SERVO'
+                },
+                {
+                    opcode:
+                        'motorsServoMotorControl',
+                    blockType:
+                        BlockType.COMMAND,
+                    executionMode:
+                        BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
+                    text:
+                        'controlar motor [MOTOR] IN1 [IN1] IN2 [IN2] PWM [PWM] pelo EasyConect',
+                    arguments: {
+                        MOTOR: {
+                            type:
+                                ArgumentType.STRING,
+                            menu:
+                                'motorsServoMotors',
+                            defaultValue:
+                                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                                    .MOTOR_1
+                        },
+                        IN1: {
+                            type:
+                                ArgumentType.NUMBER,
+                            menu:
+                                'motorsServoDigitalPins',
+                            defaultValue: 7
+                        },
+                        IN2: {
+                            type:
+                                ArgumentType.NUMBER,
+                            menu:
+                                'motorsServoDigitalPins',
+                            defaultValue: 8
+                        },
+                        PWM: {
+                            type:
+                                ArgumentType.NUMBER,
+                            menu:
+                                'motorsServoPwmPins',
+                            defaultValue: 5
+                        }
+                    }
+                },
+                {
+                    opcode:
+                        'motorsServoServoControl',
+                    blockType:
+                        BlockType.COMMAND,
+                    executionMode:
+                        BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
+                    text:
+                        'controlar servo [SERVO] no pino [PIN] pelo EasyConect',
+                    arguments: {
+                        SERVO: {
+                            type:
+                                ArgumentType.STRING,
+                            menu:
+                                'motorsServoServos',
+                            defaultValue:
+                                EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+                                    .SERVO_1
+                        },
+                        PIN: {
+                            type:
+                                ArgumentType.NUMBER,
+                            menu:
+                                'motorsServoServoPins',
+                            defaultValue: 5
+                        }
+                    }
                 }
             ],
             menus: {
@@ -428,6 +648,31 @@ class Scratch3EasyBloxBtBlocks {
                     acceptReporters: false,
                     items:
                         CONTROLS_JOYSTICK_AXES
+                },
+                motorsServoMotors: {
+                    acceptReporters: false,
+                    items:
+                        MOTORS_SERVO_MOTORS
+                },
+                motorsServoServos: {
+                    acceptReporters: false,
+                    items:
+                        MOTORS_SERVO_SERVOS
+                },
+                motorsServoDigitalPins: {
+                    acceptReporters: true,
+                    items:
+                        MOTORS_SERVO_DIGITAL_PINS
+                },
+                motorsServoPwmPins: {
+                    acceptReporters: true,
+                    items:
+                        MOTORS_SERVO_PWM_PINS
+                },
+                motorsServoServoPins: {
+                    acceptReporters: true,
+                    items:
+                        MOTORS_SERVO_SERVO_PINS
                 }
             }
         };
@@ -528,11 +773,163 @@ class Scratch3EasyBloxBtBlocks {
                         message.payload
                     );
 
+                this._applyEasyConectRemoteActuatorSignal(
+                    signal.signalId,
+                    message.payload
+                );
+
                 this._watchEasyConectStageSignal(
                     signal,
                     watcherGeneration
                 );
             });
+    }
+
+    /**
+     * Resolve the active board peripheral used by EasyConect actuators.
+     * The actuator path must reuse the same neutral Bluetooth-capable
+     * provider selected by the shared Stage connectivity layer.
+     * @returns {?object} active board peripheral, or null when unavailable.
+     * @private
+     */
+    _getEasyConectActuatorPeripheral () {
+        if (
+            !this.runtime ||
+            typeof this.runtime
+                .getPeripheralExtensionByCapability !==
+                'function'
+        ) {
+            return null;
+        }
+
+        return this.runtime
+            .getPeripheralExtensionByCapability(
+                REQUIRED_BOARD_CAPABILITY
+            );
+    }
+
+    /**
+     * Apply one received EasyConect actuator signal to its active Stage
+     * physical binding.
+     * @param {string} signalId canonical EasyConect signal id.
+     * @param {number} value received canonical value.
+     * @returns {void}
+     * @private
+     */
+    _applyEasyConectRemoteActuatorSignal (
+        signalId,
+        value
+    ) {
+        const binding =
+            this._easyConectRemoteActuatorBindings
+                .get(signalId);
+
+        if (!binding) {
+            return;
+        }
+
+        const numericValue =
+            Number(value);
+
+        if (!Number.isFinite(numericValue)) {
+            return;
+        }
+
+        const peripheral =
+            this._getEasyConectActuatorPeripheral();
+
+        if (!peripheral) {
+            return;
+        }
+
+        if (binding.type === 'motor') {
+            if (
+                typeof peripheral.motorWrite !==
+                    'function'
+            ) {
+                return;
+            }
+
+            const direction =
+                numericValue < 0 ?
+                    1 :
+                    0;
+
+            const speedPercent =
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        Math.round(
+                            Math.abs(
+                                numericValue
+                            )
+                        )
+                    )
+                );
+
+            const speed =
+                Math.round(
+                    speedPercent *
+                    255 /
+                    100
+                );
+
+            peripheral.motorWrite(
+                binding.in1Pin,
+                binding.in2Pin,
+                binding.pwmPin,
+                direction,
+                speed
+            );
+
+            return;
+        }
+
+        if (
+            binding.type === 'servo' &&
+            typeof peripheral.servoWrite ===
+                'function'
+        ) {
+            const angle =
+                Math.max(
+                    0,
+                    Math.min(
+                        180,
+                        Math.round(
+                            numericValue
+                        )
+                    )
+                );
+
+            peripheral.servoWrite(
+                binding.pin,
+                angle
+            );
+        }
+    }
+
+    /**
+     * Register one remote actuator Stage binding and ensure EasyConect
+     * reception is active.
+     * @param {string} signalId canonical EasyConect signal id.
+     * @param {object} binding physical actuator binding.
+     * @returns {void}
+     * @private
+     */
+    _bindEasyConectRemoteActuator (
+        signalId,
+        binding
+    ) {
+        this._easyConectRemoteActuatorBindings
+            .set(
+                signalId,
+                binding
+            );
+
+        this._startEasyConectStageWatchers();
+        this._ensureEasyConectStageTransport();
+        this._syncEasyConectSessionState();
     }
 
     /**
@@ -833,6 +1230,85 @@ class Scratch3EasyBloxBtBlocks {
         return this._readEasyConectSignal(
             EASYCONECT_CONTROLS_SIGNAL_IDS
                 .SWITCH
+        );
+    }
+
+    /**
+     * Bind one EasyConect motor command to physical Arduino UNO pins.
+     * @param {object} args block arguments.
+     * @returns {?void} null when the binding is invalid.
+     */
+    motorsServoMotorControl (args) {
+        const signalId =
+            args && args.MOTOR;
+
+        const in1Pin =
+            Number(args && args.IN1);
+
+        const in2Pin =
+            Number(args && args.IN2);
+
+        const pwmPin =
+            Number(args && args.PWM);
+
+        if (
+            !MOTORS_SERVO_MOTOR_SIGNAL_IDS
+                .has(signalId) ||
+            !Number.isInteger(in1Pin) ||
+            !Number.isInteger(in2Pin) ||
+            !Number.isInteger(pwmPin) ||
+            in1Pin < 4 ||
+            in1Pin > 19 ||
+            in2Pin < 4 ||
+            in2Pin > 19 ||
+            ![5, 6, 9, 10, 11]
+                .includes(pwmPin) ||
+            in1Pin === in2Pin ||
+            in1Pin === pwmPin ||
+            in2Pin === pwmPin
+        ) {
+            return null;
+        }
+
+        this._bindEasyConectRemoteActuator(
+            signalId,
+            {
+                type: 'motor',
+                in1Pin,
+                in2Pin,
+                pwmPin
+            }
+        );
+    }
+
+    /**
+     * Bind one EasyConect servo command to one physical Arduino UNO pin.
+     * @param {object} args block arguments.
+     * @returns {?void} null when the binding is invalid.
+     */
+    motorsServoServoControl (args) {
+        const signalId =
+            args && args.SERVO;
+
+        const pin =
+            Number(args && args.PIN);
+
+        if (
+            !MOTORS_SERVO_SERVO_SIGNAL_IDS
+                .has(signalId) ||
+            !Number.isInteger(pin) ||
+            ![5, 9, 10, 11]
+                .includes(pin)
+        ) {
+            return null;
+        }
+
+        this._bindEasyConectRemoteActuator(
+            signalId,
+            {
+                type: 'servo',
+                pin
+            }
         );
     }
 }

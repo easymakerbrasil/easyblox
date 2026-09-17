@@ -91,7 +91,7 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox BT exposes exactly the twelve canonical v1 blocks',
+    'EasyBlox BT exposes exactly the fourteen canonical v1 blocks',
     t => {
         const blocks = getBlocks();
 
@@ -109,13 +109,15 @@ tap.test(
                 'controlsJoystickPosition',
                 'controlsSliderValue',
                 'isControlsButtonPressed',
-                'isControlsSwitchOn'
+                'isControlsSwitchOn',
+                'motorsServoMotorControl',
+                'motorsServoServoControl'
             ]
         );
 
         t.equal(
             blocks.length,
-            12
+            14
         );
 
         t.end();
@@ -373,7 +375,6 @@ tap.test(
             'TX',
             'RX_PIN',
             'TX_PIN',
-            'PIN',
             'BAUD',
             'BAUD_RATE',
             'CHANNEL'

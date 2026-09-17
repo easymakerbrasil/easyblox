@@ -56,7 +56,8 @@ tap.test(
             [
                 'Comunicação',
                 'GAMEPAD',
-                'CONTROLES'
+                'CONTROLES',
+                'MOTORES & SERVO'
             ]
         );
 

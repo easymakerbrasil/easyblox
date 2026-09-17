@@ -1,14 +1,14 @@
 #include <Arduino.h>
-#include <Servo.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
+#include <avr/interrupt.h>
 
 namespace EasyBloxStage {
 
 constexpr uint8_t START_BYTE_1 = 0xFF;
 constexpr uint8_t START_BYTE_2 = 0x55;
 constexpr uint8_t PROTOCOL_VERSION = 0x01;
-constexpr uint8_t STAGE_FIRMWARE_COMPATIBILITY_VERSION = 0x02;
+constexpr uint8_t STAGE_FIRMWARE_COMPATIBILITY_VERSION = 0x03;
 
 constexpr uint8_t MAX_PAYLOAD_LENGTH = 32;
 
@@ -87,11 +87,60 @@ constexpr uint8_t BT_SERIAL_RX_PIN = 2;
 constexpr uint8_t BT_SERIAL_TX_PIN = 3;
 constexpr uint32_t BT_SERIAL_BAUD_RATE = 9600;
 
+constexpr uint8_t BT_SERIAL_BUFFER_SIZE = 64;
+constexpr uint8_t BT_SERIAL_BUFFER_MASK =
+    BT_SERIAL_BUFFER_SIZE - 1;
+
+constexpr uint32_t TIMER1_PRESCALER = 8;
+constexpr uint32_t TIMER1_TICKS_PER_SECOND =
+    F_CPU / TIMER1_PRESCALER;
+
+constexpr uint16_t BT_SERIAL_BIT_TICKS =
+    static_cast<uint16_t>(
+        (
+            TIMER1_TICKS_PER_SECOND +
+            BT_SERIAL_BAUD_RATE / 2
+        ) /
+        BT_SERIAL_BAUD_RATE
+    );
+
+constexpr uint16_t BT_SERIAL_FIRST_SAMPLE_TICKS =
+    static_cast<uint16_t>(
+        BT_SERIAL_BIT_TICKS +
+        BT_SERIAL_BIT_TICKS / 2
+    );
+
 bool bluetoothSerialInitialized = false;
+
+volatile bool bluetoothServoSafeTransportActive = false;
+
+volatile bool bluetoothRxActive = false;
+volatile uint8_t bluetoothRxBitIndex = 0;
+volatile uint8_t bluetoothRxByte = 0;
+volatile uint16_t bluetoothRxNextAt = 0;
+
+volatile uint8_t bluetoothRxBuffer[
+    BT_SERIAL_BUFFER_SIZE
+] = {};
+
+volatile uint8_t bluetoothRxHead = 0;
+volatile uint8_t bluetoothRxTail = 0;
+
+volatile bool bluetoothTxActive = false;
+volatile uint8_t bluetoothTxBitIndex = 0;
+volatile uint8_t bluetoothTxByte = 0;
+volatile uint16_t bluetoothTxNextAt = 0;
+
+volatile uint8_t bluetoothTxBuffer[
+    BT_SERIAL_BUFFER_SIZE
+] = {};
+
+volatile uint8_t bluetoothTxHead = 0;
+volatile uint8_t bluetoothTxTail = 0;
 
 /**
  * Construct the SoftwareSerial instance only when Bluetooth is first used.
- * This avoids reserving D2/D3 before the student's explicit init block.
+ * While no Servo is active, this preserves Timer1 for PWM on D9/D10.
  */
 SoftwareSerial &getBluetoothSerial() {
     static SoftwareSerial serial(
@@ -234,12 +283,45 @@ constexpr uint8_t SERVO_PINS[SERVO_PIN_COUNT] = {
     11
 };
 
-Servo servoSlots[SERVO_PIN_COUNT];
+constexpr uint16_t SERVO_MIN_PULSE_US = 544;
+constexpr uint16_t SERVO_MAX_PULSE_US = 2400;
+constexpr uint16_t SERVO_TRIM_US = 2;
+
+constexpr uint16_t SERVO_FRAME_TICKS =
+    static_cast<uint16_t>(
+        TIMER1_TICKS_PER_SECOND /
+        50UL
+    );
+
+constexpr uint16_t TIMER1_TICKS_PER_MICROSECOND =
+    static_cast<uint16_t>(
+        TIMER1_TICKS_PER_SECOND /
+        1000000UL
+    );
+
+volatile bool servoAttached[
+    SERVO_PIN_COUNT
+] = {};
+
+volatile uint16_t servoPulseTicks[
+    SERVO_PIN_COUNT
+] = {};
+
+bool servoTimer1Initialized = false;
+
+volatile int8_t activeServoSlotIndex = -1;
+volatile uint16_t servoFrameStartedAt = 0;
 
 int8_t getServoSlotIndex(uint8_t pin) {
-    for (uint8_t index = 0; index < SERVO_PIN_COUNT; index++) {
+    for (
+        uint8_t index = 0;
+        index < SERVO_PIN_COUNT;
+        index++
+    ) {
         if (SERVO_PINS[index] == pin) {
-            return static_cast<int8_t>(index);
+            return static_cast<int8_t>(
+                index
+            );
         }
     }
 
@@ -247,8 +329,12 @@ int8_t getServoSlotIndex(uint8_t pin) {
 }
 
 bool hasAttachedServo() {
-    for (uint8_t index = 0; index < SERVO_PIN_COUNT; index++) {
-        if (servoSlots[index].attached()) {
+    for (
+        uint8_t index = 0;
+        index < SERVO_PIN_COUNT;
+        index++
+    ) {
+        if (servoAttached[index]) {
             return true;
         }
     }
@@ -262,8 +348,742 @@ bool isServoAttachedOnPin(uint8_t pin) {
 
     return (
         slotIndex >= 0 &&
-        servoSlots[slotIndex].attached()
+        servoAttached[slotIndex]
     );
+}
+
+uint8_t nextBluetoothBufferIndex(
+    uint8_t index
+) {
+    return static_cast<uint8_t>(
+        (index + 1) &
+        BT_SERIAL_BUFFER_MASK
+    );
+}
+
+bool timer1TimeReached(
+    uint16_t now,
+    uint16_t target
+) {
+    return static_cast<int16_t>(
+        now - target
+    ) >= 0;
+}
+
+void writeServoPinFast(
+    uint8_t pin,
+    bool high
+) {
+    switch (pin) {
+        case 3:
+            if (high) {
+                PORTD |= _BV(PD3);
+            } else {
+                PORTD &=
+                    static_cast<uint8_t>(
+                        ~_BV(PD3)
+                    );
+            }
+            break;
+
+        case 5:
+            if (high) {
+                PORTD |= _BV(PD5);
+            } else {
+                PORTD &=
+                    static_cast<uint8_t>(
+                        ~_BV(PD5)
+                    );
+            }
+            break;
+
+        case 6:
+            if (high) {
+                PORTD |= _BV(PD6);
+            } else {
+                PORTD &=
+                    static_cast<uint8_t>(
+                        ~_BV(PD6)
+                    );
+            }
+            break;
+
+        case 9:
+            if (high) {
+                PORTB |= _BV(PB1);
+            } else {
+                PORTB &=
+                    static_cast<uint8_t>(
+                        ~_BV(PB1)
+                    );
+            }
+            break;
+
+        case 10:
+            if (high) {
+                PORTB |= _BV(PB2);
+            } else {
+                PORTB &=
+                    static_cast<uint8_t>(
+                        ~_BV(PB2)
+                    );
+            }
+            break;
+
+        case 11:
+            if (high) {
+                PORTB |= _BV(PB3);
+            } else {
+                PORTB &=
+                    static_cast<uint8_t>(
+                        ~_BV(PB3)
+                    );
+            }
+            break;
+    }
+}
+
+int8_t findNextAttachedServoSlot(
+    uint8_t startIndex
+) {
+    for (
+        uint8_t index = startIndex;
+        index < SERVO_PIN_COUNT;
+        index++
+    ) {
+        if (servoAttached[index]) {
+            return static_cast<int8_t>(
+                index
+            );
+        }
+    }
+
+    return -1;
+}
+
+void configureServoTimer1() {
+    if (servoTimer1Initialized) {
+        return;
+    }
+
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    TCCR1A = 0;
+    TCCR1B = 0;
+
+    TIMSK1 = 0;
+
+    TCNT1 = 0;
+
+    activeServoSlotIndex = -1;
+    servoFrameStartedAt = 0;
+
+    OCR1A = 100;
+    OCR1B = 0;
+
+    TIFR1 =
+        _BV(OCF1A) |
+        _BV(OCF1B) |
+        _BV(TOV1);
+
+    TCCR1B =
+        _BV(CS11);
+
+    TIMSK1 |=
+        _BV(OCIE1A);
+
+    servoTimer1Initialized = true;
+
+    SREG =
+        oldSreg;
+}
+
+uint16_t servoAngleToPulseTicks(
+    uint8_t angle
+) {
+    const uint16_t pulseUs =
+        static_cast<uint16_t>(
+            map(
+                angle,
+                0,
+                180,
+                SERVO_MIN_PULSE_US,
+                SERVO_MAX_PULSE_US
+            )
+        );
+
+    const uint16_t trimmedPulseUs =
+        pulseUs > SERVO_TRIM_US ?
+            static_cast<uint16_t>(
+                pulseUs -
+                SERVO_TRIM_US
+            ) :
+            pulseUs;
+
+    return static_cast<uint16_t>(
+        trimmedPulseUs *
+        TIMER1_TICKS_PER_MICROSECOND
+    );
+}
+
+void setServoSlotAngle(
+    uint8_t slotIndex,
+    uint8_t angle
+) {
+    const bool firstAttachedServo =
+        !hasAttachedServo();
+
+    pinMode(
+        SERVO_PINS[slotIndex],
+        OUTPUT
+    );
+
+    digitalWrite(
+        SERVO_PINS[slotIndex],
+        LOW
+    );
+
+    const uint16_t pulseTicks =
+        servoAngleToPulseTicks(
+            angle
+        );
+
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    servoPulseTicks[slotIndex] =
+        pulseTicks;
+
+    servoAttached[slotIndex] =
+        true;
+
+    SREG =
+        oldSreg;
+
+    if (firstAttachedServo) {
+        configureServoTimer1();
+    }
+}
+
+void handleServoTimerCompareAInterrupt() {
+    const uint16_t now =
+        TCNT1;
+
+    if (activeServoSlotIndex >= 0) {
+        const uint8_t finishedSlot =
+            static_cast<uint8_t>(
+                activeServoSlotIndex
+            );
+
+        writeServoPinFast(
+            SERVO_PINS[finishedSlot],
+            false
+        );
+
+        const int8_t nextSlot =
+            findNextAttachedServoSlot(
+                static_cast<uint8_t>(
+                    finishedSlot + 1
+                )
+            );
+
+        if (nextSlot >= 0) {
+            activeServoSlotIndex =
+                nextSlot;
+
+            const uint8_t slot =
+                static_cast<uint8_t>(
+                    nextSlot
+                );
+
+            writeServoPinFast(
+                SERVO_PINS[slot],
+                true
+            );
+
+            OCR1A =
+                static_cast<uint16_t>(
+                    now +
+                    servoPulseTicks[slot]
+                );
+
+            return;
+        }
+
+        activeServoSlotIndex = -1;
+
+        const uint16_t elapsed =
+            static_cast<uint16_t>(
+                now -
+                servoFrameStartedAt
+            );
+
+        const uint16_t remaining =
+            elapsed < SERVO_FRAME_TICKS ?
+                static_cast<uint16_t>(
+                    SERVO_FRAME_TICKS -
+                    elapsed
+                ) :
+                1;
+
+        OCR1A =
+            static_cast<uint16_t>(
+                now +
+                remaining
+            );
+
+        return;
+    }
+
+    servoFrameStartedAt =
+        now;
+
+    const int8_t firstSlot =
+        findNextAttachedServoSlot(0);
+
+    if (firstSlot < 0) {
+        TIMSK1 &=
+            static_cast<uint8_t>(
+                ~_BV(OCIE1A)
+            );
+
+        return;
+    }
+
+    activeServoSlotIndex =
+        firstSlot;
+
+    const uint8_t slot =
+        static_cast<uint8_t>(
+            firstSlot
+        );
+
+    writeServoPinFast(
+        SERVO_PINS[slot],
+        true
+    );
+
+    OCR1A =
+        static_cast<uint16_t>(
+            now +
+            servoPulseTicks[slot]
+        );
+}
+
+void scheduleBluetoothCompareBUnsafe() {
+    if (
+        !bluetoothRxActive &&
+        !bluetoothTxActive
+    ) {
+        TIMSK1 &=
+            static_cast<uint8_t>(
+                ~_BV(OCIE1B)
+            );
+
+        return;
+    }
+
+    const uint16_t now =
+        TCNT1;
+
+    uint16_t nextAt;
+
+    if (
+        bluetoothRxActive &&
+        bluetoothTxActive
+    ) {
+        const uint16_t rxDelta =
+            static_cast<uint16_t>(
+                bluetoothRxNextAt -
+                now
+            );
+
+        const uint16_t txDelta =
+            static_cast<uint16_t>(
+                bluetoothTxNextAt -
+                now
+            );
+
+        nextAt =
+            rxDelta <= txDelta ?
+                bluetoothRxNextAt :
+                bluetoothTxNextAt;
+    } else if (bluetoothRxActive) {
+        nextAt =
+            bluetoothRxNextAt;
+    } else {
+        nextAt =
+            bluetoothTxNextAt;
+    }
+
+    OCR1B =
+        nextAt;
+
+    TIFR1 =
+        _BV(OCF1B);
+
+    TIMSK1 |=
+        _BV(OCIE1B);
+}
+
+void startNextBluetoothTxUnsafe(
+    uint16_t now
+) {
+    if (
+        bluetoothTxHead ==
+        bluetoothTxTail
+    ) {
+        bluetoothTxActive =
+            false;
+
+        return;
+    }
+
+    bluetoothTxByte =
+        bluetoothTxBuffer[
+            bluetoothTxTail
+        ];
+
+    bluetoothTxTail =
+        nextBluetoothBufferIndex(
+            bluetoothTxTail
+        );
+
+    bluetoothTxBitIndex = 0;
+    bluetoothTxActive = true;
+
+    PORTD &=
+        static_cast<uint8_t>(
+            ~_BV(PD3)
+        );
+
+    bluetoothTxNextAt =
+        static_cast<uint16_t>(
+            now +
+            BT_SERIAL_BIT_TICKS
+        );
+}
+
+bool enqueueBluetoothServoSafeTx(
+    const uint8_t *data,
+    uint8_t length
+) {
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    const uint8_t used =
+        static_cast<uint8_t>(
+            (
+                bluetoothTxHead -
+                bluetoothTxTail
+            ) &
+            BT_SERIAL_BUFFER_MASK
+        );
+
+    const uint8_t freeSpace =
+        static_cast<uint8_t>(
+            (
+                BT_SERIAL_BUFFER_SIZE -
+                1
+            ) -
+            used
+        );
+
+    if (length > freeSpace) {
+        SREG =
+            oldSreg;
+
+        return false;
+    }
+
+    for (
+        uint8_t index = 0;
+        index < length;
+        index++
+    ) {
+        bluetoothTxBuffer[
+            bluetoothTxHead
+        ] = data[index];
+
+        bluetoothTxHead =
+            nextBluetoothBufferIndex(
+                bluetoothTxHead
+            );
+    }
+
+    if (!bluetoothTxActive) {
+        startNextBluetoothTxUnsafe(
+            TCNT1
+        );
+
+        scheduleBluetoothCompareBUnsafe();
+    }
+
+    SREG =
+        oldSreg;
+
+    return true;
+}
+
+bool dequeueBluetoothServoSafeRx(
+    uint8_t &value
+) {
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    if (
+        bluetoothRxHead ==
+        bluetoothRxTail
+    ) {
+        SREG =
+            oldSreg;
+
+        return false;
+    }
+
+    value =
+        bluetoothRxBuffer[
+            bluetoothRxTail
+        ];
+
+    bluetoothRxTail =
+        nextBluetoothBufferIndex(
+            bluetoothRxTail
+        );
+
+    SREG =
+        oldSreg;
+
+    return true;
+}
+
+void activateBluetoothServoSafeTransport() {
+    if (
+        bluetoothServoSafeTransportActive ||
+        !servoTimer1Initialized
+    ) {
+        return;
+    }
+
+    if (bluetoothSerialInitialized) {
+        getBluetoothSerial().end();
+    }
+
+    pinMode(
+        BT_SERIAL_RX_PIN,
+        INPUT_PULLUP
+    );
+
+    pinMode(
+        BT_SERIAL_TX_PIN,
+        OUTPUT
+    );
+
+    digitalWrite(
+        BT_SERIAL_TX_PIN,
+        HIGH
+    );
+
+    const uint8_t oldSreg =
+        SREG;
+
+    cli();
+
+    bluetoothRxActive = false;
+    bluetoothRxBitIndex = 0;
+    bluetoothRxByte = 0;
+
+    bluetoothRxHead = 0;
+    bluetoothRxTail = 0;
+
+    bluetoothTxActive = false;
+    bluetoothTxBitIndex = 0;
+    bluetoothTxByte = 0;
+
+    bluetoothTxHead = 0;
+    bluetoothTxTail = 0;
+
+    EICRA &=
+        static_cast<uint8_t>(
+            ~(
+                _BV(ISC01) |
+                _BV(ISC00)
+            )
+        );
+
+    EICRA |=
+        _BV(ISC01);
+
+    EIFR =
+        _BV(INTF0);
+
+    bluetoothServoSafeTransportActive =
+        true;
+
+    EIMSK |=
+        _BV(INT0);
+
+    SREG =
+        oldSreg;
+}
+
+void handleBluetoothRxStartInterrupt() {
+    if (!bluetoothServoSafeTransportActive) {
+        return;
+    }
+
+    EIMSK &=
+        static_cast<uint8_t>(
+            ~_BV(INT0)
+        );
+
+    bluetoothRxActive = true;
+    bluetoothRxBitIndex = 0;
+    bluetoothRxByte = 0;
+
+    bluetoothRxNextAt =
+        static_cast<uint16_t>(
+            TCNT1 +
+            BT_SERIAL_FIRST_SAMPLE_TICKS
+        );
+
+    scheduleBluetoothCompareBUnsafe();
+}
+
+void handleBluetoothTimer1CompareBInterrupt() {
+    const uint16_t now =
+        TCNT1;
+
+    if (
+        bluetoothRxActive &&
+        timer1TimeReached(
+            now,
+            bluetoothRxNextAt
+        )
+    ) {
+        if (bluetoothRxBitIndex < 8) {
+            if (
+                PIND &
+                _BV(PD2)
+            ) {
+                bluetoothRxByte |=
+                    static_cast<uint8_t>(
+                        1U <<
+                        bluetoothRxBitIndex
+                    );
+            }
+
+            bluetoothRxBitIndex++;
+
+            bluetoothRxNextAt =
+                static_cast<uint16_t>(
+                    bluetoothRxNextAt +
+                    BT_SERIAL_BIT_TICKS
+                );
+        } else {
+            const bool stopBitHigh =
+                (
+                    PIND &
+                    _BV(PD2)
+                ) != 0;
+
+            if (stopBitHigh) {
+                const uint8_t nextHead =
+                    nextBluetoothBufferIndex(
+                        bluetoothRxHead
+                    );
+
+                if (
+                    nextHead !=
+                    bluetoothRxTail
+                ) {
+                    bluetoothRxBuffer[
+                        bluetoothRxHead
+                    ] = bluetoothRxByte;
+
+                    bluetoothRxHead =
+                        nextHead;
+                }
+            }
+
+            bluetoothRxActive =
+                false;
+
+            EIFR =
+                _BV(INTF0);
+
+            EIMSK |=
+                _BV(INT0);
+        }
+    }
+
+    if (
+        bluetoothTxActive &&
+        timer1TimeReached(
+            now,
+            bluetoothTxNextAt
+        )
+    ) {
+        if (bluetoothTxBitIndex < 8) {
+            const bool bitHigh =
+                (
+                    bluetoothTxByte &
+                    static_cast<uint8_t>(
+                        1U <<
+                        bluetoothTxBitIndex
+                    )
+                ) != 0;
+
+            if (bitHigh) {
+                PORTD |=
+                    _BV(PD3);
+            } else {
+                PORTD &=
+                    static_cast<uint8_t>(
+                        ~_BV(PD3)
+                    );
+            }
+
+            bluetoothTxBitIndex++;
+
+            bluetoothTxNextAt =
+                static_cast<uint16_t>(
+                    bluetoothTxNextAt +
+                    BT_SERIAL_BIT_TICKS
+                );
+        } else if (
+            bluetoothTxBitIndex == 8
+        ) {
+            PORTD |=
+                _BV(PD3);
+
+            bluetoothTxBitIndex++;
+
+            bluetoothTxNextAt =
+                static_cast<uint16_t>(
+                    bluetoothTxNextAt +
+                    BT_SERIAL_BIT_TICKS
+                );
+        } else {
+            bluetoothTxActive =
+                false;
+
+            startNextBluetoothTxUnsafe(
+                now
+            );
+        }
+    }
+
+    scheduleBluetoothCompareBUnsafe();
 }
 
 void writeMax7219Register(
@@ -1399,7 +2219,11 @@ void handleServoWrite() {
     if (
         slotIndex < 0 ||
         angle > 180 ||
-        activeTonePin == pin
+        activeTonePin == pin ||
+        (
+            bluetoothSerialInitialized &&
+            pin == BT_SERIAL_TX_PIN
+        )
     ) {
         sendFrame(
             sequence,
@@ -1408,14 +2232,19 @@ void handleServoWrite() {
         return;
     }
 
-    Servo &servo =
-        servoSlots[slotIndex];
+    setServoSlotAngle(
+        static_cast<uint8_t>(
+            slotIndex
+        ),
+        angle
+    );
 
-    if (!servo.attached()) {
-        servo.attach(pin);
+    if (
+        bluetoothSerialInitialized &&
+        !bluetoothServoSafeTransportActive
+    ) {
+        activateBluetoothServoSafeTransport();
     }
-
-    servo.write(angle);
 
     sendFrame(
         sequence,
@@ -2274,7 +3103,12 @@ void handleRelayWrite() {
 }
 
 void handleBluetoothSerialInit() {
-    if (payloadLength != 0) {
+    if (
+        payloadLength != 0 ||
+        isServoAttachedOnPin(
+            BT_SERIAL_TX_PIN
+        )
+    ) {
         sendFrame(
             sequence,
             RESPONSE_ERROR
@@ -2282,13 +3116,22 @@ void handleBluetoothSerialInit() {
         return;
     }
 
-    SoftwareSerial &serial =
-        getBluetoothSerial();
-
     if (!bluetoothSerialInitialized) {
-        serial.begin(BT_SERIAL_BAUD_RATE);
-        serial.listen();
-        bluetoothSerialInitialized = true;
+        if (hasAttachedServo()) {
+            activateBluetoothServoSafeTransport();
+        } else {
+            SoftwareSerial &serial =
+                getBluetoothSerial();
+
+            serial.begin(
+                BT_SERIAL_BAUD_RATE
+            );
+
+            serial.listen();
+        }
+
+        bluetoothSerialInitialized =
+            true;
     }
 
     sendFrame(
@@ -2309,6 +3152,24 @@ void handleBluetoothSerialWrite() {
         return;
     }
 
+    if (
+        bluetoothServoSafeTransportActive
+    ) {
+        if (
+            !enqueueBluetoothServoSafeTx(
+                payload,
+                payloadLength
+            )
+        ) {
+            sendFrame(
+                sequence,
+                RESPONSE_ERROR
+            );
+        }
+
+        return;
+    }
+
     SoftwareSerial &serial =
         getBluetoothSerial();
 
@@ -2323,24 +3184,46 @@ void processBluetoothSerialInput() {
         return;
     }
 
-    SoftwareSerial &serial =
-        getBluetoothSerial();
+    uint8_t data[
+        MAX_PAYLOAD_LENGTH
+    ];
 
-    if (serial.available() <= 0) {
-        return;
-    }
-
-    uint8_t data[MAX_PAYLOAD_LENGTH];
     uint8_t dataLength = 0;
 
-    while (
-        serial.available() > 0 &&
-        dataLength < MAX_PAYLOAD_LENGTH
+    if (
+        bluetoothServoSafeTransportActive
     ) {
-        data[dataLength++] =
-            static_cast<uint8_t>(
-                serial.read()
-            );
+        while (
+            dataLength <
+            MAX_PAYLOAD_LENGTH
+        ) {
+            uint8_t value;
+
+            if (
+                !dequeueBluetoothServoSafeRx(
+                    value
+                )
+            ) {
+                break;
+            }
+
+            data[dataLength++] =
+                value;
+        }
+    } else {
+        SoftwareSerial &serial =
+            getBluetoothSerial();
+
+        while (
+            serial.available() > 0 &&
+            dataLength <
+            MAX_PAYLOAD_LENGTH
+        ) {
+            data[dataLength++] =
+                static_cast<uint8_t>(
+                    serial.read()
+                );
+        }
     }
 
     if (dataLength == 0) {
@@ -2564,6 +3447,21 @@ void processByte(uint8_t value) {
 }
 
 } // namespace EasyBloxStage
+
+ISR(INT0_vect) {
+    EasyBloxStage::
+        handleBluetoothRxStartInterrupt();
+}
+
+ISR(TIMER1_COMPA_vect) {
+    EasyBloxStage::
+        handleServoTimerCompareAInterrupt();
+}
+
+ISR(TIMER1_COMPB_vect) {
+    EasyBloxStage::
+        handleBluetoothTimer1CompareBInterrupt();
+}
 
 void setup() {
     Serial.begin(115200);

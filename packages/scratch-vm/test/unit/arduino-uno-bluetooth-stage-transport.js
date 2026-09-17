@@ -72,8 +72,8 @@ tap.test(
 
         t.equal(
             STAGE_FIRMWARE_COMPATIBILITY_VERSION,
-            0x02,
-            'Bluetooth transport requires Stage firmware compatibility v2'
+            0x03,
+            'Bluetooth transport requires Stage firmware compatibility v3'
         );
 
         t.end();
@@ -287,7 +287,7 @@ tap.test(
 );
 
 tap.test(
-    'Arduino UNO Stage firmware defines the Bluetooth serial byte bridge',
+    'Arduino UNO Stage firmware defines the servo-safe Bluetooth UART bridge',
     t => {
         const firmwarePath = path.resolve(
             __dirname,
@@ -300,82 +300,132 @@ tap.test(
                 'utf8'
             );
 
-        t.match(
-            firmware,
-            /#include\s+<SoftwareSerial\.h>/,
-            'firmware includes SoftwareSerial'
+        t.equal(
+            STAGE_FIRMWARE_COMPATIBILITY_VERSION,
+            0x03,
+            'host expects Stage firmware compatibility version 3'
         );
 
         t.match(
             firmware,
-            /STAGE_FIRMWARE_COMPATIBILITY_VERSION\s*=\s*0x02/,
-            'firmware declares compatibility version 2'
+            /#include\s+<SoftwareSerial\.h>/,
+            'firmware preserves SoftwareSerial while no Servo is active'
+        );
+
+        t.equal(
+            /#include\s+<Servo\.h>/.test(firmware),
+            false,
+            'firmware owns Servo timing instead of Servo.h'
+        );
+
+        t.match(
+            firmware,
+            /STAGE_FIRMWARE_COMPATIBILITY_VERSION\s*=\s*0x03/,
+            'firmware declares compatibility version 3'
         );
 
         t.match(
             firmware,
             /COMMAND_BT_SERIAL_INIT\s*=\s*0x26/,
-            'firmware declares Bluetooth init command'
+            'firmware preserves Bluetooth init command'
         );
 
         t.match(
             firmware,
             /COMMAND_BT_SERIAL_WRITE\s*=\s*0x27/,
-            'firmware declares Bluetooth write command'
+            'firmware preserves Bluetooth write command'
         );
 
         t.match(
             firmware,
             /RESPONSE_BT_SERIAL_DATA\s*=\s*0x97/,
-            'firmware declares asynchronous Bluetooth data response'
+            'firmware preserves asynchronous Bluetooth data response'
         );
 
         t.match(
             firmware,
             /BT_SERIAL_RX_PIN\s*=\s*2/,
-            'Bluetooth RX is fixed to D2'
+            'Bluetooth RX remains fixed to D2'
         );
 
         t.match(
             firmware,
             /BT_SERIAL_TX_PIN\s*=\s*3/,
-            'Bluetooth TX is fixed to D3'
+            'Bluetooth TX remains fixed to D3'
         );
 
         t.match(
             firmware,
             /BT_SERIAL_BAUD_RATE\s*=\s*9600/,
-            'Bluetooth UART is fixed to 9600 baud'
+            'Bluetooth UART remains fixed to 9600 baud'
         );
 
         t.match(
             firmware,
-            /static\s+SoftwareSerial\s+\w+\s*\(\s*BT_SERIAL_RX_PIN\s*,\s*BT_SERIAL_TX_PIN\s*\)/,
-            'SoftwareSerial is constructed lazily on first Bluetooth initialization'
+            /SERVO_PIN_COUNT\s*=\s*6/,
+            'firmware preserves the six canonical Servo slots'
         );
 
         t.match(
             firmware,
-            /\.begin\(\s*BT_SERIAL_BAUD_RATE\s*\)/,
-            'Bluetooth UART starts only through explicit initialization'
+            /SERVO_PINS\s*\[\s*SERVO_PIN_COUNT\s*\]\s*=\s*\{[\s\S]*3,[\s\S]*5,[\s\S]*6,[\s\S]*9,[\s\S]*10,[\s\S]*11[\s\S]*\}/,
+            'firmware preserves the canonical Servo pin set'
+        );
+
+        t.match(
+            firmware,
+            /bluetoothServoSafeTransportActive/,
+            'firmware tracks the Servo-safe Bluetooth transport'
+        );
+
+        t.match(
+            firmware,
+            /activateBluetoothServoSafeTransport\s*\(\s*\)/,
+            'firmware can migrate Bluetooth to the Servo-safe transport'
+        );
+
+        t.match(
+            firmware,
+            /ISR\s*\(\s*INT0_vect\s*\)/,
+            'Servo-safe Bluetooth RX uses the D2 external interrupt'
+        );
+
+        t.match(
+            firmware,
+            /ISR\s*\(\s*TIMER1_COMPA_vect\s*\)/,
+            'Timer1 compare A drives the internal Servo scheduler'
+        );
+
+        t.match(
+            firmware,
+            /ISR\s*\(\s*TIMER1_COMPB_vect\s*\)/,
+            'Timer1 compare B drives Servo-safe Bluetooth UART timing'
+        );
+
+        t.equal(
+            /\b(?:TCCR2A|TCCR2B|TIMSK2|OCR2A|OCR2B|TCNT2)\b/.test(
+                firmware
+            ),
+            false,
+            'Servo-safe Bluetooth UART leaves Timer2 registers untouched'
         );
 
         t.match(
             firmware,
             /command\s*==\s*COMMAND_BT_SERIAL_INIT/,
-            'Stage dispatcher handles Bluetooth initialization'
+            'Stage dispatcher preserves Bluetooth initialization'
         );
 
         t.match(
             firmware,
             /command\s*==\s*COMMAND_BT_SERIAL_WRITE/,
-            'Stage dispatcher handles Bluetooth transport writes'
+            'Stage dispatcher preserves Bluetooth transport writes'
         );
 
         t.match(
             firmware,
             /RESPONSE_BT_SERIAL_DATA/,
-            'firmware can emit Bluetooth transport data'
+            'firmware can still emit Bluetooth transport data'
         );
 
         t.end();
