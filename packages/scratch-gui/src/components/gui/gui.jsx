@@ -31,7 +31,7 @@ import DragLayer from '../../containers/drag-layer.jsx';
 import ConnectionModal from '../../containers/connection-modal.jsx';
 import TelemetryModal from '../telemetry-modal/telemetry-modal.jsx';
 import BoardSelectionModal from '../board-selection-modal/board-selection-modal.jsx';
-import ControllerDesktopWindow from '../../containers/controller-desktop-window.jsx';
+import EasyConectDesktopWindow from '../../containers/easyconect-desktop-window.jsx';
 import UploadWorkspace from '../upload-workspace/upload-workspace.jsx';
 import EasyBloxHardwareServiceClient from '../../lib/easyblox-hardware-service-client';
 import {runEasyBloxUpload} from '../../lib/easyblox-upload-workflow';
@@ -1350,7 +1350,7 @@ export const GUIComponent = props => {
                         />
                     </MenuRefProvider>
                     }
-                    <ControllerDesktopWindow />
+                    <EasyConectDesktopWindow />
                     <Box className={classNames(boxStyles, styles.flexWrapper)}>
                         <Box
                             role="main"

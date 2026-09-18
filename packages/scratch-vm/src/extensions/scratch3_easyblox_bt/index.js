@@ -466,7 +466,7 @@ class Scratch3EasyBloxBtBlocks {
                 '---',
                 {
                     blockType: BlockType.LABEL,
-                    text: 'GAMEPAD'
+                    text: 'Gamepad'
                 },
                 {
                     opcode:
@@ -495,7 +495,7 @@ class Scratch3EasyBloxBtBlocks {
                 {
                     blockType:
                         BlockType.LABEL,
-                    text: 'CONTROLES'
+                    text: 'Controles'
                 },
                 {
                     opcode:
@@ -561,7 +561,7 @@ class Scratch3EasyBloxBtBlocks {
                     blockType:
                         BlockType.LABEL,
                     text:
-                        'MOTORES & SERVO'
+                        'Motores e Servos'
                 },
                 {
                     opcode:

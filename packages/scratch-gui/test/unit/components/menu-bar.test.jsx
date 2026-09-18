@@ -194,14 +194,14 @@ describe('MenuBar Component', () => {
     });
 
     describe('Controller active state', () => {
-        test('keeps the Controller button active while Bluetooth remains connected with the window closed', () => {
+        test('keeps the EasyConect button active while Bluetooth remains connected with the window closed', () => {
             const {
                 getByRole
             } = renderWithIntl(
                 getComponent({
-                    controllerOpen:
+                    easyConectOpen:
                         false,
-                    controllerConnected:
+                    easyConectConnected:
                         true
                 })
             );
@@ -211,7 +211,7 @@ describe('MenuBar Component', () => {
                     'button',
                     {
                         name:
-                            'Controlador'
+                            'EasyConect'
                     }
                 ).getAttribute(
                     'aria-pressed'
@@ -221,14 +221,14 @@ describe('MenuBar Component', () => {
             );
         });
 
-        test('leaves the Controller button inactive when the window and Bluetooth session are both inactive', () => {
+        test('leaves the EasyConect button inactive when the window and Bluetooth session are both inactive', () => {
             const {
                 getByRole
             } = renderWithIntl(
                 getComponent({
-                    controllerOpen:
+                    easyConectOpen:
                         false,
-                    controllerConnected:
+                    easyConectConnected:
                         false
                 })
             );
@@ -238,7 +238,7 @@ describe('MenuBar Component', () => {
                     'button',
                     {
                         name:
-                            'Controlador'
+                            'EasyConect'
                     }
                 ).getAttribute(
                     'aria-pressed'
@@ -281,8 +281,8 @@ describe('MenuBar Component', () => {
         });
     });
 
-    describe('EasyBlox Controller integration', () => {
-        test('shows the Controller action in the top bar', () => {
+    describe('EasyConect integration', () => {
+        test('shows the EasyConect action in the top bar', () => {
             const {getByRole} =
                 renderWithIntl(
                     getComponent()
@@ -293,20 +293,20 @@ describe('MenuBar Component', () => {
                     'button',
                     {
                         name:
-                            'Controlador'
+                            'EasyConect'
                     }
                 )
             ).toBeTruthy();
         });
 
-        test('clicking Controller delegates window toggling to the GUI state layer', () => {
-            const onToggleController =
+        test('clicking EasyConect delegates window toggling to the GUI state layer', () => {
+            const onToggleEasyConect =
                 jest.fn();
 
             const {getByRole} =
                 renderWithIntl(
                     getComponent({
-                        onToggleController
+                        onToggleEasyConect
                     })
                 );
 
@@ -315,31 +315,31 @@ describe('MenuBar Component', () => {
                     'button',
                     {
                         name:
-                            'Controlador'
+                            'EasyConect'
                     }
                 )
             );
 
             expect(
-                onToggleController
+                onToggleEasyConect
             ).toHaveBeenCalledTimes(1);
         });
 
-        test('Controller action reflects open state and stays before the hardware controls', () => {
+        test('EasyConect action reflects open state and stays before the hardware controls', () => {
             const {getByRole} =
                 renderWithIntl(
                     getComponent({
-                        controllerOpen:
+                        easyConectOpen:
                             true
                     })
                 );
 
-            const controllerButton =
+            const easyConectButton =
                 getByRole(
                     'button',
                     {
                         name:
-                            'Controlador'
+                            'EasyConect'
                     }
                 );
 
@@ -353,14 +353,14 @@ describe('MenuBar Component', () => {
                 );
 
             expect(
-                controllerButton
+                easyConectButton
                     .getAttribute(
                         'aria-pressed'
                     )
             ).toBe('true');
 
             expect(
-                controllerButton
+                easyConectButton
                     .compareDocumentPosition(
                         boardButton
                     ) &

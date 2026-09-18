@@ -49,10 +49,10 @@ import {
 import createEasyBloxProjectFileService from '../../lib/easyblox-project-file-service';
 import downloadBlob from '../../lib/download-blob';
 import {
-    isControllerConnected,
-    isControllerOpen,
-    toggleController
-} from '../../reducers/controller-desktop';
+    isEasyConectConnected,
+    isEasyConectOpen,
+    toggleEasyConect
+} from '../../reducers/easyconect-desktop';
 
 import {projectTitleInitialState} from '../../reducers/project-title';
 import {PLATFORM} from '../../lib/platform';
@@ -339,9 +339,9 @@ class MenuBar extends React.Component {
         }
     }
     render () {
-        const controllerActive =
-            this.props.controllerOpen ||
-            this.props.controllerConnected;
+        const easyConectActive =
+            this.props.easyConectOpen ||
+            this.props.easyConectConnected;
 
         const remixMessage = (
             <FormattedMessage
@@ -477,24 +477,25 @@ class MenuBar extends React.Component {
                     </button>
                 </div>
 
-                               <div className={styles.rightControlsGroup}>
-                               <button
-                        aria-label="Controlador"
-                        aria-pressed={controllerActive}
+                <div className={styles.rightControlsGroup}>
+                    <button
+                        aria-label="EasyConect"
+                        aria-pressed={easyConectActive}
                         className={classNames(
                             styles.menuBarItem,
                             styles.controllerButton,
                             {
                                 [styles.controllerButtonActive]:
-                                    controllerActive
+                                    easyConectActive
                             }
                         )}
-                        title="Controlador"
+                        title="EasyConect"
                         type="button"
-                        onClick={this.props.onToggleController}
+                        onClick={this.props.onToggleEasyConect}
                     >
-                        Controlador
+                        EasyConect
                     </button>
+
                     <div className={styles.hardwareControlGroup}>
                         <HardwareControls
                             connectionState={this.props.connectionState}
@@ -603,9 +604,9 @@ MenuBar.propTypes = {
     onShare: PropTypes.func,
     onStartSelectingFileUpload: PropTypes.func,
     onToggleLoginOpen: PropTypes.func,
-    controllerConnected: PropTypes.bool,
-    controllerOpen: PropTypes.bool,
-    onToggleController: PropTypes.func,
+    easyConectConnected: PropTypes.bool,
+    easyConectOpen: PropTypes.bool,
+    onToggleEasyConect: PropTypes.func,
 
     connectionState: PropTypes.oneOf([
         'disconnected',
@@ -651,8 +652,8 @@ MenuBar.propTypes = {
 MenuBar.defaultProps = {
     logo: scratchLogo,
     onShare: () => {},
-    controllerConnected: false,
-    controllerOpen: false,
+    easyConectConnected: false,
+    easyConectOpen: false,
     programMode: 'stage',
     connectionState: 'disconnected',
     onSelectBoard: () => {},
@@ -677,12 +678,12 @@ const mapStateToProps = (state, ownProps) => {
         isShowingProject: getIsShowingProject(loadingState),
         loginMenuOpen: loginMenuOpen(state),
         projectTitle: state.scratchGui.projectTitle,
-        controllerConnected:
-            ownProps.controllerConnected ??
-            isControllerConnected(state),
-        controllerOpen:
-            ownProps.controllerOpen ??
-            isControllerOpen(state),
+        easyConectConnected:
+            ownProps.easyConectConnected ??
+            isEasyConectConnected(state),
+        easyConectOpen:
+            ownProps.easyConectOpen ??
+            isEasyConectOpen(state),
         username: ownProps.username ?? (user ? user.username : null),
         avatarBadge: ownProps.avatarBadge ?? (user ? user.membership_avatar_badge : null),
         userIsEducator: permissions && permissions.educator,
@@ -724,9 +725,9 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
     onRequestCloseLogin: () => dispatch(closeLoginMenu()),
     onSeeCommunity: ownProps.onSeeCommunity ?? (() => dispatch(setPlayer(true))),
     onSetTimeTravelMode: mode => dispatch(setTimeTravel(mode)),
-    onToggleController:
-        ownProps.onToggleController ??
-        (() => dispatch(toggleController()))
+    onToggleEasyConect:
+        ownProps.onToggleEasyConect ??
+        (() => dispatch(toggleEasyConect()))
 });
 
 export default compose(

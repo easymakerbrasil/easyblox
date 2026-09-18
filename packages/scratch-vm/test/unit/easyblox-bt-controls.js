@@ -55,9 +55,9 @@ tap.test(
             labels,
             [
                 'Comunicação',
-                'GAMEPAD',
-                'CONTROLES',
-                'MOTORES & SERVO'
+                'Gamepad',
+                'Controles',
+                'Motores e Servos'
             ]
         );
 
