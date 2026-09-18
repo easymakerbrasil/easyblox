@@ -11,6 +11,9 @@ const ORIGIN =
     'http://localhost:8601';
 
 const PROTOCOL =
+    'easyconect-v1';
+
+const LEGACY_CONTROLLER_PROTOCOL =
     'easyblox-controller-v1';
 
 class FakeBluetoothTransport {
@@ -314,6 +317,46 @@ test('Hardware service upgrades an approved Bluetooth WebSocket and bridges bina
     }
 });
 
+test('Hardware service temporarily accepts the legacy Controller Bluetooth subprotocol', async () => {
+    const {
+        server,
+        port
+    } = await startServer({
+        bluetoothTransportFactory:
+            () =>
+                new FakeBluetoothTransport()
+    });
+
+    let socket;
+
+    try {
+        socket =
+            await openBluetoothSocket({
+                port,
+                protocol:
+                    LEGACY_CONTROLLER_PROTOCOL
+            });
+
+        assert.equal(
+            socket.protocol,
+            LEGACY_CONTROLLER_PROTOCOL
+        );
+    } finally {
+        if (socket) {
+            socket.close();
+
+            await new Promise(resolve => {
+                socket.once(
+                    'close',
+                    resolve
+                );
+            });
+        }
+
+        await server.close();
+    }
+});
+
 test('Hardware service rejects a Bluetooth WebSocket from an unapproved origin', async () => {
     let transportCreations = 0;
 
@@ -371,7 +414,7 @@ test('Hardware service rejects a Bluetooth WebSocket without a valid device id',
     }
 });
 
-test('Hardware service rejects a Bluetooth WebSocket without the Controller subprotocol', async () => {
+test('Hardware service rejects a Bluetooth WebSocket without a supported subprotocol', async () => {
     const {
         server,
         port

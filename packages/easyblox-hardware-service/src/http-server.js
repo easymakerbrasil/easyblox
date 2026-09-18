@@ -24,8 +24,18 @@ const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 
 const BLUETOOTH_WEBSOCKET_PATH =
     '/v1/bluetooth';
-const BLUETOOTH_WEBSOCKET_PROTOCOL =
+
+const EASYCONECT_BLUETOOTH_WEBSOCKET_PROTOCOL =
+    'easyconect-v1';
+
+const LEGACY_CONTROLLER_BLUETOOTH_WEBSOCKET_PROTOCOL =
     'easyblox-controller-v1';
+
+const BLUETOOTH_WEBSOCKET_PROTOCOLS =
+    Object.freeze([
+        EASYCONECT_BLUETOOTH_WEBSOCKET_PROTOCOL,
+        LEGACY_CONTROLLER_BLUETOOTH_WEBSOCKET_PROTOCOL
+    ]);
 
 const DEFAULT_ALLOWED_ORIGINS = Object.freeze([
     'http://localhost:8601',
@@ -886,14 +896,21 @@ class HardwareHttpServer {
             return false;
         }
 
-        return header
-            .split(',')
-            .map(protocol =>
-                protocol.trim()
+        const protocols =
+            header
+                .split(',')
+                .map(protocol =>
+                    protocol.trim()
+                )
+                .filter(Boolean);
+
+        return (
+            protocols.length > 0 &&
+            protocols.every(protocol =>
+                BLUETOOTH_WEBSOCKET_PROTOCOLS
+                    .includes(protocol)
             )
-            .includes(
-                BLUETOOTH_WEBSOCKET_PROTOCOL
-            );
+        );
     }
 
     _isAllowedOrigin (origin) {
