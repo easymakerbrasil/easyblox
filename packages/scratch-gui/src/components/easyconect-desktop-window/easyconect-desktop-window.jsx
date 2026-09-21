@@ -635,6 +635,105 @@ EasyConectTerminal.propTypes = {
         })
 };
 
+const EasyConectOutputs = ({
+    outputsSession
+}) => {
+    const [
+        indicator,
+        setIndicator
+    ] = React.useState(false);
+
+    React.useEffect(
+        () => {
+            if (outputsSession) {
+                setIndicator(
+                    Boolean(
+                        outputsSession
+                            .getIndicator()
+                    )
+                );
+
+                return outputsSession
+                    .onIndicatorChange(
+                        value => {
+                            setIndicator(
+                                Boolean(value)
+                            );
+                        }
+                    );
+            }
+
+            setIndicator(false);
+
+            return NOOP;
+        },
+        [outputsSession]
+    );
+
+    return (
+        <div className={styles.outputsWorkspace}>
+            {outputsSession ? null : (
+                <p
+                    className={
+                        styles.outputsUnavailable
+                    }
+                >
+                    Conecte o Bluetooth para usar Saídas.
+                </p>
+            )}
+
+            <div
+                className={
+                    styles.outputsIndicatorCard
+                }
+            >
+                <span
+                    aria-hidden="true"
+                    className={
+                        indicator ?
+                            `${styles.outputsIndicatorLight} ${styles.outputsIndicatorLightOn}` :
+                            styles.outputsIndicatorLight
+                    }
+                />
+
+                <div
+                    className={
+                        styles.outputsIndicatorCopy
+                    }
+                >
+                    <strong
+                        className={
+                            styles.outputsIndicatorTitle
+                        }
+                    >
+                        Indicador
+                    </strong>
+
+                    <span
+                        className={
+                            styles.outputsIndicatorState
+                        }
+                    >
+                        {indicator ?
+                            'Ligado' :
+                            'Desligado'}
+                    </span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+EasyConectOutputs.propTypes = {
+    outputsSession:
+        PropTypes.shape({
+            getIndicator:
+                PropTypes.func.isRequired,
+            onIndicatorChange:
+                PropTypes.func.isRequired
+        })
+};
+
 const EasyConectDesktopWindow = ({
     connectionState = DEFAULT_CONNECTION_STATE,
     isOpen = false,
@@ -642,6 +741,7 @@ const EasyConectDesktopWindow = ({
     onDisconnect = NOOP,
     onRequestClose,
     onSelectDevice = NOOP,
+    outputsSession = null,
     terminalSession = null
 }) => {
     const [
@@ -879,7 +979,17 @@ const EasyConectDesktopWindow = ({
                                     terminalSession
                                 }
                             />
-                        ) : (
+                        ) : null}
+
+                        {activeModule === 'Saídas' ? (
+                            <EasyConectOutputs
+                                outputsSession={
+                                    outputsSession
+                                }
+                            />
+                        ) : null}
+
+                        {activeModule === 'Terminal' || activeModule === 'Saídas' ? null : (
                             <div
                                 className={styles.moduleWorkspace}
                             >
@@ -955,6 +1065,13 @@ EasyConectDesktopWindow.propTypes = {
         PropTypes.func.isRequired,
     onSelectDevice:
         PropTypes.func,
+    outputsSession:
+        PropTypes.shape({
+            getIndicator:
+                PropTypes.func.isRequired,
+            onIndicatorChange:
+                PropTypes.func.isRequired
+        }),
     terminalSession:
         PropTypes.shape({
             clearHistory:

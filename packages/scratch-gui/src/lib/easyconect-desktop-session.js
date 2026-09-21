@@ -1,4 +1,5 @@
 import {
+    EasyConectOutputsSession,
     EasyConectTerminalSession
 } from '@easymaker/easyconect-core';
 
@@ -31,6 +32,15 @@ class EasyConectDesktopSession {
                     })
             );
 
+        this._outputsSessionFactory =
+            options.outputsSessionFactory ||
+            (
+                connection =>
+                    new EasyConectOutputsSession({
+                        connection
+                    })
+            );
+
         this._state =
             createDisconnectedState(
                 null
@@ -43,6 +53,9 @@ class EasyConectDesktopSession {
             new Map();
 
         this._terminalSession =
+            null;
+
+        this._outputsSession =
             null;
 
         this._connectionGeneration =
@@ -79,6 +92,10 @@ class EasyConectDesktopSession {
 
     getTerminalSession () {
         return this._terminalSession;
+    }
+
+    getOutputsSession () {
+        return this._outputsSession;
     }
 
     onStateChange (listener) {
@@ -259,6 +276,8 @@ class EasyConectDesktopSession {
             this._state.status !==
                 'disconnected' ||
             this._terminalSession !==
+                null ||
+            this._outputsSession !==
                 null;
 
         const pendingConnectPromise =
@@ -266,6 +285,7 @@ class EasyConectDesktopSession {
 
         this._connectionGeneration += 1;
         this._terminalSession = null;
+        this._outputsSession = null;
         this._deviceChoices.clear();
 
         if (!wasActive) {
@@ -305,6 +325,7 @@ class EasyConectDesktopSession {
 
         this._connectionGeneration += 1;
         this._terminalSession = null;
+        this._outputsSession = null;
         this._deviceChoices.clear();
 
         this._disconnectClient(
@@ -374,6 +395,7 @@ class EasyConectDesktopSession {
             generation;
 
         this._terminalSession = null;
+        this._outputsSession = null;
         this._deviceChoices.clear();
 
         this._setState({
@@ -449,6 +471,19 @@ class EasyConectDesktopSession {
 
         this._startTerminalReceivers(
             terminalSession,
+            generation
+        );
+
+        const outputsSession =
+            this._outputsSessionFactory(
+                this._client
+            );
+
+        this._outputsSession =
+            outputsSession;
+
+        this._startOutputsReceiver(
+            outputsSession,
             generation
         );
 
@@ -532,6 +567,63 @@ class EasyConectDesktopSession {
         );
     }
 
+    _startOutputsReceiver (
+        outputsSession,
+        generation
+    ) {
+        this._consumeOutputs(
+            outputsSession,
+            generation
+        );
+    }
+
+    async _consumeOutputs (
+        outputsSession,
+        generation
+    ) {
+        if (
+            !this._isCurrentOutputs(
+                outputsSession,
+                generation
+            )
+        ) {
+            return;
+        }
+
+        try {
+            await outputsSession
+                .waitForIndicator();
+        } catch (error) {
+            return;
+        }
+
+        if (
+            !this._isCurrentOutputs(
+                outputsSession,
+                generation
+            )
+        ) {
+            return;
+        }
+
+        this._consumeOutputs(
+            outputsSession,
+            generation
+        );
+    }
+
+    _isCurrentOutputs (
+        outputsSession,
+        generation
+    ) {
+        return (
+            generation ===
+                this._connectionGeneration &&
+            outputsSession ===
+                this._outputsSession
+        );
+    }
+
     _handleUnexpectedDisconnect () {
         if (
             this._state.status !==
@@ -542,6 +634,7 @@ class EasyConectDesktopSession {
 
         this._connectionGeneration += 1;
         this._terminalSession = null;
+        this._outputsSession = null;
         this._deviceChoices.clear();
 
         this._setState(

@@ -101,10 +101,18 @@ export const EasyConectDesktopWindowContainer = ({
                 .getTerminalSession() :
             null;
 
+    const outputsSession =
+        connectionState.status ===
+            'connected' ?
+            easyConectSession
+                .getOutputsSession() :
+            null;
+
     return (
         <EasyConectDesktopWindow
             connectionState={connectionState}
             isOpen={isOpen}
+            outputsSession={outputsSession}
             terminalSession={terminalSession}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
@@ -128,6 +136,8 @@ EasyConectDesktopWindowContainer.propTypes = {
             disconnect:
                 PropTypes.func.isRequired,
             getState:
+                PropTypes.func.isRequired,
+            getOutputsSession:
                 PropTypes.func.isRequired,
             getTerminalSession:
                 PropTypes.func.isRequired,

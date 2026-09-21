@@ -54,6 +54,10 @@ const {
     EasyConectTerminalSession
 } = require('./easyconect-terminal-session');
 
+const {
+    EasyConectOutputsSession
+} = require('./easyconect-outputs-session');
+
 module.exports = {
     EASYCONECT_SIGNAL_TYPES,
     EASYCONECT_SIGNAL_DIRECTIONS,
@@ -86,5 +90,6 @@ module.exports = {
     EasyConectConnection,
     EASYCONECT_TERMINAL_MESSAGE_TYPES,
     EASYCONECT_TERMINAL_MESSAGE_DIRECTIONS,
-    EasyConectTerminalSession
+    EasyConectTerminalSession,
+    EasyConectOutputsSession
 };

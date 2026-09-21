@@ -23,6 +23,7 @@ class FakeSession {
 
         this.connectCalls = 0;
         this.disconnectCalls = 0;
+        this.outputsSession = null;
         this.terminalSession = null;
 
         this._listeners = [];
@@ -34,6 +35,10 @@ class FakeSession {
 
     getTerminalSession () {
         return this.terminalSession;
+    }
+
+    getOutputsSession () {
+        return this.outputsSession;
     }
 
     onStateChange (listener) {
