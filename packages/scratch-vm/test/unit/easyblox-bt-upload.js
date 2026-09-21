@@ -22,7 +22,8 @@ const ArduinoUnoBoardProfile =
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
-    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
+    EASYCONECT_OUTPUTS_SIGNAL_IDS
 } = require('@easymaker/easyconect-core');
 
 const SOFTWARE_UART_D2_D3 =
@@ -1881,6 +1882,163 @@ tap.test(
                     createIr(11)
                 ),
             'D11 PWM remains available because Timer2 is untouched'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload extracts EasyConect Outputs indicator and reserves the shared D2/D3 UART',
+    t => {
+        const runtime =
+            createRuntimeWithBlocks([
+                createUploadHat(
+                    'outputs_indicator_on'
+                ),
+                {
+                    id:
+                        'outputs_indicator_on',
+                    opcode:
+                        'easybloxBt_outputsSetIndicator',
+                    next:
+                        'outputs_indicator_off',
+                    parent:
+                        'upload_hat',
+                    inputs: {},
+                    fields: {
+                        STATE: {
+                            name:
+                                'STATE',
+                            value:
+                                'true'
+                        }
+                    },
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id:
+                        'outputs_indicator_off',
+                    opcode:
+                        'easybloxBt_outputsSetIndicator',
+                    next: null,
+                    parent:
+                        'outputs_indicator_on',
+                    inputs: {},
+                    fields: {
+                        STATE: {
+                            name:
+                                'STATE',
+                            value:
+                                'false'
+                        }
+                    },
+                    topLevel: false,
+                    shadow: false
+                }
+            ]);
+
+        const extractor =
+            new UploadProgramExtractor(
+                runtime
+            );
+
+        t.same(
+            extractor.extract(),
+            {
+                setup: [{
+                    type:
+                        'EasyBloxBtSetIndicator',
+                    signalId:
+                        EASYCONECT_OUTPUTS_SIGNAL_IDS
+                            .INDICATOR,
+                    value: {
+                        type:
+                            'BooleanLiteral',
+                        value:
+                            true
+                    }
+                }, {
+                    type:
+                        'EasyBloxBtSetIndicator',
+                    signalId:
+                        EASYCONECT_OUTPUTS_SIGNAL_IDS
+                            .INDICATOR,
+                    value: {
+                        type:
+                            'BooleanLiteral',
+                        value:
+                            false
+                    }
+                }],
+                loop: [],
+                resources: [
+                    SOFTWARE_UART_D2_D3
+                ]
+            }
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload validates Outputs indicator as a high-level Boolean operation',
+    t => {
+        const validator =
+            new UploadTypeValidator();
+
+        const validIr = {
+            setup: [{
+                type:
+                    'EasyBloxBtSetIndicator',
+                signalId:
+                    EASYCONECT_OUTPUTS_SIGNAL_IDS
+                        .INDICATOR,
+                value: {
+                    type:
+                        'BooleanLiteral',
+                    value:
+                        true
+                }
+            }],
+            loop: [],
+            resources: [
+                SOFTWARE_UART_D2_D3
+            ]
+        };
+
+        t.equal(
+            validator.validate(
+                validIr
+            ),
+            validIr,
+            'Outputs indicator uses automatic Bluetooth initialization'
+        );
+
+        t.throws(
+            () =>
+                validator.validate({
+                    setup: [{
+                        type:
+                            'EasyBloxBtSetIndicator',
+                        signalId:
+                            EASYCONECT_OUTPUTS_SIGNAL_IDS
+                                .INDICATOR,
+                        value: {
+                            type:
+                                'TextLiteral',
+                            value:
+                                'true'
+                        }
+                    }],
+                    loop: [],
+                    resources: [
+                        SOFTWARE_UART_D2_D3
+                    ]
+                }),
+            /EasyConect Outputs indicator value must be BOOLEAN/
         );
 
         t.end();

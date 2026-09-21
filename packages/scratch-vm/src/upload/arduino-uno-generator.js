@@ -265,10 +265,20 @@ class ArduinoUnoGenerator {
             )
         );
 
+        const usesEasyBloxOutputs =
+            this._containsIrType(
+                [
+                    analysisSetupStatements,
+                    loopStatements
+                ],
+                'EasyBloxBtSetIndicator'
+            );
+
         const usesEasyConectHighLevelState =
             usesEasyBloxGamepad ||
             usesEasyBloxControls ||
-            usesEasyBloxMotorsServo;
+            usesEasyBloxMotorsServo ||
+            usesEasyBloxOutputs;
 
         const reservedIdentifiers = this._initializeDataSymbols(
             variables,
@@ -4174,6 +4184,16 @@ class ArduinoUnoGenerator {
                 );
                 break;
             }
+
+            case 'EasyBloxBtSetIndicator':
+                lines.push(
+                    `${indent}EasyBloxBT.setIndicator(${
+                        this._generateExpression(
+                            statement.value
+                        )
+                    });`
+                );
+                break;
 
             case 'EasyBloxBtSendText':
                 lines.push(

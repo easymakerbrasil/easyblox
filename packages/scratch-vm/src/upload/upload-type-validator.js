@@ -619,6 +619,24 @@ class UploadTypeValidator {
             case 'EasyBloxBtInit':
                 break;
 
+            case 'EasyBloxBtSetIndicator': {
+                const valueType =
+                    this._inferExpressionType(
+                        statement.value
+                    );
+
+                if (
+                    valueType !==
+                    VALUE_TYPES.BOOLEAN
+                ) {
+                    throw new Error(
+                        'EasyConect Outputs indicator value must be BOOLEAN'
+                    );
+                }
+
+                break;
+            }
+
             case 'EasyBloxBtMotorBinding':
             case 'EasyBloxBtServoBinding':
                 break;

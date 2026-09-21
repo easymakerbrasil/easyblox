@@ -12,6 +12,7 @@ const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
     EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
+    EASYCONECT_OUTPUTS_SIGNAL_IDS,
     getEasyConectWireChannel
 } = require('@easymaker/easyconect-core');
 
@@ -941,6 +942,164 @@ tap.test(
             source.content,
             /void\s+EasyBloxBluetooth::bindServo\s*\(/,
             'runtime implements Servo binding'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Upload generator emits Outputs indicator through the pedagogical runtime facade',
+    t => {
+        const signalId =
+            EASYCONECT_OUTPUTS_SIGNAL_IDS
+                .INDICATOR;
+
+        const generator =
+            new ArduinoUnoGenerator();
+
+        const sketch =
+            generator.generate(
+                createIr([
+                    {
+                        type:
+                            'EasyBloxBtSetIndicator',
+                        signalId,
+                        value: {
+                            type:
+                                'BooleanLiteral',
+                            value:
+                                true
+                        }
+                    },
+                    {
+                        type:
+                            'EasyBloxBtSetIndicator',
+                        signalId,
+                        value: {
+                            type:
+                                'BooleanLiteral',
+                            value:
+                                false
+                        }
+                    }
+                ])
+            );
+
+        t.match(
+            sketch,
+            /#include "EasyBlox\.h"/,
+            'Outputs requires the EasyBlox runtime'
+        );
+
+        const beginCalls =
+            sketch.match(
+                /EasyBloxBT\.begin\s*\(\s*\)\s*;/g
+            ) || [];
+
+        t.equal(
+            beginCalls.length,
+            1,
+            'Outputs starts Bluetooth automatically exactly once'
+        );
+
+        t.match(
+            sketch,
+            /EasyBloxBT\.setIndicator\s*\(\s*true\s*\)\s*;/,
+            'indicator true uses the pedagogical facade'
+        );
+
+        t.match(
+            sketch,
+            /EasyBloxBT\.setIndicator\s*\(\s*false\s*\)\s*;/,
+            'indicator false uses the pedagogical facade'
+        );
+
+        t.notMatch(
+            sketch,
+            new RegExp(
+                getEasyConectWireChannel(
+                    signalId
+                ).replace(
+                    '.',
+                    '\\.'
+                )
+            ),
+            'wire channel stays outside the pedagogical sketch'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox BT Arduino support files expose the canonical Outputs indicator channel and Boolean facade',
+    t => {
+        const signalId =
+            EASYCONECT_OUTPUTS_SIGNAL_IDS
+                .INDICATOR;
+
+        const channel =
+            getEasyConectWireChannel(
+                signalId
+            );
+
+        const supportFiles =
+            getEasyBloxBtSupportFiles();
+
+        const config =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                        'EasyBloxConfig.h'
+            );
+
+        const header =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                        'EasyBloxBluetooth.h'
+            );
+
+        const source =
+            supportFiles.find(
+                file =>
+                    file.name ===
+                        'EasyBloxBluetooth.cpp'
+            );
+
+        t.ok(config);
+        t.ok(header);
+        t.ok(source);
+
+        t.match(
+            config.content,
+            channel,
+            'runtime config contains the canonical Outputs indicator channel'
+        );
+
+        t.match(
+            header.content,
+            /void\s+setIndicator\s*\(\s*bool\s+value\s*\)\s*;/,
+            'runtime exposes the pedagogical indicator facade'
+        );
+
+        t.match(
+            source.content,
+            /void\s+easybloxBtSendBoolean\s*\(/,
+            'runtime implements generic internal BOOLEAN sending'
+        );
+
+        t.match(
+            source.content,
+            /EASYBLOX_EBCP_TYPE_BOOLEAN/,
+            'runtime uses the canonical EBCP BOOLEAN type'
+        );
+
+        t.match(
+            source.content,
+            /void\s+EasyBloxBluetooth::setIndicator\s*\(/,
+            'runtime implements the indicator facade'
         );
 
         t.end();

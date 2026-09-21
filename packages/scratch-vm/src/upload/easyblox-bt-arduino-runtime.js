@@ -13,6 +13,7 @@ const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
     EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
+    EASYCONECT_OUTPUTS_SIGNAL_IDS,
     getEasyConectWireChannel
 } = require(
     '@easymaker/easyconect-core'
@@ -44,6 +45,7 @@ const EASYBLOX_BT_INTERNAL_IDENTIFIERS = Object.freeze([
     'EASYBLOX_CONTROLS_SLIDER_CHANNEL',
     'EASYBLOX_CONTROLS_BUTTON_CHANNEL',
     'EASYBLOX_CONTROLS_SWITCH_CHANNEL',
+    'EASYBLOX_OUTPUTS_INDICATOR_CHANNEL',
     'easybloxBtControlsJoystickX',
     'easybloxBtControlsJoystickY',
     'easybloxBtControlsSlider',
@@ -77,6 +79,7 @@ const EASYBLOX_BT_INTERNAL_IDENTIFIERS = Object.freeze([
     'easybloxBtSendFrame',
     'easybloxBtSendText',
     'easybloxBtSendNumber',
+    'easybloxBtSendBoolean',
     'easybloxBtSendAck',
     'easybloxBtSendHelloAck',
     'easybloxBtResetReceive',
@@ -235,6 +238,12 @@ const getEasyBloxBtConfigContent = () => {
             easyConectChannel(
                 EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
                     .SERVO_4
+            )
+        }`,
+        `#define EASYBLOX_OUTPUTS_INDICATOR_CHANNEL_VALUE ${
+            easyConectChannel(
+                EASYCONECT_OUTPUTS_SIGNAL_IDS
+                    .INDICATOR
             )
         }`,
         ''

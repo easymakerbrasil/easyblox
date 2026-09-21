@@ -6,7 +6,8 @@ const {
 const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
-    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS
+    EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
+    EASYCONECT_OUTPUTS_SIGNAL_IDS
 } = require('@easymaker/easyconect-core');
 
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
@@ -67,6 +68,9 @@ const EASYBLOX_BT_MOTORS_SERVO_MOTOR_CONTROL_OPCODE =
     'easybloxBt_motorsServoMotorControl';
 const EASYBLOX_BT_MOTORS_SERVO_SERVO_CONTROL_OPCODE =
     'easybloxBt_motorsServoServoControl';
+
+const EASYBLOX_BT_OUTPUTS_SET_INDICATOR_OPCODE =
+    'easybloxBt_outputsSetIndicator';
 
 const EASYBLOX_GAMEPAD_SIGNAL_IDS =
     new Set(
@@ -1275,6 +1279,44 @@ class UploadProgramExtractor {
                         block,
                         'PIN'
                     )
+            };
+        }
+
+        case EASYBLOX_BT_OUTPUTS_SET_INDICATOR_OPCODE: {
+            this._reserveEasyBloxBtResource();
+
+            const fields =
+                blocks.getFields(block);
+            const stateField =
+                fields && fields.STATE;
+            const state =
+                stateField ?
+                    String(
+                        stateField.value
+                    ) :
+                    '';
+
+            if (
+                state !== 'true' &&
+                state !== 'false'
+            ) {
+                throw new Error(
+                    `Invalid EasyBlox BT Outputs indicator state: ${state}`
+                );
+            }
+
+            return {
+                type:
+                    'EasyBloxBtSetIndicator',
+                signalId:
+                    EASYCONECT_OUTPUTS_SIGNAL_IDS
+                        .INDICATOR,
+                value: {
+                    type:
+                        'BooleanLiteral',
+                    value:
+                        state === 'true'
+                }
             };
         }
 

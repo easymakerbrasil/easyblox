@@ -42,6 +42,10 @@ public:
         double value
     );
 
+    void setIndicator(
+        bool value
+    );
+
     void waitText();
     void waitNumber();
 

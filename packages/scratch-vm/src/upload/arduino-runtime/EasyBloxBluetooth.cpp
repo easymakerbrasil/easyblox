@@ -57,6 +57,8 @@ const char EASYBLOX_MOTORS_SERVO_SERVO_3_CHANNEL[] =
     EASYBLOX_MOTORS_SERVO_SERVO_3_CHANNEL_VALUE;
 const char EASYBLOX_MOTORS_SERVO_SERVO_4_CHANNEL[] =
     EASYBLOX_MOTORS_SERVO_SERVO_4_CHANNEL_VALUE;
+const char EASYBLOX_OUTPUTS_INDICATOR_CHANNEL[] =
+    EASYBLOX_OUTPUTS_INDICATOR_CHANNEL_VALUE;
 
 constexpr uint8_t EASYBLOX_GAMEPAD_BUTTON_COUNT = 8;
 
@@ -1086,6 +1088,25 @@ void easybloxBtSendNumber(const String &channel, double value) {
     );
 }
 
+void easybloxBtSendBoolean(
+    const String &channel,
+    bool value
+) {
+    const uint8_t payload[] = {
+        static_cast<uint8_t>(
+            value ? 1 : 0
+        )
+    };
+
+    easybloxBtSendFrame(
+        EASYBLOX_EBCP_TYPE_BOOLEAN,
+        easybloxBtTakeSequence(),
+        channel,
+        payload,
+        1
+    );
+}
+
 void easybloxBtSendAck(uint8_t acknowledgedSequence) {
     const uint8_t payload[] = {
         acknowledgedSequence
@@ -1741,6 +1762,15 @@ void EasyBloxBluetooth::sendNumber(
 ) {
     easybloxBtSendNumber(
         EASYBLOX_BT_CHANNEL,
+        value
+    );
+}
+
+void EasyBloxBluetooth::setIndicator(
+    bool value
+) {
+    easybloxBtSendBoolean(
+        EASYBLOX_OUTPUTS_INDICATOR_CHANNEL,
         value
     );
 }
