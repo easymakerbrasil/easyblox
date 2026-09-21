@@ -17,6 +17,7 @@ const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
     EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
+    EASYCONECT_OUTPUTS_SIGNAL_IDS,
     getEasyConectWireChannel
 } = require('@easymaker/easyconect-core');
 
@@ -636,6 +637,35 @@ class Scratch3EasyBloxBtBlocks {
                             defaultValue: 5
                         }
                     }
+                },
+                '---',
+                {
+                    blockType:
+                        BlockType.LABEL,
+                    text:
+                        'Saídas'
+                },
+                {
+                    opcode:
+                        'outputsSetIndicator',
+                    blockType:
+                        BlockType.COMMAND,
+                    executionMode:
+                        BlockExecutionMode.BOTH,
+                    requiredBoardCapability:
+                        REQUIRED_BOARD_CAPABILITY,
+                    text:
+                        'definir indicador [STATE] no EasyConect',
+                    arguments: {
+                        STATE: {
+                            type:
+                                ArgumentType.STRING,
+                            menu:
+                                'outputsIndicatorStates',
+                            defaultValue:
+                                'true'
+                        }
+                    }
                 }
             ],
             menus: {
@@ -673,6 +703,19 @@ class Scratch3EasyBloxBtBlocks {
                     acceptReporters: true,
                     items:
                         MOTORS_SERVO_SERVO_PINS
+                },
+                outputsIndicatorStates: {
+                    acceptReporters: false,
+                    items: [
+                        {
+                            text: 'ligado',
+                            value: 'true'
+                        },
+                        {
+                            text: 'desligado',
+                            value: 'false'
+                        }
+                    ]
                 }
             }
         };
@@ -1309,6 +1352,25 @@ class Scratch3EasyBloxBtBlocks {
                 type: 'servo',
                 pin
             }
+        );
+    }
+
+    /**
+     * Send the EasyConect indicator state through the canonical Stage channel.
+     * @param {object} args block arguments.
+     * @param {string} args.STATE canonical indicator state.
+     * @returns {?number} EBCP application sequence, or null when unavailable.
+     */
+    outputsSetIndicator (args) {
+        return this._stageConnectivity.send(
+            BOOLEAN,
+            getEasyConectWireChannel(
+                EASYCONECT_OUTPUTS_SIGNAL_IDS
+                    .INDICATOR
+            ),
+            Cast.toString(
+                args.STATE
+            ) === 'true'
         );
     }
 }

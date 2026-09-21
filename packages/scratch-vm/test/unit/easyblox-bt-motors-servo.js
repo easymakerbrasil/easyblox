@@ -173,7 +173,8 @@ tap.test(
                 'Comunicação',
                 'Gamepad',
                 'Controles',
-                'Motores e Servos'
+                'Motores e Servos',
+                'Saídas'
             ]
         );
 
