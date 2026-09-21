@@ -16,6 +16,7 @@ const EASYCONECT_MODULE_IDS =
         GAMEPAD: 'gamepad',
         CONTROLS: 'controls',
         MOTORS_SERVO: 'motorsServo',
+        OUTPUTS: 'outputs',
         TERMINAL: 'terminal'
     });
 
@@ -69,6 +70,12 @@ const EASYCONECT_MOTORS_SERVO_SIGNAL_IDS =
             'motorsServo.servo4'
     });
 
+const EASYCONECT_OUTPUTS_SIGNAL_IDS =
+    Object.freeze({
+        INDICATOR:
+            'outputs.indicator'
+    });
+
 const EASYCONECT_TERMINAL_CHANNEL =
     '1';
 
@@ -82,6 +89,18 @@ const createBooleanInputSignal =
             direction:
                 EASYCONECT_SIGNAL_DIRECTIONS
                     .INPUT
+        });
+
+const createBooleanOutputSignal =
+    id =>
+        Object.freeze({
+            id,
+            type:
+                EASYCONECT_SIGNAL_TYPES
+                    .BOOLEAN,
+            direction:
+                EASYCONECT_SIGNAL_DIRECTIONS
+                    .OUTPUT
         });
 
 const createNumberInputSignal =
@@ -226,6 +245,20 @@ const EASYCONECT_MOTORS_SERVO_MODULE =
             ])
     });
 
+const EASYCONECT_OUTPUTS_MODULE =
+    Object.freeze({
+        id:
+            EASYCONECT_MODULE_IDS
+                .OUTPUTS,
+        signals:
+            Object.freeze([
+                createBooleanOutputSignal(
+                    EASYCONECT_OUTPUTS_SIGNAL_IDS
+                        .INDICATOR
+                )
+            ])
+    });
+
 const EASYCONECT_TERMINAL_MODULE =
     Object.freeze({
         id:
@@ -245,6 +278,8 @@ module.exports = {
     EASYCONECT_CONTROLS_MODULE,
     EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
     EASYCONECT_MOTORS_SERVO_MODULE,
+    EASYCONECT_OUTPUTS_SIGNAL_IDS,
+    EASYCONECT_OUTPUTS_MODULE,
     EASYCONECT_TERMINAL_CHANNEL,
     EASYCONECT_TERMINAL_MODULE
 };

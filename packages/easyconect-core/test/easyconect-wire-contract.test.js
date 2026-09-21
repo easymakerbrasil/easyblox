@@ -5,6 +5,7 @@ const {
     EASYCONECT_GAMEPAD_SIGNAL_IDS,
     EASYCONECT_CONTROLS_SIGNAL_IDS,
     EASYCONECT_MOTORS_SERVO_SIGNAL_IDS,
+    EASYCONECT_OUTPUTS_SIGNAL_IDS,
     EASYCONECT_SIGNAL_WIRE_CHANNELS,
     getEasyConectWireChannel,
     getEasyConectSignalIdForWireChannel
@@ -53,7 +54,9 @@ test(
                 [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.SERVO_3]:
                     'ms.s3',
                 [EASYCONECT_MOTORS_SERVO_SIGNAL_IDS.SERVO_4]:
-                    'ms.s4'
+                    'ms.s4',
+                [EASYCONECT_OUTPUTS_SIGNAL_IDS.INDICATOR]:
+                    'out.ind'
             }
         );
 

@@ -145,7 +145,8 @@ test('EasyConect snapshot contains every current canonical signal value', () => 
                 'motorsServo.servo1': 0,
                 'motorsServo.servo2': 0,
                 'motorsServo.servo3': 0,
-                'motorsServo.servo4': 0
+                'motorsServo.servo4': 0,
+                'outputs.indicator': false
             }
         }
     );
