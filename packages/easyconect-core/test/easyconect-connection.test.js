@@ -522,6 +522,98 @@ test('EasyConect rejects connection when transport disconnects during handshake'
     );
 });
 
+test('EasyConect times out a handshake that never receives HELLO_ACK and allows a fresh retry', async () => {
+    const transport =
+        new FakeTransport();
+
+    const connection =
+        new EasyConectConnection({
+            transport,
+            handshakeTimeoutMs:
+                20
+        });
+
+    const connecting =
+        connection.connect({
+            deviceId:
+                'opaque-device-1'
+        });
+
+    await flushMicrotasks();
+
+    const outcome =
+        await Promise.race([
+            connecting.then(
+                () =>
+                    'resolved',
+                error =>
+                    error
+            ),
+            new Promise(
+                resolve =>
+                    setTimeout(
+                        () =>
+                            resolve(
+                                'pending'
+                            ),
+                        80
+                    )
+            )
+        ]);
+
+    if (
+        outcome ===
+        'pending'
+    ) {
+        await connection.disconnect();
+    }
+
+    assert.ok(
+        outcome instanceof Error
+    );
+
+    assert.match(
+        outcome.message,
+        /handshake timed out/i
+    );
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .DISCONNECTED
+    );
+
+    assert.equal(
+        transport.disconnectCalls,
+        1
+    );
+
+    const reconnecting =
+        connection.connect({
+            deviceId:
+                'opaque-device-1'
+        });
+
+    await flushMicrotasks();
+
+    transport.emitData(
+        createControlFrame(
+            EBCP_CONTROL_TYPES
+                .HELLO_ACK
+        )
+    );
+
+    await reconnecting;
+
+    assert.equal(
+        connection.getState(),
+        EASYCONECT_CONNECTION_STATES
+            .CONNECTED
+    );
+
+    await connection.disconnect();
+});
+
 test('EasyConect explicit disconnect aborts a pending handshake without double-disconnecting transport', async () => {
     const transport =
         new FakeTransport();

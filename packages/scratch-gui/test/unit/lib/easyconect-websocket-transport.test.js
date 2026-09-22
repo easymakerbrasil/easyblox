@@ -341,6 +341,100 @@ describe(
             );
         });
 
+        test('times out a WebSocket that never opens and allows a fresh retry', async () => {
+            jest.useFakeTimers();
+
+            let transport = null;
+
+            try {
+                transport =
+                    new EasyConectWebSocketTransport({
+                        WebSocketClass:
+                            FakeWebSocket,
+                        connectTimeoutMs:
+                            1000
+                    });
+
+                const connecting =
+                    transport.connect({
+                        deviceId:
+                            'COM12'
+                    });
+
+                const rejectedConnection =
+                    connecting.catch(
+                        error => error
+                    );
+
+                expect(
+                    FakeWebSocket.instances
+                ).toHaveLength(1);
+
+                const firstSocket =
+                    FakeWebSocket.instances[0];
+
+                expect(
+                    transport.getState()
+                ).toBe(
+                    'connecting'
+                );
+
+                jest.advanceTimersByTime(
+                    1000
+                );
+
+                expect(
+                    transport.getState()
+                ).toBe(
+                    'disconnected'
+                );
+
+                expect(
+                    firstSocket.readyState
+                ).toBe(
+                    FakeWebSocket.CLOSED
+                );
+
+                const connectionError =
+                    await rejectedConnection;
+
+                expect(
+                    connectionError.message
+                ).toBe(
+                    'EasyConect Bluetooth connection timed out'
+                );
+
+                const reconnecting =
+                    transport.connect({
+                        deviceId:
+                            'COM12'
+                    });
+
+                expect(
+                    FakeWebSocket.instances
+                ).toHaveLength(2);
+
+                const secondSocket =
+                    FakeWebSocket.instances[1];
+
+                secondSocket.emitOpen();
+
+                await reconnecting;
+
+                expect(
+                    transport.getState()
+                ).toBe(
+                    'connected'
+                );
+            } finally {
+                if (transport) {
+                    transport.disconnect();
+                }
+
+                jest.useRealTimers();
+            }
+        });
+
         test('forwards WebSocket errors after connection without inventing a disconnect', async () => {
             const transport =
                 new EasyConectWebSocketTransport({

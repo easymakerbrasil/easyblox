@@ -54,6 +54,10 @@ import {
     toggleEasyConect
 } from '../../reducers/easyconect-desktop';
 
+import {
+    isExtensionActive
+} from '../../reducers/active-extensions';
+
 import {projectTitleInitialState} from '../../reducers/project-title';
 import {PLATFORM} from '../../lib/platform';
 
@@ -156,9 +160,16 @@ const quickSaveIconPath = [
     'm3-10H5V5h10v4z'
 ].join('');
 
+const EASYBLOX_BT_EXTENSION_ID =
+    'easybloxBt';
+
+const EASYCONECT_DISABLED_TITLE =
+    'Adicione a extensão EasyBlox BT para habilitar o EasyConect.';
+
 class MenuBar extends React.Component {
     constructor (props) {
         super(props);
+
         bindAll(this, [
             'handleClickNew',
             'handleClickSeeCommunity',
@@ -200,6 +211,7 @@ class MenuBar extends React.Component {
             'PROJECT_LOADED',
             this.handleProjectLoaded
         );
+
     }
     componentWillUnmount () {
         document.removeEventListener(
@@ -211,7 +223,9 @@ class MenuBar extends React.Component {
             'PROJECT_LOADED',
             this.handleProjectLoaded
         );
+
     }
+
     handleProjectLoaded () {
         this.projectFileService.clearFileHandle();
     }
@@ -489,7 +503,14 @@ class MenuBar extends React.Component {
                                     easyConectActive
                             }
                         )}
-                        title="EasyConect"
+                        disabled={
+                            !this.props.easyBloxBtActive
+                        }
+                        title={
+                            this.props.easyBloxBtActive ?
+                                'EasyConect' :
+                                EASYCONECT_DISABLED_TITLE
+                        }
                         type="button"
                         onClick={this.props.onToggleEasyConect}
                     >
@@ -604,6 +625,7 @@ MenuBar.propTypes = {
     onShare: PropTypes.func,
     onStartSelectingFileUpload: PropTypes.func,
     onToggleLoginOpen: PropTypes.func,
+    easyBloxBtActive: PropTypes.bool,
     easyConectConnected: PropTypes.bool,
     easyConectOpen: PropTypes.bool,
     onToggleEasyConect: PropTypes.func,
@@ -652,6 +674,7 @@ MenuBar.propTypes = {
 MenuBar.defaultProps = {
     logo: scratchLogo,
     onShare: () => {},
+    easyBloxBtActive: false,
     easyConectConnected: false,
     easyConectOpen: false,
     programMode: 'stage',
@@ -678,6 +701,12 @@ const mapStateToProps = (state, ownProps) => {
         isShowingProject: getIsShowingProject(loadingState),
         loginMenuOpen: loginMenuOpen(state),
         projectTitle: state.scratchGui.projectTitle,
+        easyBloxBtActive:
+            ownProps.easyBloxBtActive ??
+            isExtensionActive(
+                state,
+                EASYBLOX_BT_EXTENSION_ID
+            ),
         easyConectConnected:
             ownProps.easyConectConnected ??
             isEasyConectConnected(state),

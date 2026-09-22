@@ -301,6 +301,18 @@
     border-color: #ffc800;
 }
 
+.controller-button:disabled {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.controller-button:disabled:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
 .settings-control {
     flex-shrink: 0;
     padding-left: 0.25rem;

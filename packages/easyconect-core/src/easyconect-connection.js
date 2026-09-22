@@ -22,9 +22,15 @@ const EASYCONECT_CONNECTION_STATES =
             'disconnecting'
     });
 
+const DEFAULT_HANDSHAKE_TIMEOUT_MS =
+    10000;
+
+
 class EasyConectConnection {
     constructor ({
-        transport
+        transport,
+        handshakeTimeoutMs =
+            DEFAULT_HANDSHAKE_TIMEOUT_MS
     } = {}) {
         validateEasyConectTransport(
             transport
@@ -32,6 +38,9 @@ class EasyConectConnection {
 
         this._transport =
             transport;
+
+        this._handshakeTimeoutMs =
+            handshakeTimeoutMs;
 
         this._runtime =
             null;
@@ -189,6 +198,9 @@ class EasyConectConnection {
                 }
             );
 
+        let handshakeTimeoutId =
+            null;
+
         try {
             await Promise.race([
                 Promise.resolve(
@@ -225,12 +237,32 @@ class EasyConectConnection {
             const helloWrite =
                 this._lastWritePromise;
 
+            const handshakeTimeout =
+                new Promise(
+                    (
+                        resolve,
+                        reject
+                    ) => {
+                        handshakeTimeoutId =
+                            setTimeout(
+                                () =>
+                                    reject(
+                                        new Error(
+                                            'EasyConect handshake timed out'
+                                        )
+                                    ),
+                                this._handshakeTimeoutMs
+                            );
+                    }
+                );
+
             await Promise.race([
                 Promise.all([
                     helloWrite,
                     sessionReady
                 ]),
-                connectionFailure
+                connectionFailure,
+                handshakeTimeout
             ]);
 
             this._setState(
@@ -266,6 +298,18 @@ class EasyConectConnection {
 
             throw error;
         } finally {
+            if (
+                handshakeTimeoutId !==
+                null
+            ) {
+                clearTimeout(
+                    handshakeTimeoutId
+                );
+
+                handshakeTimeoutId =
+                    null;
+            }
+
             this._connectionFailureReject =
                 null;
 

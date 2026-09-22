@@ -39,6 +39,10 @@ import {
 } from '../lib/settings/color-mode/blockHelpers';
 
 import {connect} from 'react-redux';
+import {
+    activateExtension,
+    deactivateExtension
+} from '../reducers/active-extensions';
 import {updateToolbox} from '../reducers/toolbox';
 import {activateColorPicker} from '../reducers/color-picker';
 import {closeExtensionLibrary, openSoundRecorder, openConnectionModal} from '../reducers/modals';
@@ -1161,6 +1165,16 @@ class Blocks extends React.Component {
                 ]
             };
         });
+
+        if (
+            this.props &&
+            typeof this.props.onActivateExtension ===
+                'function'
+        ) {
+            this.props.onActivateExtension(
+                extensionId
+            );
+        }
     }
 
     handleExtensionRemove (extensionId) {
@@ -1169,6 +1183,16 @@ class Blocks extends React.Component {
                 activeExtensionId => activeExtensionId !== extensionId
             )
         }));
+
+        if (
+            this.props &&
+            typeof this.props.onDeactivateExtension ===
+                'function'
+        ) {
+            this.props.onDeactivateExtension(
+                extensionId
+            );
+        }
     }
     handleBlocksInfoUpdate (categoryInfo) {
         this.handleExtensionAdded(categoryInfo, false);
@@ -1408,6 +1432,8 @@ Blocks.propTypes = {
     messages: PropTypes.objectOf(PropTypes.string),
     onActivateColorPicker: PropTypes.func,
     onActivateCustomProcedures: PropTypes.func,
+    onActivateExtension: PropTypes.func,
+    onDeactivateExtension: PropTypes.func,
     onOpenConnectionModal: PropTypes.func,
     onOpenSoundRecorder: PropTypes.func,
     onRequestCloseCustomProcedures: PropTypes.func,
@@ -1467,6 +1493,8 @@ Blocks.defaultOptions = {
 Blocks.defaultProps = {
     extensionSelectionRequest: 0,
     requestedExtensionId: null,
+    onActivateExtension: () => {},
+    onDeactivateExtension: () => {},
     isVisible: true,
     options: Blocks.defaultOptions,
     requestedExtensionShouldConnect: true,
@@ -1494,6 +1522,16 @@ const mapStateToProps = state => ({
 const mapDispatchToProps = dispatch => ({
     onActivateColorPicker: callback => dispatch(activateColorPicker(callback)),
     onActivateCustomProcedures: (data, callback) => dispatch(activateCustomProcedures(data, callback)),
+    onActivateExtension: extensionId => dispatch(
+        activateExtension(
+            extensionId
+        )
+    ),
+    onDeactivateExtension: extensionId => dispatch(
+        deactivateExtension(
+            extensionId
+        )
+    ),
     onOpenConnectionModal: id => {
         dispatch(setConnectionModalExtensionId(id));
         dispatch(openConnectionModal());

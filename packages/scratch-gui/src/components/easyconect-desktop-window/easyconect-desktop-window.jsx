@@ -1,6 +1,10 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 
+import {
+    EASYCONECT_GAMEPAD_SIGNAL_IDS
+} from '@easymaker/easyconect-core';
+
 import styles from './easyconect-desktop-window.css';
 
 const EASYCONECT_MODULES = [
@@ -260,6 +264,262 @@ EasyConectConnectionStatus.propTypes = {
         PropTypes.func.isRequired,
     onSelectDevice:
         PropTypes.func.isRequired
+};
+
+const GAMEPAD_DIRECTIONAL_CONTROLS = [
+    {
+        label:
+            'Cima',
+        positionClass:
+            'gamepadButtonUp',
+        signalId:
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_UP,
+        symbol:
+            '↑'
+    },
+    {
+        label:
+            'Esquerda',
+        positionClass:
+            'gamepadButtonLeft',
+        signalId:
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_LEFT,
+        symbol:
+            '←'
+    },
+    {
+        label:
+            'Direita',
+        positionClass:
+            'gamepadButtonRight',
+        signalId:
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_RIGHT,
+        symbol:
+            '→'
+    },
+    {
+        label:
+            'Baixo',
+        positionClass:
+            'gamepadButtonDown',
+        signalId:
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_DOWN,
+        symbol:
+            '↓'
+    }
+];
+
+const GAMEPAD_ACTION_CONTROLS = [
+    {
+        label:
+            'Triângulo',
+        positionClass:
+            'gamepadButtonUp',
+        signalId:
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .ACTION_TOP,
+        symbol:
+            '△'
+    },
+    {
+        label:
+            'Quadrado',
+        positionClass:
+            'gamepadButtonLeft',
+        signalId:
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .ACTION_LEFT,
+        symbol:
+            '□'
+    },
+    {
+        label:
+            'Círculo',
+        positionClass:
+            'gamepadButtonRight',
+        signalId:
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .ACTION_RIGHT,
+        symbol:
+            '○'
+    },
+    {
+        label:
+            'Cruz',
+        positionClass:
+            'gamepadButtonDown',
+        signalId:
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .ACTION_BOTTOM,
+        symbol:
+            '×'
+    }
+];
+
+const EasyConectGamepad = ({
+    gamepadSession
+}) => {
+    const [
+        pressedSignals,
+        setPressedSignals
+    ] = React.useState({});
+
+    React.useEffect(
+        () => {
+            if (!gamepadSession) {
+                setPressedSignals({});
+            }
+        },
+        [gamepadSession]
+    );
+
+    const handleButtonState =
+        React.useCallback(
+            (
+                signalId,
+                state
+            ) => {
+                setPressedSignals(
+                    current => ({
+                        ...current,
+                        [signalId]:
+                            state
+                    })
+                );
+
+                if (!gamepadSession) {
+                    return;
+                }
+
+                Promise.resolve(
+                    gamepadSession
+                        .setButtonPressed(
+                            signalId,
+                            state
+                        )
+                ).catch(
+                    NOOP
+                );
+            },
+            [gamepadSession]
+        );
+
+    const handlePointerDown =
+        React.useCallback(
+            event => {
+                handleButtonState(
+                    event.currentTarget.dataset.signalId,
+                    true
+                );
+            },
+            [handleButtonState]
+        );
+
+    const handlePointerUp =
+        React.useCallback(
+            event => {
+                handleButtonState(
+                    event.currentTarget.dataset.signalId,
+                    false
+                );
+            },
+            [handleButtonState]
+        );
+
+    const handlePointerCancel =
+        React.useCallback(
+            event => {
+                handleButtonState(
+                    event.currentTarget.dataset.signalId,
+                    false
+                );
+            },
+            [handleButtonState]
+        );
+
+    const renderControl =
+        control => {
+            const buttonClassName = [
+                styles.gamepadButton,
+                styles[
+                    control.positionClass
+                ],
+                pressedSignals[
+                    control.signalId
+                ] ?
+                    styles.gamepadButtonPressed :
+                    null
+            ]
+                .filter(Boolean)
+                .join(' ');
+
+            return (
+                <button
+                    aria-label={control.label}
+                    className={buttonClassName}
+                    data-signal-id={control.signalId}
+                    disabled={!gamepadSession}
+                    key={control.signalId}
+                    type="button"
+                    onPointerCancel={handlePointerCancel}
+                    onPointerDown={handlePointerDown}
+                    onPointerUp={handlePointerUp}
+                >
+                    <span
+                        aria-hidden="true"
+                        className={
+                            styles.gamepadButtonSymbol
+                        }
+                    >
+                        {control.symbol}
+                    </span>
+                </button>
+            );
+        };
+
+    return (
+        <div className={styles.gamepadWorkspace}>
+            {gamepadSession ? null : (
+                <p className={styles.gamepadUnavailable}>
+                    Conecte o Bluetooth para usar o Gamepad.
+                </p>
+            )}
+
+            <div className={styles.gamepadLayout}>
+                <div
+                    aria-label="Direcional"
+                    className={styles.gamepadCluster}
+                    role="group"
+                >
+                    {GAMEPAD_DIRECTIONAL_CONTROLS.map(
+                        renderControl
+                    )}
+                </div>
+
+                <div
+                    aria-label="Ações"
+                    className={styles.gamepadCluster}
+                    role="group"
+                >
+                    {GAMEPAD_ACTION_CONTROLS.map(
+                        renderControl
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+EasyConectGamepad.propTypes = {
+    gamepadSession:
+        PropTypes.shape({
+            setButtonPressed:
+                PropTypes.func.isRequired
+        })
 };
 
 const EasyConectTerminal = ({
@@ -736,6 +996,7 @@ EasyConectOutputs.propTypes = {
 
 const EasyConectDesktopWindow = ({
     connectionState = DEFAULT_CONNECTION_STATE,
+    gamepadSession = null,
     isOpen = false,
     onConnect = NOOP,
     onDisconnect = NOOP,
@@ -973,6 +1234,13 @@ const EasyConectDesktopWindow = ({
                             </div>
                         </div>
 
+                        {activeModule === 'Gamepad' ? (
+                            <EasyConectGamepad
+                                gamepadSession={
+                                    gamepadSession
+                                }
+                            />
+                        ) : null}
                         {activeModule === 'Terminal' ? (
                             <EasyConectTerminal
                                 terminalSession={
@@ -980,7 +1248,6 @@ const EasyConectDesktopWindow = ({
                                 }
                             />
                         ) : null}
-
                         {activeModule === 'Saídas' ? (
                             <EasyConectOutputs
                                 outputsSession={
@@ -988,8 +1255,7 @@ const EasyConectDesktopWindow = ({
                                 }
                             />
                         ) : null}
-
-                        {activeModule === 'Terminal' || activeModule === 'Saídas' ? null : (
+                        {['Gamepad', 'Terminal', 'Saídas'].includes(activeModule) ? null : (
                             <div
                                 className={styles.moduleWorkspace}
                             >
@@ -1054,6 +1320,11 @@ EasyConectDesktopWindow.propTypes = {
                 PropTypes.string,
             errorCode:
                 PropTypes.string
+        }),
+    gamepadSession:
+        PropTypes.shape({
+            setButtonPressed:
+                PropTypes.func.isRequired
         }),
     isOpen:
         PropTypes.bool,

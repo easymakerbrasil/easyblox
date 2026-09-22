@@ -377,6 +377,24 @@ class Scratch3EasyBloxBtBlocks {
                         false;
                 }
             );
+
+            this.runtime.on(
+                'PERIPHERAL_STAGE_READY',
+                data => {
+                    if (
+                        !data ||
+                        data.extensionId !==
+                            'arduinoUno'
+                    ) {
+                        return;
+                    }
+
+                    this._easyConectStageInitialization =
+                        null;
+
+                    this._ensureEasyConectStageTransport();
+                }
+            );
         }
     }
 

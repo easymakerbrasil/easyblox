@@ -23,6 +23,7 @@ class FakeSession {
 
         this.connectCalls = 0;
         this.disconnectCalls = 0;
+        this.gamepadSession = null;
         this.outputsSession = null;
         this.terminalSession = null;
 
@@ -31,6 +32,10 @@ class FakeSession {
 
     getState () {
         return this.state;
+    }
+
+    getGamepadSession () {
+        return this.gamepadSession;
     }
 
     getTerminalSession () {

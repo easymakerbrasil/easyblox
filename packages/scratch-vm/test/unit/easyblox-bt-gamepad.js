@@ -365,6 +365,90 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox BT reinitializes Stage Bluetooth immediately when Arduino Stage becomes ready again',
+    async t => {
+        const runtimeHandlers =
+            new Map();
+
+        let initCount = 0;
+
+        const provider = {
+            onBluetoothSerialData: () => {},
+
+            initBluetoothSerial: () => {
+                initCount++;
+
+                return Promise.resolve(
+                    0x40
+                );
+            },
+
+            writeBluetoothSerial: () =>
+                0x41
+        };
+
+        const runtime = {
+            on: (event, handler) => {
+                const handlers =
+                    runtimeHandlers.get(event) ||
+                    [];
+
+                handlers.push(handler);
+
+                runtimeHandlers.set(
+                    event,
+                    handlers
+                );
+            },
+
+            getPeripheralExtensionByCapability:
+                () => provider
+        };
+
+        const extension =
+            new Scratch3EasyBloxBtBlocks(
+                runtime
+            );
+
+        const signalId =
+            EASYCONECT_GAMEPAD_SIGNAL_IDS
+                .DPAD_UP;
+
+        extension.isGamepadButtonPressed({
+            BUTTON: signalId
+        });
+
+        await Promise.resolve();
+
+        t.equal(
+            initCount,
+            1,
+            'first GAMEPAD read initializes Stage Bluetooth'
+        );
+
+        for (
+            const handler of
+            runtimeHandlers.get(
+                'PERIPHERAL_STAGE_READY'
+            ) || []
+        ) {
+            handler({
+                extensionId:
+                    'arduinoUno'
+            });
+        }
+
+        await Promise.resolve();
+
+        t.equal(
+            initCount,
+            2,
+            'Arduino Stage-ready immediately reinitializes Bluetooth without another reporter read'
+        );
+    }
+);
+
+tap.test(
     'EasyBlox BT Gamepad stops watchers on project stop and rearms on next read',
     async t => {
         const runtimeHandlers =

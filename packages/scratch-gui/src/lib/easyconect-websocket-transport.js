@@ -5,6 +5,9 @@ const EASYCONECT_WEBSOCKET_PATH =
 const EASYCONECT_WEBSOCKET_PROTOCOL =
     'easyconect-v1';
 
+const DEFAULT_CONNECT_TIMEOUT_MS =
+    10000;
+
 class EasyConectWebSocketTransport {
     constructor (options = {}) {
         this._WebSocketClass =
@@ -27,6 +30,12 @@ class EasyConectWebSocketTransport {
         this._errorListeners = [];
         this._disconnectListeners = [];
         this._intentionalDisconnect = false;
+
+        this._connectTimeoutMs =
+            typeof options.connectTimeoutMs ===
+                'number' ?
+                options.connectTimeoutMs :
+                DEFAULT_CONNECT_TIMEOUT_MS;
     }
 
     getState () {
@@ -106,11 +115,31 @@ class EasyConectWebSocketTransport {
         return new Promise(
             (resolve, reject) => {
                 let settled = false;
+                let connectTimeoutId = null;
+
+                const clearConnectTimeout =
+                    () => {
+                        if (
+                            connectTimeoutId ===
+                                null
+                        ) {
+                            return;
+                        }
+
+                        clearTimeout(
+                            connectTimeoutId
+                        );
+
+                        connectTimeoutId =
+                            null;
+                    };
 
                 const handleOpen = () => {
                     if (settled) {
                         return;
                     }
+
+                    clearConnectTimeout();
 
                     settled = true;
                     this._state = 'connected';
@@ -156,6 +185,8 @@ class EasyConectWebSocketTransport {
                             );
 
                     if (!settled) {
+                        clearConnectTimeout();
+
                         settled = true;
 
                         this._clearSocket(
@@ -189,6 +220,8 @@ class EasyConectWebSocketTransport {
                         !settled &&
                         this._state ===
                             'connecting';
+
+                    clearConnectTimeout();
 
                     if (wasConnecting) {
                         settled = true;
@@ -237,6 +270,32 @@ class EasyConectWebSocketTransport {
                     'close',
                     handleClose
                 );
+
+                connectTimeoutId =
+                    setTimeout(
+                        () => {
+                            if (
+                                settled ||
+                                this._socket !==
+                                    socket
+                            ) {
+                                return;
+                            }
+
+                            connectTimeoutId =
+                                null;
+                            settled = true;
+
+                            this.disconnect();
+
+                            reject(
+                                new Error(
+                                    'EasyConect Bluetooth connection timed out'
+                                )
+                            );
+                        },
+                        this._connectTimeoutMs
+                    );
             }
         );
     }

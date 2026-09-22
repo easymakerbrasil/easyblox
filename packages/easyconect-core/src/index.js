@@ -58,6 +58,10 @@ const {
     EasyConectOutputsSession
 } = require('./easyconect-outputs-session');
 
+const {
+    EasyConectGamepadSession
+} = require('./easyconect-gamepad-session');
+
 module.exports = {
     EASYCONECT_SIGNAL_TYPES,
     EASYCONECT_SIGNAL_DIRECTIONS,
@@ -91,5 +95,6 @@ module.exports = {
     EASYCONECT_TERMINAL_MESSAGE_TYPES,
     EASYCONECT_TERMINAL_MESSAGE_DIRECTIONS,
     EasyConectTerminalSession,
-    EasyConectOutputsSession
+    EasyConectOutputsSession,
+    EasyConectGamepadSession
 };

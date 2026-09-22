@@ -447,6 +447,119 @@
     text-align: center;
 }
 
+.gamepad-workspace {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.65rem;
+
+    min-height: 12rem;
+}
+
+.gamepad-unavailable {
+    margin: 0;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid rgba(40, 40, 40, 0.12);
+    border-radius: 0.6rem;
+
+    background: rgba(255, 200, 0, 0.14);
+    color: #282828;
+
+    font-size: 0.76rem;
+    line-height: 1.35;
+    text-align: center;
+}
+
+.gamepad-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: center;
+    gap: 1.5rem;
+
+    width: 100%;
+    max-width: 28rem;
+    margin: 0 auto;
+}
+
+.gamepad-cluster {
+    display: grid;
+    grid-template-columns: repeat(3, 3.35rem);
+    grid-template-rows: repeat(3, 3.35rem);
+    gap: 0.3rem;
+    justify-content: center;
+}
+
+.gamepad-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 0;
+    padding: 0.2rem;
+    border: 2px solid #282828;
+    border-radius: 0.7rem;
+
+    background: #282828;
+    color: white;
+
+    box-shadow: 0 0.16rem 0.3rem rgba(40, 40, 40, 0.2);
+
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+
+    transition:
+        background 80ms ease,
+        color 80ms ease,
+        box-shadow 80ms ease,
+        transform 80ms ease;
+}
+
+.gamepad-button:not(:disabled):hover {
+    box-shadow: 0 0.2rem 0.42rem rgba(40, 40, 40, 0.28);
+}
+
+.gamepad-button:disabled {
+    opacity: 0.34;
+
+    cursor: not-allowed;
+}
+
+.gamepad-button-pressed {
+    background: #ffc800;
+    color: #282828;
+
+    box-shadow: 0 0.08rem 0.16rem rgba(40, 40, 40, 0.24);
+
+    transform: translateY(0.08rem);
+}
+
+.gamepad-button-up {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.gamepad-button-left {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.gamepad-button-right {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+.gamepad-button-down {
+    grid-column: 2;
+    grid-row: 3;
+}
+
+.gamepad-button-symbol {
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
 .outputs-workspace {
     display: flex;
     flex-direction: column;

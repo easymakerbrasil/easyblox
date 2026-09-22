@@ -94,6 +94,13 @@ export const EasyConectDesktopWindowContainer = ({
             [easyConectSession]
         );
 
+    const gamepadSession =
+        connectionState.status ===
+            'connected' ?
+            easyConectSession
+                .getGamepadSession() :
+            null;
+
     const terminalSession =
         connectionState.status ===
             'connected' ?
@@ -111,6 +118,7 @@ export const EasyConectDesktopWindowContainer = ({
     return (
         <EasyConectDesktopWindow
             connectionState={connectionState}
+            gamepadSession={gamepadSession}
             isOpen={isOpen}
             outputsSession={outputsSession}
             terminalSession={terminalSession}
@@ -136,6 +144,8 @@ EasyConectDesktopWindowContainer.propTypes = {
             disconnect:
                 PropTypes.func.isRequired,
             getState:
+                PropTypes.func.isRequired,
+            getGamepadSession:
                 PropTypes.func.isRequired,
             getOutputsSession:
                 PropTypes.func.isRequired,

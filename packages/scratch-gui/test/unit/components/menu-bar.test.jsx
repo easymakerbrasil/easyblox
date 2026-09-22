@@ -23,6 +23,7 @@ describe('MenuBar Component', () => {
             locale: 'en-US'
         },
         scratchGui: {
+            activeExtensions: [],
             menus: menuInitialState,
             projectState: {
                 loadingState: LoadingState.NOT_LOADED
@@ -282,24 +283,41 @@ describe('MenuBar Component', () => {
     });
 
     describe('EasyConect integration', () => {
-        test('shows the EasyConect action in the top bar', () => {
+        test('keeps EasyConect visible but disabled until EasyBlox BT is loaded', () => {
             const {getByRole} =
                 renderWithIntl(
                     getComponent()
                 );
 
-            expect(
+            const easyConectButton =
                 getByRole(
                     'button',
                     {
                         name:
                             'EasyConect'
                     }
-                )
+                );
+
+            expect(
+                easyConectButton
             ).toBeTruthy();
+
+            expect(
+                easyConectButton.disabled
+            ).toBe(
+                true
+            );
+
+            expect(
+                easyConectButton.getAttribute(
+                    'title'
+                )
+            ).toBe(
+                'Adicione a extensão EasyBlox BT para habilitar o EasyConect.'
+            );
         });
 
-        test('clicking EasyConect delegates window toggling to the GUI state layer', () => {
+        test('does not toggle EasyConect before EasyBlox BT is loaded', () => {
             const onToggleEasyConect =
                 jest.fn();
 
@@ -310,25 +328,30 @@ describe('MenuBar Component', () => {
                     })
                 );
 
-            fireEvent.click(
+            const easyConectButton =
                 getByRole(
                     'button',
                     {
                         name:
                             'EasyConect'
                     }
-                )
+                );
+
+            fireEvent.click(
+                easyConectButton
             );
 
             expect(
                 onToggleEasyConect
-            ).toHaveBeenCalledTimes(1);
+            ).toHaveBeenCalledTimes(0);
         });
 
         test('EasyConect action reflects open state and stays before the hardware controls', () => {
             const {getByRole} =
                 renderWithIntl(
                     getComponent({
+                        easyBloxBtActive:
+                            true,
                         easyConectOpen:
                             true
                     })
@@ -367,6 +390,51 @@ describe('MenuBar Component', () => {
                     Node
                         .DOCUMENT_POSITION_FOLLOWING
             ).toBeTruthy();
+        });
+
+        test('enables EasyConect while EasyBlox BT is active', () => {
+            const onToggleEasyConect =
+                jest.fn();
+
+            const {getByRole} =
+                renderWithIntl(
+                    getComponent({
+                        easyBloxBtActive:
+                            true,
+                        onToggleEasyConect
+                    })
+                );
+
+            const easyConectButton =
+                getByRole(
+                    'button',
+                    {
+                        name:
+                            'EasyConect'
+                    }
+                );
+
+            expect(
+                easyConectButton.disabled
+            ).toBe(
+                false
+            );
+
+            expect(
+                easyConectButton.getAttribute(
+                    'title'
+                )
+            ).toBe(
+                'EasyConect'
+            );
+
+            fireEvent.click(
+                easyConectButton
+            );
+
+            expect(
+                onToggleEasyConect
+            ).toHaveBeenCalledTimes(1);
         });
     });
 });

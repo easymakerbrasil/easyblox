@@ -1,4 +1,5 @@
 import {
+    EasyConectGamepadSession,
     EasyConectOutputsSession,
     EasyConectTerminalSession
 } from '@easymaker/easyconect-core';
@@ -41,6 +42,15 @@ class EasyConectDesktopSession {
                     })
             );
 
+        this._gamepadSessionFactory =
+            options.gamepadSessionFactory ||
+            (
+                connection =>
+                    new EasyConectGamepadSession({
+                        connection
+                    })
+            );
+
         this._state =
             createDisconnectedState(
                 null
@@ -52,9 +62,10 @@ class EasyConectDesktopSession {
         this._deviceChoices =
             new Map();
 
+        this._gamepadSession =
+            null;
         this._terminalSession =
             null;
-
         this._outputsSession =
             null;
 
@@ -88,6 +99,10 @@ class EasyConectDesktopSession {
             errorCode:
                 this._state.errorCode
         };
+    }
+
+    getGamepadSession () {
+        return this._gamepadSession;
     }
 
     getTerminalSession () {
@@ -278,6 +293,8 @@ class EasyConectDesktopSession {
             this._terminalSession !==
                 null ||
             this._outputsSession !==
+                null ||
+            this._gamepadSession !==
                 null;
 
         const pendingConnectPromise =
@@ -286,6 +303,7 @@ class EasyConectDesktopSession {
         this._connectionGeneration += 1;
         this._terminalSession = null;
         this._outputsSession = null;
+        this._gamepadSession = null;
         this._deviceChoices.clear();
 
         if (!wasActive) {
@@ -326,6 +344,7 @@ class EasyConectDesktopSession {
         this._connectionGeneration += 1;
         this._terminalSession = null;
         this._outputsSession = null;
+        this._gamepadSession = null;
         this._deviceChoices.clear();
 
         this._disconnectClient(
@@ -393,9 +412,9 @@ class EasyConectDesktopSession {
 
         this._connectionGeneration =
             generation;
-
         this._terminalSession = null;
         this._outputsSession = null;
+        this._gamepadSession = null;
         this._deviceChoices.clear();
 
         this._setState({
@@ -460,6 +479,11 @@ class EasyConectDesktopSession {
         ) {
             return false;
         }
+
+        this._gamepadSession =
+            this._gamepadSessionFactory(
+                this._client
+            );
 
         const terminalSession =
             this._terminalSessionFactory(
@@ -635,6 +659,7 @@ class EasyConectDesktopSession {
         this._connectionGeneration += 1;
         this._terminalSession = null;
         this._outputsSession = null;
+        this._gamepadSession = null;
         this._deviceChoices.clear();
 
         this._setState(
