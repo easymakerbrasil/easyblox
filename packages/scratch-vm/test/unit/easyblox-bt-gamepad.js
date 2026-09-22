@@ -365,6 +365,57 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox BT initializes Bluetooth when loaded after Arduino Stage is already ready',
+    async t => {
+        let initCount =
+            0;
+
+        const provider = {
+            onBluetoothSerialData:
+                () => {},
+
+            initBluetoothSerial:
+                () => {
+                    initCount++;
+
+                    return Promise.resolve(
+                        0x40
+                    );
+                },
+
+            writeBluetoothSerial:
+                () =>
+                    0x41,
+
+            isStageConnected:
+                () =>
+                    true
+        };
+
+        const runtime = {
+            on:
+                () => {},
+
+            getPeripheralExtensionByCapability:
+                () =>
+                    provider
+        };
+
+        new Scratch3EasyBloxBtBlocks(
+            runtime
+        );
+
+        await Promise.resolve();
+
+        t.equal(
+            initCount,
+            1,
+            'extension load prepares Bluetooth when Stage was already ready'
+        );
+    }
+);
+
+tap.test(
     'EasyBlox BT reinitializes Stage Bluetooth immediately when Arduino Stage becomes ready again',
     async t => {
         const runtimeHandlers =

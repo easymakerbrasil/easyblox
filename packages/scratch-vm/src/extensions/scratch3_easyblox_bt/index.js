@@ -395,6 +395,20 @@ class Scratch3EasyBloxBtBlocks {
                     this._ensureEasyConectStageTransport();
                 }
             );
+
+            const stagePeripheral =
+                this._getEasyConectActuatorPeripheral();
+
+            if (
+                stagePeripheral &&
+                typeof stagePeripheral
+                    .isStageConnected ===
+                    'function' &&
+                stagePeripheral
+                    .isStageConnected()
+            ) {
+                this._ensureEasyConectStageTransport();
+            }
         }
     }
 
