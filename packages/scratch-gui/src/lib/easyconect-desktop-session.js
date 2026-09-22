@@ -1,4 +1,5 @@
 import {
+    EasyConectControlsSession,
     EasyConectGamepadSession,
     EasyConectOutputsSession,
     EasyConectTerminalSession
@@ -51,6 +52,15 @@ class EasyConectDesktopSession {
                     })
             );
 
+        this._controlsSessionFactory =
+            options.controlsSessionFactory ||
+            (
+                connection =>
+                    new EasyConectControlsSession({
+                        connection
+                    })
+            );
+
         this._state =
             createDisconnectedState(
                 null
@@ -62,6 +72,8 @@ class EasyConectDesktopSession {
         this._deviceChoices =
             new Map();
 
+        this._controlsSession =
+            null;
         this._gamepadSession =
             null;
         this._terminalSession =
@@ -99,6 +111,10 @@ class EasyConectDesktopSession {
             errorCode:
                 this._state.errorCode
         };
+    }
+
+    getControlsSession () {
+        return this._controlsSession;
     }
 
     getGamepadSession () {
@@ -301,6 +317,7 @@ class EasyConectDesktopSession {
             this._pendingConnectPromise;
 
         this._connectionGeneration += 1;
+        this._controlsSession = null;
         this._terminalSession = null;
         this._outputsSession = null;
         this._gamepadSession = null;
@@ -342,6 +359,7 @@ class EasyConectDesktopSession {
             this._pendingConnectPromise;
 
         this._connectionGeneration += 1;
+        this._controlsSession = null;
         this._terminalSession = null;
         this._outputsSession = null;
         this._gamepadSession = null;
@@ -412,6 +430,7 @@ class EasyConectDesktopSession {
 
         this._connectionGeneration =
             generation;
+        this._controlsSession = null;
         this._terminalSession = null;
         this._outputsSession = null;
         this._gamepadSession = null;
@@ -482,6 +501,11 @@ class EasyConectDesktopSession {
 
         this._gamepadSession =
             this._gamepadSessionFactory(
+                this._client
+            );
+
+        this._controlsSession =
+            this._controlsSessionFactory(
                 this._client
             );
 
@@ -657,6 +681,7 @@ class EasyConectDesktopSession {
         }
 
         this._connectionGeneration += 1;
+        this._controlsSession = null;
         this._terminalSession = null;
         this._outputsSession = null;
         this._gamepadSession = null;

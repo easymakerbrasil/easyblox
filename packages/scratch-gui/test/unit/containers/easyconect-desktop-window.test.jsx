@@ -38,6 +38,10 @@ class FakeSession {
         return this.gamepadSession;
     }
 
+    getControlsSession () {
+        return null;
+    }
+
     getTerminalSession () {
         return this.terminalSession;
     }

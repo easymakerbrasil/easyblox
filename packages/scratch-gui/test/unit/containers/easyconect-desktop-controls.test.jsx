@@ -7,28 +7,59 @@ import {
 import '@testing-library/jest-dom';
 
 import {
-    EASYCONECT_GAMEPAD_SIGNAL_IDS
-} from '@easymaker/easyconect-core';
-
-import {
     EasyConectDesktopWindowContainer
 } from '../../../src/containers/easyconect-desktop-window.jsx';
 
-class FakeGamepadSession {
+class FakeControlsSession {
     constructor () {
-        this.calls = [];
+        this.switchCalls = [];
     }
 
-    setButtonPressed (
-        signalId,
-        pressed
-    ) {
-        this.calls.push({
-            signalId,
-            pressed
-        });
+    getJoystickPosition () {
+        return {
+            x: 0,
+            y: 0
+        };
+    }
 
-        return Promise.resolve();
+    getSliderValue () {
+        return 0;
+    }
+
+    getButtonPressed () {
+        return false;
+    }
+
+    getSwitchOn () {
+        return false;
+    }
+
+    setJoystickPosition () {
+        return Promise.resolve(
+            true
+        );
+    }
+
+    setSliderValue () {
+        return Promise.resolve(
+            true
+        );
+    }
+
+    setButtonPressed () {
+        return Promise.resolve(
+            true
+        );
+    }
+
+    setSwitchOn (on) {
+        this.switchCalls.push(
+            on
+        );
+
+        return Promise.resolve(
+            true
+        );
     }
 }
 
@@ -39,8 +70,8 @@ class FakeSession {
         this.status =
             status;
 
-        this.gamepadSession =
-            new FakeGamepadSession();
+        this.controlsSession =
+            new FakeControlsSession();
 
         this._listeners = [];
     }
@@ -61,10 +92,10 @@ class FakeSession {
     }
 
     getControlsSession () {
-        return null;
+        return this.controlsSession;
     }
 
-    getTerminalSession () {
+    getGamepadSession () {
         return null;
     }
 
@@ -72,8 +103,8 @@ class FakeSession {
         return null;
     }
 
-    getGamepadSession () {
-        return this.gamepadSession;
+    getTerminalSession () {
+        return null;
     }
 
     onStateChange (
@@ -113,9 +144,9 @@ class FakeSession {
 }
 
 describe(
-    'EasyConect Desktop Gamepad container bridge',
+    'EasyConect Desktop Controls container bridge',
     () => {
-        test('forwards the active Gamepad session to the Gamepad workspace', () => {
+        test('forwards the active Controls session while Bluetooth is connected', () => {
             const session =
                 new FakeSession();
 
@@ -136,51 +167,31 @@ describe(
                     'button',
                     {
                         name:
-                            'Abrir Gamepad'
+                            'Abrir Controles'
                     }
                 )
             );
 
-            const up =
+            fireEvent.click(
                 screen.getByRole(
-                    'button',
+                    'switch',
                     {
                         name:
-                            'Cima'
+                            'Chave'
                     }
-                );
-
-            fireEvent.pointerDown(
-                up
-            );
-
-            fireEvent.pointerUp(
-                up
+                )
             );
 
             expect(
                 session
-                    .gamepadSession
-                    .calls
+                    .controlsSession
+                    .switchCalls
             ).toEqual([
-                {
-                    signalId:
-                        EASYCONECT_GAMEPAD_SIGNAL_IDS
-                            .DPAD_UP,
-                    pressed:
-                        true
-                },
-                {
-                    signalId:
-                        EASYCONECT_GAMEPAD_SIGNAL_IDS
-                            .DPAD_UP,
-                    pressed:
-                        false
-                }
+                true
             ]);
         });
 
-        test('does not expose the Gamepad session while Bluetooth is disconnected', () => {
+        test('does not expose the Controls session while Bluetooth is disconnected', () => {
             const session =
                 new FakeSession(
                     'disconnected'
@@ -203,31 +214,31 @@ describe(
                     'button',
                     {
                         name:
-                            'Abrir Gamepad'
+                            'Abrir Controles'
                     }
                 )
             );
 
             expect(
                 screen.getByText(
-                    'Conecte o Bluetooth para usar o Gamepad.'
+                    'Conecte o Bluetooth para usar Controles.'
                 )
             ).toBeInTheDocument();
 
             expect(
                 screen.getByRole(
-                    'button',
+                    'switch',
                     {
                         name:
-                            'Cima'
+                            'Chave'
                     }
                 )
             ).toBeDisabled();
 
             expect(
                 session
-                    .gamepadSession
-                    .calls
+                    .controlsSession
+                    .switchCalls
             ).toEqual([]);
         });
     }

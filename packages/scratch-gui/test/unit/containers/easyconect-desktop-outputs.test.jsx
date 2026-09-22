@@ -40,6 +40,10 @@ class FakeSession {
         };
     }
 
+    getControlsSession () {
+        return null;
+    }
+
     getGamepadSession () {
         return null;
     }

@@ -144,6 +144,8 @@ const createSession =
                         new FakeTerminalSession(),
                 gamepadSessionFactory:
                     () => ({}),
+                controlsSessionFactory:
+                    () => ({}),
                 outputsSessionFactory:
                     () => {
                         const outputs =
