@@ -15,6 +15,9 @@ const MathUtil = require('./util/math-util');
 const Runtime = require('./engine/runtime');
 const StringUtil = require('./util/string-util');
 const uid = require('./util/uid');
+const {
+    rasterizeEasyBloxQr
+} = require('./qr/easyblox-qr-encoder');
 const formatMessage = require('format-message');
 
 const Variable = require('./engine/variable');
@@ -1799,6 +1802,27 @@ class VirtualMachine extends EventEmitter {
      */
     getEasyBloxQrCodeById (id) {
         return this.runtime.getEasyBloxQrCodeById(id);
+    }
+
+    /**
+     * Rasterize a project QR Code resource for presentation or export.
+     * Derived image data is never persisted in the project.
+     * @param {string} id Stable internal QR Code ID.
+     * @param {object} [options] Raster options.
+     * @returns {?object} Canonical QR raster or null when the resource does not exist.
+     */
+    getEasyBloxQrCodeRaster (id, options = {}) {
+        const qrCode =
+            this.getEasyBloxQrCodeById(id);
+
+        if (!qrCode) {
+            return null;
+        }
+
+        return rasterizeEasyBloxQr(
+            qrCode.content,
+            options
+        );
     }
 
     /**
