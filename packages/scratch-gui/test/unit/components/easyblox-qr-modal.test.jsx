@@ -29,6 +29,34 @@ const createVm = (
                     )
             ),
 
+        getEasyBloxQrCodeRaster:
+            jest.fn(
+                id => {
+                    const qrCode =
+                        qrCodes.find(
+                            item =>
+                                item.id === id
+                        );
+
+                    if (!qrCode) {
+                        return null;
+                    }
+
+                    return {
+                        content:
+                            qrCode.content,
+                        width:
+                            2,
+                        height:
+                            2,
+                        pixels:
+                            new Uint8ClampedArray(
+                                16
+                            )
+                    };
+                }
+            ),
+
         createEasyBloxQrCode:
             jest.fn(
                 (name, content) => {
@@ -99,6 +127,55 @@ const createVm = (
 describe(
     'EasyBlox QR authoring modal',
     () => {
+        let canvasContext;
+
+        beforeEach(
+            () => {
+                canvasContext = {
+                    createImageData:
+                        jest.fn(
+                            (width, height) => ({
+                                data:
+                                    new Uint8ClampedArray(
+                                        width *
+                                        height *
+                                        4
+                                    )
+                            })
+                        ),
+                    putImageData:
+                        jest.fn()
+                };
+
+                jest.spyOn(
+                    HTMLCanvasElement.prototype,
+                    'getContext'
+                ).mockReturnValue(
+                    canvasContext
+                );
+
+                jest.spyOn(
+                    HTMLCanvasElement.prototype,
+                    'toDataURL'
+                ).mockReturnValue(
+                    'data:image/png;base64,EASYBLOX'
+                );
+
+                jest.spyOn(
+                    HTMLAnchorElement.prototype,
+                    'click'
+                ).mockImplementation(
+                    () => {}
+                );
+            }
+        );
+
+        afterEach(
+            () => {
+                jest.restoreAllMocks();
+            }
+        );
+
         test(
             'creates a project QR Code and opens the manager',
             () => {
@@ -171,6 +248,120 @@ describe(
                         'https://example.com'
                     )
                 ).toBeTruthy();
+            }
+        );
+
+        test(
+            'renders a real preview from the canonical QR raster',
+            () => {
+                const vm =
+                    createVm([
+                        {
+                            id:
+                                'qr_a',
+                            name:
+                                'Estação 1',
+                            content:
+                                'EASYBLOX-PREVIEW'
+                        }
+                    ]);
+
+                const {
+                    getByRole
+                } = render(
+                    <EasyBloxQrModal
+                        initialMode="manage"
+                        vm={vm}
+                        onRequestClose={
+                            jest.fn()
+                        }
+                    />
+                );
+
+                expect(
+                    vm.getEasyBloxQrCodeRaster
+                ).toHaveBeenCalledWith(
+                    'qr_a',
+                    {
+                        size: 256
+                    }
+                );
+
+                expect(
+                    getByRole(
+                        'img',
+                        {
+                            name:
+                                'Prévia do QR Code Estação 1'
+                        }
+                    )
+                ).toBeTruthy();
+
+                expect(
+                    canvasContext.putImageData
+                ).toHaveBeenCalled();
+            }
+        );
+
+        test(
+            'downloads a canonical 1024 pixel PNG',
+            () => {
+                const vm =
+                    createVm([
+                        {
+                            id:
+                                'qr_a',
+                            name:
+                                'Estação 1',
+                            content:
+                                'EASYBLOX-DOWNLOAD'
+                        }
+                    ]);
+
+                const {
+                    getByRole
+                } = render(
+                    <EasyBloxQrModal
+                        initialMode="manage"
+                        vm={vm}
+                        onRequestClose={
+                            jest.fn()
+                        }
+                    />
+                );
+
+                fireEvent.click(
+                    getByRole(
+                        'button',
+                        {
+                            name:
+                                'Baixar PNG'
+                        }
+                    )
+                );
+
+                expect(
+                    vm.getEasyBloxQrCodeRaster
+                ).toHaveBeenCalledWith(
+                    'qr_a',
+                    {
+                        size: 1024
+                    }
+                );
+
+                expect(
+                    HTMLCanvasElement
+                        .prototype
+                        .toDataURL
+                ).toHaveBeenCalledWith(
+                    'image/png'
+                );
+
+                expect(
+                    HTMLAnchorElement
+                        .prototype
+                        .click
+                ).toHaveBeenCalled();
             }
         );
 

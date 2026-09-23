@@ -3,10 +3,64 @@ import React from 'react';
 
 import Modal from '../modal/modal.jsx';
 
+import EasyBloxQrPreview from './easyblox-qr-preview.jsx';
 import styles from './easyblox-qr-modal.css';
 
 const MODE_CREATE = 'create';
 const MODE_MANAGE = 'manage';
+
+const PREVIEW_RASTER_SIZE = 256;
+const DOWNLOAD_RASTER_SIZE = 1024;
+
+const drawQrRasterToCanvas = (
+    canvas,
+    raster
+) => {
+    if (
+        !canvas ||
+        !raster
+    ) {
+        return false;
+    }
+
+    canvas.width =
+        raster.width;
+    canvas.height =
+        raster.height;
+
+    const context =
+        canvas.getContext('2d');
+
+    if (!context) {
+        return false;
+    }
+
+    const imageData =
+        context.createImageData(
+            raster.width,
+            raster.height
+        );
+
+    imageData.data.set(
+        raster.pixels
+    );
+
+    context.putImageData(
+        imageData,
+        0,
+        0
+    );
+
+    return true;
+};
+
+const sanitizeDownloadName = name =>
+    String(name)
+        .trim()
+        .replace(
+            /[<>:"/\\|?*]/g,
+            '-'
+        );
 
 class EasyBloxQrModal extends React.Component {
     constructor (props) {
@@ -53,6 +107,8 @@ class EasyBloxQrModal extends React.Component {
             this.handleCancelDelete.bind(this);
         this.handleConfirmDelete =
             this.handleConfirmDelete.bind(this);
+        this.handleDownload =
+            this.handleDownload.bind(this);
         this.renderQrCode =
             this.renderQrCode.bind(this);
     }
@@ -330,6 +386,84 @@ class EasyBloxQrModal extends React.Component {
         }
     }
 
+    handleDownload (event) {
+        const id =
+            event.currentTarget.dataset.qrId;
+
+        const qrCode =
+            this.getQrCodes().find(
+                item =>
+                    item.id === id
+            );
+
+        if (!qrCode) {
+            return;
+        }
+
+        try {
+            const raster =
+                this.props.vm
+                    .getEasyBloxQrCodeRaster(
+                        id,
+                        {
+                            size:
+                                DOWNLOAD_RASTER_SIZE
+                        }
+                    );
+
+            if (!raster) {
+                throw new Error(
+                    'QR Code resource is unavailable'
+                );
+            }
+
+            const canvas =
+                document.createElement(
+                    'canvas'
+                );
+
+            if (
+                !drawQrRasterToCanvas(
+                    canvas,
+                    raster
+                )
+            ) {
+                throw new Error(
+                    'QR Code canvas is unavailable'
+                );
+            }
+
+            const link =
+                document.createElement(
+                    'a'
+                );
+
+            const fileName =
+                sanitizeDownloadName(
+                    qrCode.name
+                ) ||
+                'QR-Code';
+
+            link.download =
+                `${fileName}.png`;
+
+            link.href =
+                canvas.toDataURL(
+                    'image/png'
+                );
+
+            link.click();
+        } catch (downloadError) {
+            this.setState({
+                error:
+                    downloadError &&
+                    downloadError.message ?
+                        downloadError.message :
+                        'Não foi possível baixar o QR Code.'
+            });
+        }
+    }
+
     renderCreate () {
         const {
             content,
@@ -482,6 +616,16 @@ class EasyBloxQrModal extends React.Component {
             pendingDeleteId
         } = this.state;
 
+        const previewRaster =
+            this.props.vm
+                .getEasyBloxQrCodeRaster(
+                    qrCode.id,
+                    {
+                        size:
+                            PREVIEW_RASTER_SIZE
+                    }
+                );
+
         return (
             <div
                 className={styles.resource}
@@ -492,72 +636,97 @@ class EasyBloxQrModal extends React.Component {
                         qrCode
                     ) :
                     (
-                        <React.Fragment>
-                            <div className={styles.resourceInfo}>
-                                <div className={styles.resourceName}>
-                                    {qrCode.name}
-                                </div>
-
-                                <div className={styles.resourceContent}>
-                                    {qrCode.content}
-                                </div>
+                        <div className={styles.resourceOverview}>
+                            <div className={styles.previewFrame}>
+                                {previewRaster ? (
+                                    <EasyBloxQrPreview
+                                        drawRaster={
+                                            drawQrRasterToCanvas
+                                        }
+                                        name={qrCode.name}
+                                        raster={previewRaster}
+                                    />
+                                ) : null}
                             </div>
 
-                            {pendingDeleteId === qrCode.id ? (
-                                <div className={styles.deleteConfirmation}>
-                                    <span>
-                                        Excluir este QR Code?
-                                    </span>
+                            <div className={styles.resourceDetails}>
+                                <div className={styles.resourceInfo}>
+                                    <div className={styles.resourceName}>
+                                        {qrCode.name}
+                                    </div>
 
+                                    <div className={styles.resourceContent}>
+                                        {qrCode.content}
+                                    </div>
+                                </div>
+
+                                {pendingDeleteId === qrCode.id ? (
+                                    <div className={styles.deleteConfirmation}>
+                                        <span>
+                                            Excluir este QR Code?
+                                        </span>
+
+                                        <div className={styles.inlineActions}>
+                                            <button
+                                                className={styles.secondaryButton}
+                                                type="button"
+                                                onClick={
+                                                    this.handleCancelDelete
+                                                }
+                                            >
+                                                Cancelar
+                                            </button>
+
+                                            <button
+                                                className={styles.dangerButton}
+                                                data-qr-id={qrCode.id}
+                                                type="button"
+                                                onClick={
+                                                    this.handleConfirmDelete
+                                                }
+                                            >
+                                                Excluir
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
                                     <div className={styles.inlineActions}>
                                         <button
                                             className={styles.secondaryButton}
-                                            type="button"
-                                            onClick={
-                                                this.handleCancelDelete
-                                            }
-                                        >
-                                            Cancelar
-                                        </button>
-
-                                        <button
-                                            className={styles.dangerButton}
                                             data-qr-id={qrCode.id}
                                             type="button"
                                             onClick={
-                                                this.handleConfirmDelete
+                                                this.handleDownload
+                                            }
+                                        >
+                                            Baixar PNG
+                                        </button>
+
+                                        <button
+                                            className={styles.secondaryButton}
+                                            data-qr-id={qrCode.id}
+                                            type="button"
+                                            onClick={
+                                                this.handleEditClick
+                                            }
+                                        >
+                                            Editar
+                                        </button>
+
+                                        <button
+                                            className={styles.deleteButton}
+                                            data-qr-id={qrCode.id}
+                                            type="button"
+                                            onClick={
+                                                this.handleRequestDelete
                                             }
                                         >
                                             Excluir
                                         </button>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className={styles.inlineActions}>
-                                    <button
-                                        className={styles.secondaryButton}
-                                        data-qr-id={qrCode.id}
-                                        type="button"
-                                        onClick={
-                                            this.handleEditClick
-                                        }
-                                    >
-                                        Editar
-                                    </button>
-
-                                    <button
-                                        className={styles.deleteButton}
-                                        data-qr-id={qrCode.id}
-                                        type="button"
-                                        onClick={
-                                            this.handleRequestDelete
-                                        }
-                                    >
-                                        Excluir
-                                    </button>
-                                </div>
-                            )}
-                        </React.Fragment>
+                                )}
+                            </div>
+                        </div>
                     )}
             </div>
         );
@@ -694,6 +863,8 @@ EasyBloxQrModal.propTypes = {
         createEasyBloxQrCode:
             PropTypes.func.isRequired,
         deleteEasyBloxQrCode:
+            PropTypes.func.isRequired,
+        getEasyBloxQrCodeRaster:
             PropTypes.func.isRequired,
         getEasyBloxQrCodes:
             PropTypes.func.isRequired,

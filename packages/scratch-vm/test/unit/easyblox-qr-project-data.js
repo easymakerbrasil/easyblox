@@ -59,6 +59,56 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox QR rasterizes a saved resource by stable ID',
+    t => {
+        const vm = createVm();
+
+        const created =
+            vm.createEasyBloxQrCode(
+                'Estação 1',
+                'EASYBLOX-PREVIEW-001'
+            );
+
+        const raster =
+            vm.getEasyBloxQrCodeRaster(
+                created.id,
+                {
+                    size: 128
+                }
+            );
+
+        t.equal(
+            raster.content,
+            'EASYBLOX-PREVIEW-001'
+        );
+
+        t.equal(
+            raster.width,
+            128
+        );
+
+        t.equal(
+            raster.height,
+            128
+        );
+
+        t.equal(
+            raster.pixels.length,
+            128 * 128 * 4
+        );
+
+        t.equal(
+            vm.getEasyBloxQrCodeRaster(
+                'qr_missing'
+            ),
+            null
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
     'EasyBlox QR names are unique ignoring case',
     t => {
         const vm = createVm();
