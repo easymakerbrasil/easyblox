@@ -635,3 +635,457 @@ tap.test(
         t.end();
     }
 );
+
+tap.test(
+    'EasyBlox QR renders one compact Stage overlay and reuses it',
+    t => {
+        const previousImageData =
+            global.ImageData;
+
+        global.ImageData =
+            class ImageDataMock {
+                constructor (
+                    data,
+                    width,
+                    height
+                ) {
+                    this.data = data;
+                    this.width = width;
+                    this.height = height;
+                }
+            };
+
+        const calls = {
+            createBitmapSkin: [],
+            createDrawable: [],
+            updateBitmapSkin: [],
+            updateDrawableSkinId: [],
+            updateDrawablePosition: [],
+            updateDrawableScale: [],
+            updateDrawableVisible: [],
+            redraw: 0
+        };
+
+        const renderer = {
+            createBitmapSkin:
+                (imageData, resolution) => {
+                    calls.createBitmapSkin.push([
+                        imageData,
+                        resolution
+                    ]);
+
+                    return 41;
+                },
+
+            createDrawable:
+                layer => {
+                    calls.createDrawable.push(
+                        layer
+                    );
+
+                    return 42;
+                },
+
+            updateBitmapSkin:
+                (
+                    skinId,
+                    imageData,
+                    resolution
+                ) => {
+                    calls.updateBitmapSkin.push([
+                        skinId,
+                        imageData,
+                        resolution
+                    ]);
+                },
+
+            updateDrawableSkinId:
+                (drawableId, skinId) => {
+                    calls.updateDrawableSkinId.push([
+                        drawableId,
+                        skinId
+                    ]);
+                },
+
+            updateDrawablePosition:
+                (drawableId, position) => {
+                    calls.updateDrawablePosition.push([
+                        drawableId,
+                        position
+                    ]);
+                },
+
+            updateDrawableScale:
+                (drawableId, scale) => {
+                    calls.updateDrawableScale.push([
+                        drawableId,
+                        scale
+                    ]);
+                },
+
+            updateDrawableVisible:
+                (drawableId, visible) => {
+                    calls.updateDrawableVisible.push([
+                        drawableId,
+                        visible
+                    ]);
+                }
+        };
+
+        const resources = {
+            qr_a: {
+                id: 'qr_a',
+                name: 'Estação 1',
+                content: 'A'
+            },
+            qr_b: {
+                id: 'qr_b',
+                name: 'Estação 2',
+                content: 'B'
+            }
+        };
+
+        const runtime = {
+            renderer,
+            getEasyBloxQrCodeById:
+                id =>
+                    resources[id] || null,
+            requestRedraw:
+                () => {
+                    calls.redraw += 1;
+                }
+        };
+
+        const extension =
+            createExtension(runtime);
+
+        extension.showQrCode({
+            QR_CODE: 'qr_a'
+        });
+
+        t.equal(
+            calls.createBitmapSkin.length,
+            1,
+            'one bitmap skin is created'
+        );
+
+        t.equal(
+            calls.createDrawable.length,
+            1,
+            'one drawable is created'
+        );
+
+        t.equal(
+            calls.createDrawable[0],
+            'easybloxQr',
+            'QR uses its dedicated overlay layer'
+        );
+
+        t.same(
+            calls.updateDrawablePosition[0],
+            [
+                42,
+                [
+                    160,
+                    100
+                ]
+            ],
+            'overlay uses the canonical top-right position'
+        );
+
+        t.same(
+            calls.updateDrawableScale[0],
+            [
+                42,
+                [
+                    50,
+                    50
+                ]
+            ],
+            'overlay uses the compact canonical scale'
+        );
+
+        t.same(
+            calls.updateDrawableVisible[0],
+            [
+                42,
+                true
+            ]
+        );
+
+        t.equal(
+            calls.createBitmapSkin[0][0].width,
+            256
+        );
+
+        t.equal(
+            calls.createBitmapSkin[0][0].height,
+            256
+        );
+
+        extension.showQrCode({
+            QR_CODE: 'qr_b'
+        });
+
+        t.equal(
+            calls.createBitmapSkin.length,
+            1,
+            'second QR reuses the existing skin'
+        );
+
+        t.equal(
+            calls.createDrawable.length,
+            1,
+            'second QR reuses the existing drawable'
+        );
+
+        t.equal(
+            calls.updateBitmapSkin.length,
+            1,
+            'existing skin receives the new QR bitmap'
+        );
+
+        t.equal(
+            extension._visibleQrCodeId,
+            'qr_b'
+        );
+
+        t.equal(
+            calls.redraw,
+            2
+        );
+
+        global.ImageData =
+            previousImageData;
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox QR hide preserves reusable renderer resources',
+    t => {
+        const previousImageData =
+            global.ImageData;
+
+        global.ImageData =
+            class ImageDataMock {
+                constructor (
+                    data,
+                    width,
+                    height
+                ) {
+                    this.data = data;
+                    this.width = width;
+                    this.height = height;
+                }
+            };
+
+        const visibleCalls = [];
+        let redrawCount = 0;
+
+        const runtime = {
+            renderer: {
+                createBitmapSkin:
+                    () => 41,
+                createDrawable:
+                    () => 42,
+                updateDrawableSkinId:
+                    () => {},
+                updateDrawablePosition:
+                    () => {},
+                updateDrawableScale:
+                    () => {},
+                updateDrawableVisible:
+                    (drawableId, visible) => {
+                        visibleCalls.push([
+                            drawableId,
+                            visible
+                        ]);
+                    }
+            },
+            getEasyBloxQrCodeById:
+                () => ({
+                    id: 'qr_a',
+                    name: 'Estação 1',
+                    content: 'A'
+                }),
+            requestRedraw:
+                () => {
+                    redrawCount += 1;
+                }
+        };
+
+        const extension =
+            createExtension(runtime);
+
+        extension.showQrCode({
+            QR_CODE: 'qr_a'
+        });
+
+        extension.hideQrCode();
+
+        t.equal(
+            extension._visibleQrCodeId,
+            null
+        );
+
+        t.equal(
+            extension._stageQrSkinId,
+            41
+        );
+
+        t.equal(
+            extension._stageQrDrawableId,
+            42
+        );
+
+        t.same(
+            visibleCalls[
+                visibleCalls.length - 1
+            ],
+            [
+                42,
+                false
+            ]
+        );
+
+        t.equal(
+            redrawCount,
+            2
+        );
+
+        global.ImageData =
+            previousImageData;
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox QR destroys Stage overlay resources when the runtime is disposed',
+    t => {
+        const previousImageData =
+            global.ImageData;
+
+        global.ImageData =
+            class ImageDataMock {
+                constructor (
+                    data,
+                    width,
+                    height
+                ) {
+                    this.data = data;
+                    this.width = width;
+                    this.height = height;
+                }
+            };
+
+        let disposeListener = null;
+
+        const destroyedDrawables = [];
+        const destroyedSkins = [];
+
+        const runtime = {
+            renderer: {
+                createBitmapSkin:
+                    () => 41,
+                createDrawable:
+                    () => 42,
+                updateDrawableSkinId:
+                    () => {},
+                updateDrawablePosition:
+                    () => {},
+                updateDrawableScale:
+                    () => {},
+                updateDrawableVisible:
+                    () => {},
+                destroyDrawable:
+                    (drawableId, layer) => {
+                        destroyedDrawables.push([
+                            drawableId,
+                            layer
+                        ]);
+                    },
+                destroySkin:
+                    skinId => {
+                        destroyedSkins.push(
+                            skinId
+                        );
+                    }
+            },
+
+            getEasyBloxQrCodeById:
+                () => ({
+                    id: 'qr_a',
+                    name: 'Estação 1',
+                    content: 'A'
+                }),
+
+            requestRedraw:
+                () => {},
+
+            on:
+                (eventName, listener) => {
+                    if (
+                        eventName ===
+                        'RUNTIME_DISPOSED'
+                    ) {
+                        disposeListener =
+                            listener;
+                    }
+                }
+        };
+
+        const extension =
+            createExtension(runtime);
+
+        extension.showQrCode({
+            QR_CODE: 'qr_a'
+        });
+
+        t.type(
+            disposeListener,
+            'function'
+        );
+
+        disposeListener();
+
+        t.same(
+            destroyedDrawables,
+            [
+                [
+                    42,
+                    'easybloxQr'
+                ]
+            ]
+        );
+
+        t.same(
+            destroyedSkins,
+            [
+                41
+            ]
+        );
+
+        t.equal(
+            extension._stageQrDrawableId,
+            -1
+        );
+
+        t.equal(
+            extension._stageQrSkinId,
+            -1
+        );
+
+        t.equal(
+            extension._visibleQrCodeId,
+            null
+        );
+
+        global.ImageData =
+            previousImageData;
+
+        t.end();
+    }
+);

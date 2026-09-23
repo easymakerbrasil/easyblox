@@ -4,6 +4,11 @@ const BlockExecutionMode =
     require('../../extension-support/block-execution-mode');
 const BlockType =
     require('../../extension-support/block-type');
+const StageLayering =
+    require('../../engine/stage-layering');
+const {
+    rasterizeEasyBloxQr
+} = require('../../qr/easyblox-qr-encoder');
 
 const EXTENSION_ID =
     'easybloxQr';
@@ -20,6 +25,17 @@ const BOUNDARY_ON =
 const BOUNDARY_OFF =
     'off';
 
+const STAGE_QR_RASTER_SIZE =
+    256;
+
+const STAGE_QR_SCALE_PERCENT =
+    50;
+
+const STAGE_QR_DEFAULT_POSITION = [
+    160,
+    100
+];
+
 class Scratch3EasyBloxQrBlocks {
     constructor (runtime) {
         this.runtime = runtime;
@@ -30,8 +46,23 @@ class Scratch3EasyBloxQrBlocks {
         this._content = '';
         this._visibleQrCodeId = null;
 
+        this._stageQrSkinId = -1;
+        this._stageQrDrawableId = -1;
+
         this._cameraEnabledByReader = false;
         this._videoMirrorBeforeReader = null;
+
+        if (
+            this.runtime &&
+            typeof this.runtime.on === 'function'
+        ) {
+            this.runtime.on(
+                'RUNTIME_DISPOSED',
+                () => {
+                    this._disposeStageQrCode();
+                }
+            );
+        }
     }
 
     /**
@@ -401,8 +432,144 @@ class Scratch3EasyBloxQrBlocks {
     }
 
     /**
-     * Select a project QR Code for display on the Stage.
-     * Actual rendering is implemented by the generator integration lot.
+     * Convert the canonical QR raster into browser ImageData.
+     * @param {!object} raster Canonical EasyBlox QR raster.
+     * @returns {!ImageData} Browser bitmap data.
+     */
+    _createStageQrImageData (raster) {
+        return new ImageData(
+            raster.pixels,
+            raster.width,
+            raster.height
+        );
+    }
+
+    /**
+     * Render one project QR Code as a centered Stage overlay.
+     * The same drawable and skin are reused while the project is active.
+     * @param {!object} qrCode Project QR Code resource.
+     */
+    _renderStageQrCode (qrCode) {
+        const renderer =
+            this.runtime &&
+            this.runtime.renderer ?
+                this.runtime.renderer :
+                null;
+
+        if (!renderer) {
+            return;
+        }
+
+        const raster =
+            rasterizeEasyBloxQr(
+                qrCode.content,
+                {
+                    size:
+                        STAGE_QR_RASTER_SIZE
+                }
+            );
+
+        const imageData =
+            this._createStageQrImageData(
+                raster
+            );
+
+        if (
+            this._stageQrSkinId === -1 ||
+            this._stageQrDrawableId === -1
+        ) {
+            this._stageQrSkinId =
+                renderer.createBitmapSkin(
+                    imageData,
+                    1
+                );
+
+            this._stageQrDrawableId =
+                renderer.createDrawable(
+                    StageLayering
+                        .EASYBLOX_QR_LAYER
+                );
+
+            renderer.updateDrawableSkinId(
+                this._stageQrDrawableId,
+                this._stageQrSkinId
+            );
+
+            renderer.updateDrawablePosition(
+                this._stageQrDrawableId,
+                STAGE_QR_DEFAULT_POSITION
+            );
+
+            renderer.updateDrawableScale(
+                this._stageQrDrawableId,
+                [
+                    STAGE_QR_SCALE_PERCENT,
+                    STAGE_QR_SCALE_PERCENT
+                ]
+            );
+        } else {
+            renderer.updateBitmapSkin(
+                this._stageQrSkinId,
+                imageData,
+                1
+            );
+        }
+
+        renderer.updateDrawableVisible(
+            this._stageQrDrawableId,
+            true
+        );
+
+        if (
+            this.runtime &&
+            typeof this.runtime.requestRedraw ===
+                'function'
+        ) {
+            this.runtime.requestRedraw();
+        }
+    }
+
+    /**
+     * Destroy the renderer resources owned by the Stage QR overlay.
+     */
+    _disposeStageQrCode () {
+        const renderer =
+            this.runtime &&
+            this.runtime.renderer ?
+                this.runtime.renderer :
+                null;
+
+        if (renderer) {
+            if (
+                this._stageQrDrawableId !== -1 &&
+                typeof renderer.destroyDrawable ===
+                    'function'
+            ) {
+                renderer.destroyDrawable(
+                    this._stageQrDrawableId,
+                    StageLayering
+                        .EASYBLOX_QR_LAYER
+                );
+            }
+
+            if (
+                this._stageQrSkinId !== -1 &&
+                typeof renderer.destroySkin ===
+                    'function'
+            ) {
+                renderer.destroySkin(
+                    this._stageQrSkinId
+                );
+            }
+        }
+
+        this._stageQrDrawableId = -1;
+        this._stageQrSkinId = -1;
+        this._visibleQrCodeId = null;
+    }
+
+    /**
+     * Display one project QR Code as a centered Stage overlay.
      * @param {!object} args Scratch block arguments.
      */
     showQrCode (args) {
@@ -416,24 +583,56 @@ class Scratch3EasyBloxQrBlocks {
             !qrCodeId ||
             !this.runtime ||
             typeof this.runtime.getEasyBloxQrCodeById !==
-                'function' ||
-            !this.runtime.getEasyBloxQrCodeById(
-                qrCodeId
-            )
+                'function'
         ) {
+            return;
+        }
+
+        const qrCode =
+            this.runtime.getEasyBloxQrCodeById(
+                qrCodeId
+            );
+
+        if (!qrCode) {
             return;
         }
 
         this._visibleQrCodeId =
             qrCodeId;
+
+        this._renderStageQrCode(
+            qrCode
+        );
     }
 
     /**
-     * Hide the project QR Code currently selected for the Stage.
-     * Actual rendering is implemented by the generator integration lot.
+     * Hide the project QR Code currently displayed on the Stage.
      */
     hideQrCode () {
         this._visibleQrCodeId = null;
+
+        const renderer =
+            this.runtime &&
+            this.runtime.renderer ?
+                this.runtime.renderer :
+                null;
+
+        if (
+            renderer &&
+            this._stageQrDrawableId !== -1
+        ) {
+            renderer.updateDrawableVisible(
+                this._stageQrDrawableId,
+                false
+            );
+
+            if (
+                typeof this.runtime.requestRedraw ===
+                    'function'
+            ) {
+                this.runtime.requestRedraw();
+            }
+        }
     }
 }
 
