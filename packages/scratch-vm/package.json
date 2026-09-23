@@ -80,6 +80,7 @@
     "htmlparser2": "3.10.1",
     "immutable": "3.8.3",
     "jszip": "3.10.1",
+    "qrcode": "1.5.4",
     "scratch-audio": "2.0.268",
     "scratch-parser": "6.0.0",
     "scratch-sb1-converter": "2.0.279",
