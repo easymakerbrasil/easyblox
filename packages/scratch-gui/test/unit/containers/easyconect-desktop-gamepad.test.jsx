@@ -64,6 +64,10 @@ class FakeSession {
         return null;
     }
 
+    getMotorsServoSession () {
+        return null;
+    }
+
     getTerminalSession () {
         return null;
     }

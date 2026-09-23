@@ -146,6 +146,8 @@ const createSession =
                     () => ({}),
                 controlsSessionFactory:
                     () => ({}),
+                motorsServoSessionFactory:
+                    () => ({}),
                 outputsSessionFactory:
                     () => {
                         const outputs =

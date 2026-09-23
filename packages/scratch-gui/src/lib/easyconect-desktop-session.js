@@ -1,6 +1,7 @@
 import {
     EasyConectControlsSession,
     EasyConectGamepadSession,
+    EasyConectMotorsServoSession,
     EasyConectOutputsSession,
     EasyConectTerminalSession
 } from '@easymaker/easyconect-core';
@@ -61,6 +62,15 @@ class EasyConectDesktopSession {
                     })
             );
 
+        this._motorsServoSessionFactory =
+            options.motorsServoSessionFactory ||
+            (
+                connection =>
+                    new EasyConectMotorsServoSession({
+                        connection
+                    })
+            );
+
         this._state =
             createDisconnectedState(
                 null
@@ -73,6 +83,8 @@ class EasyConectDesktopSession {
             new Map();
 
         this._controlsSession =
+            null;
+        this._motorsServoSession =
             null;
         this._gamepadSession =
             null;
@@ -115,6 +127,10 @@ class EasyConectDesktopSession {
 
     getControlsSession () {
         return this._controlsSession;
+    }
+
+    getMotorsServoSession () {
+        return this._motorsServoSession;
     }
 
     getGamepadSession () {
@@ -318,6 +334,7 @@ class EasyConectDesktopSession {
 
         this._connectionGeneration += 1;
         this._controlsSession = null;
+        this._motorsServoSession = null;
         this._terminalSession = null;
         this._outputsSession = null;
         this._gamepadSession = null;
@@ -509,6 +526,11 @@ class EasyConectDesktopSession {
                 this._client
             );
 
+        this._motorsServoSession =
+            this._motorsServoSessionFactory(
+                this._client
+            );
+
         const terminalSession =
             this._terminalSessionFactory(
                 this._client
@@ -682,6 +704,7 @@ class EasyConectDesktopSession {
 
         this._connectionGeneration += 1;
         this._controlsSession = null;
+        this._motorsServoSession = null;
         this._terminalSession = null;
         this._outputsSession = null;
         this._gamepadSession = null;

@@ -108,6 +108,13 @@ export const EasyConectDesktopWindowContainer = ({
                 .getGamepadSession() :
             null;
 
+    const motorsServoSession =
+        connectionState.status ===
+            'connected' ?
+            easyConectSession
+                .getMotorsServoSession() :
+            null;
+
     const terminalSession =
         connectionState.status ===
             'connected' ?
@@ -128,6 +135,7 @@ export const EasyConectDesktopWindowContainer = ({
             controlsSession={controlsSession}
             gamepadSession={gamepadSession}
             isOpen={isOpen}
+            motorsServoSession={motorsServoSession}
             outputsSession={outputsSession}
             terminalSession={terminalSession}
             onConnect={handleConnect}
@@ -156,6 +164,8 @@ EasyConectDesktopWindowContainer.propTypes = {
             getControlsSession:
                 PropTypes.func.isRequired,
             getGamepadSession:
+                PropTypes.func.isRequired,
+            getMotorsServoSession:
                 PropTypes.func.isRequired,
             getOutputsSession:
                 PropTypes.func.isRequired,

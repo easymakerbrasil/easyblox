@@ -66,6 +66,10 @@ const {
     EasyConectControlsSession
 } = require('./easyconect-controls-session');
 
+const {
+    EasyConectMotorsServoSession
+} = require('./easyconect-motors-servo-session');
+
 module.exports = {
     EASYCONECT_SIGNAL_TYPES,
     EASYCONECT_SIGNAL_DIRECTIONS,
@@ -101,5 +105,6 @@ module.exports = {
     EasyConectTerminalSession,
     EasyConectOutputsSession,
     EasyConectGamepadSession,
-    EasyConectControlsSession
+    EasyConectControlsSession,
+    EasyConectMotorsServoSession
 };
