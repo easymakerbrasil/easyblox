@@ -197,6 +197,131 @@ describe(
             );
         });
 
+        test('disconnects and closes EasyConect when EasyBlox BT is removed', () => {
+            const session =
+                new FakeSession({
+                    status:
+                        'connected',
+                    devices: [],
+                    errorCode:
+                        null
+                });
+
+            const onRequestClose =
+                jest.fn();
+
+            const {rerender} =
+                render(
+                    <EasyConectDesktopWindowContainer
+                        easyBloxBtActive
+                        isOpen
+                        onRequestClose={
+                            onRequestClose
+                        }
+                        session={session}
+                    />
+                );
+
+            expect(
+                session.disconnectCalls
+            ).toBe(0);
+
+            expect(
+                onRequestClose
+            ).toHaveBeenCalledTimes(0);
+
+            rerender(
+                <EasyConectDesktopWindowContainer
+                    easyBloxBtActive={false}
+                    isOpen
+                    onRequestClose={
+                        onRequestClose
+                    }
+                    session={session}
+                />
+            );
+
+            expect(
+                session.disconnectCalls
+            ).toBe(1);
+
+            expect(
+                onRequestClose
+            ).toHaveBeenCalledTimes(1);
+
+            rerender(
+                <EasyConectDesktopWindowContainer
+                    easyBloxBtActive={false}
+                    isOpen={false}
+                    onRequestClose={
+                        onRequestClose
+                    }
+                    session={session}
+                />
+            );
+
+            expect(
+                session.disconnectCalls
+            ).toBe(1);
+
+            expect(
+                onRequestClose
+            ).toHaveBeenCalledTimes(1);
+        });
+
+        test('disconnects EasyConect when EasyBlox BT is removed while the window is closed', () => {
+            const session =
+                new FakeSession({
+                    status:
+                        'connected',
+                    devices: [],
+                    errorCode:
+                        null
+                });
+
+            const onRequestClose =
+                jest.fn();
+
+            const {rerender} =
+                render(
+                    <EasyConectDesktopWindowContainer
+                        easyBloxBtActive
+                        isOpen={false}
+                        onRequestClose={
+                            onRequestClose
+                        }
+                        session={session}
+                    />
+                );
+
+            expect(
+                session.disconnectCalls
+            ).toBe(0);
+
+            expect(
+                onRequestClose
+            ).toHaveBeenCalledTimes(0);
+
+            rerender(
+                <EasyConectDesktopWindowContainer
+                    easyBloxBtActive={false}
+                    isOpen={false}
+                    onRequestClose={
+                        onRequestClose
+                    }
+                    session={session}
+                />
+            );
+
+            expect(
+                session.disconnectCalls
+            ).toBe(1);
+
+            expect(
+                onRequestClose
+            ).toHaveBeenCalledTimes(1);
+        });
+
         test('closing and reopening the EasyConect does not disconnect its active session', () => {
             const session =
                 new FakeSession({

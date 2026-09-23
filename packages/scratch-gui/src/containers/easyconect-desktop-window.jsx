@@ -8,15 +8,22 @@ import EasyConectDesktopSession
     from '../lib/easyconect-desktop-session';
 
 import {
+    isExtensionActive
+} from '../reducers/active-extensions';
+import {
     closeEasyConect,
     isEasyConectOpen,
     setEasyConectConnected
 } from '../reducers/easyconect-desktop';
 
+const EASYBLOX_BT_EXTENSION_ID =
+    'easybloxBt';
+
 const NOOP =
     () => {};
 
 export const EasyConectDesktopWindowContainer = ({
+    easyBloxBtActive = false,
     isOpen = false,
     onConnectionStateChange = NOOP,
     onRequestClose,
@@ -62,6 +69,38 @@ export const EasyConectDesktopWindowContainer = ({
         [
             connectionState.status,
             onConnectionStateChange
+        ]
+    );
+
+    const previousEasyBloxBtActiveRef =
+        React.useRef(
+            easyBloxBtActive
+        );
+
+    React.useEffect(
+        () => {
+            const wasEasyBloxBtActive =
+                previousEasyBloxBtActiveRef.current;
+
+            previousEasyBloxBtActiveRef.current =
+                easyBloxBtActive;
+
+            if (
+                !wasEasyBloxBtActive ||
+                easyBloxBtActive
+            ) {
+                return;
+            }
+
+            easyConectSession
+                .disconnect();
+
+            onRequestClose();
+        },
+        [
+            easyBloxBtActive,
+            easyConectSession,
+            onRequestClose
         ]
     );
 
@@ -147,6 +186,8 @@ export const EasyConectDesktopWindowContainer = ({
 };
 
 EasyConectDesktopWindowContainer.propTypes = {
+    easyBloxBtActive:
+        PropTypes.bool,
     isOpen:
         PropTypes.bool,
     onConnectionStateChange:
@@ -181,6 +222,11 @@ EasyConectDesktopWindowContainer.propTypes = {
 const mapStateToProps =
     function (state) {
         return {
+            easyBloxBtActive:
+                isExtensionActive(
+                    state,
+                    EASYBLOX_BT_EXTENSION_ID
+                ),
             isOpen:
                 isEasyConectOpen(state)
         };
