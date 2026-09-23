@@ -15,13 +15,18 @@ class StageLayering {
         return 'sprite';
     }
 
+    static get EASYBLOX_QR_LAYER () {
+        return 'easybloxQr';
+    }
+
     // Order of layer groups relative to each other,
     static get LAYER_GROUPS () {
         return [
             StageLayering.BACKGROUND_LAYER,
             StageLayering.VIDEO_LAYER,
             StageLayering.PEN_LAYER,
-            StageLayering.SPRITE_LAYER
+            StageLayering.SPRITE_LAYER,
+            StageLayering.EASYBLOX_QR_LAYER
         ];
     }
 }
