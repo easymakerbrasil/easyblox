@@ -14,6 +14,7 @@ const log = require('./util/log');
 const MathUtil = require('./util/math-util');
 const Runtime = require('./engine/runtime');
 const StringUtil = require('./util/string-util');
+const uid = require('./util/uid');
 const formatMessage = require('format-message');
 
 const Variable = require('./engine/variable');
@@ -303,6 +304,7 @@ class VirtualMachine extends EventEmitter {
         this._easybloxProgramMode = 'stage';
         this._easybloxActiveBoardId = null;
         this._easybloxSelectedBoardId = null;
+        this.runtime.restoreEasyBloxQrCodes([]);
         this.emitTargetsUpdate(false /* Don't emit project change */);
     }
 
@@ -654,7 +656,9 @@ class VirtualMachine extends EventEmitter {
                 selectedBoardId:
                     projectContext.selectedBoardId,
                 programMode:
-                    projectContext.programMode
+                    projectContext.programMode,
+                qrCodes:
+                    this.getEasyBloxQrCodes()
             };
         }
 
@@ -714,6 +718,10 @@ class VirtualMachine extends EventEmitter {
                 selectedBoardId ?
                     'upload' :
                     'stage';
+
+            this.runtime.restoreEasyBloxQrCodes(
+                serializedEasyBloxProject.qrCodes
+            );
 
             /*
              * Loading project metadata restores the logical project context,
@@ -1774,6 +1782,59 @@ class VirtualMachine extends EventEmitter {
                     );
             }
         }
+    }
+
+    /**
+     * Return all QR Codes owned by the current EasyBlox project.
+     * @returns {!Array<!object>} QR Code resources.
+     */
+    getEasyBloxQrCodes () {
+        return this.runtime.getEasyBloxQrCodes();
+    }
+
+    /**
+     * Return a QR Code resource by stable internal ID.
+     * @param {string} id QR Code ID.
+     * @returns {?object} QR Code resource or null.
+     */
+    getEasyBloxQrCodeById (id) {
+        return this.runtime.getEasyBloxQrCodeById(id);
+    }
+
+    /**
+     * Create a project-level EasyBlox QR Code resource.
+     * @param {string} name User-visible QR Code name.
+     * @param {?string} content QR Code payload.
+     * @returns {!object} Created QR Code resource.
+     */
+    createEasyBloxQrCode (name, content) {
+        return this.runtime.createEasyBloxQrCode(
+            `qr_${uid()}`,
+            name,
+            content
+        );
+    }
+
+    /**
+     * Update a project-level EasyBlox QR Code resource.
+     * @param {string} id Stable internal QR Code ID.
+     * @param {!object} updates Fields to update.
+     * @returns {!object} Updated QR Code resource.
+     */
+    updateEasyBloxQrCode (id, updates) {
+        return this.runtime.updateEasyBloxQrCode(
+            id,
+            updates
+        );
+    }
+
+    /**
+     * Delete a project-level EasyBlox QR Code resource.
+     * @param {string} id Stable internal QR Code ID.
+     * @returns {boolean} True when a resource was deleted.
+     */
+    deleteEasyBloxQrCode (id) {
+        return this.runtime.deleteEasyBloxQrCode(id);
     }
 
     /**

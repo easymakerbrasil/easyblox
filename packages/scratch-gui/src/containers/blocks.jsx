@@ -18,6 +18,7 @@ import VM from '@scratch/scratch-vm';
 import analytics from '../lib/analytics';
 import log from '../lib/log.js';
 import Prompt from './prompt.jsx';
+import EasyBloxQrModal from '../components/easyblox-qr-modal/easyblox-qr-modal.jsx';
 import BlocksComponent from '../components/blocks/blocks.jsx';
 import ExtensionLibrary from './extension-library.jsx';
 import extensionData, {
@@ -81,6 +82,10 @@ class Blocks extends React.Component {
             'getToolboxXML',
             'getVariableCategoryForProgramMode',
             'handleCategorySelected',
+            'registerToolboxButtonCallbacks',
+            'handleEasyBloxQrCreateDialogOpen',
+            'handleEasyBloxQrManageDialogOpen',
+            'handleEasyBloxQrDialogClose',
             'handleConnectionModalStart',
             'handleDrop',
             'handleStatusButtonUpdate',
@@ -115,7 +120,8 @@ class Blocks extends React.Component {
 
         this.state = {
             prompt: null,
-            activeExtensionIds: []
+            activeExtensionIds: [],
+            easybloxQrDialog: null
         };
         this.onTargetsUpdate = debounce(this.onTargetsUpdate, 100);
         this.toolboxUpdateQueue = [];
@@ -172,24 +178,8 @@ class Blocks extends React.Component {
         };
         this.workspace.addChangeListener(this.toolboxUpdateChangeListener);
 
-        // Register buttons under new callback keys for creating variables,
-        // lists, and procedures from extensions.
-
-        const toolboxWorkspace = this.workspace.getFlyout().getWorkspace();
-
-        const varListButtonCallback = type =>
-            (() => this.ScratchBlocks.ScratchVariables.createVariable(
-                this.workspace,
-                null,
-                type
-            ));
-        const procButtonCallback = () => {
-            this.ScratchBlocks.ScratchProcedures.createProcedureDefCallback(this.workspace);
-        };
-
-        toolboxWorkspace.registerButtonCallback('MAKE_A_VARIABLE', varListButtonCallback(''));
-        toolboxWorkspace.registerButtonCallback('MAKE_A_LIST', varListButtonCallback('list'));
-        toolboxWorkspace.registerButtonCallback('MAKE_A_PROCEDURE', procButtonCallback);
+        // Register callbacks on the current flyout workspace.
+        this.registerToolboxButtonCallbacks();
 
         // Store the xml of the toolbox that is actually rendered.
         // This is used in componentDidUpdate instead of prevProps, because
@@ -217,6 +207,7 @@ class Blocks extends React.Component {
     shouldComponentUpdate (nextProps, nextState) {
         return (
             this.state.prompt !== nextState.prompt ||
+            this.state.easybloxQrDialog !== nextState.easybloxQrDialog ||
             this.state.activeExtensionIds !== nextState.activeExtensionIds ||
             this.props.activeBoardId !== nextProps.activeBoardId ||
             this.props.programMode !== nextProps.programMode ||
@@ -1302,6 +1293,74 @@ class Blocks extends React.Component {
             this.props.canUseCloud;
         this.setState(p);
     }
+
+    registerToolboxButtonCallbacks () {
+        if (
+            !this.workspace ||
+            typeof this.workspace.registerButtonCallback !==
+                'function'
+        ) {
+            return;
+        }
+
+        const varListButtonCallback = type =>
+            (() => this.ScratchBlocks.ScratchVariables.createVariable(
+                this.workspace,
+                null,
+                type
+            ));
+
+        const procButtonCallback = () => {
+            this.ScratchBlocks.ScratchProcedures.createProcedureDefCallback(
+                this.workspace
+            );
+        };
+
+        this.workspace.registerButtonCallback(
+            'MAKE_A_VARIABLE',
+            varListButtonCallback('')
+        );
+
+        this.workspace.registerButtonCallback(
+            'MAKE_A_LIST',
+            varListButtonCallback('list')
+        );
+
+        this.workspace.registerButtonCallback(
+            'MAKE_A_PROCEDURE',
+            procButtonCallback
+        );
+
+        this.workspace.registerButtonCallback(
+            'MAKE_EASYBLOX_QR',
+            this.handleEasyBloxQrCreateDialogOpen
+        );
+
+        this.workspace.registerButtonCallback(
+            'MANAGE_EASYBLOX_QR',
+            this.handleEasyBloxQrManageDialogOpen
+        );
+    }
+
+    handleEasyBloxQrCreateDialogOpen () {
+        this.setState({
+            easybloxQrDialog: {
+                mode: 'create'
+            }
+        });
+    }
+    handleEasyBloxQrManageDialogOpen () {
+        this.setState({
+            easybloxQrDialog: {
+                mode: 'manage'
+            }
+        });
+    }
+    handleEasyBloxQrDialogClose () {
+        this.setState({
+            easybloxQrDialog: null
+        });
+    }
     handleConnectionModalStart (extensionId) {
         this.props.onOpenConnectionModal(extensionId);
     }
@@ -1395,6 +1454,19 @@ class Blocks extends React.Component {
                         vm={vm}
                         onCancel={this.handlePromptClose}
                         onOk={this.handlePromptCallback}
+                    />
+                ) : null}
+                {this.state.easybloxQrDialog ? (
+                    <EasyBloxQrModal
+                        initialMode={
+                            this.state
+                                .easybloxQrDialog
+                                .mode
+                        }
+                        vm={vm}
+                        onRequestClose={
+                            this.handleEasyBloxQrDialogClose
+                        }
                     />
                 ) : null}
                 {extensionLibraryVisible ? (
