@@ -1,0 +1,224 @@
+.modal {
+    width: min(36rem, calc(100vw - 2rem));
+    max-width: 36rem;
+    background: #ffffff;
+}
+
+.body {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 1.25rem;
+    background: #ffffff;
+    color: #282828;
+}
+
+@media (max-width: 600px) {
+    .modal {
+        width: calc(100vw - 1rem);
+        max-width: calc(100vw - 1rem);
+    }
+
+    .body {
+        padding: 1rem;
+    }
+}
+
+.modeTabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #d9d9d9;
+}
+
+.tab,
+.activeTab {
+    border: 1px solid #c9c9c9;
+    border-radius: 0.4rem;
+    padding: 0.55rem 0.9rem;
+    font: inherit;
+    cursor: pointer;
+}
+
+.tab {
+    background: #ffffff;
+    color: #282828;
+}
+
+.activeTab {
+    border-color: #ffc800;
+    background: #ffc800;
+    color: #282828;
+    font-weight: 600;
+}
+
+.form,
+.editForm {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.intro,
+.manageSubtitle {
+    color: #666666;
+    line-height: 1.4;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.label,
+.manageTitle,
+.resourceName {
+    font-weight: 600;
+}
+
+.input,
+.textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #b9b9b9;
+    border-radius: 0.4rem;
+    padding: 0.65rem 0.75rem;
+    background: #ffffff;
+    color: #282828;
+    font: inherit;
+}
+
+.input:focus,
+.textarea:focus {
+    outline: 2px solid rgba(255, 200, 0, 0.35);
+    border-color: #c99d00;
+}
+
+.textarea {
+    resize: vertical;
+    min-height: 6rem;
+}
+
+.manage {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.manageHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.manageTitle {
+    margin-bottom: 0.25rem;
+}
+
+.resourceList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 21rem;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+.resource {
+    border: 1px solid #dddddd;
+    border-radius: 0.5rem;
+    padding: 0.85rem;
+    background: #ffffff;
+}
+
+.resourceInfo {
+    min-width: 0;
+}
+
+.resourceName {
+    margin-bottom: 0.3rem;
+}
+
+.resourceContent {
+    overflow: hidden;
+    color: #666666;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.inlineActions,
+.footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.inlineActions {
+    margin-top: 0.75rem;
+}
+
+.footer {
+    margin-top: 0.25rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid #e0e0e0;
+}
+
+.primaryButton,
+.secondaryButton,
+.deleteButton,
+.dangerButton {
+    border-radius: 0.4rem;
+    padding: 0.55rem 0.9rem;
+    font: inherit;
+    cursor: pointer;
+}
+
+.primaryButton {
+    border: 1px solid #ffc800;
+    background: #ffc800;
+    color: #282828;
+    font-weight: 600;
+}
+
+.secondaryButton {
+    border: 1px solid #bfbfbf;
+    background: #ffffff;
+    color: #282828;
+}
+
+.deleteButton {
+    border: 1px solid #d6d6d6;
+    background: #ffffff;
+    color: #a02c2c;
+}
+
+.dangerButton {
+    border: 1px solid #a02c2c;
+    background: #a02c2c;
+    color: #ffffff;
+}
+
+.deleteConfirmation {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #eeeeee;
+    color: #7a2828;
+}
+
+.error {
+    border-radius: 0.4rem;
+    padding: 0.65rem 0.75rem;
+    background: #fff1f1;
+    color: #8c2424;
+}
+
+.empty {
+    border: 1px dashed #cccccc;
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    text-align: center;
+    color: #777777;
+}

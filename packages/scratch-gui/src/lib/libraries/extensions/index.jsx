@@ -21,6 +21,8 @@ import makeymakeyInsetIconURL from './makeymakey/makeymakey-small.svg';
 
 import arduinoUnoIconURL from './arduinoUno/arduino-uno.svg';
 import easybloxBtIconURL from './easybloxBt/easyblox-bt.svg';
+import easybloxQrIconURL from './easybloxQr/easyblox-qr.svg';
+import easybloxQrInsetIconURL from './easybloxQr/easyblox-qr-small.svg';
 import microbitIconURL from './microbit/microbit.png';
 import microbitInsetIconURL from './microbit/microbit-small.svg';
 import microbitConnectionIconURL from './microbit/microbit-illustration.svg';
@@ -236,6 +238,21 @@ const extensionLibraryContent = [
                 defaultMessage="Comunique seus projetos por Bluetooth usando HC-05 ou HC-06."
                 description="Description for the EasyBlox BT extension"
                 id="gui.extension.easybloxBt.description"
+            />
+        ),
+        featured: true,
+        disabled: false
+    },
+    {
+        name: 'QR Code',
+        extensionId: 'easybloxQr',
+        iconURL: easybloxQrIconURL,
+        insetIconURL: easybloxQrInsetIconURL,
+        description: (
+            <FormattedMessage
+                defaultMessage="Leia, gere e salve QR Codes em PNG."
+                description="Description for the EasyBlox QR extension"
+                id="gui.extension.easybloxQr.description"
             />
         ),
         featured: true,
@@ -503,11 +520,18 @@ const BOARD_METADATA = {
     }
 };
 
+const HIDDEN_EXTENSION_IDS = new Set([
+    'gdxfor'
+]);
+
 const classifiedLibraryContent = extensionLibraryContent.map(item => ({
     kind: 'extension',
     visible: true,
     ...item,
-    ...(BOARD_METADATA[item.extensionId] || {})
+    ...(BOARD_METADATA[item.extensionId] || {}),
+    ...(HIDDEN_EXTENSION_IDS.has(item.extensionId) ?
+        {visible: false} :
+        {})
 }));
 
 export const getVisibleExtensions = () =>

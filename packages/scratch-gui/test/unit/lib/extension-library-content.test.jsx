@@ -54,6 +54,14 @@ describe('EasyBlox extension library classification', () => {
         });
     });
 
+    test('keeps Go Direct hidden as an extension', () => {
+        expect(getExtension('gdxfor')).toMatchObject({
+            extensionId: 'gdxfor',
+            kind: 'extension',
+            visible: false
+        });
+    });
+
     test('classifies actual extensions as visible extensions', () => {
         expect(getExtension('music')).toMatchObject({
             kind: 'extension',
@@ -76,6 +84,7 @@ test('exposes only visible extensions to the extension library', () => {
 
     expect(extensionIds).not.toContain('arduinoUno');
     expect(extensionIds).not.toContain('microbit');
+    expect(extensionIds).not.toContain('gdxfor');
     expect(extensionIds).not.toContain('ev3');
     expect(extensionIds).not.toContain('boost');
     expect(extensionIds).not.toContain('wedo2');

@@ -15,6 +15,7 @@ const builtinExtensions = {
     // These are the non-core built-in extensions.
     arduinoUno: () => require('../extensions/scratch3_arduino_uno'),
     easybloxBt: () => require('../extensions/scratch3_easyblox_bt'),
+    easybloxQr: () => require('../extensions/scratch3_easyblox_qr'),
     actuators: () => require('../extensions/scratch3_actuators'),
     sensors: () => require('../extensions/scratch3_sensors'),
     displays: () => require('../extensions/scratch3_displays'),

@@ -1401,7 +1401,13 @@ class Runtime extends EventEmitter {
      */
     _convertButtonForScratchBlocks (buttonInfo) {
         // for now we only support these pre-defined callbacks handled in scratch-blocks
-        const supportedCallbackKeys = ['MAKE_A_LIST', 'MAKE_A_PROCEDURE', 'MAKE_A_VARIABLE'];
+        const supportedCallbackKeys = [
+            'MAKE_A_LIST',
+            'MAKE_A_PROCEDURE',
+            'MAKE_A_VARIABLE',
+            'MAKE_EASYBLOX_QR',
+            'MANAGE_EASYBLOX_QR'
+        ];
         if (supportedCallbackKeys.indexOf(buttonInfo.func) < 0) {
             log.error(`Custom button callbacks not supported yet: ${buttonInfo.func}`);
         }
@@ -3095,6 +3101,325 @@ class Runtime extends EventEmitter {
     handleProjectLoaded () {
         this.emit(Runtime.PROJECT_LOADED);
         this.resetRunId();
+    }
+
+
+    /**
+     * Normalize serialized EasyBlox QR Code resources.
+     * Invalid and duplicate entries are ignored.
+     * @param {?Array<!object>} qrCodes Serialized QR Code collection.
+     * @returns {!Array<!object>} Normalized QR Code resources.
+     * @private
+     */
+    _normalizeEasyBloxQrCodes (qrCodes) {
+        if (!Array.isArray(qrCodes)) {
+            return [];
+        }
+
+        const ids = new Set();
+        const names = new Set();
+
+        return qrCodes.reduce((normalizedQrCodes, qrCode) => {
+            if (
+                !qrCode ||
+                typeof qrCode !== 'object' ||
+                Array.isArray(qrCode)
+            ) {
+                return normalizedQrCodes;
+            }
+
+            const id =
+                typeof qrCode.id === 'string' ?
+                    qrCode.id.trim() :
+                    '';
+
+            const name =
+                typeof qrCode.name === 'string' ?
+                    qrCode.name.trim() :
+                    '';
+
+            if (!id || !name) {
+                return normalizedQrCodes;
+            }
+
+            const normalizedName =
+                name.toLowerCase();
+
+            if (
+                ids.has(id) ||
+                names.has(normalizedName)
+            ) {
+                return normalizedQrCodes;
+            }
+
+            ids.add(id);
+            names.add(normalizedName);
+
+            normalizedQrCodes.push({
+                id,
+                name,
+                content:
+                    typeof qrCode.content === 'string' ?
+                        qrCode.content :
+                        ''
+            });
+
+            return normalizedQrCodes;
+        }, []);
+    }
+
+    /**
+     * Restore EasyBlox QR Code resources without marking the project dirty.
+     * @param {?Array<!object>} qrCodes Serialized QR Code collection.
+     */
+    restoreEasyBloxQrCodes (qrCodes) {
+        this._easybloxQrCodes =
+            this._normalizeEasyBloxQrCodes(qrCodes);
+    }
+
+    /**
+     * Return all QR Codes owned by the current EasyBlox project.
+     * @returns {!Array<!object>} QR Code resources.
+     */
+    getEasyBloxQrCodes () {
+        if (!Array.isArray(this._easybloxQrCodes)) {
+            this._easybloxQrCodes = [];
+        }
+
+        return this._easybloxQrCodes.map(qrCode => ({
+            id: qrCode.id,
+            name: qrCode.name,
+            content: qrCode.content
+        }));
+    }
+
+    /**
+     * Return a QR Code resource by stable internal ID.
+     * @param {string} id QR Code ID.
+     * @returns {?object} QR Code resource or null.
+     */
+    getEasyBloxQrCodeById (id) {
+        if (!Array.isArray(this._easybloxQrCodes)) {
+            this._easybloxQrCodes = [];
+        }
+
+        const qrCode =
+            this._easybloxQrCodes.find(
+                candidate =>
+                    candidate.id === id
+            );
+
+        if (!qrCode) {
+            return null;
+        }
+
+        return {
+            id: qrCode.id,
+            name: qrCode.name,
+            content: qrCode.content
+        };
+    }
+
+    /**
+     * Notify the editor that project-level QR Code data changed.
+     * @private
+     */
+    _commitEasyBloxQrCodeChange () {
+        this.emit(Runtime.PROJECT_CHANGED);
+        this.emit(
+            Runtime.TOOLBOX_EXTENSIONS_NEED_UPDATE
+        );
+    }
+
+    /**
+     * Create a project-level EasyBlox QR Code resource.
+     * @param {string} id Stable internal QR Code ID.
+     * @param {string} name User-visible QR Code name.
+     * @param {?string} content QR Code payload.
+     * @returns {!object} Created QR Code resource.
+     */
+    createEasyBloxQrCode (id, name, content) {
+        if (!Array.isArray(this._easybloxQrCodes)) {
+            this._easybloxQrCodes = [];
+        }
+
+        const normalizedId =
+            typeof id === 'string' ?
+                id.trim() :
+                '';
+
+        const normalizedName =
+            typeof name === 'string' ?
+                name.trim() :
+                '';
+
+        if (!normalizedId) {
+            throw new Error(
+                'EasyBlox QR Code ID must not be empty'
+            );
+        }
+
+        if (!normalizedName) {
+            throw new Error(
+                'EasyBlox QR Code name must not be empty'
+            );
+        }
+
+        if (
+            this._easybloxQrCodes.some(
+                qrCode =>
+                    qrCode.id === normalizedId
+            )
+        ) {
+            throw new Error(
+                `EasyBlox QR Code ID already exists: ${normalizedId}`
+            );
+        }
+
+        const normalizedNameKey =
+            normalizedName.toLowerCase();
+
+        if (
+            this._easybloxQrCodes.some(
+                qrCode =>
+                    qrCode.name.toLowerCase() ===
+                    normalizedNameKey
+            )
+        ) {
+            throw new Error(
+                `EasyBlox QR Code name already exists: ${normalizedName}`
+            );
+        }
+
+        const qrCode = {
+            id: normalizedId,
+            name: normalizedName,
+            content:
+                content === null ||
+                typeof content === 'undefined' ?
+                    '' :
+                    String(content)
+        };
+
+        this._easybloxQrCodes.push(qrCode);
+        this._commitEasyBloxQrCodeChange();
+
+        return {
+            ...qrCode
+        };
+    }
+
+    /**
+     * Update a project-level EasyBlox QR Code resource.
+     * @param {string} id Stable internal QR Code ID.
+     * @param {!object} updates Fields to update.
+     * @returns {!object} Updated QR Code resource.
+     */
+    updateEasyBloxQrCode (id, updates) {
+        if (!Array.isArray(this._easybloxQrCodes)) {
+            this._easybloxQrCodes = [];
+        }
+
+        const qrCode =
+            this._easybloxQrCodes.find(
+                candidate =>
+                    candidate.id === id
+            );
+
+        if (!qrCode) {
+            throw new Error(
+                `Unknown EasyBlox QR Code: ${id}`
+            );
+        }
+
+        const nextUpdates =
+            updates &&
+            typeof updates === 'object' &&
+            !Array.isArray(updates) ?
+                updates :
+                {};
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                nextUpdates,
+                'name'
+            )
+        ) {
+            const normalizedName =
+                typeof nextUpdates.name === 'string' ?
+                    nextUpdates.name.trim() :
+                    '';
+
+            if (!normalizedName) {
+                throw new Error(
+                    'EasyBlox QR Code name must not be empty'
+                );
+            }
+
+            const normalizedNameKey =
+                normalizedName.toLowerCase();
+
+            if (
+                this._easybloxQrCodes.some(
+                    candidate =>
+                        candidate.id !== id &&
+                        candidate.name.toLowerCase() ===
+                            normalizedNameKey
+                )
+            ) {
+                throw new Error(
+                    `EasyBlox QR Code name already exists: ${normalizedName}`
+                );
+            }
+
+            qrCode.name =
+                normalizedName;
+        }
+
+        if (
+            Object.prototype.hasOwnProperty.call(
+                nextUpdates,
+                'content'
+            )
+        ) {
+            qrCode.content =
+                nextUpdates.content === null ||
+                typeof nextUpdates.content === 'undefined' ?
+                    '' :
+                    String(nextUpdates.content);
+        }
+
+        this._commitEasyBloxQrCodeChange();
+
+        return {
+            ...qrCode
+        };
+    }
+
+    /**
+     * Delete a project-level EasyBlox QR Code resource.
+     * @param {string} id Stable internal QR Code ID.
+     * @returns {boolean} True when a resource was deleted.
+     */
+    deleteEasyBloxQrCode (id) {
+        if (!Array.isArray(this._easybloxQrCodes)) {
+            this._easybloxQrCodes = [];
+        }
+
+        const index =
+            this._easybloxQrCodes.findIndex(
+                qrCode =>
+                    qrCode.id === id
+            );
+
+        if (index < 0) {
+            return false;
+        }
+
+        this._easybloxQrCodes.splice(index, 1);
+        this._commitEasyBloxQrCodeChange();
+
+        return true;
     }
 
     /**
