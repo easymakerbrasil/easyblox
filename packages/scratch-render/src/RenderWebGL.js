@@ -1296,6 +1296,82 @@ class RenderWebGL extends EventEmitter {
     }
 
     /**
+     * Render and return the complete Stage at its native logical resolution.
+     * The returned rows use top-to-bottom ImageData ordering.
+     * @returns {!ImageData} Complete Stage RGBA frame.
+     */
+    extractStageImageData () {
+        this._doExitDrawRegion();
+
+        const gl = this._gl;
+        const width =
+            this._nativeSize[0];
+        const height =
+            this._nativeSize[1];
+
+        twgl.bindFramebufferInfo(
+            gl,
+            this._queryBufferInfo
+        );
+
+        gl.viewport(
+            0,
+            0,
+            width,
+            height
+        );
+
+        const projection =
+            twgl.m4.ortho(
+                this._xLeft,
+                this._xRight,
+                this._yTop,
+                this._yBottom,
+                -1,
+                1
+            );
+
+        gl.clearColor(
+            ...this._backgroundColor4f
+        );
+
+        gl.clear(
+            gl.COLOR_BUFFER_BIT
+        );
+
+        this._drawThese(
+            this._drawList,
+            ShaderManager.DRAW_MODE.default,
+            projection
+        );
+
+        const data =
+            new Uint8Array(
+                width *
+                height *
+                4
+            );
+
+        gl.readPixels(
+            0,
+            0,
+            width,
+            height,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            data
+        );
+
+        return new ImageData(
+            new Uint8ClampedArray(
+                data.buffer
+            ),
+            width,
+            height
+        );
+    }
+
+    /**
      * @typedef ColorExtraction
      * @property {Uint8Array} data Raw pixel data for the drawable
      * @property {int} width Drawable bounding box width

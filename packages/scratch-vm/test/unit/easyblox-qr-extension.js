@@ -435,6 +435,172 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox QR Stage reader decodes the complete rendered Stage',
+    t => {
+        const raster =
+            rasterizeEasyBloxQr(
+                'STAGE-EASYBLOX-001',
+                {
+                    size: 256
+                }
+            );
+
+        let extractionCount = 0;
+
+        const renderer = {
+            extractStageImageData:
+                () => {
+                    extractionCount += 1;
+
+                    return {
+                        data:
+                            raster.pixels,
+                        width:
+                            raster.width,
+                        height:
+                            raster.height
+                    };
+                }
+        };
+
+        const extension =
+            createExtension({
+                renderer
+            });
+
+        extension.startReader({
+            SOURCE: 'stage'
+        });
+
+        t.equal(
+            extractionCount,
+            1,
+            'Stage frame is read immediately'
+        );
+
+        t.equal(
+            extension.isDetected(),
+            true
+        );
+
+        t.equal(
+            extension.content(),
+            'STAGE-EASYBLOX-001'
+        );
+
+        t.ok(
+            extension._location,
+            'Stage decoder location is retained'
+        );
+
+        extension.stopReader();
+
+        t.equal(
+            extension.isDetected(),
+            false
+        );
+
+        t.equal(
+            extension.content(),
+            ''
+        );
+
+        t.equal(
+            extension._location,
+            null
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox QR Stage reader clears sensing when the Stage has no QR Code',
+    t => {
+        const qrRaster =
+            rasterizeEasyBloxQr(
+                'STAGE-VISIBLE-QR',
+                {
+                    size: 256
+                }
+            );
+
+        const blankPixels =
+            new Uint8ClampedArray(
+                qrRaster.width *
+                qrRaster.height *
+                4
+            );
+
+        blankPixels.fill(
+            255
+        );
+
+        let currentFrame = {
+            data:
+                qrRaster.pixels,
+            width:
+                qrRaster.width,
+            height:
+                qrRaster.height
+        };
+
+        const extension =
+            createExtension({
+                renderer: {
+                    extractStageImageData:
+                        () =>
+                            currentFrame
+                }
+            });
+
+        extension.startReader({
+            SOURCE: 'stage'
+        });
+
+        t.equal(
+            extension.isDetected(),
+            true
+        );
+
+        t.equal(
+            extension.content(),
+            'STAGE-VISIBLE-QR'
+        );
+
+        currentFrame = {
+            data:
+                blankPixels,
+            width:
+                qrRaster.width,
+            height:
+                qrRaster.height
+        };
+
+        extension._readStageFrame();
+
+        t.equal(
+            extension.isDetected(),
+            false
+        );
+
+        t.equal(
+            extension.content(),
+            ''
+        );
+
+        t.equal(
+            extension._location,
+            null
+        );
+
+        extension.stopReader();
+
+        t.end();
+    }
+);
+
+tap.test(
     'EasyBlox QR camera reader decodes frames into sensing state',
     t => {
         const raster =
@@ -721,6 +887,8 @@ tap.test(
             extension.content(),
             ''
         );
+
+        extension.stopReader();
 
         t.end();
     }

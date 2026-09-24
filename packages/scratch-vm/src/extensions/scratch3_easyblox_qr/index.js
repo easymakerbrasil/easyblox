@@ -388,24 +388,88 @@ class Scratch3EasyBloxQrBlocks {
     }
 
     /**
-     * Start a race-safe camera decoding loop.
+     * Capture and decode the complete rendered Stage.
+     */
+    _readStageFrame () {
+        const renderer =
+            this.runtime &&
+            this.runtime.renderer ?
+                this.runtime.renderer :
+                null;
+
+        if (
+            !renderer ||
+            typeof renderer.extractStageImageData !==
+                'function'
+        ) {
+            this._updateReaderDetection(
+                null
+            );
+            return;
+        }
+
+        try {
+            const frame =
+                renderer.extractStageImageData();
+
+            this._updateReaderDetection(
+                frame ?
+                    decodeEasyBloxQrFrame(
+                        frame
+                    ) :
+                    null
+            );
+        } catch {
+            this._updateReaderDetection(
+                null
+            );
+        }
+    }
+
+    /**
+     * Read one frame from the currently selected reader source.
+     */
+    _readActiveSourceFrame () {
+        if (
+            this._readerSource ===
+            READER_SOURCE_STAGE
+        ) {
+            this._readStageFrame();
+            return;
+        }
+
+        if (
+            this._isCameraReaderSource()
+        ) {
+            this._readCameraFrame();
+            return;
+        }
+
+        this._updateReaderDetection(
+            null
+        );
+    }
+
+    /**
+     * Start a race-safe decoding loop for the active reader source.
      * @param {number} readerSessionId Active reader session identifier.
      */
-    _startCameraReaderLoop (readerSessionId) {
+    _startReaderLoop (readerSessionId) {
         this._stopReaderLoop();
 
         const readNextFrame = () => {
             if (
                 readerSessionId !==
                     this._readerSessionId ||
-                !this._isCameraReaderSource()
+                this._readerSource ===
+                    null
             ) {
                 this._readerTimeout =
                     null;
                 return;
             }
 
-            this._readCameraFrame();
+            this._readActiveSourceFrame();
 
             this._readerTimeout =
                 setTimeout(
@@ -487,6 +551,10 @@ class Scratch3EasyBloxQrBlocks {
             this._videoMirrorBeforeReader =
                 null;
 
+            this._startReaderLoop(
+                readerSessionId
+            );
+
             return;
         }
 
@@ -510,7 +578,7 @@ class Scratch3EasyBloxQrBlocks {
             this._cameraEnabledByReader ||
             video.videoReady
         ) {
-            this._startCameraReaderLoop(
+            this._startReaderLoop(
                 readerSessionId
             );
             return;
