@@ -464,14 +464,15 @@ describe('Blocks VM attachment', () => {
             handleMonitorsUpdate: jest.fn(),
             handleExtensionAdded: jest.fn(),
             handleBlocksInfoUpdate: jest.fn(),
+            handleProjectLoaded: jest.fn(),
             handleStatusButtonUpdate: jest.fn()
         };
 
         Blocks.prototype.attachVM.call(instance);
 
         expect(addListener).toHaveBeenCalledWith(
-            'workspaceUpdate',
-            instance.onWorkspaceUpdate
+            'PROJECT_LOADED',
+            instance.handleProjectLoaded
         );
         expect(refreshWorkspace).toHaveBeenCalledTimes(1);
         expect(callOrder).toEqual([
@@ -1695,6 +1696,117 @@ test('preserves incompatible blocks without freezing portable BOTH descendants a
 
 
 describe('Blocks active extensions', () => {
+    test('synchronizes active extensions when a new project is loaded', () => {
+        const instance = {
+            state: {
+                activeExtensionIds: [
+                    'easybloxBt'
+                ]
+            },
+
+            props: {
+                vm: {
+                    getProjectExtensionIds:
+                        jest.fn()
+                            .mockReturnValue(
+                                []
+                            )
+                },
+
+                onSetActiveExtensions:
+                    jest.fn()
+            },
+
+            _recreateFlyoutOnNextToolboxUpdate:
+                false,
+
+            setState:
+                jest.fn(update => {
+                    instance.state = {
+                        ...instance.state,
+                        ...update
+                    };
+                })
+        };
+
+        Blocks.prototype
+            .handleProjectLoaded
+            .call(instance);
+
+        expect(
+            instance.state
+                .activeExtensionIds
+        ).toEqual(
+            []
+        );
+
+        expect(
+            instance.props
+                .onSetActiveExtensions
+        ).toHaveBeenCalledWith(
+            []
+        );
+
+        expect(
+            instance
+                ._recreateFlyoutOnNextToolboxUpdate
+        ).toBe(true);
+    });
+
+    test('restores only project extensions and not board extensions', () => {
+        const instance = {
+            state: {
+                activeExtensionIds: []
+            },
+
+            props: {
+                vm: {
+                    getProjectExtensionIds:
+                        jest.fn()
+                            .mockReturnValue([
+                                'easybloxQr',
+                                'easybloxBt',
+                                'arduinoUno'
+                            ])
+                },
+
+                onSetActiveExtensions:
+                    jest.fn()
+            },
+
+            _recreateFlyoutOnNextToolboxUpdate:
+                false,
+
+            setState:
+                jest.fn(update => {
+                    instance.state = {
+                        ...instance.state,
+                        ...update
+                    };
+                })
+        };
+
+        Blocks.prototype
+            .handleProjectLoaded
+            .call(instance);
+
+        expect(
+            instance.state
+                .activeExtensionIds
+        ).toEqual([
+            'easybloxQr',
+            'easybloxBt'
+        ]);
+
+        expect(
+            instance.props
+                .onSetActiveExtensions
+        ).toHaveBeenCalledWith([
+            'easybloxQr',
+            'easybloxBt'
+        ]);
+    });
+
     test('activates an extension without duplicating it', () => {
         const instance = {
             state: {
@@ -1860,12 +1972,17 @@ describe('Blocks active extensions', () => {
 
     test('does not reactivate a removed extension on blocks info update', () => {
         const instance = {
+            _recreateFlyoutOnNextToolboxUpdate: false,
             handleExtensionAdded: jest.fn()
         };
 
         Blocks.prototype.handleBlocksInfoUpdate.call(instance, {
             id: 'translate'
         });
+
+        expect(
+            instance._recreateFlyoutOnNextToolboxUpdate
+        ).toBe(false);
 
         expect(instance.handleExtensionAdded)
             .toHaveBeenCalledWith(
@@ -1874,5 +1991,77 @@ describe('Blocks active extensions', () => {
                 },
                 false
             );
+    });
+
+    test('recreates the QR flyout immediately when QR block info changes', () => {
+        const flyout = {
+            setRecyclingEnabled:
+                jest.fn()
+        };
+
+        const instance = {
+            workspace: {
+                getFlyout:
+                    jest.fn(
+                        () => flyout
+                    )
+            },
+
+            handleExtensionAdded:
+                jest.fn(),
+
+            requestToolboxUpdate:
+                jest.fn(),
+
+            withToolboxUpdates:
+                jest.fn(
+                    callback =>
+                        callback()
+                )
+        };
+
+        Blocks.prototype
+            .handleBlocksInfoUpdate
+            .call(
+                instance,
+                {
+                    id: 'easybloxQr'
+                }
+            );
+
+        expect(
+            flyout.setRecyclingEnabled
+        ).toHaveBeenNthCalledWith(
+            1,
+            false
+        );
+
+        expect(
+            instance.handleExtensionAdded
+        ).toHaveBeenCalledWith(
+            {
+                id: 'easybloxQr'
+            },
+            false
+        );
+
+        expect(
+            instance.requestToolboxUpdate
+        ).toHaveBeenCalledTimes(
+            1
+        );
+
+        expect(
+            instance.withToolboxUpdates
+        ).toHaveBeenCalledTimes(
+            1
+        );
+
+        expect(
+            flyout.setRecyclingEnabled
+        ).toHaveBeenNthCalledWith(
+            2,
+            true
+        );
     });
 });
