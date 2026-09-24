@@ -53,3 +53,53 @@ test('Serial is available as a built-in extension', t => {
 
     t.end();
 });
+
+test('Built-in extension registry supports metadata introspection', t => {
+    const extensionIds =
+        ExtensionManager
+            .getBuiltinExtensionIds();
+
+    t.ok(
+        extensionIds.includes(
+            'arduinoUno'
+        ),
+        'Arduino UNO is present'
+    );
+
+    t.ok(
+        extensionIds.includes(
+            'easybloxBt'
+        ),
+        'EasyBlox BT is present'
+    );
+
+    t.ok(
+        extensionIds.includes(
+            'faceSensing'
+        ),
+        'Face Sensing is present'
+    );
+
+    const EasyBloxQr =
+        ExtensionManager
+            .getBuiltinExtensionClass(
+                'easybloxQr'
+            );
+
+    t.equal(
+        typeof EasyBloxQr,
+        'function',
+        'built-in class can be resolved without instantiation'
+    );
+
+    t.equal(
+        ExtensionManager
+            .getBuiltinExtensionClass(
+                'doesNotExist'
+            ),
+        null,
+        'unknown built-in extension resolves to null'
+    );
+
+    t.end();
+});

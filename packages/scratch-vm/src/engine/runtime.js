@@ -918,6 +918,24 @@ class Runtime extends EventEmitter {
     }
 
     /**
+     * Return every core opcode currently implemented by the EasyBlox runtime.
+     * Includes primitives and hats registered from the default block packages.
+     * @returns {Array.<string>} Sorted unique core opcode identifiers.
+     */
+    getCoreOpcodeIds () {
+        return Array.from(
+            new Set([
+                ...Object.keys(
+                    this._primitives
+                ),
+                ...Object.keys(
+                    this._hats
+                )
+            ])
+        ).sort();
+    }
+
+    /**
      * Register default block packages with this runtime.
      * @todo Prefix opcodes with package name.
      * @private

@@ -78,6 +78,36 @@ const builtinExtensionCompanions = {
  */
 
 class ExtensionManager {
+    /**
+     * Return the IDs registered as built-in extensions in this VM.
+     * @returns {Array.<string>} Built-in extension IDs.
+     */
+    static getBuiltinExtensionIds () {
+        return Object.keys(
+            builtinExtensions
+        );
+    }
+
+    /**
+     * Resolve a built-in extension class without instantiating it.
+     * @param {string} extensionId Built-in extension ID.
+     * @returns {?Function} Extension constructor, or null when unknown.
+     */
+    static getBuiltinExtensionClass (extensionId) {
+        if (
+            !Object.prototype.hasOwnProperty.call(
+                builtinExtensions,
+                extensionId
+            )
+        ) {
+            return null;
+        }
+
+        return builtinExtensions[
+            extensionId
+        ]();
+    }
+
     constructor (runtime) {
         /**
          * The ID number to provide to the next extension worker.

@@ -16,6 +16,10 @@ const {
     classifyProjectInventory
 } = require('./compatibility-classifier');
 
+const {
+    createEasyBloxSupportCatalog
+} = require('./easyblox-support-catalog');
+
 module.exports = {
     createProjectInventory,
     getOpcodeNamespace,
@@ -25,5 +29,6 @@ module.exports = {
     readSb3Project,
     COMPATIBILITY_STATUSES,
     createCompatibilityCatalog,
-    classifyProjectInventory
+    classifyProjectInventory,
+    createEasyBloxSupportCatalog
 };
