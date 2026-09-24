@@ -21,6 +21,10 @@ const {
 } = require('./easyblox-support-catalog');
 
 const {
+    createPictoBloxMappingCatalog
+} = require('./pictoblox-mapping-catalog');
+
+const {
     aggregateProjectCorpus,
     createProjectSignature
 } = require('./corpus-aggregator');
@@ -41,6 +45,7 @@ module.exports = {
     createCompatibilityCatalog,
     classifyProjectInventory,
     createEasyBloxSupportCatalog,
+    createPictoBloxMappingCatalog,
     aggregateProjectCorpus,
     createProjectSignature,
     discoverSb3Files,

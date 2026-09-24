@@ -227,6 +227,13 @@ const addFunctionalOpcode =
                     ];
             }
 
+            if (
+                opcode.transform
+            ) {
+                record.transform =
+                    opcode.transform;
+            }
+
             opcodes.set(
                 classificationKey,
                 record

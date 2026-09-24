@@ -17,6 +17,12 @@ const COMPATIBILITY_STATUS_VALUES =
         )
     );
 
+const TRANSFORM_ARGUMENT_SOURCES =
+    Object.freeze([
+        'field',
+        'input'
+    ]);
+
 const requireNonEmptyString =
     (
         value,
@@ -101,6 +107,150 @@ const normalizeSourceBoards =
         );
     };
 
+const normalizeTransform =
+    (
+        value,
+        opcode
+    ) => {
+        if (
+            typeof value ===
+                'undefined'
+        ) {
+            return undefined;
+        }
+
+        if (
+            !value ||
+            typeof value !==
+                'object' ||
+            Array.isArray(
+                value
+            )
+        ) {
+            throw new TypeError(
+                `Compatibility catalog entry ${opcode} has an invalid transform`
+            );
+        }
+
+        const kind =
+            requireNonEmptyString(
+                typeof value.kind ===
+                    'string' ?
+                    value.kind.trim() :
+                    value.kind,
+                `Compatibility catalog entry ${opcode} requires a transform kind`
+            );
+
+        if (
+            kind !==
+                'block'
+        ) {
+            throw new RangeError(
+                `Unsupported compatibility transform kind: ${kind}`
+            );
+        }
+
+        if (
+            !Array.isArray(
+                value.arguments
+            )
+        ) {
+            throw new TypeError(
+                `Compatibility catalog entry ${opcode} requires transform arguments to be an array`
+            );
+        }
+
+        const targetArguments =
+            new Set();
+
+        const args =
+            value.arguments.map(
+                (
+                    argument,
+                    index
+                ) => {
+                    if (
+                        !argument ||
+                        typeof argument !==
+                            'object' ||
+                        Array.isArray(
+                            argument
+                        )
+                    ) {
+                        throw new TypeError(
+                            `Compatibility catalog entry ${opcode} has an invalid transform argument at index ${index}`
+                        );
+                    }
+
+                    const target =
+                        requireNonEmptyString(
+                            typeof argument.target ===
+                                'string' ?
+                                argument.target.trim() :
+                                argument.target,
+                            `Compatibility catalog entry ${opcode} transform argument ${index} requires a target`
+                        );
+
+                    const source =
+                        requireNonEmptyString(
+                            typeof argument.source ===
+                                'string' ?
+                                argument.source.trim() :
+                                argument.source,
+                            `Compatibility catalog entry ${opcode} transform argument ${target} requires a source`
+                        );
+
+                    if (
+                        !TRANSFORM_ARGUMENT_SOURCES
+                            .includes(
+                                source
+                            )
+                    ) {
+                        throw new RangeError(
+                            `Unsupported compatibility transform argument source: ${source}`
+                        );
+                    }
+
+                    const sourceName =
+                        requireNonEmptyString(
+                            typeof argument.sourceName ===
+                                'string' ?
+                                argument.sourceName.trim() :
+                                argument.sourceName,
+                            `Compatibility catalog entry ${opcode} transform argument ${target} requires a sourceName`
+                        );
+
+                    if (
+                        targetArguments.has(
+                            target
+                        )
+                    ) {
+                        throw new Error(
+                            `Duplicate compatibility transform target argument: ${target}`
+                        );
+                    }
+
+                    targetArguments.add(
+                        target
+                    );
+
+                    return Object.freeze({
+                        target,
+                        source,
+                        sourceName
+                    });
+                }
+            );
+
+        return Object.freeze({
+            kind,
+            arguments:
+                Object.freeze(
+                    args
+                )
+        });
+    };
+
 const normalizeCatalogEntry =
     (
         entry,
@@ -160,6 +310,12 @@ const normalizeCatalogEntry =
                 opcode
             );
 
+        const transform =
+            normalizeTransform(
+                entry.transform,
+                opcode
+            );
+
         if (
             status ===
                 COMPATIBILITY_STATUSES
@@ -189,6 +345,11 @@ const normalizeCatalogEntry =
         if (sourceBoards) {
             normalized.sourceBoards =
                 sourceBoards;
+        }
+
+        if (transform) {
+            normalized.transform =
+                transform;
         }
 
         return Object.freeze(
@@ -501,6 +662,16 @@ const classifyProjectInventory =
                                 ...applicableCatalogEntry
                                     .sourceBoards
                             ];
+                    }
+
+                    if (
+                        applicableCatalogEntry &&
+                        applicableCatalogEntry
+                            .transform
+                    ) {
+                        classified.transform =
+                            applicableCatalogEntry
+                                .transform;
                     }
 
                     return classified;
