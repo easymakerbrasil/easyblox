@@ -191,6 +191,43 @@ const RAW_MAPPING_ENTRIES = [
     },
     {
         opcode:
+            'sensors_readAnalogSensor',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'arduinoUno_analogRead',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'PIN',
+                    source:
+                        'field',
+                    sourceName:
+                        'PIN',
+                    valueMap: {
+                        '0':
+                            '14',
+                        '1':
+                            '15',
+                        '2':
+                            '16',
+                        '3':
+                            '17',
+                        '4':
+                            '18',
+                        '5':
+                            '19'
+                    }
+                }
+            ])
+    },
+    {
+        opcode:
             'sensors_readDHTSensor',
         status:
             COMPATIBILITY_STATUSES

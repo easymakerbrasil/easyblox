@@ -20,7 +20,7 @@ test(
 
         assert.equal(
             catalog.totalMappingCount,
-            9
+            10
         );
 
         assert.deepEqual(
@@ -36,6 +36,7 @@ test(
                 'arduinoUno_arduinoUnoStartUp',
                 'arduinoUno_playTone',
                 'arduinoUno_setPWM',
+                'sensors_readAnalogSensor',
                 'sensors_readDHTSensor',
                 'sensors_readUltrasonic'
             ]
@@ -148,6 +149,96 @@ test(
                         }
                     ]
                 }
+            );
+
+            assert.equal(
+                entriesByOpcode.get(
+                    'sensors_readAnalogSensor'
+                ).transform.arguments.some(
+                    argument =>
+                        argument.sourceName ===
+                            'ANALOG_SENSOR'
+                ),
+                false
+            );
+
+            assert.deepEqual(
+                entriesByOpcode.get(
+                    'sensors_readAnalogSensor'
+                ).transform,
+                {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'PIN',
+                            source:
+                                'field',
+                            sourceName:
+                                'PIN',
+                            valueMap: {
+                                '0':
+                                    '14',
+                                '1':
+                                    '15',
+                                '2':
+                                    '16',
+                                '3':
+                                    '17',
+                                '4':
+                                    '18',
+                                '5':
+                                    '19'
+                            }
+                        }
+                    ]
+                }
+            );
+
+            assert.deepEqual(
+                entriesByOpcode.get(
+                    'sensors_readAnalogSensor'
+                ).transform,
+                {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'PIN',
+                            source:
+                                'field',
+                            sourceName:
+                                'PIN',
+                            valueMap: {
+                                '0':
+                                    '14',
+                                '1':
+                                    '15',
+                                '2':
+                                    '16',
+                                '3':
+                                    '17',
+                                '4':
+                                    '18',
+                                '5':
+                                    '19'
+                            }
+                        }
+                    ]
+                }
+            );
+
+            assert.equal(
+                entriesByOpcode.get(
+                    'sensors_readAnalogSensor'
+                ).transform.arguments.some(
+                    argument =>
+                        argument.sourceName ===
+                            'ANALOG_SENSOR'
+                ),
+                false
             );
 
             assert.deepEqual(
@@ -296,6 +387,7 @@ test(
             'actuators_runMotor',
             'actuators_setRelay',
             'actuators_setServo',
+            'sensors_readAnalogSensor',
             'sensors_readDHTSensor',
             'sensors_readUltrasonic',
             'arduinoUno_setPWM',
@@ -359,7 +451,7 @@ test(
         assert.equal(
             result.summary
                 .uniqueFunctionalOpcodeCount,
-            9
+            10
         );
 
         assert.deepEqual(
@@ -367,11 +459,11 @@ test(
                 .mappable,
             {
                 blockCount:
-                    9,
+                    10,
                 projectCount:
                     1,
                 uniqueOpcodeCount:
-                    9
+                    10
             }
         );
 
@@ -380,11 +472,11 @@ test(
                 .unknown,
             {
                 blockCount:
-                    9,
+                    10,
                 projectCount:
                     1,
                 uniqueOpcodeCount:
-                    9
+                    10
             }
         );
 
