@@ -20,7 +20,7 @@ test(
 
         assert.equal(
             catalog.totalMappingCount,
-            5
+            8
         );
 
         assert.deepEqual(
@@ -29,10 +29,13 @@ test(
                     entry.opcode
             ),
             [
+                'actuators_initialiseMotor',
+                'actuators_runMotor',
                 'actuators_setServo',
                 'arduinoUno_arduinoUnoStartUp',
                 'arduinoUno_playTone',
                 'arduinoUno_setPWM',
+                'sensors_readDHTSensor',
                 'sensors_readUltrasonic'
             ]
         );
@@ -68,6 +71,82 @@ test(
                         entry
                     ]
                 )
+            );
+
+            assert.deepEqual(
+                entriesByOpcode.get(
+                    'actuators_runMotor'
+                ).transform,
+                {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'MOTOR',
+                            source:
+                                'field',
+                            sourceName:
+                                'MOTOR'
+                        },
+                        {
+                            target:
+                                'DIRECTION',
+                            source:
+                                'field',
+                            sourceName:
+                                'DIRECTION',
+                            valueMap: {
+                                '1':
+                                    '0',
+                                '2':
+                                    '1'
+                            }
+                        },
+                        {
+                            target:
+                                'SPEED',
+                            source:
+                                'input',
+                            sourceName:
+                                'SPEED'
+                        }
+                    ]
+                }
+            );
+
+            assert.deepEqual(
+                entriesByOpcode.get(
+                    'sensors_readDHTSensor'
+                ).transform,
+                {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'TYPE',
+                            source:
+                                'field',
+                            sourceName:
+                                'DHT_SENSOR',
+                            valueMap: {
+                                '1':
+                                    '0',
+                                '2':
+                                    '1'
+                            }
+                        },
+                        {
+                            target:
+                                'PIN',
+                            source:
+                                'field',
+                            sourceName:
+                                'PIN'
+                        }
+                    ]
+                }
             );
 
         assert.deepEqual(
@@ -178,7 +257,10 @@ test(
 
         const opcodes = [
             'arduinoUno_arduinoUnoStartUp',
+            'actuators_initialiseMotor',
+            'actuators_runMotor',
             'actuators_setServo',
+            'sensors_readDHTSensor',
             'sensors_readUltrasonic',
             'arduinoUno_setPWM',
             'arduinoUno_playTone'
@@ -241,7 +323,7 @@ test(
         assert.equal(
             result.summary
                 .uniqueFunctionalOpcodeCount,
-            5
+            8
         );
 
         assert.deepEqual(
@@ -249,11 +331,11 @@ test(
                 .mappable,
             {
                 blockCount:
-                    5,
+                    8,
                 projectCount:
                     1,
                 uniqueOpcodeCount:
-                    5
+                    8
             }
         );
 
@@ -262,11 +344,11 @@ test(
                 .unknown,
             {
                 blockCount:
-                    5,
+                    8,
                 projectCount:
                     1,
                 uniqueOpcodeCount:
-                    5
+                    8
             }
         );
 
@@ -309,6 +391,133 @@ test(
                     }
                 ]
             }
+        );
+    }
+);
+
+test(
+    'compatibility catalog normalizes transform argument value maps',
+    () => {
+        const catalog =
+            createCompatibilityCatalog([
+                {
+                    opcode:
+                        'picto_value_map',
+                    status:
+                        COMPATIBILITY_STATUSES
+                            .MAPPABLE,
+                    targetOpcode:
+                        'easy_target',
+                    transform: {
+                        kind:
+                            'block',
+                        arguments: [
+                            {
+                                target:
+                                    'DIRECTION',
+                                source:
+                                    'field',
+                                sourceName:
+                                    'DIRECTION',
+                                valueMap: {
+                                    '2':
+                                        '1',
+                                    '1':
+                                        '0'
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]);
+
+        const valueMap =
+            catalog.get(
+                'picto_value_map'
+            ).transform
+                .arguments[0]
+                .valueMap;
+
+        assert.deepEqual(
+            valueMap,
+            {
+                '1':
+                    '0',
+                '2':
+                    '1'
+            }
+        );
+
+        assert.equal(
+            Object.isFrozen(
+                valueMap
+            ),
+            true
+        );
+
+        assert.throws(
+            () =>
+                createCompatibilityCatalog([
+                    {
+                        opcode:
+                            'picto_empty_value_map',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .MAPPABLE,
+                        targetOpcode:
+                            'easy_target',
+                        transform: {
+                            kind:
+                                'block',
+                            arguments: [
+                                {
+                                    target:
+                                        'VALUE',
+                                    source:
+                                        'field',
+                                    sourceName:
+                                        'VALUE',
+                                    valueMap: {}
+                                }
+                            ]
+                        }
+                    }
+                ]),
+            /valueMap to be a non-empty object/
+        );
+
+        assert.throws(
+            () =>
+                createCompatibilityCatalog([
+                    {
+                        opcode:
+                            'picto_invalid_value_map',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .MAPPABLE,
+                        targetOpcode:
+                            'easy_target',
+                        transform: {
+                            kind:
+                                'block',
+                            arguments: [
+                                {
+                                    target:
+                                        'VALUE',
+                                    source:
+                                        'field',
+                                    sourceName:
+                                        'VALUE',
+                                    valueMap: {
+                                        '1':
+                                            ''
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]),
+            /invalid valueMap target/
         );
     }
 );

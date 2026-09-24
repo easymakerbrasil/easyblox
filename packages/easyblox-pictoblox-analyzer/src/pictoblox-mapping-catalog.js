@@ -17,6 +17,98 @@ const createBlockTransform =
 const RAW_MAPPING_ENTRIES = [
     {
         opcode:
+            'actuators_initialiseMotor',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'actuators_motorConfigure',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'MOTOR',
+                    source:
+                        'field',
+                    sourceName:
+                        'MOTOR'
+                },
+                {
+                    target:
+                        'IN1',
+                    source:
+                        'field',
+                    sourceName:
+                        'DIRECTION1'
+                },
+                {
+                    target:
+                        'IN2',
+                    source:
+                        'field',
+                    sourceName:
+                        'DIRECTION2'
+                },
+                {
+                    target:
+                        'PWM',
+                    source:
+                        'field',
+                    sourceName:
+                        'PWM'
+                }
+            ])
+    },
+    {
+        opcode:
+            'actuators_runMotor',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'actuators_motorWrite',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'MOTOR',
+                    source:
+                        'field',
+                    sourceName:
+                        'MOTOR'
+                },
+                {
+                    target:
+                        'DIRECTION',
+                    source:
+                        'field',
+                    sourceName:
+                        'DIRECTION',
+                    valueMap: {
+                        '1':
+                            '0',
+                        '2':
+                            '1'
+                    }
+                },
+                {
+                    target:
+                        'SPEED',
+                    source:
+                        'input',
+                    sourceName:
+                        'SPEED'
+                }
+            ])
+    },
+    {
+        opcode:
             'arduinoUno_arduinoUnoStartUp',
         status:
             COMPATIBILITY_STATUSES
@@ -57,6 +149,43 @@ const RAW_MAPPING_ENTRIES = [
                         'input',
                     sourceName:
                         'ANGLE'
+                }
+            ])
+    },
+    {
+        opcode:
+            'sensors_readDHTSensor',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'sensors_dhtRead',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'TYPE',
+                    source:
+                        'field',
+                    sourceName:
+                        'DHT_SENSOR',
+                    valueMap: {
+                        '1':
+                            '0',
+                        '2':
+                            '1'
+                    }
+                },
+                {
+                    target:
+                        'PIN',
+                    source:
+                        'field',
+                    sourceName:
+                        'PIN'
                 }
             ])
     },

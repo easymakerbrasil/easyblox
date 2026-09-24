@@ -107,6 +107,111 @@ const normalizeSourceBoards =
         );
     };
 
+const normalizeArgumentValueMap =
+    (
+        value,
+        opcode,
+        target
+    ) => {
+        if (
+            typeof value ===
+                'undefined'
+        ) {
+            return undefined;
+        }
+
+        if (
+            !value ||
+            typeof value !==
+                'object' ||
+            Array.isArray(
+                value
+            )
+        ) {
+            throw new TypeError(
+                `Compatibility catalog entry ${opcode} transform argument ${target} has an invalid valueMap`
+            );
+        }
+
+        const entries =
+            Object.entries(
+                value
+            );
+
+        if (
+            entries.length ===
+                0
+        ) {
+            throw new TypeError(
+                `Compatibility catalog entry ${opcode} transform argument ${target} requires valueMap to be a non-empty object`
+            );
+        }
+
+        const normalized = {};
+
+        entries
+            .map(
+                ([
+                    sourceValue,
+                    targetValue
+                ]) => [
+                    sourceValue.trim(),
+                    typeof targetValue ===
+                        'string' ?
+                        targetValue.trim() :
+                        targetValue
+                ]
+            )
+            .sort(
+                (
+                    left,
+                    right
+                ) =>
+                    left[0]
+                        .localeCompare(
+                            right[0]
+                        )
+            )
+            .forEach(
+                ([
+                    sourceValue,
+                    targetValue
+                ]) => {
+                    requireNonEmptyString(
+                        sourceValue,
+                        `Compatibility catalog entry ${opcode} transform argument ${target} has an invalid valueMap source`
+                    );
+
+                    const normalizedTarget =
+                        requireNonEmptyString(
+                            targetValue,
+                            `Compatibility catalog entry ${opcode} transform argument ${target} has an invalid valueMap target`
+                        );
+
+                    if (
+                        Object.prototype
+                            .hasOwnProperty.call(
+                                normalized,
+                                sourceValue
+                            )
+                    ) {
+                        throw new Error(
+                            `Duplicate compatibility transform valueMap source: ${sourceValue}`
+                        );
+                    }
+
+                    normalized[
+                        sourceValue
+                    ] =
+                        normalizedTarget;
+                }
+            );
+
+        return Object.freeze(
+            normalized
+        );
+    };
+
 const normalizeTransform =
     (
         value,
@@ -220,6 +325,13 @@ const normalizeTransform =
                             `Compatibility catalog entry ${opcode} transform argument ${target} requires a sourceName`
                         );
 
+                    const valueMap =
+                        normalizeArgumentValueMap(
+                            argument.valueMap,
+                            opcode,
+                            target
+                        );
+
                     if (
                         targetArguments.has(
                             target
@@ -234,11 +346,20 @@ const normalizeTransform =
                         target
                     );
 
-                    return Object.freeze({
+                    const normalizedArgument = {
                         target,
                         source,
                         sourceName
-                    });
+                    };
+
+                    if (valueMap) {
+                        normalizedArgument.valueMap =
+                            valueMap;
+                    }
+
+                    return Object.freeze(
+                        normalizedArgument
+                    );
                 }
             );
 
