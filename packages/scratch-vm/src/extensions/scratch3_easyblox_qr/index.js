@@ -10,6 +10,9 @@ const {
     rasterizeEasyBloxQr
 } = require('../../qr/easyblox-qr-encoder');
 const {
+    decodeEasyBloxQrFrame
+} = require('../../qr/easyblox-qr-decoder');
+const {
     EASYBLOX_QR_OVERLAY_POSITION_CHANGED,
     getEasyBloxQrOverlayCoordinates
 } = require('../../qr/easyblox-qr-overlay-position');
@@ -35,6 +38,15 @@ const STAGE_QR_RASTER_SIZE =
 const STAGE_QR_SCALE_PERCENT =
     50;
 
+const CAMERA_FRAME_FORMAT =
+    'image-data';
+
+const CAMERA_FRAME_CACHE_TIMEOUT =
+    0;
+
+const QR_READER_INTERVAL_MS =
+    100;
+
 class Scratch3EasyBloxQrBlocks {
     constructor (runtime) {
         this.runtime = runtime;
@@ -43,6 +55,11 @@ class Scratch3EasyBloxQrBlocks {
         this._boundaryEnabled = true;
         this._detected = false;
         this._content = '';
+        this._location = null;
+
+        this._readerTimeout = null;
+        this._readerSessionId = 0;
+
         this._visibleQrCodeId = null;
 
         this._stageQrSkinId = -1;
@@ -58,6 +75,7 @@ class Scratch3EasyBloxQrBlocks {
             this.runtime.on(
                 'RUNTIME_DISPOSED',
                 () => {
+                    this.stopReader();
                     this._disposeStageQrCode();
                 }
             );
@@ -269,11 +287,147 @@ class Scratch3EasyBloxQrBlocks {
     }
 
     /**
+     * Return whether the active QR reader source is camera based.
+     * @returns {boolean} True for either camera orientation.
+     */
+    _isCameraReaderSource () {
+        return (
+            this._readerSource ===
+                READER_SOURCE_CAMERA_NORMAL ||
+            this._readerSource ===
+                READER_SOURCE_CAMERA_MIRRORED
+        );
+    }
+
+    /**
+     * Stop the scheduled camera decoding loop.
+     */
+    _stopReaderLoop () {
+        if (
+            this._readerTimeout !==
+            null
+        ) {
+            clearTimeout(
+                this._readerTimeout
+            );
+
+            this._readerTimeout = null;
+        }
+    }
+
+    /**
+     * Apply one decoder result to the Scratch sensing state.
+     * @param {?object} decoded Decoded QR result or null.
+     */
+    _updateReaderDetection (decoded) {
+        if (!decoded) {
+            this._detected = false;
+            this._content = '';
+            this._location = null;
+            return;
+        }
+
+        this._detected = true;
+        this._content =
+            decoded.content;
+        this._location =
+            decoded.location;
+    }
+
+    /**
+     * Capture and decode one frame from the active camera source.
+     */
+    _readCameraFrame () {
+        const video =
+            this.runtime &&
+            this.runtime.ioDevices &&
+            this.runtime.ioDevices.video ?
+                this.runtime.ioDevices.video :
+                null;
+
+        if (
+            !video ||
+            typeof video.getFrame !==
+                'function'
+        ) {
+            this._updateReaderDetection(
+                null
+            );
+            return;
+        }
+
+        const frame =
+            video.getFrame({
+                mirror:
+                    this._readerSource ===
+                    READER_SOURCE_CAMERA_MIRRORED,
+                format:
+                    CAMERA_FRAME_FORMAT,
+                cacheTimeout:
+                    CAMERA_FRAME_CACHE_TIMEOUT
+            });
+
+        if (!frame) {
+            this._updateReaderDetection(
+                null
+            );
+            return;
+        }
+
+        try {
+            this._updateReaderDetection(
+                decodeEasyBloxQrFrame(
+                    frame
+                )
+            );
+        } catch {
+            this._updateReaderDetection(
+                null
+            );
+        }
+    }
+
+    /**
+     * Start a race-safe camera decoding loop.
+     * @param {number} readerSessionId Active reader session identifier.
+     */
+    _startCameraReaderLoop (readerSessionId) {
+        this._stopReaderLoop();
+
+        const readNextFrame = () => {
+            if (
+                readerSessionId !==
+                    this._readerSessionId ||
+                !this._isCameraReaderSource()
+            ) {
+                this._readerTimeout =
+                    null;
+                return;
+            }
+
+            this._readCameraFrame();
+
+            this._readerTimeout =
+                setTimeout(
+                    readNextFrame,
+                    QR_READER_INTERVAL_MS
+                );
+        };
+
+        readNextFrame();
+    }
+
+    /**
      * Select and activate the source used by the QR reader.
      * Camera decoding itself is implemented by the decoder integration lot.
      * @param {!object} args Scratch block arguments.
      */
     startReader (args) {
+        this._stopReaderLoop();
+
+        const readerSessionId =
+            ++this._readerSessionId;
+
         const requestedSource =
             args &&
             typeof args.SOURCE === 'string' ?
@@ -296,6 +450,7 @@ class Scratch3EasyBloxQrBlocks {
 
         this._detected = false;
         this._content = '';
+        this._location = null;
 
         const video =
             this.runtime &&
@@ -355,6 +510,9 @@ class Scratch3EasyBloxQrBlocks {
             this._cameraEnabledByReader ||
             video.videoReady
         ) {
+            this._startCameraReaderLoop(
+                readerSessionId
+            );
             return;
         }
 
@@ -370,12 +528,60 @@ class Scratch3EasyBloxQrBlocks {
 
         this._cameraEnabledByReader =
             enableResult !== null;
+
+        if (
+            !enableResult ||
+            typeof enableResult.then !==
+                'function'
+        ) {
+            if (
+                this._cameraEnabledByReader
+            ) {
+                this._startCameraReaderLoop(
+                    readerSessionId
+                );
+            }
+
+            return;
+        }
+
+        enableResult
+            .then(
+                () => {
+                    if (
+                        readerSessionId !==
+                            this._readerSessionId ||
+                        !this._isCameraReaderSource()
+                    ) {
+                        return;
+                    }
+
+                    this._startCameraReaderLoop(
+                        readerSessionId
+                    );
+                }
+            )
+            .catch(
+                () => {
+                    if (
+                        readerSessionId ===
+                        this._readerSessionId
+                    ) {
+                        this._updateReaderDetection(
+                            null
+                        );
+                    }
+                }
+            );
     }
 
     /**
      * Stop the QR reader.
      */
     stopReader () {
+        this._stopReaderLoop();
+        this._readerSessionId += 1;
+
         const video =
             this.runtime &&
             this.runtime.ioDevices &&
@@ -410,6 +616,7 @@ class Scratch3EasyBloxQrBlocks {
         this._readerSource = null;
         this._detected = false;
         this._content = '';
+        this._location = null;
     }
 
     /**
