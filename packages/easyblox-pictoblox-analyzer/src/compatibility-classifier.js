@@ -284,8 +284,27 @@ const classifyProjectInventory =
         }
 
         if (
+            typeof inventory.functionalOpcodes !==
+                'undefined' &&
             !Array.isArray(
-                inventory.opcodes
+                inventory.functionalOpcodes
+            )
+        ) {
+            throw new TypeError(
+                'Compatibility classifier requires functional inventory opcodes to be an array'
+            );
+        }
+
+        const inventoryOpcodes =
+            Array.isArray(
+                inventory.functionalOpcodes
+            ) ?
+                inventory.functionalOpcodes :
+                inventory.opcodes;
+
+        if (
+            !Array.isArray(
+                inventoryOpcodes
             )
         ) {
             throw new TypeError(
@@ -302,7 +321,7 @@ const classifyProjectInventory =
             createEmptySummary();
 
         const opcodes =
-            inventory.opcodes.map(
+            inventoryOpcodes.map(
                 (
                     opcodeRecord,
                     index

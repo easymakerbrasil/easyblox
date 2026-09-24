@@ -166,6 +166,136 @@ test(
 );
 
 test(
+    'project inventory separates functional blocks from serialized shadows',
+    () => {
+        const inventory =
+            createProjectInventory({
+                targets: [
+                    {
+                        name:
+                            'Sprite1',
+                        blocks: {
+                            switchCostume: {
+                                opcode:
+                                    'looks_switchcostumeto',
+                                shadow:
+                                    false
+                            },
+                            costumeMenu: {
+                                opcode:
+                                    'looks_costume',
+                                shadow:
+                                    true,
+                                parent:
+                                    'switchCostume'
+                            },
+                            servo: {
+                                opcode:
+                                    'actuators_setServo',
+                                shadow:
+                                    false
+                            },
+                            servoAngle: {
+                                opcode:
+                                    'math_slider_0_180',
+                                shadow:
+                                    true,
+                                parent:
+                                    'servo'
+                            },
+                            startup: {
+                                opcode:
+                                    'arduinoUno_arduinoUnoStartUp',
+                                shadow:
+                                    false,
+                                topLevel:
+                                    true
+                            }
+                        }
+                    }
+                ]
+            });
+
+        assert.equal(
+            inventory.blockCount,
+            5
+        );
+
+        assert.equal(
+            inventory.functionalBlockCount,
+            3
+        );
+
+        assert.equal(
+            inventory.shadowBlockCount,
+            2
+        );
+
+        assert.equal(
+            inventory.uniqueFunctionalOpcodeCount,
+            3
+        );
+
+        assert.equal(
+            inventory.uniqueShadowOpcodeCount,
+            2
+        );
+
+        assert.deepEqual(
+            inventory.functionalOpcodes,
+            [
+                {
+                    opcode:
+                        'actuators_setServo',
+                    namespace:
+                        'actuators',
+                    count:
+                        1
+                },
+                {
+                    opcode:
+                        'arduinoUno_arduinoUnoStartUp',
+                    namespace:
+                        'arduinoUno',
+                    count:
+                        1
+                },
+                {
+                    opcode:
+                        'looks_switchcostumeto',
+                    namespace:
+                        'looks',
+                    count:
+                        1
+                }
+            ]
+        );
+
+        assert.deepEqual(
+            inventory.shadowOpcodes,
+            [
+                {
+                    opcode:
+                        'looks_costume',
+                    namespace:
+                        'looks',
+                    count:
+                        1
+                },
+                {
+                    opcode:
+                        'math_slider_0_180',
+                    namespace:
+                        'math',
+                    count:
+                        1
+                }
+            ]
+        );
+    }
+);
+
+test(
     'project inventory normalizes declared extensions',
     () => {
         const inventory =

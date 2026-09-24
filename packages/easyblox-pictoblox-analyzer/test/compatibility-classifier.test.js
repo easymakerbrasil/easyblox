@@ -160,6 +160,87 @@ test(
 );
 
 test(
+    'compatibility classifier ignores serialized shadows when role inventory is available',
+    () => {
+        const result =
+            classifyProjectInventory(
+                {
+                    opcodes: [
+                        {
+                            opcode:
+                                'actuators_setServo',
+                            namespace:
+                                'actuators',
+                            count:
+                                1
+                        },
+                        {
+                            opcode:
+                                'math_slider_0_180',
+                            namespace:
+                                'math',
+                            count:
+                                1
+                        }
+                    ],
+                    functionalOpcodes: [
+                        {
+                            opcode:
+                                'actuators_setServo',
+                            namespace:
+                                'actuators',
+                            count:
+                                1
+                        }
+                    ]
+                },
+                [
+                    {
+                        opcode:
+                            'actuators_setServo',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .SUPPORTED
+                    }
+                ]
+            );
+
+        assert.equal(
+            result.blockCount,
+            1
+        );
+
+        assert.equal(
+            result.uniqueOpcodeCount,
+            1
+        );
+
+        assert.deepEqual(
+            result.opcodes,
+            [
+                {
+                    opcode:
+                        'actuators_setServo',
+                    namespace:
+                        'actuators',
+                    count:
+                        1,
+                    status:
+                        'supported'
+                }
+            ]
+        );
+
+        assert.equal(
+            result.summary
+                .unknown
+                .blockCount,
+            0
+        );
+    }
+);
+
+test(
     'compatibility classifier preserves mapping metadata deterministically',
     () => {
         const result =

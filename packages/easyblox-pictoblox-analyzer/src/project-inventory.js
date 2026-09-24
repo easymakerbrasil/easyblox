@@ -31,6 +31,87 @@ const normalizeDeclaredExtensions =
         ).sort();
     };
 
+const incrementCount =
+    (
+        counts,
+        key
+    ) => {
+        counts.set(
+            key,
+            (
+                counts.get(
+                    key
+                ) ||
+                0
+            ) +
+            1
+        );
+    };
+
+const createOpcodeRecords =
+    counts =>
+        Array.from(
+            counts.entries()
+        )
+            .map(
+                ([
+                    opcode,
+                    count
+                ]) => ({
+                    opcode,
+                    namespace:
+                        getOpcodeNamespace(
+                            opcode
+                        ),
+                    count
+                })
+            )
+            .sort(
+                (
+                    left,
+                    right
+                ) =>
+                    left.opcode.localeCompare(
+                        right.opcode
+                    )
+            );
+
+const createNamespaceRecords =
+    counts =>
+        Array.from(
+            counts.entries()
+        )
+            .map(
+                ([
+                    namespace,
+                    count
+                ]) => ({
+                    namespace,
+                    count
+                })
+            )
+            .sort(
+                (
+                    left,
+                    right
+                ) =>
+                    left.namespace.localeCompare(
+                        right.namespace
+                    )
+            );
+
+const sumCounts =
+    records =>
+        records.reduce(
+            (
+                total,
+                record
+            ) =>
+                total +
+                record.count,
+            0
+        );
+
 const createProjectInventory =
     project => {
         if (
@@ -53,6 +134,18 @@ const createProjectInventory =
             new Map();
 
         const namespaceCounts =
+            new Map();
+
+        const functionalOpcodeCounts =
+            new Map();
+
+        const functionalNamespaceCounts =
+            new Map();
+
+        const shadowOpcodeCounts =
+            new Map();
+
+        const shadowNamespaceCounts =
             new Map();
 
         const targets =
@@ -97,33 +190,47 @@ const createProjectInventory =
                                 opcode
                             );
 
+                        const isShadow =
+                            block.shadow ===
+                                true;
+
                         blockCount += 1;
 
                         targetOpcodes.add(
                             opcode
                         );
 
-                        opcodeCounts.set(
-                            opcode,
-                            (
-                                opcodeCounts.get(
-                                    opcode
-                                ) ||
-                                0
-                            ) +
-                            1
+                        incrementCount(
+                            opcodeCounts,
+                            opcode
                         );
 
-                        namespaceCounts.set(
-                            namespace,
-                            (
-                                namespaceCounts.get(
-                                    namespace
-                                ) ||
-                                0
-                            ) +
-                            1
+                        incrementCount(
+                            namespaceCounts,
+                            namespace
                         );
+
+                        if (isShadow) {
+                            incrementCount(
+                                shadowOpcodeCounts,
+                                opcode
+                            );
+
+                            incrementCount(
+                                shadowNamespaceCounts,
+                                namespace
+                            );
+                        } else {
+                            incrementCount(
+                                functionalOpcodeCounts,
+                                opcode
+                            );
+
+                            incrementCount(
+                                functionalNamespaceCounts,
+                                namespace
+                            );
+                        }
                     });
 
                     return {
@@ -148,77 +255,67 @@ const createProjectInventory =
             );
 
         const opcodes =
-            Array.from(
-                opcodeCounts.entries()
-            )
-                .map(
-                    ([
-                        opcode,
-                        count
-                    ]) => ({
-                        opcode,
-                        namespace:
-                            getOpcodeNamespace(
-                                opcode
-                            ),
-                        count
-                    })
-                )
-                .sort(
-                    (
-                        left,
-                        right
-                    ) =>
-                        left.opcode.localeCompare(
-                            right.opcode
-                        )
-                );
+            createOpcodeRecords(
+                opcodeCounts
+            );
 
         const namespaces =
-            Array.from(
-                namespaceCounts.entries()
-            )
-                .map(
-                    ([
-                        namespace,
-                        count
-                    ]) => ({
-                        namespace,
-                        count
-                    })
-                )
-                .sort(
-                    (
-                        left,
-                        right
-                    ) =>
-                        left.namespace.localeCompare(
-                            right.namespace
-                        )
-                );
+            createNamespaceRecords(
+                namespaceCounts
+            );
+
+        const functionalOpcodes =
+            createOpcodeRecords(
+                functionalOpcodeCounts
+            );
+
+        const functionalNamespaces =
+            createNamespaceRecords(
+                functionalNamespaceCounts
+            );
+
+        const shadowOpcodes =
+            createOpcodeRecords(
+                shadowOpcodeCounts
+            );
+
+        const shadowNamespaces =
+            createNamespaceRecords(
+                shadowNamespaceCounts
+            );
 
         return {
             targetCount:
                 targets.length,
             blockCount:
-                opcodes.reduce(
-                    (
-                        total,
-                        opcode
-                    ) =>
-                        total +
-                        opcode.count,
-                    0
+                sumCounts(
+                    opcodes
+                ),
+            functionalBlockCount:
+                sumCounts(
+                    functionalOpcodes
+                ),
+            shadowBlockCount:
+                sumCounts(
+                    shadowOpcodes
                 ),
             uniqueOpcodeCount:
                 opcodes.length,
+            uniqueFunctionalOpcodeCount:
+                functionalOpcodes.length,
+            uniqueShadowOpcodeCount:
+                shadowOpcodes.length,
             declaredExtensions:
                 normalizeDeclaredExtensions(
                     project.extensions
                 ),
             targets,
             namespaces,
-            opcodes
+            functionalNamespaces,
+            shadowNamespaces,
+            opcodes,
+            functionalOpcodes,
+            shadowOpcodes
         };
     };
 
