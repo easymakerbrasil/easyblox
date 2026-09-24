@@ -796,6 +796,100 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox QR starts decoding after a newly enabled camera becomes available',
+    t => {
+        const raster =
+            rasterizeEasyBloxQr(
+                'NEW-CAMERA-SESSION',
+                {
+                    size: 256
+                }
+            );
+
+        let enableCount = 0;
+        let frameCount = 0;
+
+        const enableResult = {
+            then:
+                callback => {
+                    callback();
+
+                    return {
+                        catch:
+                            () => {}
+                    };
+                }
+        };
+
+        const video = {
+            mirror: true,
+            videoReady: false,
+
+            enableVideo:
+                () => {
+                    enableCount += 1;
+
+                    return enableResult;
+                },
+
+            disableVideo:
+                () => {},
+
+            getFrame:
+                () => {
+                    frameCount += 1;
+
+                    return {
+                        data:
+                            raster.pixels,
+                        width:
+                            raster.width,
+                        height:
+                            raster.height
+                    };
+                }
+        };
+
+        const extension =
+            createExtension({
+                ioDevices: {
+                    video
+                }
+            });
+
+        extension.startReader({
+            SOURCE: 'cameraNormal'
+        });
+
+        t.equal(
+            enableCount,
+            1,
+            'camera is enabled once'
+        );
+
+        t.equal(
+            frameCount,
+            1,
+            'reader starts immediately after camera enable resolves'
+        );
+
+        t.equal(
+            extension.isDetected(),
+            true
+        );
+
+        t.equal(
+            extension.content(),
+            'NEW-CAMERA-SESSION'
+        );
+
+        extension.stopReader();
+
+        t.end();
+    }
+);
+
+tap.test(
     'EasyBlox QR camera sources control preview orientation and camera ownership',
     t => {
         let enableCount = 0;

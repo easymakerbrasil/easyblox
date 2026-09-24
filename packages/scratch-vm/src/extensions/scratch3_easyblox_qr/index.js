@@ -605,7 +605,7 @@ class Scratch3EasyBloxQrBlocks {
             if (
                 this._cameraEnabledByReader
             ) {
-                this._startCameraReaderLoop(
+                this._startReaderLoop(
                     readerSessionId
                 );
             }
@@ -624,7 +624,7 @@ class Scratch3EasyBloxQrBlocks {
                         return;
                     }
 
-                    this._startCameraReaderLoop(
+                    this._startReaderLoop(
                         readerSessionId
                     );
                 }
