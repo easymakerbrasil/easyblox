@@ -79,6 +79,7 @@
     "format-message": "6.2.4",
     "htmlparser2": "3.10.1",
     "immutable": "3.8.3",
+    "jsqr": "1.4.0",
     "jszip": "3.10.1",
     "qrcode": "1.5.4",
     "scratch-audio": "2.0.268",
