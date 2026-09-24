@@ -863,6 +863,133 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox QR repositions a visible Stage overlay immediately',
+    t => {
+        const previousImageData =
+            global.ImageData;
+
+        global.ImageData =
+            class ImageDataMock {
+                constructor (
+                    data,
+                    width,
+                    height
+                ) {
+                    this.data = data;
+                    this.width = width;
+                    this.height = height;
+                }
+            };
+
+        let positionListener = null;
+
+        const positionCalls = [];
+        let redrawCount = 0;
+
+        const runtime = {
+            renderer: {
+                createBitmapSkin:
+                    () => 41,
+                createDrawable:
+                    () => 42,
+                updateDrawableSkinId:
+                    () => {},
+                updateDrawablePosition:
+                    (drawableId, position) => {
+                        positionCalls.push([
+                            drawableId,
+                            position
+                        ]);
+                    },
+                updateDrawableScale:
+                    () => {},
+                updateDrawableVisible:
+                    () => {}
+            },
+
+            getEasyBloxQrCodeById:
+                () => ({
+                    id: 'qr_a',
+                    name: 'Estação 1',
+                    content: 'A'
+                }),
+
+            getEasyBloxQrOverlayPosition:
+                () =>
+                    'topRight',
+
+            requestRedraw:
+                () => {
+                    redrawCount += 1;
+                },
+
+            on:
+                (eventName, listener) => {
+                    if (
+                        eventName ===
+                        'EASYBLOX_QR_OVERLAY_POSITION_CHANGED'
+                    ) {
+                        positionListener =
+                            listener;
+                    }
+                }
+        };
+
+        const extension =
+            createExtension(runtime);
+
+        extension.showQrCode({
+            QR_CODE: 'qr_a'
+        });
+
+        t.same(
+            positionCalls[0],
+            [
+                42,
+                [
+                    160,
+                    100
+                ]
+            ],
+            'persisted position is used when the overlay is created'
+        );
+
+        t.type(
+            positionListener,
+            'function'
+        );
+
+        positionListener(
+            'bottomLeft'
+        );
+
+        t.same(
+            positionCalls[
+                positionCalls.length - 1
+            ],
+            [
+                42,
+                [
+                    -160,
+                    -100
+                ]
+            ],
+            'visible overlay moves immediately'
+        );
+
+        t.equal(
+            redrawCount,
+            2
+        );
+
+        global.ImageData =
+            previousImageData;
+
+        t.end();
+    }
+);
+
+tap.test(
     'EasyBlox QR hide preserves reusable renderer resources',
     t => {
         const previousImageData =
