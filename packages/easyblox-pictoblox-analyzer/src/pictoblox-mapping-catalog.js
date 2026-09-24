@@ -109,6 +109,43 @@ const RAW_MAPPING_ENTRIES = [
     },
     {
         opcode:
+            'actuators_setRelay',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'actuators_relayWrite',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'PIN',
+                    source:
+                        'field',
+                    sourceName:
+                        'DIGITAL_PIN'
+                },
+                {
+                    target:
+                        'STATE',
+                    source:
+                        'field',
+                    sourceName:
+                        'MODE',
+                    valueMap: {
+                        'false':
+                            '0',
+                        'true':
+                            '1'
+                    }
+                }
+            ])
+    },
+    {
+        opcode:
             'arduinoUno_arduinoUnoStartUp',
         status:
             COMPATIBILITY_STATUSES

@@ -20,7 +20,7 @@ test(
 
         assert.equal(
             catalog.totalMappingCount,
-            8
+            9
         );
 
         assert.deepEqual(
@@ -31,6 +31,7 @@ test(
             [
                 'actuators_initialiseMotor',
                 'actuators_runMotor',
+                'actuators_setRelay',
                 'actuators_setServo',
                 'arduinoUno_arduinoUnoStartUp',
                 'arduinoUno_playTone',
@@ -110,6 +111,40 @@ test(
                                 'input',
                             sourceName:
                                 'SPEED'
+                        }
+                    ]
+                }
+            );
+
+            assert.deepEqual(
+                entriesByOpcode.get(
+                    'actuators_setRelay'
+                ).transform,
+                {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'PIN',
+                            source:
+                                'field',
+                            sourceName:
+                                'DIGITAL_PIN'
+                        },
+                        {
+                            target:
+                                'STATE',
+                            source:
+                                'field',
+                            sourceName:
+                                'MODE',
+                            valueMap: {
+                                'false':
+                                    '0',
+                                'true':
+                                    '1'
+                            }
                         }
                     ]
                 }
@@ -259,6 +294,7 @@ test(
             'arduinoUno_arduinoUnoStartUp',
             'actuators_initialiseMotor',
             'actuators_runMotor',
+            'actuators_setRelay',
             'actuators_setServo',
             'sensors_readDHTSensor',
             'sensors_readUltrasonic',
@@ -323,7 +359,7 @@ test(
         assert.equal(
             result.summary
                 .uniqueFunctionalOpcodeCount,
-            8
+            9
         );
 
         assert.deepEqual(
@@ -331,11 +367,11 @@ test(
                 .mappable,
             {
                 blockCount:
-                    8,
+                    9,
                 projectCount:
                     1,
                 uniqueOpcodeCount:
-                    8
+                    9
             }
         );
 
@@ -344,11 +380,11 @@ test(
                 .unknown,
             {
                 blockCount:
-                    8,
+                    9,
                 projectCount:
                     1,
                 uniqueOpcodeCount:
-                    8
+                    9
             }
         );
 
