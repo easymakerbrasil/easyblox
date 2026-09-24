@@ -1,12 +1,15 @@
 import createEasyBloxProjectFileService from '../../../src/lib/easyblox-project-file-service';
 
-const createWritableHandle = () => {
+const createWritableHandle = (
+    name = 'Meu Projeto.sb3'
+) => {
     const writable = {
         write: jest.fn().mockResolvedValue(),
         close: jest.fn().mockResolvedValue()
     };
 
     const handle = {
+        name,
         createWritable: jest.fn().mockResolvedValue(writable)
     };
 
@@ -20,17 +23,20 @@ const createService = ({
     showSaveFilePicker,
     saveProjectSb3 = jest.fn(),
     getProjectFilename = jest.fn(() => 'Meu Projeto.sb3'),
-    downloadBlob = jest.fn()
+    downloadBlob = jest.fn(),
+    onFileAssociated = jest.fn()
 } = {}) => ({
     service: createEasyBloxProjectFileService({
         showSaveFilePicker,
         saveProjectSb3,
         getProjectFilename,
-        downloadBlob
+        downloadBlob,
+        onFileAssociated
     }),
     saveProjectSb3,
     getProjectFilename,
-    downloadBlob
+    downloadBlob,
+    onFileAssociated
 });
 
 describe('EasyBlox project file service', () => {
@@ -114,6 +120,54 @@ describe('EasyBlox project file service', () => {
         expect(second.handle.createWritable).toHaveBeenCalledTimes(2);
         expect(second.writable.write).toHaveBeenCalledTimes(2);
         expect(second.writable.close).toHaveBeenCalledTimes(2);
+    });
+
+    test('reports the selected filename after associating a local project file', async () => {
+        const blob =
+            new Blob([
+                'project'
+            ]);
+
+        const {
+            handle
+        } =
+            createWritableHandle(
+                'TesteQR-final3.sb3'
+            );
+
+        const onFileAssociated =
+            jest.fn();
+
+        const {
+            service
+        } =
+            createService({
+                showSaveFilePicker:
+                    jest.fn()
+                        .mockResolvedValue(
+                            handle
+                        ),
+                saveProjectSb3:
+                    jest.fn()
+                        .mockResolvedValue(
+                            blob
+                        ),
+                onFileAssociated
+            });
+
+        await service.saveAs();
+
+        expect(
+            onFileAssociated
+        ).toHaveBeenCalledTimes(
+            1
+        );
+
+        expect(
+            onFileAssociated
+        ).toHaveBeenCalledWith(
+            'TesteQR-final3.sb3'
+        );
     });
 
     test('falls back to downloading a copy when File System Access API is unavailable', async () => {

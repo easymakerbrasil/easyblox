@@ -48,6 +48,7 @@ import {
 
 import createEasyBloxProjectFileService from '../../lib/easyblox-project-file-service';
 import downloadBlob from '../../lib/download-blob';
+import {getProjectTitleFromFilename} from '../../lib/sb-file-uploader-utils';
 import {
     isEasyConectConnected,
     isEasyConectOpen,
@@ -58,7 +59,10 @@ import {
     isExtensionActive
 } from '../../reducers/active-extensions';
 
-import {projectTitleInitialState} from '../../reducers/project-title';
+import {
+    projectTitleInitialState,
+    setProjectTitle
+} from '../../reducers/project-title';
 import {PLATFORM} from '../../lib/platform';
 
 import styles from './menu-bar.css';
@@ -198,7 +202,20 @@ class MenuBar extends React.Component {
                         this.props.vm
                     ),
                 getProjectFilename: this.getProjectFilename,
-                downloadBlob
+                downloadBlob,
+                onFileAssociated:
+                    filename => {
+                        const projectTitle =
+                            getProjectTitleFromFilename(
+                                filename
+                            );
+
+                        if (projectTitle) {
+                            this.props.onSetProjectTitle(
+                                projectTitle
+                            );
+                        }
+                    }
             });
     }
     componentDidMount () {
@@ -317,9 +334,48 @@ class MenuBar extends React.Component {
         };
     }
     handleKeyPress (event) {
-        const modifier = bowser.mac ? event.metaKey : event.ctrlKey;
-        if (modifier && event.key === 's') {
-            this.handleSave();
+        const modifier =
+            bowser.mac ?
+                event.metaKey :
+                event.ctrlKey;
+
+        if (
+            !modifier ||
+            event.altKey
+        ) {
+            return;
+        }
+
+        const key =
+            typeof event.key ===
+                'string' ?
+                event.key.toLowerCase() :
+                '';
+
+        if (key === 's') {
+            if (event.shiftKey) {
+                this.handleSaveAs();
+            } else {
+                this.handleSave();
+            }
+
+            event.preventDefault();
+            return;
+        }
+
+        if (event.shiftKey) {
+            return;
+        }
+
+        if (key === 'n') {
+            this.handleClickNew();
+            event.preventDefault();
+            return;
+        }
+
+        if (key === 'o') {
+            this.props
+                .onStartSelectingFileUpload();
             event.preventDefault();
         }
     }
@@ -621,6 +677,7 @@ MenuBar.propTypes = {
     onOpenRegistration: PropTypes.func,
     onRequestCloseLogin: PropTypes.func,
     onSeeCommunity: PropTypes.func,
+    onSetProjectTitle: PropTypes.func,
     onSetTimeTravelMode: PropTypes.func,
     onShare: PropTypes.func,
     onStartSelectingFileUpload: PropTypes.func,
@@ -753,6 +810,11 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
     onClickRemix: () => dispatch(remixProject()),
     onRequestCloseLogin: () => dispatch(closeLoginMenu()),
     onSeeCommunity: ownProps.onSeeCommunity ?? (() => dispatch(setPlayer(true))),
+    onSetProjectTitle: title => dispatch(
+        setProjectTitle(
+            title
+        )
+    ),
     onSetTimeTravelMode: mode => dispatch(setTimeTravel(mode)),
     onToggleEasyConect:
         ownProps.onToggleEasyConect ??
