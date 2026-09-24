@@ -7,7 +7,8 @@ import {
 import EasyBloxQrModal from '../../../src/components/easyblox-qr-modal/easyblox-qr-modal.jsx';
 
 const createVm = (
-    initialQrCodes = []
+    initialQrCodes = [],
+    initialOverlayPosition = 'topRight'
 ) => {
     let qrCodes =
         initialQrCodes.map(
@@ -18,7 +19,26 @@ const createVm = (
 
     let nextId = 1;
 
+    let overlayPosition =
+        initialOverlayPosition;
+
     return {
+        getEasyBloxQrOverlayPosition:
+            jest.fn(
+                () =>
+                    overlayPosition
+            ),
+
+        setEasyBloxQrOverlayPosition:
+            jest.fn(
+                position => {
+                    overlayPosition =
+                        position;
+
+                    return position;
+                }
+            ),
+
         getEasyBloxQrCodes:
             jest.fn(
                 () =>
@@ -248,6 +268,89 @@ describe(
                         'https://example.com'
                     )
                 ).toBeTruthy();
+            }
+        );
+
+        test(
+            'shows and changes the project QR overlay position',
+            () => {
+                const vm =
+                    createVm(
+                        [],
+                        'topRight'
+                    );
+
+                const {
+                    getByRole
+                } = render(
+                    <EasyBloxQrModal
+                        initialMode="manage"
+                        vm={vm}
+                        onRequestClose={
+                            jest.fn()
+                        }
+                    />
+                );
+
+                const topRightButton =
+                    getByRole(
+                        'button',
+                        {
+                            name:
+                                'Posição superior direita'
+                        }
+                    );
+
+                const bottomLeftButton =
+                    getByRole(
+                        'button',
+                        {
+                            name:
+                                'Posição inferior esquerda'
+                        }
+                    );
+
+                expect(
+                    topRightButton.getAttribute(
+                        'aria-pressed'
+                    )
+                ).toBe(
+                    'true'
+                );
+
+                expect(
+                    bottomLeftButton.getAttribute(
+                        'aria-pressed'
+                    )
+                ).toBe(
+                    'false'
+                );
+
+                fireEvent.click(
+                    bottomLeftButton
+                );
+
+                expect(
+                    vm.setEasyBloxQrOverlayPosition
+                ).toHaveBeenCalledWith(
+                    'bottomLeft'
+                );
+
+                expect(
+                    bottomLeftButton.getAttribute(
+                        'aria-pressed'
+                    )
+                ).toBe(
+                    'true'
+                );
+
+                expect(
+                    topRightButton.getAttribute(
+                        'aria-pressed'
+                    )
+                ).toBe(
+                    'false'
+                );
             }
         );
 
