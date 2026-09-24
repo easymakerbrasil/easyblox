@@ -296,6 +296,48 @@ test(
 );
 
 test(
+    'project inventory preserves canonical PictoBlox board identity',
+    () => {
+        const arduinoInventory =
+            createProjectInventory({
+                boardSelected:
+                    ' Arduino Uno ',
+                targets: []
+            });
+
+        const noneInventory =
+            createProjectInventory({
+                boardSelected:
+                    'None',
+                targets: []
+            });
+
+        const missingInventory =
+            createProjectInventory({
+                targets: []
+            });
+
+        assert.equal(
+            arduinoInventory
+                .boardSelected,
+            'Arduino Uno'
+        );
+
+        assert.equal(
+            noneInventory
+                .boardSelected,
+            'None'
+        );
+
+        assert.equal(
+            missingInventory
+                .boardSelected,
+            null
+        );
+    }
+);
+
+test(
     'project inventory normalizes declared extensions',
     () => {
         const inventory =

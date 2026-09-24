@@ -12,6 +12,8 @@ const {
 
 const createProjectA =
     () => ({
+        boardSelected:
+            'Arduino Uno',
         targets: [
             {
                 name:
@@ -218,6 +220,15 @@ test(
             }
         );
 
+        assert.equal(
+            result.projects.find(
+                project =>
+                    project.id ===
+                        'A.sb3'
+            ).boardSelected,
+            'Arduino Uno'
+        );
+
         assert.deepEqual(
             result.functionalOpcodes,
             [
@@ -379,6 +390,169 @@ test(
                         'PictoBlox project inventory requires a targets array'
                 }
             ]
+        );
+    }
+);
+
+test(
+    'corpus aggregator keeps board-specific compatibility statuses separate for the same opcode',
+    () => {
+        const createServoProject =
+            boardSelected => ({
+                boardSelected,
+                targets: [
+                    {
+                        name:
+                            'Stage',
+                        isStage:
+                            true,
+                        blocks: {
+                            servo: {
+                                opcode:
+                                    'actuators_setServo',
+                                shadow:
+                                    false
+                            }
+                        }
+                    }
+                ]
+            });
+
+        const result =
+            aggregateProjectCorpus(
+                [
+                    {
+                        id:
+                            'arduino.sb3',
+                        project:
+                            createServoProject(
+                                'Arduino Uno'
+                            )
+                    },
+                    {
+                        id:
+                            'esp32.sb3',
+                        project:
+                            createServoProject(
+                                'ESP32'
+                            )
+                    }
+                ],
+                [
+                    {
+                        opcode:
+                            'actuators_setServo',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .MAPPABLE,
+                        targetOpcode:
+                            'actuators_servoWrite',
+                        sourceBoards: [
+                            'Arduino Uno'
+                        ]
+                    }
+                ]
+            );
+
+        assert.equal(
+            result.summary
+                .uniqueFunctionalOpcodeCount,
+            1
+        );
+
+        assert.equal(
+            result.functionalOpcodes
+                .length,
+            2
+        );
+
+        assert.deepEqual(
+            result.compatibility
+                .mappable,
+            {
+                blockCount:
+                    1,
+                projectCount:
+                    1,
+                uniqueOpcodeCount:
+                    1
+            }
+        );
+
+        assert.deepEqual(
+            result.compatibility
+                .unknown,
+            {
+                blockCount:
+                    1,
+                projectCount:
+                    1,
+                uniqueOpcodeCount:
+                    1
+            }
+        );
+
+        const mappable =
+            result.functionalOpcodes
+                .find(
+                    opcode =>
+                        opcode.opcode ===
+                            'actuators_setServo' &&
+                        opcode.status ===
+                            'mappable'
+                );
+
+        const unknown =
+            result.functionalOpcodes
+                .find(
+                    opcode =>
+                        opcode.opcode ===
+                            'actuators_setServo' &&
+                        opcode.status ===
+                            'unknown'
+                );
+
+        assert.deepEqual(
+            mappable,
+            {
+                opcode:
+                    'actuators_setServo',
+                namespace:
+                    'actuators',
+                status:
+                    'mappable',
+                blockCount:
+                    1,
+                projectIds: [
+                    'arduino.sb3'
+                ],
+                targetOpcode:
+                    'actuators_servoWrite',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
+                projectCount:
+                    1
+            }
+        );
+
+        assert.deepEqual(
+            unknown,
+            {
+                opcode:
+                    'actuators_setServo',
+                namespace:
+                    'actuators',
+                status:
+                    'unknown',
+                blockCount:
+                    1,
+                projectIds: [
+                    'esp32.sb3'
+                ],
+                projectCount:
+                    1
+            }
         );
     }
 );

@@ -178,9 +178,16 @@ const addFunctionalOpcode =
         opcode,
         projectId
     ) => {
+        const classificationKey =
+            `${
+                opcode.status
+            }\u0000${
+                opcode.opcode
+            }`;
+
         let record =
             opcodes.get(
-                opcode.opcode
+                classificationKey
             );
 
         if (!record) {
@@ -211,8 +218,17 @@ const addFunctionalOpcode =
                     opcode.note;
             }
 
+            if (
+                opcode.sourceBoards
+            ) {
+                record.sourceBoards =
+                    [
+                        ...opcode.sourceBoards
+                    ];
+            }
+
             opcodes.set(
-                opcode.opcode,
+                classificationKey,
                 record
             );
         }
@@ -523,6 +539,9 @@ const aggregateProjectCorpus =
                         id:
                             entry.id,
                         signature,
+                        boardSelected:
+                            inventory
+                                .boardSelected,
                         targetCount:
                             inventory
                                 .targetCount,
@@ -628,7 +647,12 @@ const aggregateProjectCorpus =
                 functionalBlockCount,
                 shadowBlockCount,
                 uniqueFunctionalOpcodeCount:
-                    functionalOpcodes.length,
+                    new Set(
+                        functionalOpcodes.map(
+                            opcode =>
+                                opcode.opcode
+                        )
+                    ).size,
                 uniqueShadowOpcodeCount:
                     shadowOpcodes.length,
                 declaredExtensionCount:

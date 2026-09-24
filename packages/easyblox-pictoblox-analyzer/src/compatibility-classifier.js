@@ -53,6 +53,54 @@ const normalizeOptionalString =
         );
     };
 
+const normalizeSourceBoards =
+    (
+        value,
+        opcode
+    ) => {
+        if (
+            typeof value ===
+                'undefined'
+        ) {
+            return undefined;
+        }
+
+        if (
+            !Array.isArray(
+                value
+            ) ||
+            value.length ===
+                0
+        ) {
+            throw new TypeError(
+                `Compatibility catalog entry ${opcode} requires sourceBoards to be a non-empty array`
+            );
+        }
+
+        const boards =
+            value.map(
+                (
+                    board,
+                    index
+                ) =>
+                    requireNonEmptyString(
+                        typeof board ===
+                            'string' ?
+                            board.trim() :
+                            board,
+                        `Compatibility catalog entry ${opcode} has an invalid sourceBoards value at index ${index}`
+                    )
+            );
+
+        return Object.freeze(
+            Array.from(
+                new Set(
+                    boards
+                )
+            ).sort()
+        );
+    };
+
 const normalizeCatalogEntry =
     (
         entry,
@@ -106,6 +154,12 @@ const normalizeCatalogEntry =
                 `Compatibility catalog entry ${opcode} has an invalid note`
             );
 
+        const sourceBoards =
+            normalizeSourceBoards(
+                entry.sourceBoards,
+                opcode
+            );
+
         if (
             status ===
                 COMPATIBILITY_STATUSES
@@ -130,6 +184,11 @@ const normalizeCatalogEntry =
         if (note) {
             normalized.note =
                 note;
+        }
+
+        if (sourceBoards) {
+            normalized.sourceBoards =
+                sourceBoards;
         }
 
         return Object.freeze(
@@ -201,6 +260,52 @@ const normalizeCatalog =
         );
     };
 
+const normalizeInventoryBoard =
+    boardSelected => {
+        if (
+            typeof boardSelected !==
+                'string'
+        ) {
+            return null;
+        }
+
+        const normalized =
+            boardSelected.trim();
+
+        return normalized.length >
+            0 ?
+            normalized :
+            null;
+    };
+
+const catalogEntryAppliesToBoard =
+    (
+        entry,
+        boardSelected
+    ) => {
+        if (
+            !entry ||
+            !entry.sourceBoards
+        ) {
+            return Boolean(
+                entry
+            );
+        }
+
+        const board =
+            normalizeInventoryBoard(
+                boardSelected
+            );
+
+        return (
+            board !==
+                null &&
+            entry.sourceBoards
+                .includes(
+                    board
+                )
+        );
+    };
 const validateInventoryOpcode =
     (
         opcodeRecord,
@@ -337,9 +442,19 @@ const classifyProjectInventory =
                             normalizedOpcode.opcode
                         );
 
+                    const applicableCatalogEntry =
+                        catalogEntryAppliesToBoard(
+                            catalogEntry,
+                            inventory
+                                .boardSelected
+                        ) ?
+                            catalogEntry :
+                            null;
+
                     const status =
-                        catalogEntry ?
-                            catalogEntry.status :
+                        applicableCatalogEntry ?
+                            applicableCatalogEntry
+                                .status :
                             COMPATIBILITY_STATUSES
                                 .UNKNOWN;
 
@@ -357,21 +472,35 @@ const classifyProjectInventory =
                     };
 
                     if (
-                        catalogEntry &&
-                        catalogEntry
+                        applicableCatalogEntry &&
+                        applicableCatalogEntry
                             .targetOpcode
                     ) {
                         classified.targetOpcode =
-                            catalogEntry
+                            applicableCatalogEntry
                                 .targetOpcode;
                     }
 
                     if (
-                        catalogEntry &&
-                        catalogEntry.note
+                        applicableCatalogEntry &&
+                        applicableCatalogEntry
+                            .note
                     ) {
                         classified.note =
-                            catalogEntry.note;
+                            applicableCatalogEntry
+                                .note;
+                    }
+
+                    if (
+                        applicableCatalogEntry &&
+                        applicableCatalogEntry
+                            .sourceBoards
+                    ) {
+                        classified.sourceBoards =
+                            [
+                                ...applicableCatalogEntry
+                                    .sourceBoards
+                            ];
                     }
 
                     return classified;

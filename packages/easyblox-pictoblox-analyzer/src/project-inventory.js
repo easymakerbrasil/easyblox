@@ -31,6 +31,24 @@ const normalizeDeclaredExtensions =
         ).sort();
     };
 
+const normalizeBoardSelected =
+    boardSelected => {
+        if (
+            typeof boardSelected !==
+                'string'
+        ) {
+            return null;
+        }
+
+        const normalized =
+            boardSelected.trim();
+
+        return normalized.length >
+            0 ?
+            normalized :
+            null;
+    };
+
 const incrementCount =
     (
         counts,
@@ -305,6 +323,10 @@ const createProjectInventory =
                 functionalOpcodes.length,
             uniqueShadowOpcodeCount:
                 shadowOpcodes.length,
+            boardSelected:
+                normalizeBoardSelected(
+                    project.boardSelected
+                ),
             declaredExtensions:
                 normalizeDeclaredExtensions(
                     project.extensions

@@ -296,6 +296,193 @@ test(
 );
 
 test(
+    'compatibility classifier applies board-restricted mappings only to matching source boards',
+    () => {
+        const catalog = [
+            {
+                opcode:
+                    'actuators_setServo',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'actuators_servoWrite',
+                sourceBoards: [
+                    'Arduino Uno'
+                ]
+            }
+        ];
+
+        const createBoardInventory =
+            boardSelected => ({
+                boardSelected,
+                functionalOpcodes: [
+                    {
+                        opcode:
+                            'actuators_setServo',
+                        namespace:
+                            'actuators',
+                        count:
+                            1
+                    }
+                ]
+            });
+
+        const arduino =
+            classifyProjectInventory(
+                createBoardInventory(
+                    'Arduino Uno'
+                ),
+                catalog
+            );
+
+        const esp32 =
+            classifyProjectInventory(
+                createBoardInventory(
+                    'ESP32'
+                ),
+                catalog
+            );
+
+        const missing =
+            classifyProjectInventory(
+                createBoardInventory(
+                    null
+                ),
+                catalog
+            );
+
+        assert.deepEqual(
+            arduino.opcodes,
+            [
+                {
+                    opcode:
+                        'actuators_setServo',
+                    namespace:
+                        'actuators',
+                    count:
+                        1,
+                    status:
+                        'mappable',
+                    targetOpcode:
+                        'actuators_servoWrite',
+                    sourceBoards: [
+                        'Arduino Uno'
+                    ]
+                }
+            ]
+        );
+
+        assert.equal(
+            arduino.summary
+                .mappable
+                .blockCount,
+            1
+        );
+
+        assert.deepEqual(
+            esp32.opcodes,
+            [
+                {
+                    opcode:
+                        'actuators_setServo',
+                    namespace:
+                        'actuators',
+                    count:
+                        1,
+                    status:
+                        'unknown'
+                }
+            ]
+        );
+
+        assert.equal(
+            esp32.summary
+                .unknown
+                .blockCount,
+            1
+        );
+
+        assert.equal(
+            missing.summary
+                .unknown
+                .blockCount,
+            1
+        );
+    }
+);
+
+test(
+    'compatibility catalog validates and normalizes source board restrictions',
+    () => {
+        const catalog =
+            createCompatibilityCatalog([
+                {
+                    opcode:
+                        'picto_example',
+                    status:
+                        COMPATIBILITY_STATUSES
+                            .MAPPABLE,
+                    targetOpcode:
+                        'easyblox_example',
+                    sourceBoards: [
+                        'Arduino Uno',
+                        'ESP32',
+                        'Arduino Uno'
+                    ]
+                }
+            ]);
+
+        assert.deepEqual(
+            catalog.get(
+                'picto_example'
+            ).sourceBoards,
+            [
+                'Arduino Uno',
+                'ESP32'
+            ]
+        );
+
+        assert.throws(
+            () =>
+                createCompatibilityCatalog([
+                    {
+                        opcode:
+                            'picto_empty_boards',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .MAPPABLE,
+                        targetOpcode:
+                            'easyblox_example',
+                        sourceBoards:
+                            []
+                    }
+                ]),
+            /non-empty array/
+        );
+
+        assert.throws(
+            () =>
+                createCompatibilityCatalog([
+                    {
+                        opcode:
+                            'picto_invalid_board',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .MAPPABLE,
+                        targetOpcode:
+                            'easyblox_example',
+                        sourceBoards: [
+                            ''
+                        ]
+                    }
+                ]),
+            /invalid sourceBoards/
+        );
+    }
+);
+
+test(
     'compatibility catalog rejects duplicate opcodes',
     () => {
         assert.throws(
