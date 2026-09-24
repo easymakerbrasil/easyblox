@@ -25,6 +25,11 @@ const {
     createProjectSignature
 } = require('./corpus-aggregator');
 
+const {
+    discoverSb3Files,
+    scanProjectCorpus
+} = require('./corpus-scanner');
+
 module.exports = {
     createProjectInventory,
     getOpcodeNamespace,
@@ -37,5 +42,7 @@ module.exports = {
     classifyProjectInventory,
     createEasyBloxSupportCatalog,
     aggregateProjectCorpus,
-    createProjectSignature
+    createProjectSignature,
+    discoverSb3Files,
+    scanProjectCorpus
 };
