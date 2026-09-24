@@ -2,11 +2,16 @@ import React from 'react';
 import {renderWithIntl} from '../../helpers/intl-helpers.jsx';
 import MenuBar from '../../../src/components/menu-bar/menu-bar';
 import {menuInitialState} from '../../../src/reducers/menus';
-import {LoadingState} from '../../../src/reducers/project-state';
+import {
+    LoadingState,
+    requestNewProject
+} from '../../../src/reducers/project-state';
 import {DEFAULT_MODE} from '../../../src/lib/settings/color-mode';
 import {fireEvent} from '@testing-library/react';
 
 import {PLATFORM} from '../../../src/lib/platform';
+
+import {setProjectTitle} from '../../../src/reducers/project-title';
 
 import createEasyBloxProjectFileService from '../../../src/lib/easyblox-project-file-service';
 
@@ -61,6 +66,8 @@ describe('MenuBar Component', () => {
     let projectFileService;
 
     beforeEach(() => {
+        store.clearActions();
+
         projectFileService = {
             clearFileHandle: jest.fn(),
             save: jest.fn().mockResolvedValue(),
@@ -116,6 +123,104 @@ describe('MenuBar Component', () => {
             expect(
                 projectFileService.save
             ).toHaveBeenCalledTimes(1);
+        });
+
+        test('Ctrl+Shift+S delegates to Save As', () => {
+            renderWithIntl(
+                getComponent()
+            );
+
+            fireEvent.keyDown(
+                document,
+                {
+                    key: 'S',
+                    ctrlKey: true,
+                    shiftKey: true
+                }
+            );
+
+            expect(
+                projectFileService.saveAs
+            ).toHaveBeenCalledTimes(
+                1
+            );
+
+            expect(
+                projectFileService.save
+            ).not.toHaveBeenCalled();
+        });
+
+        test('Ctrl+O opens the local project picker', () => {
+            const onStartSelectingFileUpload =
+                jest.fn();
+
+            renderWithIntl(
+                getComponent({
+                    onStartSelectingFileUpload
+                })
+            );
+
+            fireEvent.keyDown(
+                document,
+                {
+                    key: 'o',
+                    ctrlKey: true
+                }
+            );
+
+            expect(
+                onStartSelectingFileUpload
+            ).toHaveBeenCalledTimes(
+                1
+            );
+        });
+
+        test('Ctrl+N requests a clean new project', () => {
+            renderWithIntl(
+                getComponent({
+                    canSave: false,
+                    canCreateNew: false
+                })
+            );
+
+            fireEvent.keyDown(
+                document,
+                {
+                    key: 'n',
+                    ctrlKey: true
+                }
+            );
+
+            expect(
+                store.getActions()
+            ).toContainEqual(
+                requestNewProject(
+                    false
+                )
+            );
+        });
+
+        test('associated Save As filename updates the project title', () => {
+            renderWithIntl(
+                getComponent()
+            );
+
+            const serviceOptions =
+                createEasyBloxProjectFileService
+                    .mock.calls[0][0];
+
+            serviceOptions
+                .onFileAssociated(
+                    'TesteQR-final3.sb3'
+                );
+
+            expect(
+                store.getActions()
+            ).toContainEqual(
+                setProjectTitle(
+                    'TesteQR-final3'
+                )
+            );
         });
 
         test('File menu Save delegates to the local Save operation', () => {

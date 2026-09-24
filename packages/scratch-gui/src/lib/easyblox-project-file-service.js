@@ -35,7 +35,8 @@ const createEasyBloxProjectFileService = ({
     showSaveFilePicker,
     saveProjectSb3,
     getProjectFilename,
-    downloadBlob
+    downloadBlob,
+    onFileAssociated = () => {}
 }) => {
     let fileHandle = null;
 
@@ -67,6 +68,17 @@ const createEasyBloxProjectFileService = ({
         await writeProjectToHandle(selectedHandle, content);
 
         fileHandle = selectedHandle;
+
+        if (
+            selectedHandle &&
+            typeof selectedHandle.name ===
+                'string' &&
+            selectedHandle.name.length > 0
+        ) {
+            onFileAssociated(
+                selectedHandle.name
+            );
+        }
     };
 
     const save = async () => {
