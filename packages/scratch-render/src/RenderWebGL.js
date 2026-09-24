@@ -1298,10 +1298,19 @@ class RenderWebGL extends EventEmitter {
     /**
      * Render and return the complete Stage at its native logical resolution.
      * The returned rows use top-to-bottom ImageData ordering.
+     * @param {object} [options] Extraction options.
+     * @param {Array<number>} [options.excludedDrawableIds] Drawables omitted from the frame.
      * @returns {!ImageData} Complete Stage RGBA frame.
      */
-    extractStageImageData () {
+    extractStageImageData (options = {}) {
         this._doExitDrawRegion();
+
+        const excludedDrawableIds =
+            Array.isArray(
+                options.excludedDrawableIds
+            ) ?
+                options.excludedDrawableIds :
+                [];
 
         const gl = this._gl;
         const width =
@@ -1342,7 +1351,14 @@ class RenderWebGL extends EventEmitter {
         this._drawThese(
             this._drawList,
             ShaderManager.DRAW_MODE.default,
-            projection
+            projection,
+            {
+                filter:
+                    drawableId =>
+                        !excludedDrawableIds.includes(
+                            drawableId
+                        )
+            }
         );
 
         const data =
