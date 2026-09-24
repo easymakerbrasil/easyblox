@@ -308,6 +308,9 @@ class VirtualMachine extends EventEmitter {
         this._easybloxActiveBoardId = null;
         this._easybloxSelectedBoardId = null;
         this.runtime.restoreEasyBloxQrCodes([]);
+        this.runtime.restoreEasyBloxQrOverlayPosition(
+            null
+        );
         this.emitTargetsUpdate(false /* Don't emit project change */);
     }
 
@@ -661,7 +664,9 @@ class VirtualMachine extends EventEmitter {
                 programMode:
                     projectContext.programMode,
                 qrCodes:
-                    this.getEasyBloxQrCodes()
+                    this.getEasyBloxQrCodes(),
+                qrOverlayPosition:
+                    this.getEasyBloxQrOverlayPosition()
             };
         }
 
@@ -724,6 +729,11 @@ class VirtualMachine extends EventEmitter {
 
             this.runtime.restoreEasyBloxQrCodes(
                 serializedEasyBloxProject.qrCodes
+            );
+
+            this.runtime.restoreEasyBloxQrOverlayPosition(
+                serializedEasyBloxProject
+                    .qrOverlayPosition
             );
 
             /*
@@ -1793,6 +1803,27 @@ class VirtualMachine extends EventEmitter {
      */
     getEasyBloxQrCodes () {
         return this.runtime.getEasyBloxQrCodes();
+    }
+
+    /**
+     * Return the project-level QR overlay position.
+     * @returns {string} Canonical overlay position identifier.
+     */
+    getEasyBloxQrOverlayPosition () {
+        return this.runtime
+            .getEasyBloxQrOverlayPosition();
+    }
+
+    /**
+     * Set the project-level QR overlay position.
+     * @param {string} position Canonical overlay position identifier.
+     * @returns {string} Applied overlay position.
+     */
+    setEasyBloxQrOverlayPosition (position) {
+        return this.runtime
+            .setEasyBloxQrOverlayPosition(
+                position
+            );
     }
 
     /**

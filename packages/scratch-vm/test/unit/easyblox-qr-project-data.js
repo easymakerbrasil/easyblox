@@ -21,6 +21,71 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox QR overlay position defaults to top right and validates updates',
+    t => {
+        const vm = createVm();
+
+        t.equal(
+            vm.getEasyBloxQrOverlayPosition(),
+            'topRight'
+        );
+
+        t.equal(
+            vm.setEasyBloxQrOverlayPosition(
+                'bottomLeft'
+            ),
+            'bottomLeft'
+        );
+
+        t.equal(
+            vm.getEasyBloxQrOverlayPosition(),
+            'bottomLeft'
+        );
+
+        t.throws(
+            () =>
+                vm.setEasyBloxQrOverlayPosition(
+                    'unsupported'
+                ),
+            /Unsupported EasyBlox QR overlay position/
+        );
+
+        vm.runtime
+            .restoreEasyBloxQrOverlayPosition(
+                'invalidSerializedValue'
+            );
+
+        t.equal(
+            vm.getEasyBloxQrOverlayPosition(),
+            'topRight',
+            'invalid serialized positions fall back safely'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox QR overlay position resets with the project',
+    t => {
+        const vm = createVm();
+
+        vm.setEasyBloxQrOverlayPosition(
+            'bottomRight'
+        );
+
+        vm.clear();
+
+        t.equal(
+            vm.getEasyBloxQrOverlayPosition(),
+            'topRight'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
     'EasyBlox QR creates resources with stable internal IDs',
     t => {
         const vm = createVm();
@@ -386,6 +451,28 @@ tap.test(
             [
                 created
             ]
+        );
+
+        t.equal(
+            project.easybloxProject
+                .qrOverlayPosition,
+            'topRight'
+        );
+
+        vm.setEasyBloxQrOverlayPosition(
+            'bottomCenter'
+        );
+
+        const repositionedProject =
+            JSON.parse(
+                vm.toJSON()
+            );
+
+        t.equal(
+            repositionedProject
+                .easybloxProject
+                .qrOverlayPosition,
+            'bottomCenter'
         );
 
         t.end();

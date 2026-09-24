@@ -9,6 +9,10 @@ const StageLayering =
 const {
     rasterizeEasyBloxQr
 } = require('../../qr/easyblox-qr-encoder');
+const {
+    EASYBLOX_QR_OVERLAY_POSITION_CHANGED,
+    getEasyBloxQrOverlayCoordinates
+} = require('../../qr/easyblox-qr-overlay-position');
 
 const EXTENSION_ID =
     'easybloxQr';
@@ -30,11 +34,6 @@ const STAGE_QR_RASTER_SIZE =
 
 const STAGE_QR_SCALE_PERCENT =
     50;
-
-const STAGE_QR_DEFAULT_POSITION = [
-    160,
-    100
-];
 
 class Scratch3EasyBloxQrBlocks {
     constructor (runtime) {
@@ -60,6 +59,14 @@ class Scratch3EasyBloxQrBlocks {
                 'RUNTIME_DISPOSED',
                 () => {
                     this._disposeStageQrCode();
+                }
+            );
+            this.runtime.on(
+                EASYBLOX_QR_OVERLAY_POSITION_CHANGED,
+                position => {
+                    this._updateStageQrPosition(
+                        position
+                    );
                 }
             );
         }
@@ -445,7 +452,59 @@ class Scratch3EasyBloxQrBlocks {
     }
 
     /**
-     * Render one project QR Code as a centered Stage overlay.
+     * Resolve the persisted QR overlay coordinates for the current project.
+     * @returns {!Array<number>} Scratch Stage x/y coordinates.
+     */
+    _getStageQrPosition () {
+        const position =
+            this.runtime &&
+            typeof this.runtime
+                .getEasyBloxQrOverlayPosition ===
+                'function' ?
+                this.runtime
+                    .getEasyBloxQrOverlayPosition() :
+                null;
+
+        return getEasyBloxQrOverlayCoordinates(
+            position
+        );
+    }
+
+    /**
+     * Reposition an existing Stage QR overlay immediately.
+     * @param {string} position Canonical overlay position identifier.
+     */
+    _updateStageQrPosition (position) {
+        const renderer =
+            this.runtime &&
+            this.runtime.renderer ?
+                this.runtime.renderer :
+                null;
+
+        if (
+            !renderer ||
+            this._stageQrDrawableId === -1
+        ) {
+            return;
+        }
+
+        renderer.updateDrawablePosition(
+            this._stageQrDrawableId,
+            getEasyBloxQrOverlayCoordinates(
+                position
+            )
+        );
+
+        if (
+            typeof this.runtime.requestRedraw ===
+                'function'
+        ) {
+            this.runtime.requestRedraw();
+        }
+    }
+
+    /**
+     * Render one project QR Code as a compact Stage overlay.
      * The same drawable and skin are reused while the project is active.
      * @param {!object} qrCode Project QR Code resource.
      */
@@ -497,7 +556,7 @@ class Scratch3EasyBloxQrBlocks {
 
             renderer.updateDrawablePosition(
                 this._stageQrDrawableId,
-                STAGE_QR_DEFAULT_POSITION
+                this._getStageQrPosition()
             );
 
             renderer.updateDrawableScale(
@@ -569,7 +628,7 @@ class Scratch3EasyBloxQrBlocks {
     }
 
     /**
-     * Display one project QR Code as a centered Stage overlay.
+     * Display one project QR Code as a compact Stage overlay.
      * @param {!object} args Scratch block arguments.
      */
     showQrCode (args) {

@@ -16,6 +16,11 @@ const TargetType = require('../extension-support/target-type');
 const Thread = require('./thread');
 const log = require('../util/log');
 const maybeFormatMessage = require('../util/maybe-format-message');
+const {
+    EASYBLOX_QR_OVERLAY_POSITION_CHANGED,
+    isEasyBloxQrOverlayPosition,
+    normalizeEasyBloxQrOverlayPosition
+} = require('../qr/easyblox-qr-overlay-position');
 const StageLayering = require('./stage-layering');
 const Variable = require('./variable');
 const xmlEscape = require('../util/xml-escape');
@@ -3103,6 +3108,71 @@ class Runtime extends EventEmitter {
         this.resetRunId();
     }
 
+    /**
+     * Restore the EasyBlox QR overlay position without marking the project dirty.
+     * Invalid serialized values fall back to the canonical default.
+     * @param {?string} position Serialized overlay position.
+     */
+    restoreEasyBloxQrOverlayPosition (position) {
+        this._easybloxQrOverlayPosition =
+            normalizeEasyBloxQrOverlayPosition(
+                position
+            );
+    }
+
+    /**
+     * Return the current EasyBlox QR overlay position.
+     * @returns {string} Canonical overlay position identifier.
+     */
+    getEasyBloxQrOverlayPosition () {
+        this._easybloxQrOverlayPosition =
+            normalizeEasyBloxQrOverlayPosition(
+                this._easybloxQrOverlayPosition
+            );
+
+        return this._easybloxQrOverlayPosition;
+    }
+
+    /**
+     * Set the project-level EasyBlox QR overlay position.
+     * @param {string} position Canonical overlay position identifier.
+     * @returns {string} Applied overlay position.
+     */
+    setEasyBloxQrOverlayPosition (position) {
+        if (
+            !isEasyBloxQrOverlayPosition(
+                position
+            )
+        ) {
+            throw new Error(
+                `Unsupported EasyBlox QR overlay position: ${position}`
+            );
+        }
+
+        const previousPosition =
+            this.getEasyBloxQrOverlayPosition();
+
+        if (
+            previousPosition ===
+            position
+        ) {
+            return position;
+        }
+
+        this._easybloxQrOverlayPosition =
+            position;
+
+        this.emit(
+            Runtime.PROJECT_CHANGED
+        );
+
+        this.emit(
+            EASYBLOX_QR_OVERLAY_POSITION_CHANGED,
+            position
+        );
+
+        return position;
+    }
 
     /**
      * Normalize serialized EasyBlox QR Code resources.
