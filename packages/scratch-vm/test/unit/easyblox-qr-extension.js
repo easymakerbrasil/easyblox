@@ -6,6 +6,8 @@ const BlockExecutionMode =
     require('../../src/extension-support/block-execution-mode');
 const BlockType =
     require('../../src/extension-support/block-type');
+const StageLayering =
+    require('../../src/engine/stage-layering');
 
 const {
     rasterizeEasyBloxQr
@@ -428,6 +430,356 @@ tap.test(
         t.equal(
             hideQrCode.text,
             'ocultar QR Code'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox QR boundary layer is ordered above the generated QR overlay',
+    t => {
+        const qrIndex =
+            StageLayering
+                .LAYER_GROUPS
+                .indexOf(
+                    StageLayering
+                        .EASYBLOX_QR_LAYER
+                );
+
+        const boundaryIndex =
+            StageLayering
+                .LAYER_GROUPS
+                .indexOf(
+                    StageLayering
+                        .EASYBLOX_QR_BOUNDARY_LAYER
+                );
+
+        t.ok(
+            qrIndex >= 0
+        );
+
+        t.ok(
+            boundaryIndex >
+                qrIndex
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox QR renders and toggles the detected boundary immediately',
+    t => {
+        const previousImageData =
+            global.ImageData;
+
+        global.ImageData =
+            class ImageDataMock {
+                constructor (
+                    data,
+                    width,
+                    height
+                ) {
+                    this.data = data;
+                    this.width = width;
+                    this.height = height;
+                }
+            };
+
+        const calls = {
+            createBitmapSkin: [],
+            createDrawable: [],
+            updateBitmapSkin: [],
+            updateDrawableSkinId: [],
+            updateDrawablePosition: [],
+            updateDrawableScale: [],
+            updateDrawableVisible: [],
+            redraw: 0
+        };
+
+        const renderer = {
+            getNativeSize:
+                () => [
+                    480,
+                    360
+                ],
+
+            createBitmapSkin:
+                imageData => {
+                    calls.createBitmapSkin.push(
+                        imageData
+                    );
+
+                    return 71;
+                },
+
+            createDrawable:
+                layer => {
+                    calls.createDrawable.push(
+                        layer
+                    );
+
+                    return 72;
+                },
+
+            updateBitmapSkin:
+                (
+                    skinId,
+                    imageData
+                ) => {
+                    calls.updateBitmapSkin.push([
+                        skinId,
+                        imageData
+                    ]);
+                },
+
+            updateDrawableSkinId:
+                (
+                    drawableId,
+                    skinId
+                ) => {
+                    calls.updateDrawableSkinId.push([
+                        drawableId,
+                        skinId
+                    ]);
+                },
+
+            updateDrawablePosition:
+                (
+                    drawableId,
+                    position
+                ) => {
+                    calls.updateDrawablePosition.push([
+                        drawableId,
+                        position
+                    ]);
+                },
+
+            updateDrawableScale:
+                (
+                    drawableId,
+                    scale
+                ) => {
+                    calls.updateDrawableScale.push([
+                        drawableId,
+                        scale
+                    ]);
+                },
+
+            updateDrawableVisible:
+                (
+                    drawableId,
+                    visible
+                ) => {
+                    calls.updateDrawableVisible.push([
+                        drawableId,
+                        visible
+                    ]);
+                }
+        };
+
+        const extension =
+            createExtension({
+                renderer,
+                requestRedraw:
+                    () => {
+                        calls.redraw += 1;
+                    }
+            });
+
+        extension._updateReaderDetection(
+            {
+                content:
+                    'BOUNDARY-TEST',
+                location: {
+                    topLeft: {
+                        x: 100,
+                        y: 80
+                    },
+                    topRight: {
+                        x: 180,
+                        y: 80
+                    },
+                    bottomRight: {
+                        x: 180,
+                        y: 160
+                    },
+                    bottomLeft: {
+                        x: 100,
+                        y: 160
+                    }
+                }
+            },
+            480,
+            360
+        );
+
+        t.equal(
+            calls.createBitmapSkin.length,
+            1
+        );
+
+        t.same(
+            calls.createDrawable,
+            [
+                'easybloxQrBoundary'
+            ]
+        );
+
+        t.same(
+            calls.updateDrawableSkinId[0],
+            [
+                72,
+                71
+            ]
+        );
+
+        t.same(
+            calls.updateDrawableScale[0],
+            [
+                72,
+                [
+                    100,
+                    100
+                ]
+            ]
+        );
+
+        t.same(
+            calls.updateDrawableVisible[0],
+            [
+                72,
+                true
+            ]
+        );
+
+        t.equal(
+            extension._boundaryVisible,
+            true
+        );
+
+        extension.setBoundary({
+            STATE: 'off'
+        });
+
+        t.same(
+            calls.updateDrawableVisible[
+                calls.updateDrawableVisible.length -
+                1
+            ],
+            [
+                72,
+                false
+            ]
+        );
+
+        t.equal(
+            extension._boundaryVisible,
+            false
+        );
+
+        extension.setBoundary({
+            STATE: 'on'
+        });
+
+        t.equal(
+            calls.createBitmapSkin.length,
+            1,
+            'renderer resources are reused'
+        );
+
+        t.equal(
+            calls.updateBitmapSkin.length,
+            1
+        );
+
+        t.same(
+            calls.updateDrawableVisible[
+                calls.updateDrawableVisible.length -
+                1
+            ],
+            [
+                72,
+                true
+            ]
+        );
+
+        extension._updateReaderDetection(
+            null
+        );
+
+        t.same(
+            calls.updateDrawableVisible[
+                calls.updateDrawableVisible.length -
+                1
+            ],
+            [
+                72,
+                false
+            ]
+        );
+
+        global.ImageData =
+            previousImageData;
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox QR Stage capture excludes its own boundary drawable',
+    t => {
+        const width =
+            32;
+
+        const height =
+            32;
+
+        const blankPixels =
+            new Uint8ClampedArray(
+                width *
+                height *
+                4
+            );
+
+        blankPixels.fill(
+            255
+        );
+
+        let extractionOptions =
+            null;
+
+        const extension =
+            createExtension({
+                renderer: {
+                    extractStageImageData:
+                        options => {
+                            extractionOptions =
+                                options;
+
+                            return {
+                                data:
+                                    blankPixels,
+                                width,
+                                height
+                            };
+                        }
+                }
+            });
+
+        extension._boundaryDrawableId =
+            91;
+
+        extension._readStageFrame();
+
+        t.same(
+            extractionOptions,
+            {
+                excludedDrawableIds: [
+                    91
+                ]
+            }
         );
 
         t.end();

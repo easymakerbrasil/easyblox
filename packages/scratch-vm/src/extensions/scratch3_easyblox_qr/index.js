@@ -13,6 +13,9 @@ const {
     decodeEasyBloxQrFrame
 } = require('../../qr/easyblox-qr-decoder');
 const {
+    createEasyBloxQrBoundaryRaster
+} = require('../../qr/easyblox-qr-boundary-raster');
+const {
     EASYBLOX_QR_OVERLAY_POSITION_CHANGED,
     getEasyBloxQrOverlayCoordinates
 } = require('../../qr/easyblox-qr-overlay-position');
@@ -47,6 +50,12 @@ const CAMERA_FRAME_CACHE_TIMEOUT =
 const QR_READER_INTERVAL_MS =
     100;
 
+const DEFAULT_STAGE_WIDTH =
+    480;
+
+const DEFAULT_STAGE_HEIGHT =
+    360;
+
 class Scratch3EasyBloxQrBlocks {
     constructor (runtime) {
         this.runtime = runtime;
@@ -56,6 +65,8 @@ class Scratch3EasyBloxQrBlocks {
         this._detected = false;
         this._content = '';
         this._location = null;
+        this._readerFrameWidth = 0;
+        this._readerFrameHeight = 0;
 
         this._readerTimeout = null;
         this._readerSessionId = 0;
@@ -64,6 +75,10 @@ class Scratch3EasyBloxQrBlocks {
 
         this._stageQrSkinId = -1;
         this._stageQrDrawableId = -1;
+
+        this._boundarySkinId = -1;
+        this._boundaryDrawableId = -1;
+        this._boundaryVisible = false;
 
         this._cameraEnabledByReader = false;
         this._videoMirrorBeforeReader = null;
@@ -76,6 +91,7 @@ class Scratch3EasyBloxQrBlocks {
                 'RUNTIME_DISPOSED',
                 () => {
                     this.stopReader();
+                    this._disposeReaderBoundary();
                     this._disposeStageQrCode();
                 }
             );
@@ -317,13 +333,25 @@ class Scratch3EasyBloxQrBlocks {
 
     /**
      * Apply one decoder result to the Scratch sensing state.
+     * Visual boundary failures must never invalidate decoded sensing data.
      * @param {?object} decoded Decoded QR result or null.
+     * @param {number} frameWidth Decoder frame width.
+     * @param {number} frameHeight Decoder frame height.
      */
-    _updateReaderDetection (decoded) {
+    _updateReaderDetection (
+        decoded,
+        frameWidth = 0,
+        frameHeight = 0
+    ) {
         if (!decoded) {
             this._detected = false;
             this._content = '';
             this._location = null;
+            this._readerFrameWidth = 0;
+            this._readerFrameHeight = 0;
+
+            this._hideReaderBoundary();
+
             return;
         }
 
@@ -332,6 +360,16 @@ class Scratch3EasyBloxQrBlocks {
             decoded.content;
         this._location =
             decoded.location;
+        this._readerFrameWidth =
+            frameWidth;
+        this._readerFrameHeight =
+            frameHeight;
+
+        try {
+            this._updateReaderBoundary();
+        } catch {
+            this._hideReaderBoundary();
+        }
     }
 
     /**
@@ -378,7 +416,9 @@ class Scratch3EasyBloxQrBlocks {
             this._updateReaderDetection(
                 decodeEasyBloxQrFrame(
                     frame
-                )
+                ),
+                frame.width,
+                frame.height
             );
         } catch {
             this._updateReaderDetection(
@@ -410,14 +450,27 @@ class Scratch3EasyBloxQrBlocks {
 
         try {
             const frame =
-                renderer.extractStageImageData();
+                renderer.extractStageImageData({
+                    excludedDrawableIds:
+                        this._boundaryDrawableId === -1 ?
+                            [] :
+                            [
+                                this._boundaryDrawableId
+                            ]
+                });
 
             this._updateReaderDetection(
                 frame ?
                     decodeEasyBloxQrFrame(
                         frame
                     ) :
-                    null
+                    null,
+                frame ?
+                    frame.width :
+                    0,
+                frame ?
+                    frame.height :
+                    0
             );
         } catch {
             this._updateReaderDetection(
@@ -512,9 +565,9 @@ class Scratch3EasyBloxQrBlocks {
         this._readerSource =
             readerSource;
 
-        this._detected = false;
-        this._content = '';
-        this._location = null;
+        this._updateReaderDetection(
+            null
+        );
 
         const video =
             this.runtime &&
@@ -682,9 +735,10 @@ class Scratch3EasyBloxQrBlocks {
             null;
 
         this._readerSource = null;
-        this._detected = false;
-        this._content = '';
-        this._location = null;
+
+        this._updateReaderDetection(
+            null
+        );
     }
 
     /**
@@ -704,6 +758,265 @@ class Scratch3EasyBloxQrBlocks {
     }
 
     /**
+     * Resolve the logical Stage size used to position a detected boundary.
+     * @returns {!Array<number>} Native Stage width and height.
+     */
+    _getBoundaryStageSize () {
+        const renderer =
+            this.runtime &&
+            this.runtime.renderer ?
+                this.runtime.renderer :
+                null;
+
+        if (
+            renderer &&
+            typeof renderer.getNativeSize ===
+                'function'
+        ) {
+            const nativeSize =
+                renderer.getNativeSize();
+
+            if (
+                Array.isArray(nativeSize) &&
+                nativeSize.length >= 2
+            ) {
+                return [
+                    nativeSize[0],
+                    nativeSize[1]
+                ];
+            }
+        }
+
+        return [
+            DEFAULT_STAGE_WIDTH,
+            DEFAULT_STAGE_HEIGHT
+        ];
+    }
+
+    /**
+     * Convert one cropped boundary raster into browser ImageData.
+     * @param {!object} raster Boundary raster.
+     * @returns {!ImageData} Browser bitmap data.
+     */
+    _createReaderBoundaryImageData (raster) {
+        return new ImageData(
+            raster.pixels,
+            raster.width,
+            raster.height
+        );
+    }
+
+    /**
+     * Hide the boundary drawable while preserving renderer resources.
+     */
+    _hideReaderBoundary () {
+        const renderer =
+            this.runtime &&
+            this.runtime.renderer ?
+                this.runtime.renderer :
+                null;
+
+        if (
+            !renderer ||
+            this._boundaryDrawableId === -1 ||
+            !this._boundaryVisible ||
+            typeof renderer.updateDrawableVisible !==
+                'function'
+        ) {
+            return;
+        }
+
+        renderer.updateDrawableVisible(
+            this._boundaryDrawableId,
+            false
+        );
+
+        this._boundaryVisible = false;
+
+        if (
+            this.runtime &&
+            typeof this.runtime.requestRedraw ===
+                'function'
+        ) {
+            this.runtime.requestRedraw();
+        }
+    }
+
+    /**
+     * Render the current detected QR Code boundary.
+     */
+    _updateReaderBoundary () {
+        if (
+            !this._boundaryEnabled ||
+            !this._detected ||
+            !this._location ||
+            this._readerFrameWidth <= 0 ||
+            this._readerFrameHeight <= 0
+        ) {
+            this._hideReaderBoundary();
+            return;
+        }
+
+        const renderer =
+            this.runtime &&
+            this.runtime.renderer ?
+                this.runtime.renderer :
+                null;
+
+        if (!renderer) {
+            return;
+        }
+
+        const raster =
+            createEasyBloxQrBoundaryRaster(
+                this._location,
+                this._readerFrameWidth,
+                this._readerFrameHeight
+            );
+
+        if (!raster) {
+            this._hideReaderBoundary();
+            return;
+        }
+
+        const imageData =
+            this._createReaderBoundaryImageData(
+                raster
+            );
+
+        if (
+            this._boundarySkinId === -1 ||
+            this._boundaryDrawableId === -1
+        ) {
+            this._boundarySkinId =
+                renderer.createBitmapSkin(
+                    imageData,
+                    1
+                );
+
+            this._boundaryDrawableId =
+                renderer.createDrawable(
+                    StageLayering
+                        .EASYBLOX_QR_BOUNDARY_LAYER
+                );
+
+            renderer.updateDrawableSkinId(
+                this._boundaryDrawableId,
+                this._boundarySkinId
+            );
+        } else {
+            renderer.updateBitmapSkin(
+                this._boundarySkinId,
+                imageData,
+                1
+            );
+        }
+
+        const stageSize =
+            this._getBoundaryStageSize();
+
+        const scaleX =
+            stageSize[0] /
+            this._readerFrameWidth;
+
+        const scaleY =
+            stageSize[1] /
+            this._readerFrameHeight;
+
+        const rasterCenterX =
+            raster.originX +
+            (raster.width / 2);
+
+        const rasterCenterY =
+            raster.originY +
+            (raster.height / 2);
+
+        renderer.updateDrawablePosition(
+            this._boundaryDrawableId,
+            [
+                (
+                    rasterCenterX *
+                    scaleX
+                ) -
+                (
+                    stageSize[0] /
+                    2
+                ),
+                (
+                    stageSize[1] /
+                    2
+                ) -
+                (
+                    rasterCenterY *
+                    scaleY
+                )
+            ]
+        );
+
+        renderer.updateDrawableScale(
+            this._boundaryDrawableId,
+            [
+                scaleX * 100,
+                scaleY * 100
+            ]
+        );
+
+        renderer.updateDrawableVisible(
+            this._boundaryDrawableId,
+            true
+        );
+
+        this._boundaryVisible = true;
+
+        if (
+            this.runtime &&
+            typeof this.runtime.requestRedraw ===
+                'function'
+        ) {
+            this.runtime.requestRedraw();
+        }
+    }
+
+    /**
+     * Destroy renderer resources owned by the detected QR boundary.
+     */
+    _disposeReaderBoundary () {
+        const renderer =
+            this.runtime &&
+            this.runtime.renderer ?
+                this.runtime.renderer :
+                null;
+
+        if (renderer) {
+            if (
+                this._boundaryDrawableId !== -1 &&
+                typeof renderer.destroyDrawable ===
+                    'function'
+            ) {
+                renderer.destroyDrawable(
+                    this._boundaryDrawableId,
+                    StageLayering
+                        .EASYBLOX_QR_BOUNDARY_LAYER
+                );
+            }
+
+            if (
+                this._boundarySkinId !== -1 &&
+                typeof renderer.destroySkin ===
+                    'function'
+            ) {
+                renderer.destroySkin(
+                    this._boundarySkinId
+                );
+            }
+        }
+
+        this._boundaryDrawableId = -1;
+        this._boundarySkinId = -1;
+        this._boundaryVisible = false;
+    }
+
+    /**
      * Enable or disable the visual QR Code boundary.
      * @param {!object} args Scratch block arguments.
      */
@@ -711,6 +1024,15 @@ class Scratch3EasyBloxQrBlocks {
         this._boundaryEnabled =
             !args ||
             args.STATE !== BOUNDARY_OFF;
+
+        if (
+            this._boundaryEnabled
+        ) {
+            this._updateReaderBoundary();
+            return;
+        }
+
+        this._hideReaderBoundary();
     }
 
     /**
