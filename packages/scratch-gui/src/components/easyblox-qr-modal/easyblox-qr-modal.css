@@ -38,8 +38,13 @@
         padding: 1rem;
     }
 
-    .resourceOverview {
+    .resourceOverview,
+    .overlayPositionPanel {
         flex-direction: column;
+    }
+
+    .overlayPositionGrid {
+        align-self: center;
     }
 }
 
@@ -93,6 +98,7 @@
 
 .label,
 .manageTitle,
+.overlayPositionTitle,
 .resourceName {
     font-weight: 600;
 }
@@ -135,6 +141,79 @@
 
 .manageTitle {
     margin-bottom: 0.25rem;
+}
+
+.overlayPositionPanel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid #dddddd;
+    border-radius: 0.5rem;
+    padding: 0.85rem;
+    background: #fafafa;
+}
+
+.overlayPositionText {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.overlayPositionTitle {
+    margin-bottom: 0.25rem;
+}
+
+.overlayPositionSubtitle {
+    color: #666666;
+    line-height: 1.4;
+}
+
+.overlayPositionGrid {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    width: 9rem;
+    height: 6.75rem;
+    box-sizing: border-box;
+    gap: 0.25rem;
+    border: 1px solid #cfcfcf;
+    border-radius: 0.4rem;
+    padding: 0.35rem;
+    background: #ffffff;
+}
+
+.overlayPositionButton,
+.overlayPositionButtonActive {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.25rem;
+    padding: 0;
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.overlayPositionButton {
+    border: 1px solid #d6d6d6;
+    background: #f7f7f7;
+    color: #555555;
+}
+
+.overlayPositionButtonActive {
+    border: 1px solid #ffc800;
+    background: #ffc800;
+    color: #282828;
+    font-weight: 600;
+}
+
+.overlayPositionButton:focus,
+.overlayPositionButtonActive:focus {
+    outline: 2px solid rgba(255, 200, 0, 0.45);
+    outline-offset: 1px;
 }
 
 .resourceList {

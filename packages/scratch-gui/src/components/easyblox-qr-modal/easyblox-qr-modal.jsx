@@ -12,6 +12,54 @@ const MODE_MANAGE = 'manage';
 const PREVIEW_RASTER_SIZE = 256;
 const DOWNLOAD_RASTER_SIZE = 1024;
 
+const QR_OVERLAY_POSITION_OPTIONS = [
+    {
+        value: 'topLeft',
+        label: 'superior esquerda',
+        symbol: '↖'
+    },
+    {
+        value: 'topCenter',
+        label: 'superior central',
+        symbol: '↑'
+    },
+    {
+        value: 'topRight',
+        label: 'superior direita',
+        symbol: '↗'
+    },
+    {
+        value: 'centerLeft',
+        label: 'central esquerda',
+        symbol: '←'
+    },
+    {
+        value: 'center',
+        label: 'centro',
+        symbol: '•'
+    },
+    {
+        value: 'centerRight',
+        label: 'central direita',
+        symbol: '→'
+    },
+    {
+        value: 'bottomLeft',
+        label: 'inferior esquerda',
+        symbol: '↙'
+    },
+    {
+        value: 'bottomCenter',
+        label: 'inferior central',
+        symbol: '↓'
+    },
+    {
+        value: 'bottomRight',
+        label: 'inferior direita',
+        symbol: '↘'
+    }
+];
+
 const drawQrRasterToCanvas = (
     canvas,
     raster
@@ -76,6 +124,14 @@ class EasyBloxQrModal extends React.Component {
             editingName: '',
             editingContent: '',
             pendingDeleteId: null,
+            overlayPosition:
+                props.vm &&
+                typeof props.vm
+                    .getEasyBloxQrOverlayPosition ===
+                    'function' ?
+                    props.vm
+                        .getEasyBloxQrOverlayPosition() :
+                    'topRight',
             error: ''
         };
 
@@ -91,6 +147,8 @@ class EasyBloxQrModal extends React.Component {
             this.handleCreateModeClick.bind(this);
         this.handleManageModeClick =
             this.handleManageModeClick.bind(this);
+        this.handleOverlayPositionClick =
+            this.handleOverlayPositionClick.bind(this);
         this.handleCreateNew =
             this.handleCreateNew.bind(this);
         this.handleCreate =
@@ -167,6 +225,34 @@ class EasyBloxQrModal extends React.Component {
             mode:
                 MODE_MANAGE
         });
+    }
+
+    handleOverlayPositionClick (event) {
+        const position =
+            event.currentTarget
+                .dataset.position;
+
+        try {
+            const appliedPosition =
+                this.props.vm
+                    .setEasyBloxQrOverlayPosition(
+                        position
+                    );
+
+            this.setState({
+                overlayPosition:
+                    appliedPosition,
+                error: ''
+            });
+        } catch (positionError) {
+            this.setState({
+                error:
+                    positionError &&
+                    positionError.message ?
+                        positionError.message :
+                        'Não foi possível alterar a posição do QR Code.'
+            });
+        }
     }
 
     handleCreateNew () {
@@ -732,6 +818,66 @@ class EasyBloxQrModal extends React.Component {
         );
     }
 
+    renderOverlayPositionControl () {
+        const {overlayPosition} =
+            this.state;
+
+        return (
+            <div className={styles.overlayPositionPanel}>
+                <div className={styles.overlayPositionText}>
+                    <div className={styles.overlayPositionTitle}>
+                        Posição do QR Code no palco
+                    </div>
+
+                    <div className={styles.overlayPositionSubtitle}>
+                        Escolha onde o QR Code será exibido durante a execução.
+                    </div>
+                </div>
+
+                <div
+                    aria-label="Posição do QR Code no palco"
+                    className={styles.overlayPositionGrid}
+                    role="group"
+                >
+                    {QR_OVERLAY_POSITION_OPTIONS.map(
+                        option => (
+                            <button
+                                aria-label={`Posição ${option.label}`}
+                                aria-pressed={
+                                    overlayPosition ===
+                                    option.value
+                                }
+                                className={
+                                    overlayPosition ===
+                                    option.value ?
+                                        styles.overlayPositionButtonActive :
+                                        styles.overlayPositionButton
+                                }
+                                data-position={
+                                    option.value
+                                }
+                                key={
+                                    option.value
+                                }
+                                title={
+                                    option.label
+                                }
+                                type="button"
+                                onClick={
+                                    this.handleOverlayPositionClick
+                                }
+                            >
+                                <span aria-hidden="true">
+                                    {option.symbol}
+                                </span>
+                            </button>
+                        )
+                    )}
+                </div>
+            </div>
+        );
+    }
+
     renderManage () {
         const qrCodes =
             this.getQrCodes();
@@ -759,6 +905,8 @@ class EasyBloxQrModal extends React.Component {
                         Criar novo
                     </button>
                 </div>
+
+                {this.renderOverlayPositionControl()}
 
                 {this.state.error ? (
                     <div
@@ -867,6 +1015,10 @@ EasyBloxQrModal.propTypes = {
         getEasyBloxQrCodeRaster:
             PropTypes.func.isRequired,
         getEasyBloxQrCodes:
+            PropTypes.func.isRequired,
+        getEasyBloxQrOverlayPosition:
+            PropTypes.func.isRequired,
+        setEasyBloxQrOverlayPosition:
             PropTypes.func.isRequired,
         updateEasyBloxQrCode:
             PropTypes.func.isRequired
