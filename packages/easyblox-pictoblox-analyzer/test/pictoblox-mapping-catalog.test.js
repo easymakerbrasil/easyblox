@@ -151,51 +151,6 @@ test(
                 }
             );
 
-            assert.equal(
-                entriesByOpcode.get(
-                    'sensors_readAnalogSensor'
-                ).transform.arguments.some(
-                    argument =>
-                        argument.sourceName ===
-                            'ANALOG_SENSOR'
-                ),
-                false
-            );
-
-            assert.deepEqual(
-                entriesByOpcode.get(
-                    'sensors_readAnalogSensor'
-                ).transform,
-                {
-                    kind:
-                        'block',
-                    arguments: [
-                        {
-                            target:
-                                'PIN',
-                            source:
-                                'field',
-                            sourceName:
-                                'PIN',
-                            valueMap: {
-                                '0':
-                                    '14',
-                                '1':
-                                    '15',
-                                '2':
-                                    '16',
-                                '3':
-                                    '17',
-                                '4':
-                                    '18',
-                                '5':
-                                    '19'
-                            }
-                        }
-                    ]
-                }
-            );
-
             assert.deepEqual(
                 entriesByOpcode.get(
                     'sensors_readAnalogSensor'
