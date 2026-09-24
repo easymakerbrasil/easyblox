@@ -20,6 +20,11 @@ const {
     createEasyBloxSupportCatalog
 } = require('./easyblox-support-catalog');
 
+const {
+    aggregateProjectCorpus,
+    createProjectSignature
+} = require('./corpus-aggregator');
+
 module.exports = {
     createProjectInventory,
     getOpcodeNamespace,
@@ -30,5 +35,7 @@ module.exports = {
     COMPATIBILITY_STATUSES,
     createCompatibilityCatalog,
     classifyProjectInventory,
-    createEasyBloxSupportCatalog
+    createEasyBloxSupportCatalog,
+    aggregateProjectCorpus,
+    createProjectSignature
 };
