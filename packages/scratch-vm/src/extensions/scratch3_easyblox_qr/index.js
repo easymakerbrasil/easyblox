@@ -96,6 +96,12 @@ class Scratch3EasyBloxQrBlocks {
                 }
             );
             this.runtime.on(
+                'PROJECT_STOP_ALL',
+                () => {
+                    this.stopReader();
+                }
+            );
+            this.runtime.on(
                 EASYBLOX_QR_OVERLAY_POSITION_CHANGED,
                 position => {
                     this._updateStageQrPosition(

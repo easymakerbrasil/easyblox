@@ -1242,6 +1242,102 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox QR stops its active reader when the project is stopped',
+    t => {
+        const listeners =
+            Object.create(null);
+
+        let disableCount = 0;
+
+        const video = {
+            mirror: false,
+            videoReady: false,
+
+            enableVideo:
+                () =>
+                    true,
+
+            disableVideo:
+                () => {
+                    disableCount += 1;
+                },
+
+            getFrame:
+                () =>
+                    null
+        };
+
+        const extension =
+            createExtension({
+                ioDevices: {
+                    video
+                },
+
+                on:
+                    (
+                        eventName,
+                        listener
+                    ) => {
+                        listeners[eventName] =
+                            listener;
+                    }
+            });
+
+        t.type(
+            listeners.PROJECT_STOP_ALL,
+            'function',
+            'project stop listener is registered'
+        );
+
+        extension.startReader({
+            SOURCE: 'cameraNormal'
+        });
+
+        t.equal(
+            extension._readerSource,
+            'cameraNormal'
+        );
+
+        t.not(
+            extension._readerTimeout,
+            null,
+            'reader loop is active'
+        );
+
+        listeners.PROJECT_STOP_ALL();
+
+        t.equal(
+            disableCount,
+            1,
+            'camera owned by the reader is released'
+        );
+
+        t.equal(
+            extension._readerSource,
+            null
+        );
+
+        t.equal(
+            extension._readerTimeout,
+            null,
+            'reader loop is stopped'
+        );
+
+        t.equal(
+            extension.isDetected(),
+            false
+        );
+
+        t.equal(
+            extension.content(),
+            ''
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
     'EasyBlox QR camera sources control preview orientation and camera ownership',
     t => {
         let enableCount = 0;
