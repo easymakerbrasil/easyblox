@@ -7,6 +7,10 @@ const BlockExecutionMode =
 const BlockType =
     require('../../src/extension-support/block-type');
 
+const {
+    rasterizeEasyBloxQr
+} = require('../../src/qr/easyblox-qr-encoder');
+
 const Scratch3EasyBloxQrBlocks =
     require('../../src/extensions/scratch3_easyblox_qr');
 
@@ -425,6 +429,201 @@ tap.test(
             hideQrCode.text,
             'ocultar QR Code'
         );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox QR camera reader decodes frames into sensing state',
+    t => {
+        const raster =
+            rasterizeEasyBloxQr(
+                'CAMERA-EASYBLOX-001',
+                {
+                    size: 256
+                }
+            );
+
+        const frameCalls = [];
+
+        const video = {
+            mirror: true,
+            videoReady: true,
+            getFrame:
+                frameInfo => {
+                    frameCalls.push(
+                        frameInfo
+                    );
+
+                    return {
+                        data:
+                            raster.pixels,
+                        width:
+                            raster.width,
+                        height:
+                            raster.height
+                    };
+                }
+        };
+
+        const extension =
+            createExtension({
+                ioDevices: {
+                    video
+                }
+            });
+
+        extension.startReader({
+            SOURCE: 'cameraNormal'
+        });
+
+        t.equal(
+            extension.isDetected(),
+            true,
+            'camera frame detects a QR Code'
+        );
+
+        t.equal(
+            extension.content(),
+            'CAMERA-EASYBLOX-001'
+        );
+
+        t.ok(
+            extension._location,
+            'decoder location is retained for boundary rendering'
+        );
+
+        t.same(
+            frameCalls[0],
+            {
+                mirror: false,
+                format: 'image-data',
+                cacheTimeout: 0
+            },
+            'normal camera requests an unmirrored ImageData frame'
+        );
+
+        extension.startReader({
+            SOURCE: 'cameraMirrored'
+        });
+
+        t.equal(
+            frameCalls[
+                frameCalls.length - 1
+            ].mirror,
+            true,
+            'mirrored camera requests a mirrored frame'
+        );
+
+        extension.stopReader();
+
+        t.equal(
+            extension.isDetected(),
+            false
+        );
+
+        t.equal(
+            extension.content(),
+            ''
+        );
+
+        t.equal(
+            extension._location,
+            null
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'EasyBlox QR camera reader clears sensing when a frame has no QR Code',
+    t => {
+        const qrRaster =
+            rasterizeEasyBloxQr(
+                'VISIBLE-QR',
+                {
+                    size: 256
+                }
+            );
+
+        const blankPixels =
+            new Uint8ClampedArray(
+                qrRaster.width *
+                qrRaster.height *
+                4
+            );
+
+        blankPixels.fill(
+            255
+        );
+
+        let currentFrame = {
+            data:
+                qrRaster.pixels,
+            width:
+                qrRaster.width,
+            height:
+                qrRaster.height
+        };
+
+        const video = {
+            mirror: false,
+            videoReady: true,
+            getFrame:
+                () =>
+                    currentFrame
+        };
+
+        const extension =
+            createExtension({
+                ioDevices: {
+                    video
+                }
+            });
+
+        extension.startReader({
+            SOURCE: 'cameraNormal'
+        });
+
+        t.equal(
+            extension.isDetected(),
+            true
+        );
+
+        t.equal(
+            extension.content(),
+            'VISIBLE-QR'
+        );
+
+        currentFrame = {
+            data:
+                blankPixels,
+            width:
+                qrRaster.width,
+            height:
+                qrRaster.height
+        };
+
+        extension._readCameraFrame();
+
+        t.equal(
+            extension.isDetected(),
+            false
+        );
+
+        t.equal(
+            extension.content(),
+            ''
+        );
+
+        t.equal(
+            extension._location,
+            null
+        );
+
+        extension.stopReader();
 
         t.end();
     }
