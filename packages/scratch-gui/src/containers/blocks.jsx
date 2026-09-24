@@ -42,7 +42,8 @@ import {
 import {connect} from 'react-redux';
 import {
     activateExtension,
-    deactivateExtension
+    deactivateExtension,
+    setActiveExtensions
 } from '../reducers/active-extensions';
 import {updateToolbox} from '../reducers/toolbox';
 import {activateColorPicker} from '../reducers/color-picker';
@@ -104,6 +105,7 @@ class Blocks extends React.Component {
             'handleExtensionRemove',
             'handleExtensionAdded',
             'handleBlocksInfoUpdate',
+            'handleProjectLoaded',
             'onTargetsUpdate',
             'onVisualReport',
             'onWorkspaceUpdate',
@@ -530,6 +532,7 @@ class Blocks extends React.Component {
         this.props.vm.addListener('MONITORS_UPDATE', this.handleMonitorsUpdate);
         this.props.vm.addListener('EXTENSION_ADDED', this.handleExtensionAdded);
         this.props.vm.addListener('BLOCKSINFO_UPDATE', this.handleBlocksInfoUpdate);
+        this.props.vm.addListener('PROJECT_LOADED', this.handleProjectLoaded);
         this.props.vm.addListener('PERIPHERAL_CONNECTED', this.handleStatusButtonUpdate);
         this.props.vm.addListener('PERIPHERAL_DISCONNECTED', this.handleStatusButtonUpdate);
 
@@ -546,6 +549,7 @@ class Blocks extends React.Component {
         this.props.vm.removeListener('MONITORS_UPDATE', this.handleMonitorsUpdate);
         this.props.vm.removeListener('EXTENSION_ADDED', this.handleExtensionAdded);
         this.props.vm.removeListener('BLOCKSINFO_UPDATE', this.handleBlocksInfoUpdate);
+        this.props.vm.removeListener('PROJECT_LOADED', this.handleProjectLoaded);
         this.props.vm.removeListener('PERIPHERAL_CONNECTED', this.handleStatusButtonUpdate);
         this.props.vm.removeListener('PERIPHERAL_DISCONNECTED', this.handleStatusButtonUpdate);
     }
@@ -1186,8 +1190,84 @@ class Blocks extends React.Component {
         }
     }
     handleBlocksInfoUpdate (categoryInfo) {
-        this.handleExtensionAdded(categoryInfo, false);
+        const shouldRecreateQrFlyout =
+            categoryInfo &&
+            categoryInfo.id ===
+                'easybloxQr';
+
+        const flyout =
+            shouldRecreateQrFlyout &&
+            this.workspace &&
+            typeof this.workspace.getFlyout ===
+                'function' ?
+                this.workspace.getFlyout() :
+                null;
+
+        if (flyout) {
+            flyout.setRecyclingEnabled(
+                false
+            );
+        }
+
+        this.handleExtensionAdded(
+            categoryInfo,
+            false
+        );
+
+        if (flyout) {
+            this.requestToolboxUpdate();
+
+            this.withToolboxUpdates(
+                () => {
+                    flyout.setRecyclingEnabled(
+                        true
+                    );
+                }
+            );
+        }
     }
+
+    handleProjectLoaded () {
+        const projectExtensionIds =
+            typeof this.props.vm
+                .getProjectExtensionIds ===
+                'function' ?
+                this.props.vm
+                    .getProjectExtensionIds() :
+                [];
+
+        const activeExtensionIds =
+            projectExtensionIds.filter(
+                extensionId =>
+                    extensionData.some(
+                        extension =>
+                            extension &&
+                            extension.kind ===
+                                'extension' &&
+                            extension.extensionId ===
+                                extensionId
+                    )
+            );
+
+        this._recreateFlyoutOnNextToolboxUpdate =
+            true;
+
+        this.setState({
+            activeExtensionIds
+        });
+
+        if (
+            this.props &&
+            typeof this.props
+                .onSetActiveExtensions ===
+                'function'
+        ) {
+            this.props.onSetActiveExtensions(
+                activeExtensionIds
+            );
+        }
+    }
+
     handleExtensionSelectionRequest (prevProps) {
         if (
             this.props.extensionSelectionRequest === prevProps.extensionSelectionRequest ||
@@ -1506,6 +1586,7 @@ Blocks.propTypes = {
     onActivateCustomProcedures: PropTypes.func,
     onActivateExtension: PropTypes.func,
     onDeactivateExtension: PropTypes.func,
+    onSetActiveExtensions: PropTypes.func,
     onOpenConnectionModal: PropTypes.func,
     onOpenSoundRecorder: PropTypes.func,
     onRequestCloseCustomProcedures: PropTypes.func,
@@ -1567,6 +1648,7 @@ Blocks.defaultProps = {
     requestedExtensionId: null,
     onActivateExtension: () => {},
     onDeactivateExtension: () => {},
+    onSetActiveExtensions: () => {},
     isVisible: true,
     options: Blocks.defaultOptions,
     requestedExtensionShouldConnect: true,
@@ -1602,6 +1684,11 @@ const mapDispatchToProps = dispatch => ({
     onDeactivateExtension: extensionId => dispatch(
         deactivateExtension(
             extensionId
+        )
+    ),
+    onSetActiveExtensions: extensionIds => dispatch(
+        setActiveExtensions(
+            extensionIds
         )
     ),
     onOpenConnectionModal: id => {

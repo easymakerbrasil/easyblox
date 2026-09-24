@@ -4,6 +4,9 @@ const ACTIVATE_EXTENSION =
 const DEACTIVATE_EXTENSION =
     'scratch-gui/active-extensions/DEACTIVATE_EXTENSION';
 
+const SET_ACTIVE_EXTENSIONS =
+    'scratch-gui/active-extensions/SET_ACTIVE_EXTENSIONS';
+
 const activeExtensionsInitialState = [];
 
 const reducer = function (
@@ -40,6 +43,24 @@ const reducer = function (
                 action.extensionId
         );
 
+    case SET_ACTIVE_EXTENSIONS:
+        return Array.from(
+            new Set(
+                (
+                    Array.isArray(
+                        action.extensionIds
+                    ) ?
+                        action.extensionIds :
+                        []
+                ).filter(
+                    extensionId =>
+                        typeof extensionId ===
+                            'string' &&
+                        extensionId.length > 0
+                )
+            )
+        );
+
     default:
         return state;
     }
@@ -60,6 +81,15 @@ const deactivateExtension =
             type:
                 DEACTIVATE_EXTENSION,
             extensionId
+        };
+    };
+
+const setActiveExtensions =
+    function (extensionIds) {
+        return {
+            type:
+                SET_ACTIVE_EXTENSIONS,
+            extensionIds
         };
     };
 
@@ -100,5 +130,6 @@ export {
     activeExtensionsInitialState,
     deactivateExtension,
     getActiveExtensionIds,
+    setActiveExtensions,
     isExtensionActive
 };

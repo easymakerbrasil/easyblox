@@ -524,6 +524,99 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Return extension IDs actually owned by the current project.
+     * Loaded extension services which are unused by this project are excluded.
+     * QR project resources also imply ownership of the EasyBlox QR extension.
+     * @returns {!Array<string>} Project extension IDs.
+     */
+    getProjectExtensionIds () {
+        const sb3 =
+            require('./serialization/sb3');
+
+        const extensionIds =
+            new Set();
+
+        const collectBlockExtensions =
+            blocks => {
+                if (
+                    !blocks ||
+                    !blocks._blocks
+                ) {
+                    return;
+                }
+
+                Object.keys(
+                    blocks._blocks
+                ).forEach(blockId => {
+                    const block =
+                        blocks._blocks[
+                            blockId
+                        ];
+
+                    const extensionId =
+                        block &&
+                        typeof block.opcode ===
+                            'string' ?
+                            sb3.getExtensionIdForOpcode(
+                                block.opcode
+                            ) :
+                            null;
+
+                    if (extensionId) {
+                        extensionIds.add(
+                            extensionId
+                        );
+                    }
+                });
+            };
+
+        this.runtime.targets.forEach(
+            target => {
+                if (
+                    target &&
+                    target.blocks
+                ) {
+                    collectBlockExtensions(
+                        target.blocks
+                    );
+                }
+            }
+        );
+
+        if (
+            this._easybloxUploadPrograms &&
+            typeof this._easybloxUploadPrograms
+                .forEach ===
+                'function'
+        ) {
+            this._easybloxUploadPrograms
+                .forEach(program => {
+                    if (
+                        program &&
+                        program.blocks
+                    ) {
+                        collectBlockExtensions(
+                            program.blocks
+                        );
+                    }
+                });
+        }
+
+        if (
+            this.getEasyBloxQrCodes()
+                .length > 0
+        ) {
+            extensionIds.add(
+                'easybloxQr'
+            );
+        }
+
+        return Array.from(
+            extensionIds
+        );
+    }
+
+    /**
      * @returns {string} Project in a Scratch 3.0 JSON representation.
      */
     saveProjectSb3 () {
@@ -819,15 +912,32 @@ class VirtualMachine extends EventEmitter {
                                 );
                             }
                         });
-                    this._migrateLegacyEasyBloxUploadData(
-                        serializedProgram,
-                        sharedStageTarget
-                    );
+                        this._migrateLegacyEasyBloxUploadData(
+                            serializedProgram,
+                            sharedStageTarget
+                        );
 
                     });
                 }
 
-                return this.installTargets(targets, extensions, true);
+                /*
+                 * Some EasyBlox project resources can own an extension even
+                 * without any corresponding block in the project. Merge those
+                 * project-owned extension IDs before installing the targets so
+                 * their implementations are available when PROJECT_LOADED fires.
+                 */
+                this.getProjectExtensionIds()
+                    .forEach(extensionId => {
+                        extensions.extensionIDs.add(
+                            extensionId
+                        );
+                    });
+
+                return this.installTargets(
+                    targets,
+                    extensions,
+                    true
+                );
             });
     }
 

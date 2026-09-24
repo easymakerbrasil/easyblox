@@ -2,7 +2,8 @@ import reducer, {
     activateExtension,
     activeExtensionsInitialState,
     deactivateExtension,
-    isExtensionActive
+    isExtensionActive,
+    setActiveExtensions
 } from '../../../src/reducers/active-extensions';
 
 describe('active extensions reducer', () => {
@@ -75,6 +76,37 @@ describe('active extensions reducer', () => {
 
         expect(state).toEqual([
             'easybloxBt'
+        ]);
+    });
+    test('replaces active extensions when the project changes', () => {
+        let state = [
+            'easybloxQr',
+            'easybloxBt'
+        ];
+
+        state =
+            reducer(
+                state,
+                setActiveExtensions(
+                    []
+                )
+            );
+
+        expect(state).toEqual(
+            []
+        );
+
+        state =
+            reducer(
+                state,
+                setActiveExtensions([
+                    'easybloxQr',
+                    'easybloxQr'
+                ])
+            );
+
+        expect(state).toEqual([
+            'easybloxQr'
         ]);
     });
 });
