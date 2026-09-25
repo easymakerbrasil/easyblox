@@ -1,6 +1,6 @@
 # Continuidade do Projeto EasyBlox
 
-Atualizado em: 11 de agosto de 2026
+Atualizado em: 25 de setembro de 2026
 
 ## 1. Finalidade deste documento
 
@@ -11246,3 +11246,655 @@ Usar File System Access API quando disponível, preservando fallback por downloa
 Cancelamento do seletor pelo usuário (AbortError) deve ser silencioso.
 
 Exportar .ino permanece um fluxo futuro separado e não altera o formato canônico de salvamento do projeto.
+
+# Checkpoint — congelamento do PictoBlox Compatibility Analyzer v1
+
+Data do congelamento: 25/09/2026.
+
+## Estado da frente PictoBlox
+
+A frente de compatibilidade/importação de projetos PictoBlox foi deliberadamente congelada antes da implementação do conversor real.
+
+O congelamento ocorre em uma fronteira arquitetural limpa:
+
+- a análise e a especificação de compatibilidade estão consolidadas;
+- o conversor `.sb3` ainda não foi iniciado;
+- nenhuma integração de importação foi adicionada à GUI;
+- nenhuma implementação parcial de conversão precisa ser mantida em runtime;
+- a retomada futura pode começar diretamente pela macrofase R3.
+
+Branch preservada:
+
+`feat/pictoblox-compatibility-analyzer`
+
+HEAD funcional e publicado no momento do congelamento:
+
+`47dfac648f9baaddbb6efc6599f0d04d6debc760`
+
+`47dfac648 — feat: classify PictoBlox Dabble compatibility`
+
+Checkpoint anterior:
+
+`a80e601a4 — feat: add PictoBlox serial mappings`
+
+Estado confirmado antes deste checkpoint documental:
+
+- local HEAD: `47dfac648f`;
+- remote HEAD: `47dfac648f`;
+- branch sincronizada com `origin/feat/pictoblox-compatibility-analyzer`;
+- working tree limpo antes da alteração exclusivamente documental.
+
+## Motivo do congelamento
+
+A decisão é de produto e prioridade de lançamento, e não consequência de falha técnica.
+
+O desenvolvimento do EasyBlox já percorreu um ciclo extenso antes do primeiro lançamento e ainda existem funcionalidades centrais, acabamento, validações físicas, instalação e distribuição com prioridade superior à importação automática de projetos PictoBlox.
+
+O corpus mostrou que uma parcela significativa dos resíduos ainda não investigados pertence a extensões especializadas do PictoBlox, incluindo:
+
+- Face Detection;
+- Machine Learning Environment;
+- PoseNet / detecção de corpo;
+- Internet of Things;
+- Weather IoT;
+- Content Creation / Button UI;
+- Computer Vision;
+- reconhecimento de texto;
+- sensores e utilidades residuais.
+
+O EasyBlox não possui atualmente equivalentes funcionais para grande parte dessas extensões.
+
+Também foi decidido que esses projetos residuais não pertencem ao núcleo dos materiais didáticos essenciais, apostilas e projetos oficiais da EasyMaker que motivaram a frente de compatibilidade.
+
+Portanto, buscar 100% de classificação ou implementar novas extensões apenas para cobrir o corpus residual não é requisito para o lançamento inicial do EasyBlox.
+
+## Objetivo atingido pelo Analyzer v1
+
+O Analyzer v1 atingiu o objetivo necessário para esta etapa:
+
+- compreender o corpus PictoBlox relevante;
+- identificar o que o EasyBlox já suporta;
+- identificar conversões determinísticas;
+- documentar lacunas conhecidas;
+- produzir uma especificação reutilizável para um futuro importador.
+
+O Analyzer passa a ser considerado a camada de conhecimento/especificação da futura importação.
+
+Ele não é o conversor.
+
+## Pacote do Analyzer
+
+Pacote:
+
+`packages/easyblox-pictoblox-analyzer`
+
+Componentes principais:
+
+- `src/project-inventory.js`
+- `src/project-reader.js`
+- `src/compatibility-classifier.js`
+- `src/easyblox-support-catalog.js`
+- `src/pictoblox-mapping-catalog.js`
+- `src/pictoblox-unsupported-catalog.js`
+- `src/mapping-value-transforms.js`
+- `src/corpus-aggregator.js`
+- `src/corpus-scanner.js`
+- `src/index.js`
+
+Testes principais:
+
+- `test/project-inventory.test.js`
+- `test/compatibility-classifier.test.js`
+- `test/corpus-aggregator.test.js`
+- `test/pictoblox-mapping-catalog.test.js`
+- `test/pictoblox-unsupported-catalog.test.js`
+- `test/mapping-value-transforms.test.js`
+- `test/easyblox-support-catalog.test.js`
+
+Comandos canônicos:
+
+`npm.cmd --workspace @easymaker/easyblox-pictoblox-analyzer test`
+
+`npm.cmd --workspace @easymaker/easyblox-pictoblox-analyzer run build`
+
+Estado automatizado final antes do congelamento:
+
+- 54 testes;
+- 54 pass;
+- 0 fail;
+- build PASS;
+- `git diff --check` PASS.
+
+## Corpus validado
+
+Corpus de engenharia:
+
+`\\Servidor\e\Hashtag\AULAS\Novos Modulos\Pictoblox`
+
+Inventário consolidado:
+
+- 444 arquivos `.sb3` encontrados;
+- 444 carregados;
+- 0 source errors;
+- 444 analisados;
+- 0 analysis errors;
+- 0 failed projects;
+- 29.181 blocos serializados totais;
+- 26.256 blocos funcionais;
+- 2.925 shadows;
+- 221 opcodes funcionais distintos;
+- 41 opcodes shadow distintos;
+- 27 extensões declaradas;
+- 399 `project.json` distintos;
+- 40 grupos de projetos duplicados.
+
+Os 444 projetos foram utilizados como corpus de engenharia para descoberta e validação.
+
+Eles não representam exclusivamente materiais didáticos oficiais da EasyMaker. Há testes, experimentos, projetos específicos e projetos associados a extensões PictoBlox fora do escopo didático essencial.
+
+## Baseline final de compatibilidade
+
+Baseline canônico no congelamento:
+
+| Classificação | Blocos | Projetos | Opcodes |
+|---|---:|---:|---:|
+| SUPPORTED | 24.441 | 437 | 124 |
+| MAPPABLE | 1.438 | 248 | 24 |
+| UNSUPPORTED | 128 | 28 | 10 |
+| UNKNOWN | 249 | 43 | 69 |
+
+Total funcional:
+
+`26.256 blocos`
+
+Total classificado como SUPPORTED + MAPPABLE + UNSUPPORTED:
+
+`26.007 blocos`
+
+Cobertura classificada:
+
+`26.007 / 26.256 ≈ 99,05%`
+
+Os 249 blocos UNKNOWN restantes representam aproximadamente 0,95% do corpus funcional.
+
+## Significado das classificações
+
+### SUPPORTED
+
+O opcode PictoBlox possui semântica já suportada pelo EasyBlox.
+
+### MAPPABLE
+
+Existe uma transformação determinística validada entre o opcode PictoBlox e o destino EasyBlox.
+
+O catálogo funciona como especificação para o futuro conversor.
+
+O Analyzer não executa ainda a transformação estrutural real do `.sb3`.
+
+### UNSUPPORTED
+
+O bloco foi investigado e existe uma lacuna concreta no EasyBlox atual ou no modelo de transformação atual.
+
+UNSUPPORTED não significa necessariamente impossível permanentemente.
+
+Um bloco pode se tornar convertível no futuro caso o EasyBlox ganhe nova capacidade ou o conversor passe a suportar transformações estruturais/stateful adicionais.
+
+### UNKNOWN
+
+O bloco ainda não foi investigado suficientemente para receber classificação segura.
+
+O UNKNOWN residual é deliberado no congelamento v1.
+
+Não converter UNKNOWN automaticamente para UNSUPPORTED apenas para alcançar 100% de cobertura.
+
+## Catálogo de mappings consolidado
+
+O catálogo final possui 24 mappings.
+
+As famílias já cobertas incluem:
+
+- Arduino UNO startup;
+- servo;
+- ultrassônico;
+- PWM;
+- tone;
+- configuração, movimento e parada de motor;
+- DHT;
+- relé;
+- entrada analógica;
+- MAX7219;
+- QR Code;
+- TM1637;
+- LCD;
+- Serial;
+- Dabble → EasyBlox BT / EasyConect.
+
+A fonte canônica para os contratos exatos, incluindo `sourceBoards`, `sourceFields`, argumentos, `valueMap`, `shadowTransform` e transformações de valores, é:
+
+`packages/easyblox-pictoblox-analyzer/src/pictoblox-mapping-catalog.js`
+
+Os respectivos contratos automatizados estão em:
+
+`packages/easyblox-pictoblox-analyzer/test/pictoblox-mapping-catalog.test.js`
+
+Não duplicar ou reinterpretar esses contratos durante a futura implementação do converter.
+
+## Catálogo UNSUPPORTED consolidado
+
+O catálogo final possui 10 opcodes investigados e classificados como UNSUPPORTED.
+
+Famílias:
+
+### LCD
+
+- `displayModule_initialiseI2CDisplay`
+- `displayModule_setCursor`
+- `displayModule_write`
+
+Motivos principais:
+
+- endereço I2C explícito versus autodetecção EasyBlox;
+- estado persistente de cursor;
+- necessidade de transformação estrutural/stateful.
+
+### QR Code
+
+- `qrCodeScanner_analyseImage`
+- `qrCodeScanner_drawBoundingBox`
+- `qrCodeScanner_toggleStageVideoFeed`
+
+Motivos principais:
+
+- análise explícita de frame versus leitor contínuo;
+- bounding-box sem equivalente seguro;
+- controle de vídeo/transparência sem mapping 1→1.
+
+### Dabble
+
+- `dabble_dabbleRefresh`
+- `dabble_enableLEDControl`
+- `dabble_playMusic`
+- `dabble_terminalCheck`
+
+Motivos principais:
+
+- refresh explícito sem equivalente necessário no EasyConect;
+- controle remoto genérico de GPIO/PWM não existente no EasyConect v1;
+- reprodução de música no dispositivo móvel sem equivalente;
+- semântica de buffer/comparação do Terminal diferente do modelo sequencial do EasyBlox BT.
+
+A fonte canônica é:
+
+`packages/easyblox-pictoblox-analyzer/src/pictoblox-unsupported-catalog.js`
+
+## Dabble — checkpoint final investigado
+
+A família Dabble foi integralmente investigada no corpus:
+
+- 41 blocos;
+- 7 opcodes;
+- 0 UNKNOWN após a classificação.
+
+Mappings aprovados:
+
+- `dabble_getGamepadOne` → `easybloxBt_isGamepadButtonPressed`;
+- `dabble_setBaudRate` → `easybloxBt_init`, somente Arduino Uno e 9600 baud;
+- `dabble_terminalWrite` → `easybloxBt_sendText`.
+
+Gamepad:
+
+- `0` → `gamepad.dpad.up`
+- `1` → `gamepad.dpad.down`
+- `2` → `gamepad.dpad.left`
+- `3` → `gamepad.dpad.right`
+- `6` → `gamepad.action.top`
+- `7` → `gamepad.action.right`
+- `8` → `gamepad.action.bottom`
+- `9` → `gamepad.action.left`
+
+Os valores Dabble `4 = Start` e `5 = Select` não possuem mapping v1.
+
+Nenhuma ocorrência 4/5 foi encontrada no corpus investigado.
+
+## Checkpoints finais relevantes
+
+- `e4e46ef6d — feat: add PictoBlox TM1637 mappings`
+- `5933877b7 — feat: classify PictoBlox LCD compatibility`
+- `a80e601a4 — feat: add PictoBlox serial mappings`
+- `47dfac648 — feat: classify PictoBlox Dabble compatibility`
+
+O último checkpoint funcional canônico antes do congelamento documental é:
+
+`47dfac648`
+
+## Famílias residuais deliberadamente não investigadas
+
+No ranking imediatamente anterior ao congelamento, entre os principais resíduos estavam:
+
+- `faceDetection` — 53 blocos;
+- `machineLearningEnvironment` — 26 blocos;
+- `buttonui` — 26 blocos;
+- `posenet` — 23 blocos;
+- `iot` — 21 blocos;
+- `weatherIoT` — 18 blocos;
+- `sensors` — 17 blocos.
+
+Essas famílias não devem ser automaticamente tratadas como candidatas a mapping.
+
+Em especial, `faceDetection`, `machineLearningEnvironment` e `posenet` pertencem a recursos especializados de IA, Machine Learning e visão computacional sem equivalente atual no EasyBlox.
+
+`iot`, `weatherIoT` e `buttonui` também pertencem a extensões PictoBlox que não fazem parte atualmente da superfície principal do EasyBlox.
+
+`sensors` poderá ser reavaliado futuramente caso apareça necessidade didática ou requisito real de importação.
+
+Nenhuma dessas famílias bloqueia o fechamento do Analyzer v1.
+
+## Decisão sobre os UNKNOWN residuais
+
+Os 249 blocos residuais permanecerão oficialmente como UNKNOWN neste congelamento.
+
+Eles não devem ser artificialmente transferidos para UNSUPPORTED apenas para atingir 100%.
+
+A distinção deve permanecer:
+
+- UNKNOWN = ainda não investigado suficientemente;
+- UNSUPPORTED = investigado e sem conversão segura no estado atual.
+
+Se uma família residual voltar a ser relevante, repetir o processo:
+
+inventário → investigação semântica → contrato → TDD → corpus real → checkpoint.
+
+## Decisão de produto — futura importação será independente
+
+A futura importação de projetos externos não será incorporada ao comando padrão:
+
+`Arquivo > Abrir...`
+
+`Abrir...` deve continuar significando:
+
+abrir um projeto EasyBlox `.sb3`.
+
+A futura migração terá uma ação própria.
+
+Nome conceitual aprovado:
+
+`Arquivo > Importar SB3...`
+
+Preferir `Importar SB3...` a `Importar PictoBlox...`.
+
+Motivos:
+
+- a primeira implementação poderá usar a inteligência construída para PictoBlox;
+- o nome permite outras origens no futuro;
+- não acopla o produto à marca de outro editor;
+- comunica que existe transformação do projeto.
+
+## Fluxo futuro aprovado — Importar SB3
+
+Fluxo conceitual:
+
+Arquivo > Importar SB3...
+→ selecionar arquivo externo
+→ identificar origem/formato
+→ analisar compatibilidade
+→ apresentar relatório
+→ confirmar importação
+→ converter para um novo projeto EasyBlox
+→ abrir o projeto convertido.
+
+O arquivo original nunca deve ser sobrescrito pelo processo de importação.
+
+Após a conversão, o resultado passa a ser um projeto EasyBlox normal e utiliza os fluxos canônicos `Salvar` e `Salvar como...`.
+
+## UX conceitual futura
+
+Antes da conversão, a interface deverá informar, em termos pedagógicos:
+
+- origem/formato detectado;
+- quantidade de blocos compatíveis;
+- quantidade de blocos que serão convertidos;
+- quantidade de blocos que exigirão revisão;
+- possibilidade de cancelar antes da transformação.
+
+Depois da conversão, deverá informar:
+
+- quantidade processada;
+- quantidade preservada ou convertida;
+- itens que exigem revisão;
+- acesso aos detalhes;
+- ação para abrir o projeto resultante.
+
+Os textos e layouts ainda não constituem especificação visual final.
+
+## Contratos obrigatórios do futuro conversor
+
+### Não depender do PictoBlox em runtime
+
+O objetivo não é fazer o EasyBlox interpretar permanentemente opcodes PictoBlox.
+
+O modelo futuro é:
+
+PictoBlox `.sb3`
+→ leitura
+→ análise
+→ migração estrutural
+→ EasyBlox `.sb3` normal.
+
+Depois da conversão, o projeto deve utilizar estruturas e opcodes EasyBlox.
+
+### Nunca apagar silenciosamente blocos não convertidos
+
+Blocos classificados como UNSUPPORTED ou UNKNOWN não podem simplesmente desaparecer.
+
+O conversor deverá:
+
+- preservar o máximo possível da estrutura;
+- registrar a ocorrência;
+- informar claramente ao usuário;
+- evitar fabricar comportamento equivalente sem garantia semântica.
+
+### MAPPABLE significa conversão determinística
+
+O futuro converter deverá consumir diretamente a especificação do catálogo de mappings.
+
+Não duplicar regras de conversão espalhadas pelo código.
+
+### SUPPORTED não significa copiar bytes cegamente
+
+Mesmo opcodes semanticamente compatíveis podem exigir tratamento de:
+
+- extensões declaradas;
+- IDs internos;
+- metadata;
+- shadows;
+- inputs;
+- `parent`;
+- `next`;
+- `topLevel`;
+- coordenadas;
+- estrutura específica do projeto de origem.
+
+A preservação estrutural deverá ser validada pelo converter.
+
+## Macrofase futura R3
+
+A retomada deverá começar em:
+
+`R3 — PictoBlox/EasyBlox SB3 Converter`
+
+Sequência aprovada:
+
+- R3.1 — Converter Core;
+- R3.2 — Structural Conversion;
+- R3.3 — Corpus Conversion Validation;
+- R3.4 — GUI Import Integration.
+
+### R3.1 — Converter Core
+
+Implementar primeiro o motor interno, sem GUI.
+
+Responsabilidades:
+
+- receber projeto PictoBlox;
+- identificar origem;
+- consumir o Analyzer;
+- criar plano de conversão;
+- aplicar mappings simples;
+- produzir estrutura EasyBlox;
+- gerar relatório de conversão.
+
+### R3.2 — Structural Conversion
+
+Adicionar transformações que exijam:
+
+- substituição estrutural;
+- `parent` / `next`;
+- inputs;
+- shadows;
+- criação e remoção segura;
+- rewiring de cadeias;
+- metadata/extensões;
+- casos stateful explicitamente suportados.
+
+### R3.3 — Corpus Conversion Validation
+
+Executar os projetos relevantes pelo conversor real.
+
+Fluxo de engenharia:
+
+converter → salvar → reabrir → reanalisar → verificar estrutura e semântica.
+
+Os 444 arquivos históricos permanecem úteis como corpus de regressão, mas a prioridade de produto deve ser dada aos materiais didáticos oficiais EasyMaker.
+
+### R3.4 — GUI Import Integration
+
+Somente depois de o motor estar sólido implementar:
+
+`Arquivo > Importar SB3...`
+
+A GUI deverá:
+
+- selecionar arquivo;
+- identificar origem;
+- apresentar análise;
+- pedir confirmação;
+- executar a conversão;
+- informar warnings;
+- abrir o novo projeto EasyBlox.
+
+Não começar pela GUI.
+
+## Arquitetura de retomada
+
+Ordem aprovada:
+
+motor interno / CLI de engenharia
+→ testes
+→ corpus
+→ estabilidade
+→ integração GUI.
+
+Isso evita misturar problemas de transformação `.sb3` com problemas de UX.
+
+## Baseline protegido
+
+Não reabrir sem evidência concreta:
+
+- ProjectInventory;
+- ProjectReader;
+- CompatibilityClassifier;
+- EasyBloxSupportCatalog;
+- PictoBloxMappingCatalog;
+- PictoBloxUnsupportedCatalog;
+- MappingValueTransforms;
+- CorpusAggregator;
+- CorpusScanner.
+
+Também não reabrir mappings já validados sem:
+
+- evidência de incompatibilidade;
+- corpus que demonstre erro;
+- mudança real da semântica de destino;
+- requisito novo explicitamente aprovado.
+
+## O que não fazer ao retomar
+
+Não:
+
+- converter os 249 UNKNOWN para UNSUPPORTED em massa;
+- buscar 100% apenas por métrica;
+- mapear Machine Learning para blocos apenas visualmente semelhantes;
+- fazer o EasyBlox interpretar PictoBlox permanentemente em runtime;
+- acoplar importação ao fluxo normal `Abrir...`;
+- começar pela GUI;
+- apagar blocos desconhecidos silenciosamente;
+- sobrescrever o projeto PictoBlox original;
+- duplicar manualmente regras já presentes no mapping catalog.
+
+## Critério de retomada
+
+A frente PictoBlox deverá ser reaberta apenas quando houver prioridade de produto para `Importar SB3...` ou uma necessidade concreta de compatibilidade com projetos históricos.
+
+Quando isso ocorrer, não repetir a investigação já concluída.
+
+Retomar diretamente da R3.
+
+## Mensagem recomendada para uma futura conversa
+
+Quero reabrir a frente de compatibilidade/importação PictoBlox do EasyBlox.
+
+Repositório: `https://github.com/easymakerbrasil/easyblox`
+
+A implementação foi congelada em 25/09/2026 após a conclusão do Analyzer v1.
+
+Branch preservada: `feat/pictoblox-compatibility-analyzer`
+
+Checkpoint funcional: `47dfac648f9baaddbb6efc6599f0d04d6debc760` — `feat: classify PictoBlox Dabble compatibility`
+
+Antes de alterar qualquer coisa, leia integralmente o checkpoint de congelamento em `docs/CONTINUIDADE-EASYBLOX.md`.
+
+Não reabra R2 sem evidência concreta.
+
+O próximo estágio é `R3 — PictoBlox/EasyBlox SB3 Converter`.
+
+A futura funcionalidade deve aparecer como `Arquivo > Importar SB3...` e permanecer independente de `Arquivo > Abrir...`.
+
+Comece pelo converter interno, sem GUI.
+
+Preserve a regra: UNSUPPORTED e UNKNOWN nunca podem ser apagados silenciosamente.
+
+## Prioridade após o congelamento
+
+A frente PictoBlox deixa de ser prioridade pré-lançamento.
+
+O desenvolvimento deve retornar ao roadmap principal do EasyBlox e priorizar funcionalidades necessárias ao primeiro lançamento, especialmente:
+
+- Arduino UNO — Palco;
+- Arduino UNO — Carregar;
+- conexão física;
+- firmware Stage;
+- salvamento e abertura;
+- EasyBlox BT;
+- EasyConect;
+- fluxos principais da interface;
+- empacotamento e distribuição;
+- instalação;
+- testes físicos;
+- correções críticas;
+- acabamento para lançamento.
+
+Novas frentes grandes que não sejam requisito de lançamento devem ser evitadas até que o núcleo esteja pronto.
+
+## Status final desta frente
+
+R2 — PictoBlox Compatibility Analyzer v1
+
+**STATUS: CONCLUÍDO PARA O ESCOPO V1**
+
+R3 — SB3 Converter / Importar SB3
+
+**STATUS: CONGELADO / NÃO INICIADO**
+
+Retomada:
+
+**PÓS-LANÇAMENTO OU QUANDO PRIORIZADO EXPLICITAMENTE**
