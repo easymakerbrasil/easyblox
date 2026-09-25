@@ -219,6 +219,70 @@ const RAW_MAPPING_ENTRIES = [
     },
     {
         opcode:
+            'communication_setBaudRate',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'serial_serialBegin',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        sourceFields: {
+            SERIAL: [
+                '0'
+            ],
+            BAUDRATE: [
+                '4800',
+                '9600',
+                '19200',
+                '38400',
+                '57600',
+                '115200'
+            ]
+        },
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'BAUD',
+                    source:
+                        'field',
+                    sourceName:
+                        'BAUDRATE'
+                }
+            ])
+    },
+    {
+        opcode:
+            'communication_writeToSerial',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'serial_serialWriteLine',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        sourceFields: {
+            SERIAL: [
+                '0'
+            ]
+        },
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'TEXT',
+                    source:
+                        'input',
+                    sourceName:
+                        'DATA'
+                }
+            ])
+    },
+    {
+        opcode:
             'displayModule_initializeDotMatrixDisplay',
         status:
             COMPATIBILITY_STATUSES

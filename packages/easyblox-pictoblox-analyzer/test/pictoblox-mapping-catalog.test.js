@@ -20,7 +20,7 @@ test(
 
         assert.equal(
             catalog.totalMappingCount,
-            19
+            21
         );
 
         assert.deepEqual(
@@ -37,6 +37,8 @@ test(
                 'arduinoUno_arduinoUnoStartUp',
                 'arduinoUno_playTone',
                 'arduinoUno_setPWM',
+                'communication_setBaudRate',
+                'communication_writeToSerial',
                 'displayModule_clearDisplay',
                 'displayModule_displayMatrix',
                 'displayModule_initializeDotMatrixDisplay',
@@ -350,6 +352,89 @@ test(
                 ]
             }
         );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'communication_setBaudRate'
+            ),
+            {
+                opcode:
+                    'communication_setBaudRate',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'serial_serialBegin',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
+                sourceFields: {
+                    SERIAL: [
+                        '0'
+                    ],
+                    BAUDRATE: [
+                        '115200',
+                        '19200',
+                        '38400',
+                        '4800',
+                        '57600',
+                        '9600'
+                    ]
+                },
+                transform: {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'BAUD',
+                            source:
+                                'field',
+                            sourceName:
+                                'BAUDRATE'
+                        }
+                    ]
+                }
+            }
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'communication_writeToSerial'
+            ),
+            {
+                opcode:
+                    'communication_writeToSerial',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'serial_serialWriteLine',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
+                sourceFields: {
+                    SERIAL: [
+                        '0'
+                    ]
+                },
+                transform: {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'TEXT',
+                            source:
+                                'input',
+                            sourceName:
+                                'DATA'
+                        }
+                    ]
+                }
+            }
+        );
+
         assert.equal(
             entriesByOpcode.get(
                 'displayModule_initializeDotMatrixDisplay'
@@ -800,6 +885,141 @@ test(
                 'arduino-lock.sb3',
                 'esp32-free.sb3'
             ]
+        );
+    }
+);
+
+test(
+    'PictoBlox communication mappings require Arduino Uno serial 0 and supported baud rates',
+    () => {
+        const mappingCatalog =
+            createPictoBloxMappingCatalog();
+
+        const createProject =
+            (
+                boardSelected,
+                serial,
+                baudRate
+            ) => ({
+                boardSelected,
+                targets: [
+                    {
+                        name:
+                            'Tobi',
+                        blocks: {
+                            baud: {
+                                opcode:
+                                    'communication_setBaudRate',
+                                shadow:
+                                    false,
+                                fields: {
+                                    SERIAL: [
+                                        serial,
+                                        null
+                                    ],
+                                    BAUDRATE: [
+                                        baudRate,
+                                        null
+                                    ]
+                                }
+                            },
+                            write: {
+                                opcode:
+                                    'communication_writeToSerial',
+                                shadow:
+                                    false,
+                                fields: {
+                                    SERIAL: [
+                                        serial,
+                                        null
+                                    ]
+                                },
+                                inputs: {
+                                    DATA: [
+                                        1,
+                                        [
+                                            10,
+                                            'Olá'
+                                        ]
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ]
+            });
+
+        const result =
+            aggregateProjectCorpus(
+                [
+                    {
+                        id:
+                            'arduino-valid.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno',
+                                '0',
+                                '9600'
+                            )
+                    },
+                    {
+                        id:
+                            'arduino-unsupported-baud.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno',
+                                '0',
+                                '2400'
+                            )
+                    },
+                    {
+                        id:
+                            'arduino-serial-one.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno',
+                                '1',
+                                '9600'
+                            )
+                    },
+                    {
+                        id:
+                            'esp32-valid-fields.sb3',
+                        project:
+                            createProject(
+                                'ESP32',
+                                '0',
+                                '9600'
+                            )
+                    }
+                ],
+                mappingCatalog.entries
+            );
+
+        assert.deepEqual(
+            result.compatibility
+                .mappable,
+            {
+                blockCount:
+                    3,
+                projectCount:
+                    2,
+                uniqueOpcodeCount:
+                    2
+            }
+        );
+
+        assert.deepEqual(
+            result.compatibility
+                .unknown,
+            {
+                blockCount:
+                    5,
+                projectCount:
+                    3,
+                uniqueOpcodeCount:
+                    2
+            }
         );
     }
 );
