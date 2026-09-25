@@ -107,6 +107,117 @@ const normalizeSourceBoards =
         );
     };
 
+const normalizeSourceFields =
+    (
+        value,
+        opcode
+    ) => {
+        if (
+            typeof value ===
+                'undefined'
+        ) {
+            return undefined;
+        }
+
+        if (
+            !value ||
+            typeof value !==
+                'object' ||
+            Array.isArray(
+                value
+            ) ||
+            Object.keys(
+                value
+            ).length === 0
+        ) {
+            throw new TypeError(
+                `Compatibility catalog entry ${opcode} requires sourceFields to be a non-empty object`
+            );
+        }
+
+        const normalized = {};
+
+        Object.entries(
+            value
+        )
+            .sort(
+                (
+                    left,
+                    right
+                ) =>
+                    left[0]
+                        .localeCompare(
+                            right[0]
+                        )
+            )
+            .forEach(
+                ([
+                    rawFieldName,
+                    rawValues
+                ]) => {
+                    const fieldName =
+                        requireNonEmptyString(
+                            rawFieldName.trim(),
+                            `Compatibility catalog entry ${opcode} has an invalid sourceFields field`
+                        );
+
+                    if (
+                        !Array.isArray(
+                            rawValues
+                        ) ||
+                        rawValues.length ===
+                            0
+                    ) {
+                        throw new TypeError(
+                            `Compatibility catalog entry ${opcode} requires sourceFields ${fieldName} to be a non-empty array`
+                        );
+                    }
+
+                    const values =
+                        rawValues.map(
+                            (
+                                rawValue,
+                                index
+                            ) =>
+                                requireNonEmptyString(
+                                    typeof rawValue ===
+                                        'string' ?
+                                        rawValue.trim() :
+                                        rawValue,
+                                    `Compatibility catalog entry ${opcode} has an invalid sourceFields ${fieldName} value at index ${index}`
+                                )
+                        );
+
+                    if (
+                        Object.prototype
+                            .hasOwnProperty.call(
+                                normalized,
+                                fieldName
+                            )
+                    ) {
+                        throw new Error(
+                            `Duplicate compatibility sourceFields field: ${fieldName}`
+                        );
+                    }
+
+                    normalized[
+                        fieldName
+                    ] =
+                        Object.freeze(
+                            Array.from(
+                                new Set(
+                                    values
+                                )
+                            ).sort()
+                        );
+                }
+            );
+
+        return Object.freeze(
+            normalized
+        );
+    };
+
 const normalizeArgumentValueMap =
     (
         value,
@@ -431,6 +542,12 @@ const normalizeCatalogEntry =
                 opcode
             );
 
+        const sourceFields =
+            normalizeSourceFields(
+                entry.sourceFields,
+                opcode
+            );
+
         const transform =
             normalizeTransform(
                 entry.transform,
@@ -466,6 +583,11 @@ const normalizeCatalogEntry =
         if (sourceBoards) {
             normalized.sourceBoards =
                 sourceBoards;
+        }
+
+        if (sourceFields) {
+            normalized.sourceFields =
+                sourceFields;
         }
 
         if (transform) {
@@ -588,6 +710,197 @@ const catalogEntryAppliesToBoard =
                 )
         );
     };
+
+const normalizeInventoryFieldVariants =
+    (
+        value,
+        opcode,
+        opcodeCount
+    ) => {
+        if (
+            typeof value ===
+                'undefined'
+        ) {
+            return undefined;
+        }
+
+        if (
+            !Array.isArray(
+                value
+            ) ||
+            value.length ===
+                0
+        ) {
+            throw new TypeError(
+                `Inventory opcode ${opcode} fieldVariants must be a non-empty array`
+            );
+        }
+
+        let variantCount = 0;
+
+        const variants =
+            value.map(
+                (
+                    variant,
+                    index
+                ) => {
+                    if (
+                        !variant ||
+                        typeof variant !==
+                            'object' ||
+                        Array.isArray(
+                            variant
+                        ) ||
+                        !variant.fields ||
+                        typeof variant.fields !==
+                            'object' ||
+                        Array.isArray(
+                            variant.fields
+                        ) ||
+                        Object.keys(
+                            variant.fields
+                        ).length === 0
+                    ) {
+                        throw new TypeError(
+                            `Inventory opcode ${opcode} has an invalid field variant at index ${index}`
+                        );
+                    }
+
+                    if (
+                        !Number.isInteger(
+                            variant.count
+                        ) ||
+                        variant.count <=
+                            0
+                    ) {
+                        throw new TypeError(
+                            `Inventory opcode ${opcode} field variant ${index} requires a positive integer count`
+                        );
+                    }
+
+                    const fields = {};
+
+                    Object.entries(
+                        variant.fields
+                    )
+                        .sort(
+                            (
+                                left,
+                                right
+                            ) =>
+                                left[0]
+                                    .localeCompare(
+                                        right[0]
+                                    )
+                        )
+                        .forEach(
+                            ([
+                                fieldName,
+                                fieldValue
+                            ]) => {
+                                requireNonEmptyString(
+                                    fieldName,
+                                    `Inventory opcode ${opcode} field variant ${index} has an invalid field name`
+                                );
+
+                                if (
+                                    fieldValue ===
+                                        null ||
+                                    typeof fieldValue ===
+                                        'undefined'
+                                ) {
+                                    throw new TypeError(
+                                        `Inventory opcode ${opcode} field variant ${index} has an invalid ${fieldName} value`
+                                    );
+                                }
+
+                                fields[
+                                    fieldName
+                                ] =
+                                    String(
+                                        fieldValue
+                                    );
+                            }
+                        );
+
+                    variantCount +=
+                        variant.count;
+
+                    return {
+                        fields,
+                        count:
+                            variant.count
+                    };
+                }
+            );
+
+        if (
+            variantCount >
+                opcodeCount
+        ) {
+            throw new RangeError(
+                `Inventory opcode ${opcode} fieldVariants exceed opcode count`
+            );
+        }
+
+        return variants;
+    };
+
+const fieldVariantMatchesSourceFields =
+    (
+        variant,
+        sourceFields
+    ) =>
+        Object.entries(
+            sourceFields
+        ).every(
+            ([
+                fieldName,
+                acceptedValues
+            ]) =>
+                Object.prototype
+                    .hasOwnProperty.call(
+                        variant.fields,
+                        fieldName
+                    ) &&
+                acceptedValues.includes(
+                    variant.fields[
+                        fieldName
+                    ]
+                )
+        );
+
+const countMatchingFieldVariants =
+    (
+        opcodeRecord,
+        sourceFields
+    ) => {
+        if (
+            !Array.isArray(
+                opcodeRecord.fieldVariants
+            )
+        ) {
+            return 0;
+        }
+
+        return opcodeRecord
+            .fieldVariants
+            .reduce(
+                (
+                    total,
+                    variant
+                ) =>
+                    fieldVariantMatchesSourceFields(
+                        variant,
+                        sourceFields
+                    ) ?
+                        total +
+                            variant.count :
+                        total,
+                0
+            );
+    };
+
 const validateInventoryOpcode =
     (
         opcodeRecord,
@@ -629,12 +942,26 @@ const validateInventoryOpcode =
             );
         }
 
-        return {
+        const normalized = {
             opcode,
             namespace,
             count:
                 opcodeRecord.count
         };
+
+        const fieldVariants =
+            normalizeInventoryFieldVariants(
+                opcodeRecord.fieldVariants,
+                opcode,
+                opcodeRecord.count
+            );
+
+        if (fieldVariants) {
+            normalized.fieldVariants =
+                fieldVariants;
+        }
+
+        return normalized;
     };
 
 const createEmptySummary =
@@ -708,7 +1035,7 @@ const classifyProjectInventory =
             createEmptySummary();
 
         const opcodes =
-            inventoryOpcodes.map(
+            inventoryOpcodes.flatMap(
                 (
                     opcodeRecord,
                     index
@@ -733,66 +1060,180 @@ const classifyProjectInventory =
                             catalogEntry :
                             null;
 
-                    const status =
-                        applicableCatalogEntry ?
-                            applicableCatalogEntry
-                                .status :
-                            COMPATIBILITY_STATUSES
-                                .UNKNOWN;
+                    const summarizedStatuses =
+                        new Set();
 
-                    summary[status]
-                        .blockCount +=
-                        normalizedOpcode.count;
+                    const createClassified =
+                        (
+                            count,
+                            status,
+                            metadataEntry =
+                                null
+                        ) => {
+                            summary[status]
+                                .blockCount +=
+                                count;
 
-                    summary[status]
-                        .uniqueOpcodeCount +=
-                        1;
+                            if (
+                                !summarizedStatuses
+                                    .has(
+                                        status
+                                    )
+                            ) {
+                                summary[status]
+                                    .uniqueOpcodeCount +=
+                                    1;
 
-                    const classified = {
-                        ...normalizedOpcode,
-                        status
-                    };
+                                summarizedStatuses.add(
+                                    status
+                                );
+                            }
 
-                    if (
-                        applicableCatalogEntry &&
-                        applicableCatalogEntry
-                            .targetOpcode
-                    ) {
-                        classified.targetOpcode =
-                            applicableCatalogEntry
-                                .targetOpcode;
-                    }
+                            const classified = {
+                                opcode:
+                                    normalizedOpcode
+                                        .opcode,
+                                namespace:
+                                    normalizedOpcode
+                                        .namespace,
+                                count,
+                                status
+                            };
 
-                    if (
-                        applicableCatalogEntry &&
-                        applicableCatalogEntry
-                            .note
-                    ) {
-                        classified.note =
-                            applicableCatalogEntry
-                                .note;
-                    }
+                            if (
+                                metadataEntry &&
+                                metadataEntry
+                                    .targetOpcode
+                            ) {
+                                classified.targetOpcode =
+                                    metadataEntry
+                                        .targetOpcode;
+                            }
 
-                    if (
-                        applicableCatalogEntry &&
-                        applicableCatalogEntry
-                            .sourceBoards
-                    ) {
-                        classified.sourceBoards =
-                            [
-                                ...applicableCatalogEntry
+                            if (
+                                metadataEntry &&
+                                metadataEntry.note
+                            ) {
+                                classified.note =
+                                    metadataEntry.note;
+                            }
+
+                            if (
+                                metadataEntry &&
+                                metadataEntry
                                     .sourceBoards
-                            ];
+                            ) {
+                                classified.sourceBoards =
+                                    [
+                                        ...metadataEntry
+                                            .sourceBoards
+                                    ];
+                            }
+
+                            if (
+                                metadataEntry &&
+                                metadataEntry
+                                    .sourceFields
+                            ) {
+                                classified.sourceFields =
+                                    Object.fromEntries(
+                                        Object.entries(
+                                            metadataEntry
+                                                .sourceFields
+                                        ).map(
+                                            ([
+                                                fieldName,
+                                                values
+                                            ]) => [
+                                                fieldName,
+                                                [
+                                                    ...values
+                                                ]
+                                            ]
+                                        )
+                                    );
+                            }
+
+                            if (
+                                metadataEntry &&
+                                metadataEntry
+                                    .transform
+                            ) {
+                                classified.transform =
+                                    metadataEntry
+                                        .transform;
+                            }
+
+                            return classified;
+                        };
+
+                    if (
+                        !applicableCatalogEntry
+                    ) {
+                        return [
+                            createClassified(
+                                normalizedOpcode
+                                    .count,
+                                COMPATIBILITY_STATUSES
+                                    .UNKNOWN
+                            )
+                        ];
                     }
 
                     if (
-                        applicableCatalogEntry &&
-                        applicableCatalogEntry
-                            .transform
+                        !applicableCatalogEntry
+                            .sourceFields
                     ) {
-                        classified.transform =
+                        return [
+                            createClassified(
+                                normalizedOpcode
+                                    .count,
+                                applicableCatalogEntry
+                                    .status,
+                                applicableCatalogEntry
+                            )
+                        ];
+                    }
+
+                    const matchingCount =
+                        countMatchingFieldVariants(
+                            normalizedOpcode,
                             applicableCatalogEntry
-                                .transform;
+                                .sourceFields
+                        );
+
+                    const classified = [];
+
+                    if (
+                        matchingCount >
+                            0
+                    ) {
+                        classified.push(
+                            createClassified(
+                                matchingCount,
+                                applicableCatalogEntry
+                                    .status,
+                                applicableCatalogEntry
+                            )
+                        );
+                    }
+
+                    const unmatchedCount =
+                        normalizedOpcode
+                            .count -
+                        matchingCount;
+
+                    if (
+                        unmatchedCount >
+                            0
+                    ) {
+                        classified.push(
+                            createClassified(
+                                unmatchedCount,
+                                COMPATIBILITY_STATUSES
+                                    .UNKNOWN
+                            )
+                        );
                     }
 
                     return classified;
@@ -811,7 +1252,12 @@ const classifyProjectInventory =
                     0
                 ),
             uniqueOpcodeCount:
-                opcodes.length,
+                new Set(
+                    opcodes.map(
+                        opcode =>
+                            opcode.opcode
+                    )
+                ).size,
             summary,
             opcodes
         };

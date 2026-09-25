@@ -296,6 +296,107 @@ test(
 );
 
 test(
+    'project inventory preserves deterministic functional field variants',
+    () => {
+        const inventory =
+            createProjectInventory({
+                targets: [
+                    {
+                        name:
+                            'Tobi',
+                        blocks: {
+                            freeMotor1A: {
+                                opcode:
+                                    'actuators_updateMotorState',
+                                shadow:
+                                    false,
+                                fields: {
+                                    MOTOR: [
+                                        '1',
+                                        null
+                                    ],
+                                    MOTOR_STATE: [
+                                        '4',
+                                        null
+                                    ]
+                                }
+                            },
+                            freeMotor1B: {
+                                opcode:
+                                    'actuators_updateMotorState',
+                                shadow:
+                                    false,
+                                fields: {
+                                    MOTOR_STATE: [
+                                        '4',
+                                        null
+                                    ],
+                                    MOTOR: [
+                                        '1',
+                                        null
+                                    ]
+                                }
+                            },
+                            lockMotor2: {
+                                opcode:
+                                    'actuators_updateMotorState',
+                                shadow:
+                                    false,
+                                fields: {
+                                    MOTOR: [
+                                        '2',
+                                        null
+                                    ],
+                                    MOTOR_STATE: [
+                                        '3',
+                                        null
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ]
+            });
+
+        assert.deepEqual(
+            inventory.functionalOpcodes,
+            [
+                {
+                    opcode:
+                        'actuators_updateMotorState',
+                    namespace:
+                        'actuators',
+                    count:
+                        3,
+                    fieldVariants: [
+                        {
+                            fields: {
+                                MOTOR:
+                                    '1',
+                                MOTOR_STATE:
+                                    '4'
+                            },
+                            count:
+                                2
+                        },
+                        {
+                            fields: {
+                                MOTOR:
+                                    '2',
+                                MOTOR_STATE:
+                                    '3'
+                            },
+                            count:
+                                1
+                        }
+                    ]
+                }
+            ]
+        );
+    }
+);
+
+test(
     'project inventory preserves canonical PictoBlox board identity',
     () => {
         const arduinoInventory =

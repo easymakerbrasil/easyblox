@@ -109,6 +109,34 @@ const RAW_MAPPING_ENTRIES = [
     },
     {
         opcode:
+            'actuators_updateMotorState',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'actuators_motorStop',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        sourceFields: {
+            MOTOR_STATE: [
+                '4'
+            ]
+        },
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'MOTOR',
+                    source:
+                        'field',
+                    sourceName:
+                        'MOTOR'
+                }
+            ])
+    },
+    {
+        opcode:
             'actuators_setRelay',
         status:
             COMPATIBILITY_STATUSES

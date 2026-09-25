@@ -20,7 +20,7 @@ test(
 
         assert.equal(
             catalog.totalMappingCount,
-            10
+            11
         );
 
         assert.deepEqual(
@@ -33,6 +33,7 @@ test(
                 'actuators_runMotor',
                 'actuators_setRelay',
                 'actuators_setServo',
+                'actuators_updateMotorState',
                 'arduinoUno_arduinoUnoStartUp',
                 'arduinoUno_playTone',
                 'arduinoUno_setPWM',
@@ -112,6 +113,37 @@ test(
                                 'input',
                             sourceName:
                                 'SPEED'
+                        }
+                    ]
+                }
+            );
+
+            assert.deepEqual(
+                entriesByOpcode.get(
+                    'actuators_updateMotorState'
+                ).sourceFields,
+                {
+                    MOTOR_STATE: [
+                        '4'
+                    ]
+                }
+            );
+
+            assert.deepEqual(
+                entriesByOpcode.get(
+                    'actuators_updateMotorState'
+                ).transform,
+                {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'MOTOR',
+                            source:
+                                'field',
+                            sourceName:
+                                'MOTOR'
                         }
                     ]
                 }
@@ -292,6 +324,177 @@ test(
                     }
                 ]
             }
+        );
+    }
+);
+
+test(
+    'PictoBlox motor state mapping accepts only Arduino Uno Free state',
+    () => {
+        const mappingCatalog =
+            createPictoBloxMappingCatalog();
+
+        const createProject =
+            (
+                boardSelected,
+                motorState
+            ) => ({
+                boardSelected,
+                targets: [
+                    {
+                        name:
+                            'Tobi',
+                        blocks: {
+                            motorState: {
+                                opcode:
+                                    'actuators_updateMotorState',
+                                shadow:
+                                    false,
+                                fields: {
+                                    MOTOR: [
+                                        '1',
+                                        null
+                                    ],
+                                    MOTOR_STATE: [
+                                        motorState,
+                                        null
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                ]
+            });
+
+        const result =
+            aggregateProjectCorpus(
+                [
+                    {
+                        id:
+                            'arduino-free.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno',
+                                '4'
+                            )
+                    },
+                    {
+                        id:
+                            'arduino-lock.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno',
+                                '3'
+                            )
+                    },
+                    {
+                        id:
+                            'esp32-free.sb3',
+                        project:
+                            createProject(
+                                'ESP32',
+                                '4'
+                            )
+                    }
+                ],
+                mappingCatalog.entries
+            );
+
+        assert.deepEqual(
+            result.compatibility
+                .mappable,
+            {
+                blockCount:
+                    1,
+                projectCount:
+                    1,
+                uniqueOpcodeCount:
+                    1
+            }
+        );
+
+        assert.deepEqual(
+            result.compatibility
+                .unknown,
+            {
+                blockCount:
+                    2,
+                projectCount:
+                    2,
+                uniqueOpcodeCount:
+                    1
+            }
+        );
+
+        const mappable =
+            result.functionalOpcodes
+                .find(
+                    record =>
+                        record.opcode ===
+                            'actuators_updateMotorState' &&
+                        record.status ===
+                            'mappable'
+                );
+
+        assert.deepEqual(
+            mappable,
+            {
+                opcode:
+                    'actuators_updateMotorState',
+                namespace:
+                    'actuators',
+                status:
+                    'mappable',
+                blockCount:
+                    1,
+                projectIds: [
+                    'arduino-free.sb3'
+                ],
+                targetOpcode:
+                    'actuators_motorStop',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
+                sourceFields: {
+                    MOTOR_STATE: [
+                        '4'
+                    ]
+                },
+                transform: {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'MOTOR',
+                            source:
+                                'field',
+                            sourceName:
+                                'MOTOR'
+                        }
+                    ]
+                },
+                projectCount:
+                    1
+            }
+        );
+
+        const unknown =
+            result.functionalOpcodes
+                .find(
+                    record =>
+                        record.opcode ===
+                            'actuators_updateMotorState' &&
+                        record.status ===
+                            'unknown'
+                );
+
+        assert.deepEqual(
+            unknown.projectIds,
+            [
+                'arduino-lock.sb3',
+                'esp32-free.sb3'
+            ]
         );
     }
 );

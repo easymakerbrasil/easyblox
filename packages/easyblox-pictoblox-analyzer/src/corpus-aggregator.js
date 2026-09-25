@@ -228,6 +228,27 @@ const addFunctionalOpcode =
             }
 
             if (
+                opcode.sourceFields
+            ) {
+                record.sourceFields =
+                    Object.fromEntries(
+                        Object.entries(
+                            opcode.sourceFields
+                        ).map(
+                            ([
+                                fieldName,
+                                values
+                            ]) => [
+                                fieldName,
+                                [
+                                    ...values
+                                ]
+                            ]
+                        )
+                    );
+            }
+
+            if (
                 opcode.transform
             ) {
                 record.transform =

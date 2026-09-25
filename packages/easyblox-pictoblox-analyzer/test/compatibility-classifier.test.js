@@ -413,6 +413,148 @@ test(
 );
 
 test(
+    'compatibility classifier applies field-restricted mappings only to matching block variants',
+    () => {
+        const result =
+            classifyProjectInventory(
+                {
+                    boardSelected:
+                        'Arduino Uno',
+                    functionalOpcodes: [
+                        {
+                            opcode:
+                                'actuators_updateMotorState',
+                            namespace:
+                                'actuators',
+                            count:
+                                3,
+                            fieldVariants: [
+                                {
+                                    fields: {
+                                        MOTOR:
+                                            '1',
+                                        MOTOR_STATE:
+                                            '4'
+                                    },
+                                    count:
+                                        1
+                                },
+                                {
+                                    fields: {
+                                        MOTOR:
+                                            '2',
+                                        MOTOR_STATE:
+                                            '4'
+                                    },
+                                    count:
+                                        1
+                                },
+                                {
+                                    fields: {
+                                        MOTOR:
+                                            '1',
+                                        MOTOR_STATE:
+                                            '3'
+                                    },
+                                    count:
+                                        1
+                                }
+                            ]
+                        }
+                    ]
+                },
+                [
+                    {
+                        opcode:
+                            'actuators_updateMotorState',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .MAPPABLE,
+                        targetOpcode:
+                            'actuators_motorStop',
+                        sourceBoards: [
+                            'Arduino Uno'
+                        ],
+                        sourceFields: {
+                            MOTOR_STATE: [
+                                '4'
+                            ]
+                        }
+                    }
+                ]
+            );
+
+        assert.equal(
+            result.blockCount,
+            3
+        );
+
+        assert.equal(
+            result.uniqueOpcodeCount,
+            1
+        );
+
+        assert.deepEqual(
+            result.summary
+                .mappable,
+            {
+                blockCount:
+                    2,
+                uniqueOpcodeCount:
+                    1
+            }
+        );
+
+        assert.deepEqual(
+            result.summary
+                .unknown,
+            {
+                blockCount:
+                    1,
+                uniqueOpcodeCount:
+                    1
+            }
+        );
+
+        assert.deepEqual(
+            result.opcodes,
+            [
+                {
+                    opcode:
+                        'actuators_updateMotorState',
+                    namespace:
+                        'actuators',
+                    count:
+                        2,
+                    status:
+                        'mappable',
+                    targetOpcode:
+                        'actuators_motorStop',
+                    sourceBoards: [
+                        'Arduino Uno'
+                    ],
+                    sourceFields: {
+                        MOTOR_STATE: [
+                            '4'
+                        ]
+                    }
+                },
+                {
+                    opcode:
+                        'actuators_updateMotorState',
+                    namespace:
+                        'actuators',
+                    count:
+                        1,
+                    status:
+                        'unknown'
+                }
+            ]
+        );
+    }
+);
+
+test(
     'compatibility catalog validates and normalizes source board restrictions',
     () => {
         const catalog =
@@ -478,6 +620,79 @@ test(
                     }
                 ]),
             /invalid sourceBoards/
+        );
+    }
+);
+
+test(
+    'compatibility catalog validates and normalizes source field restrictions',
+    () => {
+        const catalog =
+            createCompatibilityCatalog([
+                {
+                    opcode:
+                        'actuators_updateMotorState',
+                    status:
+                        COMPATIBILITY_STATUSES
+                            .MAPPABLE,
+                    targetOpcode:
+                        'actuators_motorStop',
+                    sourceFields: {
+                        MOTOR_STATE: [
+                            '4',
+                            '3',
+                            '4'
+                        ]
+                    }
+                }
+            ]);
+
+        assert.deepEqual(
+            catalog.get(
+                'actuators_updateMotorState'
+            ).sourceFields,
+            {
+                MOTOR_STATE: [
+                    '3',
+                    '4'
+                ]
+            }
+        );
+
+        assert.throws(
+            () =>
+                createCompatibilityCatalog([
+                    {
+                        opcode:
+                            'picto_empty_fields',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .MAPPABLE,
+                        targetOpcode:
+                            'easyblox_example',
+                        sourceFields: {}
+                    }
+                ]),
+            /sourceFields to be a non-empty object/
+        );
+
+        assert.throws(
+            () =>
+                createCompatibilityCatalog([
+                    {
+                        opcode:
+                            'picto_empty_field_values',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .MAPPABLE,
+                        targetOpcode:
+                            'easyblox_example',
+                        sourceFields: {
+                            MOTOR_STATE: []
+                        }
+                    }
+                ]),
+            /sourceFields MOTOR_STATE to be a non-empty array/
         );
     }
 );

@@ -66,8 +66,146 @@ const incrementCount =
         );
     };
 
+    const normalizeBlockFields =
+    fields => {
+        if (
+            !fields ||
+            typeof fields !==
+                'object' ||
+            Array.isArray(
+                fields
+            )
+        ) {
+            return {};
+        }
+
+        const normalized = {};
+
+        Object.keys(
+            fields
+        )
+            .sort()
+            .forEach(
+                fieldName => {
+                    const field =
+                        fields[
+                            fieldName
+                        ];
+
+                    const value =
+                        Array.isArray(
+                            field
+                        ) ?
+                            field[0] :
+                            (
+                                field &&
+                                typeof field ===
+                                    'object' &&
+                                Object.prototype
+                                    .hasOwnProperty
+                                    .call(
+                                        field,
+                                        'value'
+                                    ) ?
+                                    field.value :
+                                    field
+                            );
+
+                    if (
+                        value === null ||
+                        typeof value ===
+                            'undefined' ||
+                        ![
+                            'string',
+                            'number',
+                            'boolean'
+                        ].includes(
+                            typeof value
+                        )
+                    ) {
+                        return;
+                    }
+
+                    normalized[
+                        fieldName
+                    ] =
+                        String(
+                            value
+                        );
+                }
+            );
+
+        return normalized;
+    };
+
+const incrementFieldVariant =
+    (
+        variantsByOpcode,
+        opcode,
+        fields
+    ) => {
+        const normalizedFields =
+            normalizeBlockFields(
+                fields
+            );
+
+        if (
+            Object.keys(
+                normalizedFields
+            ).length === 0
+        ) {
+            return;
+        }
+
+        let variants =
+            variantsByOpcode.get(
+                opcode
+            );
+
+        if (!variants) {
+            variants =
+                new Map();
+
+            variantsByOpcode.set(
+                opcode,
+                variants
+            );
+        }
+
+        const key =
+            JSON.stringify(
+                normalizedFields
+            );
+
+        const existing =
+            variants.get(
+                key
+            );
+
+        if (existing) {
+            existing.count +=
+                1;
+
+            return;
+        }
+
+        variants.set(
+            key,
+            {
+                fields:
+                    normalizedFields,
+                count:
+                    1
+            }
+        );
+    };
+
 const createOpcodeRecords =
-    counts =>
+    (
+        counts,
+        fieldVariantsByOpcode =
+            null
+    ) =>
         Array.from(
             counts.entries()
         )
@@ -75,14 +213,60 @@ const createOpcodeRecords =
                 ([
                     opcode,
                     count
-                ]) => ({
-                    opcode,
-                    namespace:
-                        getOpcodeNamespace(
-                            opcode
-                        ),
-                    count
-                })
+                ]) => {
+                    const record = {
+                        opcode,
+                        namespace:
+                            getOpcodeNamespace(
+                                opcode
+                            ),
+                        count
+                    };
+
+                    const fieldVariants =
+                        fieldVariantsByOpcode ?
+                            fieldVariantsByOpcode
+                                .get(
+                                    opcode
+                                ) :
+                            null;
+
+                    if (
+                        fieldVariants &&
+                        fieldVariants.size >
+                            0
+                    ) {
+                        record.fieldVariants =
+                            Array.from(
+                                fieldVariants
+                                    .values()
+                            )
+                                .map(
+                                    variant => ({
+                                        fields: {
+                                            ...variant.fields
+                                        },
+                                        count:
+                                            variant.count
+                                    })
+                                )
+                                .sort(
+                                    (
+                                        left,
+                                        right
+                                    ) =>
+                                        JSON.stringify(
+                                            left.fields
+                                        ).localeCompare(
+                                            JSON.stringify(
+                                                right.fields
+                                            )
+                                        )
+                                );
+                    }
+
+                    return record;
+                }
             )
             .sort(
                 (
@@ -155,6 +339,9 @@ const createProjectInventory =
             new Map();
 
         const functionalOpcodeCounts =
+            new Map();
+
+        const functionalFieldVariants =
             new Map();
 
         const functionalNamespaceCounts =
@@ -244,6 +431,12 @@ const createProjectInventory =
                                 opcode
                             );
 
+                            incrementFieldVariant(
+                                functionalFieldVariants,
+                                opcode,
+                                block.fields
+                            );
+
                             incrementCount(
                                 functionalNamespaceCounts,
                                 namespace
@@ -284,7 +477,8 @@ const createProjectInventory =
 
         const functionalOpcodes =
             createOpcodeRecords(
-                functionalOpcodeCounts
+                functionalOpcodeCounts,
+                functionalFieldVariants
             );
 
         const functionalNamespaces =
