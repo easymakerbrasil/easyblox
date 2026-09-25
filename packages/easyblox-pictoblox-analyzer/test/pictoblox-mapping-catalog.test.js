@@ -20,7 +20,7 @@ test(
 
         assert.equal(
             catalog.totalMappingCount,
-            15
+            17
         );
 
         assert.deepEqual(
@@ -39,6 +39,8 @@ test(
                 'arduinoUno_setPWM',
                 'displayModule_displayMatrix',
                 'displayModule_initializeDotMatrixDisplay',
+                'displayModule_initializeTM1637Display',
+                'displayModule_showNumberTM1637Display',
                 'qrCodeScanner_getQRCodeData',
                 'qrCodeScanner_isDetected',
                 'sensors_readAnalogSensor',
@@ -425,6 +427,110 @@ test(
                         }
                     }
                 ]
+            }
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'displayModule_initializeTM1637Display'
+            ),
+            {
+                opcode:
+                    'displayModule_initializeTM1637Display',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'displays_tm1637Init',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
+                transform: {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'CLK',
+                            source:
+                                'field',
+                            sourceName:
+                                'CLKPIN'
+                        },
+                        {
+                            target:
+                                'DIO',
+                            source:
+                                'field',
+                            sourceName:
+                                'DIOPIN'
+                        }
+                    ]
+                }
+            }
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'displayModule_showNumberTM1637Display'
+            ),
+            {
+                opcode:
+                    'displayModule_showNumberTM1637Display',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'displays_tm1637Show',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
+                transform: {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'VALUE',
+                            source:
+                                'input',
+                            sourceName:
+                                'INPUT'
+                        },
+                        {
+                            target:
+                                'LENGTH',
+                            source:
+                                'field',
+                            sourceName:
+                                'LENGTH'
+                        },
+                        {
+                            target:
+                                'POSITION',
+                            source:
+                                'field',
+                            sourceName:
+                                'POSITION'
+                        },
+                        {
+                            target:
+                                'POINT',
+                            source:
+                                'field',
+                            sourceName:
+                                'DOTS'
+                        },
+                        {
+                            target:
+                                'LEADING_ZEROS',
+                            source:
+                                'field',
+                            sourceName:
+                                'LEADINGZERO'
+                        }
+                    ]
+                }
             }
         );
 

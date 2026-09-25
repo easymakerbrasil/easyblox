@@ -293,6 +293,92 @@ const RAW_MAPPING_ENTRIES = [
     },
     {
         opcode:
+            'displayModule_initializeTM1637Display',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'displays_tm1637Init',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'CLK',
+                    source:
+                        'field',
+                    sourceName:
+                        'CLKPIN'
+                },
+                {
+                    target:
+                        'DIO',
+                    source:
+                        'field',
+                    sourceName:
+                        'DIOPIN'
+                }
+            ])
+    },
+    {
+        opcode:
+            'displayModule_showNumberTM1637Display',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'displays_tm1637Show',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'VALUE',
+                    source:
+                        'input',
+                    sourceName:
+                        'INPUT'
+                },
+                {
+                    target:
+                        'LENGTH',
+                    source:
+                        'field',
+                    sourceName:
+                        'LENGTH'
+                },
+                {
+                    target:
+                        'POSITION',
+                    source:
+                        'field',
+                    sourceName:
+                        'POSITION'
+                },
+                {
+                    target:
+                        'POINT',
+                    source:
+                        'field',
+                    sourceName:
+                        'DOTS'
+                },
+                {
+                    target:
+                        'LEADING_ZEROS',
+                    source:
+                        'field',
+                    sourceName:
+                        'LEADINGZERO'
+                }
+            ])
+    },
+    {
+        opcode:
             'qrCodeScanner_getQRCodeData',
         status:
             COMPATIBILITY_STATUSES
