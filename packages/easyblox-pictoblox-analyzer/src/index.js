@@ -25,6 +25,10 @@ const {
 } = require('./pictoblox-mapping-catalog');
 
 const {
+    createPictoBloxUnsupportedCatalog
+} = require('./pictoblox-unsupported-catalog');
+
+const {
     applyMappingValueTransform,
     isMappingValueTransformSupported
 } = require('./mapping-value-transforms');
@@ -51,6 +55,7 @@ module.exports = {
     classifyProjectInventory,
     createEasyBloxSupportCatalog,
     createPictoBloxMappingCatalog,
+    createPictoBloxUnsupportedCatalog,
     applyMappingValueTransform,
     isMappingValueTransformSupported,
     aggregateProjectCorpus,
