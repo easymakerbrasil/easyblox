@@ -13,14 +13,14 @@ const {
 } = require('..');
 
 test(
-    'PictoBlox production mapping catalog exposes the validated Arduino Uno mappings',
+    'PictoBlox production mapping catalog exposes the validated production mappings',
     () => {
         const catalog =
             createPictoBloxMappingCatalog();
 
         assert.equal(
             catalog.totalMappingCount,
-            13
+            15
         );
 
         assert.deepEqual(
@@ -39,11 +39,19 @@ test(
                 'arduinoUno_setPWM',
                 'displayModule_displayMatrix',
                 'displayModule_initializeDotMatrixDisplay',
+                'qrCodeScanner_getQRCodeData',
+                'qrCodeScanner_isDetected',
                 'sensors_readAnalogSensor',
                 'sensors_readDHTSensor',
                 'sensors_readUltrasonic'
             ]
         );
+
+        const boardNeutralOpcodes =
+            new Set([
+                'qrCodeScanner_getQRCodeData',
+                'qrCodeScanner_isDetected'
+            ]);
 
         catalog.entries
             .forEach(
@@ -54,12 +62,23 @@ test(
                             .MAPPABLE
                     );
 
-                    assert.deepEqual(
-                        entry.sourceBoards,
-                        [
-                            'Arduino Uno'
-                        ]
-                    );
+                    if (
+                        boardNeutralOpcodes.has(
+                            entry.opcode
+                        )
+                    ) {
+                        assert.equal(
+                            entry.sourceBoards,
+                            undefined
+                        );
+                    } else {
+                        assert.deepEqual(
+                            entry.sourceBoards,
+                            [
+                                'Arduino Uno'
+                            ]
+                        );
+                    }
 
                     assert.equal(
                         entry.transform.kind,
@@ -408,6 +427,46 @@ test(
                 ]
             }
         );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'qrCodeScanner_getQRCodeData'
+            ),
+            {
+                opcode:
+                    'qrCodeScanner_getQRCodeData',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'easybloxQr_content',
+                transform: {
+                    kind:
+                        'block',
+                    arguments: []
+                }
+            }
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'qrCodeScanner_isDetected'
+            ),
+            {
+                opcode:
+                    'qrCodeScanner_isDetected',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'easybloxQr_isDetected',
+                transform: {
+                    kind:
+                        'block',
+                    arguments: []
+                }
+            }
+        );
     }
 );
 
@@ -578,6 +637,135 @@ test(
                 'arduino-lock.sb3',
                 'esp32-free.sb3'
             ]
+        );
+    }
+);
+
+test(
+    'PictoBlox QR reporter mappings remain board neutral',
+    () => {
+        const mappingCatalog =
+            createPictoBloxMappingCatalog();
+
+        const qrOpcodes = [
+            'qrCodeScanner_getQRCodeData',
+            'qrCodeScanner_isDetected'
+        ];
+
+        const createProject =
+            boardSelected => ({
+                boardSelected,
+                targets: [
+                    {
+                        name:
+                            'Stage',
+                        isStage:
+                            true,
+                        blocks:
+                            Object.fromEntries(
+                                qrOpcodes.map(
+                                    (
+                                        opcode,
+                                        index
+                                    ) => [
+                                        `qr${
+                                            index
+                                        }`,
+                                        {
+                                            opcode,
+                                            shadow:
+                                                false
+                                        }
+                                    ]
+                                )
+                            )
+                    }
+                ]
+            });
+
+        const result =
+            aggregateProjectCorpus(
+                [
+                    {
+                        id:
+                            'none.sb3',
+                        project:
+                            createProject(
+                                'None'
+                            )
+                    },
+                    {
+                        id:
+                            'arduino.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno'
+                            )
+                    },
+                    {
+                        id:
+                            'esp32.sb3',
+                        project:
+                            createProject(
+                                'ESP32'
+                            )
+                    }
+                ],
+                mappingCatalog.entries
+            );
+
+        assert.deepEqual(
+            result.compatibility
+                .mappable,
+            {
+                blockCount:
+                    6,
+                projectCount:
+                    3,
+                uniqueOpcodeCount:
+                    2
+            }
+        );
+
+        assert.deepEqual(
+            result.compatibility
+                .unknown,
+            {
+                blockCount:
+                    0,
+                projectCount:
+                    0,
+                uniqueOpcodeCount:
+                    0
+            }
+        );
+
+        const qrRecords =
+            result.functionalOpcodes
+                .filter(
+                    record =>
+                        record.opcode.startsWith(
+                            'qrCodeScanner_'
+                        )
+                );
+
+        assert.equal(
+            qrRecords.length,
+            2
+        );
+
+        qrRecords.forEach(
+            record => {
+                assert.equal(
+                    record.status,
+                    'mappable'
+                );
+
+                assert.equal(
+                    record.sourceBoards,
+                    undefined
+                );
+            }
         );
     }
 );

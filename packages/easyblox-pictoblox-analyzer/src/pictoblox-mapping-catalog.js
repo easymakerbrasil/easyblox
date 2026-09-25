@@ -293,6 +293,28 @@ const RAW_MAPPING_ENTRIES = [
     },
     {
         opcode:
+            'qrCodeScanner_getQRCodeData',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'easybloxQr_content',
+        transform:
+            createBlockTransform([])
+    },
+    {
+        opcode:
+            'qrCodeScanner_isDetected',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'easybloxQr_isDetected',
+        transform:
+            createBlockTransform([])
+    },
+    {
+        opcode:
             'sensors_readAnalogSensor',
         status:
             COMPATIBILITY_STATUSES
