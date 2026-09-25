@@ -1,3 +1,7 @@
+const {
+    isMappingValueTransformSupported
+} = require('./mapping-value-transforms');
+
 const COMPATIBILITY_STATUSES =
     Object.freeze({
         SUPPORTED:
@@ -323,6 +327,106 @@ const normalizeArgumentValueMap =
         );
     };
 
+const normalizeShadowTransform =
+    (
+        value,
+        opcode,
+        target,
+        source
+    ) => {
+        if (
+            typeof value ===
+                'undefined'
+        ) {
+            return undefined;
+        }
+
+        if (
+            source !==
+                'input'
+        ) {
+            throw new TypeError(
+                `Compatibility catalog entry ${opcode} transform argument ${target} shadowTransform requires an input source`
+            );
+        }
+
+        if (
+            !value ||
+            typeof value !==
+                'object' ||
+            Array.isArray(
+                value
+            )
+        ) {
+            throw new TypeError(
+                `Compatibility catalog entry ${opcode} transform argument ${target} has an invalid shadowTransform`
+            );
+        }
+
+        const sourceOpcode =
+            requireNonEmptyString(
+                typeof value.sourceOpcode ===
+                    'string' ?
+                    value.sourceOpcode.trim() :
+                    value.sourceOpcode,
+                `Compatibility catalog entry ${opcode} transform argument ${target} shadowTransform requires a sourceOpcode`
+            );
+
+        const targetOpcode =
+            requireNonEmptyString(
+                typeof value.targetOpcode ===
+                    'string' ?
+                    value.targetOpcode.trim() :
+                    value.targetOpcode,
+                `Compatibility catalog entry ${opcode} transform argument ${target} shadowTransform requires a targetOpcode`
+            );
+
+        const sourceField =
+            requireNonEmptyString(
+                typeof value.sourceField ===
+                    'string' ?
+                    value.sourceField.trim() :
+                    value.sourceField,
+                `Compatibility catalog entry ${opcode} transform argument ${target} shadowTransform requires a sourceField`
+            );
+
+        const targetField =
+            requireNonEmptyString(
+                typeof value.targetField ===
+                    'string' ?
+                    value.targetField.trim() :
+                    value.targetField,
+                `Compatibility catalog entry ${opcode} transform argument ${target} shadowTransform requires a targetField`
+            );
+
+        const valueTransform =
+            requireNonEmptyString(
+                typeof value.valueTransform ===
+                    'string' ?
+                    value.valueTransform.trim() :
+                    value.valueTransform,
+                `Compatibility catalog entry ${opcode} transform argument ${target} shadowTransform requires a valueTransform`
+            );
+
+        if (
+            !isMappingValueTransformSupported(
+                valueTransform
+            )
+        ) {
+            throw new RangeError(
+                `Unsupported compatibility shadow value transform: ${valueTransform}`
+            );
+        }
+
+        return Object.freeze({
+            sourceOpcode,
+            targetOpcode,
+            sourceField,
+            targetField,
+            valueTransform
+        });
+    };
+
 const normalizeTransform =
     (
         value,
@@ -443,6 +547,14 @@ const normalizeTransform =
                             target
                         );
 
+                    const shadowTransform =
+                        normalizeShadowTransform(
+                            argument.shadowTransform,
+                            opcode,
+                            target,
+                            source
+                        );
+
                     if (
                         targetArguments.has(
                             target
@@ -466,6 +578,11 @@ const normalizeTransform =
                     if (valueMap) {
                         normalizedArgument.valueMap =
                             valueMap;
+                    }
+
+                    if (shadowTransform) {
+                        normalizedArgument.shadowTransform =
+                            shadowTransform;
                     }
 
                     return Object.freeze(

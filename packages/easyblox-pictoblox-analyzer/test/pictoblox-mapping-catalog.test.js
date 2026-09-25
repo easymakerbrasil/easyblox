@@ -20,7 +20,7 @@ test(
 
         assert.equal(
             catalog.totalMappingCount,
-            11
+            13
         );
 
         assert.deepEqual(
@@ -37,6 +37,8 @@ test(
                 'arduinoUno_arduinoUnoStartUp',
                 'arduinoUno_playTone',
                 'arduinoUno_setPWM',
+                'displayModule_displayMatrix',
+                'displayModule_initializeDotMatrixDisplay',
                 'sensors_readAnalogSensor',
                 'sensors_readDHTSensor',
                 'sensors_readUltrasonic'
@@ -325,6 +327,87 @@ test(
                 ]
             }
         );
+        assert.equal(
+            entriesByOpcode.get(
+                'displayModule_initializeDotMatrixDisplay'
+            ).targetOpcode,
+            'displays_configureMatrix'
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'displayModule_initializeDotMatrixDisplay'
+            ).transform,
+            {
+                kind:
+                    'block',
+                arguments: [
+                    {
+                        target:
+                            'DIN',
+                        source:
+                            'field',
+                        sourceName:
+                            'DINPIN'
+                    },
+                    {
+                        target:
+                            'CS',
+                        source:
+                            'field',
+                        sourceName:
+                            'CSPIN'
+                    },
+                    {
+                        target:
+                            'CLK',
+                        source:
+                            'field',
+                        sourceName:
+                            'CLKPIN'
+                    }
+                ]
+            }
+        );
+
+        assert.equal(
+            entriesByOpcode.get(
+                'displayModule_displayMatrix'
+            ).targetOpcode,
+            'displays_matrixWrite'
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'displayModule_displayMatrix'
+            ).transform,
+            {
+                kind:
+                    'block',
+                arguments: [
+                    {
+                        target:
+                            'MATRIX',
+                        source:
+                            'input',
+                        sourceName:
+                            'MATRIX',
+                        shadowTransform: {
+                            sourceOpcode:
+                                'matrix2',
+                            targetOpcode:
+                                'easyblox_matrix_8x8',
+                            sourceField:
+                                'MATRIX',
+                            targetField:
+                                'MATRIX',
+                            valueTransform:
+                                'binary64ToHex16'
+                        }
+                    }
+                ]
+            }
+        );
     }
 );
 
@@ -549,7 +632,9 @@ test(
             'sensors_readDHTSensor',
             'sensors_readUltrasonic',
             'arduinoUno_setPWM',
-            'arduinoUno_playTone'
+            'arduinoUno_playTone',
+            'displayModule_displayMatrix',
+            'displayModule_initializeDotMatrixDisplay'
         ];
 
         const createProject =
@@ -609,7 +694,7 @@ test(
         assert.equal(
             result.summary
                 .uniqueFunctionalOpcodeCount,
-            10
+            12
         );
 
         assert.deepEqual(
@@ -617,11 +702,11 @@ test(
                 .mappable,
             {
                 blockCount:
-                    10,
+                    12,
                 projectCount:
                     1,
                 uniqueOpcodeCount:
-                    10
+                    12
             }
         );
 
@@ -630,11 +715,11 @@ test(
                 .unknown,
             {
                 blockCount:
-                    10,
+                    12,
                 projectCount:
                     1,
                 uniqueOpcodeCount:
-                    10
+                    12
             }
         );
 
@@ -804,6 +889,164 @@ test(
                     }
                 ]),
             /invalid valueMap target/
+        );
+    }
+);
+
+test(
+    'compatibility catalog normalizes input shadow transforms',
+    () => {
+        const catalog =
+            createCompatibilityCatalog([
+                {
+                    opcode:
+                        'picto_matrix',
+                    status:
+                        COMPATIBILITY_STATUSES
+                            .MAPPABLE,
+                    targetOpcode:
+                        'easy_matrix',
+                    transform: {
+                        kind:
+                            'block',
+                        arguments: [
+                            {
+                                target:
+                                    'MATRIX',
+                                source:
+                                    'input',
+                                sourceName:
+                                    'MATRIX',
+                                shadowTransform: {
+                                    sourceOpcode:
+                                        'matrix2',
+                                    targetOpcode:
+                                        'easyblox_matrix_8x8',
+                                    sourceField:
+                                        'MATRIX',
+                                    targetField:
+                                        'MATRIX',
+                                    valueTransform:
+                                        'binary64ToHex16'
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]);
+
+        const shadowTransform =
+            catalog.get(
+                'picto_matrix'
+            ).transform
+                .arguments[0]
+                .shadowTransform;
+
+        assert.deepEqual(
+            shadowTransform,
+            {
+                sourceOpcode:
+                    'matrix2',
+                targetOpcode:
+                    'easyblox_matrix_8x8',
+                sourceField:
+                    'MATRIX',
+                targetField:
+                    'MATRIX',
+                valueTransform:
+                    'binary64ToHex16'
+            }
+        );
+
+        assert.equal(
+            Object.isFrozen(
+                shadowTransform
+            ),
+            true
+        );
+
+        assert.throws(
+            () =>
+                createCompatibilityCatalog([
+                    {
+                        opcode:
+                            'picto_field_shadow',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .MAPPABLE,
+                        targetOpcode:
+                            'easy_target',
+                        transform: {
+                            kind:
+                                'block',
+                            arguments: [
+                                {
+                                    target:
+                                        'VALUE',
+                                    source:
+                                        'field',
+                                    sourceName:
+                                        'VALUE',
+                                    shadowTransform: {
+                                        sourceOpcode:
+                                            'matrix2',
+                                        targetOpcode:
+                                            'easyblox_matrix_8x8',
+                                        sourceField:
+                                            'MATRIX',
+                                        targetField:
+                                            'MATRIX',
+                                        valueTransform:
+                                            'binary64ToHex16'
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]),
+            /shadowTransform requires an input source/
+        );
+
+        assert.throws(
+            () =>
+                createCompatibilityCatalog([
+                    {
+                        opcode:
+                            'picto_unknown_shadow_transform',
+                        status:
+                            COMPATIBILITY_STATUSES
+                                .MAPPABLE,
+                        targetOpcode:
+                            'easy_target',
+                        transform: {
+                            kind:
+                                'block',
+                            arguments: [
+                                {
+                                    target:
+                                        'MATRIX',
+                                    source:
+                                        'input',
+                                    sourceName:
+                                        'MATRIX',
+                                    shadowTransform: {
+                                        sourceOpcode:
+                                            'matrix2',
+                                        targetOpcode:
+                                            'easyblox_matrix_8x8',
+                                        sourceField:
+                                            'MATRIX',
+                                        targetField:
+                                            'MATRIX',
+                                        valueTransform:
+                                            'unknownTransform'
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]),
+            /Unsupported compatibility shadow value transform/
         );
     }
 );

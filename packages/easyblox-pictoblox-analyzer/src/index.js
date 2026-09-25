@@ -25,6 +25,11 @@ const {
 } = require('./pictoblox-mapping-catalog');
 
 const {
+    applyMappingValueTransform,
+    isMappingValueTransformSupported
+} = require('./mapping-value-transforms');
+
+const {
     aggregateProjectCorpus,
     createProjectSignature
 } = require('./corpus-aggregator');
@@ -46,6 +51,8 @@ module.exports = {
     classifyProjectInventory,
     createEasyBloxSupportCatalog,
     createPictoBloxMappingCatalog,
+    applyMappingValueTransform,
+    isMappingValueTransformSupported,
     aggregateProjectCorpus,
     createProjectSignature,
     discoverSb3Files,

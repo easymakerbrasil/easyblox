@@ -219,6 +219,80 @@ const RAW_MAPPING_ENTRIES = [
     },
     {
         opcode:
+            'displayModule_initializeDotMatrixDisplay',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'displays_configureMatrix',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'DIN',
+                    source:
+                        'field',
+                    sourceName:
+                        'DINPIN'
+                },
+                {
+                    target:
+                        'CS',
+                    source:
+                        'field',
+                    sourceName:
+                        'CSPIN'
+                },
+                {
+                    target:
+                        'CLK',
+                    source:
+                        'field',
+                    sourceName:
+                        'CLKPIN'
+                }
+            ])
+    },
+    {
+        opcode:
+            'displayModule_displayMatrix',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'displays_matrixWrite',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'MATRIX',
+                    source:
+                        'input',
+                    sourceName:
+                        'MATRIX',
+                    shadowTransform: {
+                        sourceOpcode:
+                            'matrix2',
+                        targetOpcode:
+                            'easyblox_matrix_8x8',
+                        sourceField:
+                            'MATRIX',
+                        targetField:
+                            'MATRIX',
+                        valueTransform:
+                            'binary64ToHex16'
+                    }
+                }
+            ])
+    },
+    {
+        opcode:
             'sensors_readAnalogSensor',
         status:
             COMPATIBILITY_STATUSES
