@@ -19,7 +19,7 @@ test(
 
         assert.equal(
             catalog.totalUnsupportedCount,
-            6
+            10
         );
 
         assert.deepEqual(
@@ -28,6 +28,10 @@ test(
                     entry.opcode
             ),
             [
+                'dabble_dabbleRefresh',
+                'dabble_enableLEDControl',
+                'dabble_playMusic',
+                'dabble_terminalCheck',
                 'displayModule_initialiseI2CDisplay',
                 'displayModule_setCursor',
                 'displayModule_write',
@@ -37,8 +41,12 @@ test(
             ]
         );
 
-        const lcdOpcodes =
+        const arduinoUnoSpecificOpcodes =
             new Set([
+                'dabble_dabbleRefresh',
+                'dabble_enableLEDControl',
+                'dabble_playMusic',
+                'dabble_terminalCheck',
                 'displayModule_initialiseI2CDisplay',
                 'displayModule_setCursor',
                 'displayModule_write'
@@ -53,7 +61,7 @@ test(
                 );
 
                 if (
-                    lcdOpcodes.has(
+                    arduinoUnoSpecificOpcodes.has(
                         entry.opcode
                     )
                 ) {
@@ -247,6 +255,98 @@ test(
     }
 );
 
+test(
+    'PictoBlox unsupported Dabble gaps remain Arduino Uno specific',
+    () => {
+        const unsupported =
+            createPictoBloxUnsupportedCatalog();
+
+        const dabbleOpcodes = [
+            'dabble_dabbleRefresh',
+            'dabble_enableLEDControl',
+            'dabble_playMusic',
+            'dabble_terminalCheck'
+        ];
+
+        const createProject =
+            boardSelected => ({
+                boardSelected,
+                targets: [
+                    {
+                        name:
+                            'Tobi',
+                        blocks:
+                            Object.fromEntries(
+                                dabbleOpcodes.map(
+                                    (
+                                        opcode,
+                                        index
+                                    ) => [
+                                        `dabble${
+                                            index
+                                        }`,
+                                        {
+                                            opcode,
+                                            shadow:
+                                                false
+                                        }
+                                    ]
+                                )
+                            )
+                    }
+                ]
+            });
+
+        const result =
+            aggregateProjectCorpus(
+                [
+                    {
+                        id:
+                            'arduino.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno'
+                            )
+                    },
+                    {
+                        id:
+                            'esp32.sb3',
+                        project:
+                            createProject(
+                                'ESP32'
+                            )
+                    }
+                ],
+                unsupported.entries
+            );
+
+        assert.deepEqual(
+            result.compatibility
+                .unsupported,
+            {
+                blockCount:
+                    4,
+                projectCount:
+                    1,
+                uniqueOpcodeCount:
+                    4
+            }
+        );
+
+        assert.deepEqual(
+            result.compatibility
+                .unknown,
+            {
+                blockCount:
+                    4,
+                projectCount:
+                    1,
+                uniqueOpcodeCount:
+                    4
+            }
+        );
+    }
+);
 
 test(
     'PictoBlox unsupported LCD gaps remain Arduino Uno specific',

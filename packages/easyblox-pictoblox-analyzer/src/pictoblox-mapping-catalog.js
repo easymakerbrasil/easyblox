@@ -283,6 +283,101 @@ const RAW_MAPPING_ENTRIES = [
     },
     {
         opcode:
+            'dabble_getGamepadOne',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'easybloxBt_isGamepadButtonPressed',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        sourceFields: {
+            GAMEPAD_BUTTON: [
+                '0',
+                '1',
+                '2',
+                '3',
+                '6',
+                '7',
+                '8',
+                '9'
+            ]
+        },
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'BUTTON',
+                    source:
+                        'field',
+                    sourceName:
+                        'GAMEPAD_BUTTON',
+                    valueMap: {
+                        '0':
+                            'gamepad.dpad.up',
+                        '1':
+                            'gamepad.dpad.down',
+                        '2':
+                            'gamepad.dpad.left',
+                        '3':
+                            'gamepad.dpad.right',
+                        '6':
+                            'gamepad.action.top',
+                        '7':
+                            'gamepad.action.right',
+                        '8':
+                            'gamepad.action.bottom',
+                        '9':
+                            'gamepad.action.left'
+                    }
+                }
+            ])
+    },
+    {
+        opcode:
+            'dabble_setBaudRate',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'easybloxBt_init',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        sourceFields: {
+            BAUDRATE: [
+                '9600'
+            ]
+        },
+        transform:
+            createBlockTransform([])
+    },
+    {
+        opcode:
+            'dabble_terminalWrite',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'easybloxBt_sendText',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'TEXT',
+                    source:
+                        'input',
+                    sourceName:
+                        'DATA'
+                }
+            ])
+    },
+    {
+        opcode:
             'displayModule_initializeDotMatrixDisplay',
         status:
             COMPATIBILITY_STATUSES

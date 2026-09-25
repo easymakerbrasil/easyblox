@@ -9,6 +9,54 @@ const ARDUINO_UNO_BOARD =
 const RAW_UNSUPPORTED_ENTRIES = [
     {
         opcode:
+            'dabble_dabbleRefresh',
+        status:
+            COMPATIBILITY_STATUSES
+                .UNSUPPORTED,
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        note:
+            'PictoBlox Dabble requires an explicit process-input refresh command while EasyConect maintains incoming control state automatically; deterministic conversion requires structural removal and chain reconnection that the current mapping model does not represent.'
+    },
+    {
+        opcode:
+            'dabble_enableLEDControl',
+        status:
+            COMPATIBILITY_STATUSES
+                .UNSUPPORTED,
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        note:
+            'PictoBlox Dabble LED Control lets the mobile app directly control board digital and PWM outputs while EasyConect v1 has no equivalent generic remote LED or pin-control module.'
+    },
+    {
+        opcode:
+            'dabble_playMusic',
+        status:
+            COMPATIBILITY_STATUSES
+                .UNSUPPORTED,
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        note:
+            'PictoBlox Dabble Music controls audio playback in the mobile Dabble app while EasyConect v1 has no equivalent remote music playback capability.'
+    },
+    {
+        opcode:
+            'dabble_terminalCheck',
+        status:
+            COMPATIBILITY_STATUSES
+                .UNSUPPORTED,
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        note:
+            'PictoBlox Dabble Terminal compares incoming buffered terminal text directly while EasyBlox BT exposes sequential wait-and-consume text semantics; deterministic conversion requires stateful structural rewriting.'
+    },
+    {
+        opcode:
             'displayModule_initialiseI2CDisplay',
         status:
             COMPATIBILITY_STATUSES

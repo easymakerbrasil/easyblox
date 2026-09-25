@@ -20,7 +20,7 @@ test(
 
         assert.equal(
             catalog.totalMappingCount,
-            21
+            24
         );
 
         assert.deepEqual(
@@ -39,6 +39,9 @@ test(
                 'arduinoUno_setPWM',
                 'communication_setBaudRate',
                 'communication_writeToSerial',
+                'dabble_getGamepadOne',
+                'dabble_setBaudRate',
+                'dabble_terminalWrite',
                 'displayModule_clearDisplay',
                 'displayModule_displayMatrix',
                 'displayModule_initializeDotMatrixDisplay',
@@ -418,6 +421,128 @@ test(
                         '0'
                     ]
                 },
+                transform: {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'TEXT',
+                            source:
+                                'input',
+                            sourceName:
+                                'DATA'
+                        }
+                    ]
+                }
+            }
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'dabble_setBaudRate'
+            ),
+            {
+                opcode:
+                    'dabble_setBaudRate',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'easybloxBt_init',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
+                sourceFields: {
+                    BAUDRATE: [
+                        '9600'
+                    ]
+                },
+                transform: {
+                    kind:
+                        'block',
+                    arguments: []
+                }
+            }
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'dabble_getGamepadOne'
+            ),
+            {
+                opcode:
+                    'dabble_getGamepadOne',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'easybloxBt_isGamepadButtonPressed',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
+                sourceFields: {
+                    GAMEPAD_BUTTON: [
+                        '0',
+                        '1',
+                        '2',
+                        '3',
+                        '6',
+                        '7',
+                        '8',
+                        '9'
+                    ]
+                },
+                transform: {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'BUTTON',
+                            source:
+                                'field',
+                            sourceName:
+                                'GAMEPAD_BUTTON',
+                            valueMap: {
+                                '0':
+                                    'gamepad.dpad.up',
+                                '1':
+                                    'gamepad.dpad.down',
+                                '2':
+                                    'gamepad.dpad.left',
+                                '3':
+                                    'gamepad.dpad.right',
+                                '6':
+                                    'gamepad.action.top',
+                                '7':
+                                    'gamepad.action.right',
+                                '8':
+                                    'gamepad.action.bottom',
+                                '9':
+                                    'gamepad.action.left'
+                            }
+                        }
+                    ]
+                }
+            }
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'dabble_terminalWrite'
+            ),
+            {
+                opcode:
+                    'dabble_terminalWrite',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'easybloxBt_sendText',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
                 transform: {
                     kind:
                         'block',
@@ -1019,6 +1144,223 @@ test(
                     3,
                 uniqueOpcodeCount:
                     2
+            }
+        );
+    }
+);
+
+test(
+    'PictoBlox Dabble mappings migrate supported Arduino Uno controls to EasyConect',
+    () => {
+        const mappingCatalog =
+            createPictoBloxMappingCatalog();
+
+        const gamepadBlocks =
+            Object.fromEntries(
+                [
+                    '0',
+                    '1',
+                    '2',
+                    '3',
+                    '6',
+                    '7',
+                    '8',
+                    '9'
+                ].map(
+                    (
+                        button,
+                        index
+                    ) => [
+                        `gamepad${
+                            index
+                        }`,
+                        {
+                            opcode:
+                                'dabble_getGamepadOne',
+                            shadow:
+                                false,
+                            fields: {
+                                GAMEPAD_BUTTON: [
+                                    button,
+                                    null
+                                ]
+                            }
+                        }
+                    ]
+                )
+            );
+
+        const createProject =
+            (
+                boardSelected,
+                baudRate,
+                extraBlocks = {}
+            ) => ({
+                boardSelected,
+                targets: [
+                    {
+                        name:
+                            'Tobi',
+                        blocks: {
+                            baud: {
+                                opcode:
+                                    'dabble_setBaudRate',
+                                shadow:
+                                    false,
+                                fields: {
+                                    BAUDRATE: [
+                                        baudRate,
+                                        null
+                                    ]
+                                }
+                            },
+                            ...extraBlocks
+                        }
+                    }
+                ]
+            });
+
+        const validBlocks = {
+            ...gamepadBlocks,
+            terminalWrite: {
+                opcode:
+                    'dabble_terminalWrite',
+                shadow:
+                    false,
+                inputs: {
+                    DATA: [
+                        1,
+                        [
+                            10,
+                            'Olá'
+                        ]
+                    ]
+                }
+            }
+        };
+
+        const result =
+            aggregateProjectCorpus(
+                [
+                    {
+                        id:
+                            'arduino-valid.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno',
+                                '9600',
+                                validBlocks
+                            )
+                    },
+                    {
+                        id:
+                            'arduino-unsupported-baud.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno',
+                                '115200'
+                            )
+                    },
+                    {
+                        id:
+                            'arduino-start-select.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno',
+                                '9600',
+                                {
+                                    start: {
+                                        opcode:
+                                            'dabble_getGamepadOne',
+                                        shadow:
+                                            false,
+                                        fields: {
+                                            GAMEPAD_BUTTON: [
+                                                '4',
+                                                null
+                                            ]
+                                        }
+                                    },
+                                    select: {
+                                        opcode:
+                                            'dabble_getGamepadOne',
+                                        shadow:
+                                            false,
+                                        fields: {
+                                            GAMEPAD_BUTTON: [
+                                                '5',
+                                                null
+                                            ]
+                                        }
+                                    }
+                                }
+                            )
+                    },
+                    {
+                        id:
+                            'esp32-valid-fields.sb3',
+                        project:
+                            createProject(
+                                'ESP32',
+                                '9600',
+                                {
+                                    gamepad: {
+                                        opcode:
+                                            'dabble_getGamepadOne',
+                                        shadow:
+                                            false,
+                                        fields: {
+                                            GAMEPAD_BUTTON: [
+                                                '0',
+                                                null
+                                            ]
+                                        }
+                                    },
+                                    terminalWrite: {
+                                        opcode:
+                                            'dabble_terminalWrite',
+                                        shadow:
+                                            false,
+                                        inputs: {
+                                            DATA: [
+                                                1,
+                                                [
+                                                    10,
+                                                    'Olá'
+                                                ]
+                                            ]
+                                        }
+                                    }
+                                }
+                            )
+                    }
+                ],
+                mappingCatalog.entries
+            );
+
+        assert.deepEqual(
+            result.compatibility
+                .mappable,
+            {
+                blockCount:
+                    11,
+                projectCount:
+                    2,
+                uniqueOpcodeCount:
+                    3
+            }
+        );
+
+        assert.deepEqual(
+            result.compatibility
+                .unknown,
+            {
+                blockCount:
+                    6,
+                projectCount:
+                    3,
+                uniqueOpcodeCount:
+                    3
             }
         );
     }
