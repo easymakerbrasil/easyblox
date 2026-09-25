@@ -49,7 +49,7 @@ export const createEasyBloxConnectionChecker = ScratchBlocks => {
                 )
             );
 
-            if (hasIncompatibleBlock) {
+            if (isDragging && hasIncompatibleBlock) {
                 return ScratchBlocks.Connection.REASON_CHECKS_FAILED;
             }
 

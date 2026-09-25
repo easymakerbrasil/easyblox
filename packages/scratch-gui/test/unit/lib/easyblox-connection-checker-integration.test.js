@@ -27,6 +27,23 @@ describe('EasyBlox connection checker Scratch Blocks integration', () => {
                 this.setPreviousStatement(true);
             }
         };
+        ScratchBlocks.Blocks.easyblox_test_parent_with_value = {
+            init () {
+                this.appendValueInput('VALUE');
+            }
+        };
+
+        ScratchBlocks.Blocks.easyblox_test_both_reporter = {
+            init () {
+                this.setOutput(true, 'Number');
+            }
+        };
+
+        ScratchBlocks.Blocks.easyblox_test_text_shadow = {
+            init () {
+                this.setOutput(true, 'String');
+            }
+        };
     });
 
     beforeEach(() => {
@@ -97,6 +114,62 @@ describe('EasyBlox connection checker Scratch Blocks integration', () => {
         expect(result).toBe(
             ScratchBlocks.Connection.REASON_CHECKS_FAILED
         );
+    });
+
+    test('respawns a shadow when a BOTH reporter is disconnected from an execution-mode disabled parent', () => {
+        const parentBlock =
+            workspace.newBlock('easyblox_test_parent_with_value');
+        const bothReporter =
+            workspace.newBlock('easyblox_test_both_reporter');
+
+        const inputConnection =
+            parentBlock.getInput('VALUE').connection;
+
+        inputConnection.setShadowState({
+            type: 'easyblox_test_text_shadow'
+        });
+
+        inputConnection.connect(
+            bothReporter.outputConnection
+        );
+
+        parentBlock.setDisabledReason(
+            true,
+            EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+        );
+
+        expect(
+            parentBlock.hasDisabledReason(
+                EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+            )
+        ).toBe(true);
+
+        expect(
+            bothReporter.hasDisabledReason(
+                EASYBLOX_EXECUTION_MODE_DISABLED_REASON
+            )
+        ).toBe(false);
+
+        expect(
+            inputConnection.targetBlock()
+        ).toBe(bothReporter);
+
+        expect(() => {
+            bothReporter.outputConnection.disconnect();
+        }).not.toThrow();
+
+        expect(
+            bothReporter.outputConnection.isConnected()
+        ).toBe(false);
+
+        const restoredShadow =
+            inputConnection.targetBlock();
+
+        expect(restoredShadow).not.toBeNull();
+        expect(restoredShadow.type).toBe(
+            'easyblox_test_text_shadow'
+        );
+        expect(restoredShadow.isShadow()).toBe(true);
     });
 
     test('rejects a real drag connection involving a board-capability disabled block', () => {
