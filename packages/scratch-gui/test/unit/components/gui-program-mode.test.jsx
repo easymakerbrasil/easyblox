@@ -32,10 +32,25 @@ jest.mock('react-responsive', () => ({
 }));
 
 jest.mock('react-tabs', () => ({
-    Tab: ({children}) => <div>{children}</div>,
-    Tabs: ({children}) => <div>{children}</div>,
+    Tab: ({children}) => (
+        <div data-testid="editor-tab">
+            {children}
+        </div>
+    ),
+    Tabs: ({children, selectedIndex}) => (
+        <div
+            data-selected-index={selectedIndex}
+            data-testid="editor-tabs"
+        >
+            {children}
+        </div>
+    ),
     TabList: ({children}) => <div>{children}</div>,
-    TabPanel: ({children}) => <div>{children}</div>
+    TabPanel: ({children}) => (
+        <div data-testid="editor-tab-panel">
+            {children}
+        </div>
+    )
 }));
 
 jest.mock('../../../src/components/box/box.jsx', () => (
@@ -106,6 +121,7 @@ jest.mock('../../../src/containers/blocks.jsx', () => (
         />
     )
 ));
+jest.mock('../../../src/containers/easyconect-desktop-window.jsx', () => () => null);
 jest.mock('../../../src/containers/costume-tab.jsx', () => () => null);
 jest.mock('../../../src/containers/connection-modal.jsx', () => () => null);
 jest.mock('../../../src/containers/drag-layer.jsx', () => () => null);
@@ -912,6 +928,140 @@ describe('GUI program mode propagation', () => {
                 ''
             );
     });
+
+    test.each([
+        [
+            'Costumes',
+            1
+        ],
+        [
+            'Sounds',
+            2
+        ]
+    ])(
+        'shows only Code in Upload and forces Code when entering from %s',
+        (
+            tabName,
+            activeTabIndex
+        ) => {
+            const onActivateTab =
+                jest.fn();
+
+            const vm = {
+                generateArduinoUnoUploadCode:
+                    jest.fn().mockReturnValue(''),
+
+                getPeripheralIsConnected:
+                    jest.fn().mockReturnValue(false),
+
+                on:
+                    jest.fn(),
+
+                removeListener:
+                    jest.fn(),
+
+                setEasyBloxSelectedBoard:
+                    jest.fn(),
+
+                setProgramContext:
+                    jest.fn(),
+
+                refreshWorkspace:
+                    jest.fn()
+            };
+
+            const {
+                getAllByTestId,
+                getByTestId
+            } = renderWithIntl(
+                <GUIComponent
+                    activeTabIndex={activeTabIndex}
+                    colorMode="default"
+                    onActivateTab={onActivateTab}
+                    setTheme={jest.fn()}
+                    theme="default"
+                    vm={vm}
+                />
+            );
+
+            /*
+             * Stage exposes the complete Scratch editing surface.
+             */
+            expect(
+                getAllByTestId('editor-tab')
+            ).toHaveLength(3);
+
+            expect(
+                getAllByTestId(
+                    'editor-tab-panel'
+                )
+            ).toHaveLength(3);
+
+            expect(
+                getByTestId('editor-tabs')
+            ).toHaveAttribute(
+                'data-selected-index',
+                String(activeTabIndex)
+            );
+
+            fireEvent.click(
+                getByTestId(
+                    'request-upload-mode'
+                )
+            );
+
+            fireEvent.click(
+                getByTestId(
+                    'confirm-arduino-uno'
+                )
+            );
+
+            /*
+             * Upload owns only the Code surface.
+             * Costumes and Sounds must not exist as editor tabs there,
+             * regardless of which Stage tab was active previously.
+             */
+            expect(
+                getAllByTestId('editor-tab')
+            ).toHaveLength(1);
+
+            expect(
+                getAllByTestId(
+                    'editor-tab-panel'
+                )
+            ).toHaveLength(1);
+
+            expect(
+                getByTestId('editor-tabs')
+            ).toHaveAttribute(
+                'data-selected-index',
+                '0'
+            );
+
+            expect(
+                onActivateTab
+            ).toHaveBeenCalledWith(0);
+
+            fireEvent.click(
+                getByTestId(
+                    'request-stage-mode'
+                )
+            );
+
+            /*
+             * Returning to Stage restores the normal editor tabs.
+             */
+            expect(
+                getAllByTestId('editor-tab')
+            ).toHaveLength(3);
+
+            expect(
+                getAllByTestId(
+                    'editor-tab-panel'
+                )
+            ).toHaveLength(3);
+        }
+    );
 
     test('passes the initial stage program mode to Blocks', () => {
         const {getByTestId} = renderWithIntl(

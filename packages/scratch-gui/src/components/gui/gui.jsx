@@ -61,6 +61,7 @@ import soundsIcon from './icon--sounds.svg';
 import DebugModal from '../debug-modal/debug-modal.jsx';
 import {setPlatform} from '../../reducers/platform.js';
 import {setTheme} from '../../reducers/settings.js';
+import {BLOCKS_TAB_INDEX} from '../../reducers/editor-tab';
 import {PLATFORM} from '../../lib/platform.js';
 import {MenuRefProvider} from '../../contexts/menu-ref-context.jsx';
 import {ModalFocusProvider} from '../../contexts/modal-focus-context.jsx';
@@ -363,6 +364,35 @@ export const GUIComponent = props => {
         vm,
         ...componentProps
     } = omit(props, 'dispatch', 'setPlatform');
+
+    const isUploadMode =
+        programMode === 'upload';
+
+    const editorTabIndex =
+        isUploadMode ?
+            BLOCKS_TAB_INDEX :
+            activeTabIndex;
+
+    const codeTabVisible =
+        isUploadMode ||
+        blocksTabVisible;
+
+    useEffect(() => {
+        if (
+            isUploadMode &&
+            activeTabIndex !== BLOCKS_TAB_INDEX &&
+            typeof onActivateTab === 'function'
+        ) {
+            onActivateTab(
+                BLOCKS_TAB_INDEX
+            );
+        }
+    }, [
+        isUploadMode,
+        activeTabIndex,
+        onActivateTab
+    ]);
+
     useEffect(() => {
         if (
             !vm ||
@@ -1361,7 +1391,7 @@ export const GUIComponent = props => {
                             <Tabs
                                 forceRenderTabPanel
                                 className={tabClassNames.tabs}
-                                selectedIndex={activeTabIndex}
+                                selectedIndex={editorTabIndex}
                                 selectedTabClassName={tabClassNames.tabSelected}
                                 selectedTabPanelClassName={tabClassNames.tabPanelSelected}
                                 onSelect={onActivateTab}
@@ -1400,46 +1430,50 @@ export const GUIComponent = props => {
                                                 id="gui.gui.codeTab"
                                             />
                                         </Tab>
-                                        <Tab
-                                            className={tabClassNames.tab}
-                                            onClick={onActivateCostumesTab}
-                                            role="tab"
-                                            tabIndex="0"
-                                        >
-                                            <img
-                                                draggable={false}
-                                                src={costumesIcon}
-                                            />
-                                            {targetIsStage ? (
-                                                <FormattedMessage
-                                                    defaultMessage="Backdrops"
-                                                    description="Button to get to the backdrops panel"
-                                                    id="gui.gui.backdropsTab"
+                                        {!isUploadMode && (
+                                            <Tab
+                                                className={tabClassNames.tab}
+                                                onClick={onActivateCostumesTab}
+                                                role="tab"
+                                                tabIndex="0"
+                                            >
+                                                <img
+                                                    draggable={false}
+                                                    src={costumesIcon}
                                                 />
-                                            ) : (
-                                                <FormattedMessage
-                                                    defaultMessage="Costumes"
-                                                    description="Button to get to the costumes panel"
-                                                    id="gui.gui.costumesTab"
+                                                {targetIsStage ? (
+                                                    <FormattedMessage
+                                                        defaultMessage="Backdrops"
+                                                        description="Button to get to the backdrops panel"
+                                                        id="gui.gui.backdropsTab"
+                                                    />
+                                                ) : (
+                                                    <FormattedMessage
+                                                        defaultMessage="Costumes"
+                                                        description="Button to get to the costumes panel"
+                                                        id="gui.gui.costumesTab"
+                                                    />
+                                                )}
+                                            </Tab>
+                                        )}
+                                        {!isUploadMode && (
+                                            <Tab
+                                                className={tabClassNames.tab}
+                                                onClick={onActivateSoundsTab}
+                                                role="tab"
+                                                tabIndex="0"
+                                            >
+                                                <img
+                                                    draggable={false}
+                                                    src={soundsIcon}
                                                 />
-                                            )}
-                                        </Tab>
-                                        <Tab
-                                            className={tabClassNames.tab}
-                                            onClick={onActivateSoundsTab}
-                                            role="tab"
-                                            tabIndex="0"
-                                        >
-                                            <img
-                                                draggable={false}
-                                                src={soundsIcon}
-                                            />
-                                            <FormattedMessage
-                                                defaultMessage="Sounds"
-                                                description="Button to get to the sounds panel"
-                                                id="gui.gui.soundsTab"
-                                            />
-                                        </Tab>
+                                                <FormattedMessage
+                                                    defaultMessage="Sounds"
+                                                    description="Button to get to the sounds panel"
+                                                    id="gui.gui.soundsTab"
+                                                />
+                                            </Tab>
+                                        )}
                                     </TabList>
                                 </Box>
                                 <TabPanel
@@ -1459,7 +1493,7 @@ export const GUIComponent = props => {
                                             canUseCloud={canUseCloud}
                                             extensionSelectionRequest={extensionSelectionRequest}
                                             grow={1}
-                                            isVisible={blocksTabVisible}
+                                            isVisible={codeTabVisible}
                                             options={{
                                                 media: `${basePath}static/${colorModeMap[colorMode].blocksMediaFolder}/`
                                             }}
@@ -1479,30 +1513,35 @@ export const GUIComponent = props => {
                                         <Watermark />
                                     </Box>
                                 </TabPanel>
-                                <TabPanel
-                                    className={tabClassNames.tabPanel}
-                                    role="tabpanel"
-                                >
-                                    {costumesTabVisible ? <CostumeTab
-                                        ariaLabel={targetIsStage ? intl.formatMessage(ariaMessages.backdropsPanel) :
-                                            intl.formatMessage(ariaMessages.costumesPanel)}
-                                        ariaRole="region"
-                                        vm={vm}
-                                        onNewLibraryBackdropClick={onNewLibraryBackdropClick}
-                                        onNewLibraryCostumeClick={onNewLibraryCostumeClick}
-                                    /> : null}
-                                </TabPanel>
-                                <TabPanel
-                                    className={tabClassNames.tabPanel}
-                                    role="tabpanel"
-                                >
-                                    {soundsTabVisible ?
-                                        <SoundTab
-                                            ariaLabel={intl.formatMessage(ariaMessages.soundsPanel)}
+                                {!isUploadMode && (
+                                    <TabPanel
+                                        className={tabClassNames.tabPanel}
+                                        role="tabpanel"
+                                    >
+                                        {costumesTabVisible ? <CostumeTab
+                                            ariaLabel={targetIsStage ?
+                                                intl.formatMessage(ariaMessages.backdropsPanel) :
+                                                intl.formatMessage(ariaMessages.costumesPanel)}
                                             ariaRole="region"
                                             vm={vm}
+                                            onNewLibraryBackdropClick={onNewLibraryBackdropClick}
+                                            onNewLibraryCostumeClick={onNewLibraryCostumeClick}
                                         /> : null}
-                                </TabPanel>
+                                    </TabPanel>
+                                )}
+                                {!isUploadMode && (
+                                    <TabPanel
+                                        className={tabClassNames.tabPanel}
+                                        role="tabpanel"
+                                    >
+                                        {soundsTabVisible ?
+                                            <SoundTab
+                                                ariaLabel={intl.formatMessage(ariaMessages.soundsPanel)}
+                                                ariaRole="region"
+                                                vm={vm}
+                                            /> : null}
+                                    </TabPanel>
+                                )}
                             </Tabs>
                         </Box>
 
