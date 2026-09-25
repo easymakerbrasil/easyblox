@@ -379,6 +379,43 @@ const RAW_MAPPING_ENTRIES = [
     },
     {
         opcode:
+            'displayModule_clearDisplay',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'displays_lcdClear',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([])
+    },
+    {
+        opcode:
+            'displayModule_setMode',
+        status:
+            COMPATIBILITY_STATUSES
+                .MAPPABLE,
+        targetOpcode:
+            'displays_lcdMode',
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        transform:
+            createBlockTransform([
+                {
+                    target:
+                        'MODE',
+                    source:
+                        'field',
+                    sourceName:
+                        'MODE'
+                }
+            ])
+    },
+    {
+        opcode:
             'qrCodeScanner_getQRCodeData',
         status:
             COMPATIBILITY_STATUSES

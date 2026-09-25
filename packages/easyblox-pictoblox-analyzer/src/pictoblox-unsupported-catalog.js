@@ -3,7 +3,46 @@ const {
     createCompatibilityCatalog
 } = require('./compatibility-classifier');
 
+const ARDUINO_UNO_BOARD =
+    'Arduino Uno';
+
 const RAW_UNSUPPORTED_ENTRIES = [
+    {
+        opcode:
+            'displayModule_initialiseI2CDisplay',
+        status:
+            COMPATIBILITY_STATUSES
+                .UNSUPPORTED,
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        note:
+            'PictoBlox preserves an explicit LCD I2C address input while EasyBlox LCD v1 auto-detects supported addresses; the current mapping model cannot constrain conversion by literal input value.'
+    },
+    {
+        opcode:
+            'displayModule_setCursor',
+        status:
+            COMPATIBILITY_STATUSES
+                .UNSUPPORTED,
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        note:
+            'PictoBlox stores LCD cursor row and column as persistent display state while EasyBlox LCD v1 requires row and column on each write command.'
+    },
+    {
+        opcode:
+            'displayModule_write',
+        status:
+            COMPATIBILITY_STATUSES
+                .UNSUPPORTED,
+        sourceBoards: [
+            ARDUINO_UNO_BOARD
+        ],
+        note:
+            'PictoBlox writes text at the current persistent LCD cursor position while EasyBlox LCD v1 requires text, row, and column in one block; deterministic conversion requires stateful structural rewriting.'
+    },
     {
         opcode:
             'qrCodeScanner_analyseImage',

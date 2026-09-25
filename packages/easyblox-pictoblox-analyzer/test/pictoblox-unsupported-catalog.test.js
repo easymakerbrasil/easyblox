@@ -12,14 +12,14 @@ const {
 } = require('..');
 
 test(
-    'PictoBlox unsupported catalog exposes the validated current QR conversion gaps',
+    'PictoBlox unsupported catalog exposes the validated current conversion gaps',
     () => {
         const catalog =
             createPictoBloxUnsupportedCatalog();
 
         assert.equal(
             catalog.totalUnsupportedCount,
-            3
+            6
         );
 
         assert.deepEqual(
@@ -28,11 +28,21 @@ test(
                     entry.opcode
             ),
             [
+                'displayModule_initialiseI2CDisplay',
+                'displayModule_setCursor',
+                'displayModule_write',
                 'qrCodeScanner_analyseImage',
                 'qrCodeScanner_drawBoundingBox',
                 'qrCodeScanner_toggleStageVideoFeed'
             ]
         );
+
+        const lcdOpcodes =
+            new Set([
+                'displayModule_initialiseI2CDisplay',
+                'displayModule_setCursor',
+                'displayModule_write'
+            ]);
 
         catalog.entries.forEach(
             entry => {
@@ -42,10 +52,23 @@ test(
                         .UNSUPPORTED
                 );
 
-                assert.equal(
-                    entry.sourceBoards,
-                    undefined
-                );
+                if (
+                    lcdOpcodes.has(
+                        entry.opcode
+                    )
+                ) {
+                    assert.deepEqual(
+                        entry.sourceBoards,
+                        [
+                            'Arduino Uno'
+                        ]
+                    );
+                } else {
+                    assert.equal(
+                        entry.sourceBoards,
+                        undefined
+                    );
+                }
 
                 assert.equal(
                     entry.targetOpcode,
@@ -73,7 +96,7 @@ test(
 );
 
 test(
-    'PictoBlox unsupported QR commands remain disjoint from production mappings',
+    'PictoBlox unsupported commands remain disjoint from production mappings',
     () => {
         const mappings =
             createPictoBloxMappingCatalog();
@@ -221,5 +244,127 @@ test(
                     );
                 }
             );
+    }
+);
+
+
+test(
+    'PictoBlox unsupported LCD gaps remain Arduino Uno specific',
+    () => {
+        const unsupported =
+            createPictoBloxUnsupportedCatalog();
+
+        const lcdOpcodes = [
+            'displayModule_initialiseI2CDisplay',
+            'displayModule_setCursor',
+            'displayModule_write'
+        ];
+
+        const createProject =
+            boardSelected => ({
+                boardSelected,
+                targets: [
+                    {
+                        name:
+                            'Tobi',
+                        blocks:
+                            Object.fromEntries(
+                                lcdOpcodes.map(
+                                    (
+                                        opcode,
+                                        index
+                                    ) => [
+                                        `lcd${
+                                            index
+                                        }`,
+                                        {
+                                            opcode,
+                                            shadow:
+                                                false
+                                        }
+                                    ]
+                                )
+                            )
+                    }
+                ]
+            });
+
+        const result =
+            aggregateProjectCorpus(
+                [
+                    {
+                        id:
+                            'arduino.sb3',
+                        project:
+                            createProject(
+                                'Arduino Uno'
+                            )
+                    },
+                    {
+                        id:
+                            'esp32.sb3',
+                        project:
+                            createProject(
+                                'ESP32'
+                            )
+                    }
+                ],
+                unsupported.entries
+            );
+
+        assert.deepEqual(
+            result.compatibility
+                .unsupported,
+            {
+                blockCount:
+                    3,
+                projectCount:
+                    1,
+                uniqueOpcodeCount:
+                    3
+            }
+        );
+
+        assert.deepEqual(
+            result.compatibility
+                .unknown,
+            {
+                blockCount:
+                    3,
+                projectCount:
+                    1,
+                uniqueOpcodeCount:
+                    3
+            }
+        );
+
+        const unsupportedRecords =
+            result.functionalOpcodes
+                .filter(
+                    record =>
+                        record.status ===
+                            'unsupported'
+                );
+
+        assert.equal(
+            unsupportedRecords.length,
+            3
+        );
+
+        unsupportedRecords.forEach(
+            record => {
+                assert.deepEqual(
+                    record.sourceBoards,
+                    [
+                        'Arduino Uno'
+                    ]
+                );
+
+                assert.equal(
+                    typeof record.note,
+                    'string'
+                );
+            }
+        );
     }
 );

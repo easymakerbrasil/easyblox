@@ -20,7 +20,7 @@ test(
 
         assert.equal(
             catalog.totalMappingCount,
-            17
+            19
         );
 
         assert.deepEqual(
@@ -37,9 +37,11 @@ test(
                 'arduinoUno_arduinoUnoStartUp',
                 'arduinoUno_playTone',
                 'arduinoUno_setPWM',
+                'displayModule_clearDisplay',
                 'displayModule_displayMatrix',
                 'displayModule_initializeDotMatrixDisplay',
                 'displayModule_initializeTM1637Display',
+                'displayModule_setMode',
                 'displayModule_showNumberTM1637Display',
                 'qrCodeScanner_getQRCodeData',
                 'qrCodeScanner_isDetected',
@@ -427,6 +429,61 @@ test(
                         }
                     }
                 ]
+            }
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'displayModule_clearDisplay'
+            ),
+            {
+                opcode:
+                    'displayModule_clearDisplay',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'displays_lcdClear',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
+                transform: {
+                    kind:
+                        'block',
+                    arguments: []
+                }
+            }
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'displayModule_setMode'
+            ),
+            {
+                opcode:
+                    'displayModule_setMode',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .MAPPABLE,
+                targetOpcode:
+                    'displays_lcdMode',
+                sourceBoards: [
+                    'Arduino Uno'
+                ],
+                transform: {
+                    kind:
+                        'block',
+                    arguments: [
+                        {
+                            target:
+                                'MODE',
+                            source:
+                                'field',
+                            sourceName:
+                                'MODE'
+                        }
+                    ]
+                }
             }
         );
 
