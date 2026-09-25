@@ -80,6 +80,33 @@ class Scratch3ArduinoUnoBlocks {
                     }
                 },
                 {
+                    opcode: 'map',
+                    blockType: BlockType.REPORTER,
+                    text: 'mapear [VALUE] de [RANGE11] ~ [RANGE12] a [RANGE21] ~ [RANGE22]',
+                    arguments: {
+                        VALUE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 50
+                        },
+                        RANGE11: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        RANGE12: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 1023
+                        },
+                        RANGE21: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 0
+                        },
+                        RANGE22: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 255
+                        }
+                    }
+                },
+                {
                     opcode: 'pwmWrite',
                     blockType: BlockType.COMMAND,
                     text: 'definir PWM no pino [PIN] como [VALUE]',
@@ -396,6 +423,30 @@ class Scratch3ArduinoUnoBlocks {
     analogRead (args) {
         return this._peripheral.analogRead(
             Number(args.PIN)
+        );
+    }
+
+    /**
+     * Map a numeric value between two ranges using PictoBlox Stage semantics.
+     * Stage mode preserves decimal interpolation and does not clamp.
+     * @param {object} args Scratch block arguments.
+     * @returns {number} Mapped numeric value.
+     */
+    map (args) {
+        const value = Number(args.VALUE);
+        const fromLow = Number(args.RANGE11);
+        const fromHigh = Number(args.RANGE12);
+        const toLow = Number(args.RANGE21);
+        const toHigh = Number(args.RANGE22);
+
+        return (
+            (
+                (value - fromLow) *
+                    toHigh +
+                (fromHigh - value) *
+                    toLow
+            ) /
+            (fromHigh - fromLow)
         );
     }
 

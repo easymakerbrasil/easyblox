@@ -110,6 +110,23 @@ test(
             'arduinoUno'
         );
 
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'arduinoUno_map'
+            ),
+            {
+                opcode:
+                    'arduinoUno_map',
+                status:
+                    COMPATIBILITY_STATUSES
+                        .SUPPORTED,
+                source:
+                    'extension',
+                extensionId:
+                    'arduinoUno'
+            }
+        );
+
         assert.equal(
             entriesByOpcode.get(
                 'faceSensing_faceIsDetected'

@@ -2008,6 +2008,131 @@ tap.test('Arduino UNO timer operations require an active Stage connection', t =>
     t.end();
 });
 
+tap.test('Arduino UNO map reporter preserves PictoBlox Stage decimal semantics', t => {
+    const runtime = new MockRuntime(null);
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+
+    const info = extension.getInfo();
+
+    const mapBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'map'
+        );
+
+    t.ok(
+        mapBlock,
+        'Arduino UNO exposes the map reporter'
+    );
+
+    t.equal(
+        typeof extension.map,
+        'function',
+        'Arduino UNO implements the map reporter'
+    );
+
+    if (
+        !mapBlock ||
+        typeof extension.map !==
+            'function'
+    ) {
+        t.end();
+        return;
+    }
+
+    t.equal(
+        mapBlock.blockType,
+        BlockType.REPORTER
+    );
+
+    t.equal(
+        mapBlock.text,
+        'mapear [VALUE] de [RANGE11] ~ [RANGE12] a [RANGE21] ~ [RANGE22]'
+    );
+
+    [
+        'VALUE',
+        'RANGE11',
+        'RANGE12',
+        'RANGE21',
+        'RANGE22'
+    ].forEach(
+        argumentName => {
+            t.equal(
+                mapBlock.arguments[
+                    argumentName
+                ].type,
+                ArgumentType.NUMBER,
+                `${argumentName} is numeric`
+            );
+        }
+    );
+
+    t.equal(
+        extension.map({
+            VALUE: 1,
+            RANGE11: 0,
+            RANGE12: 3,
+            RANGE21: 0,
+            RANGE22: 10
+        }),
+        10 / 3,
+        'Stage preserves decimal interpolation'
+    );
+
+    t.equal(
+        extension.map({
+            VALUE: -1,
+            RANGE11: 0,
+            RANGE12: 3,
+            RANGE21: 0,
+            RANGE22: 10
+        }),
+        -10 / 3,
+        'Stage extrapolates below the source range'
+    );
+
+    t.equal(
+        extension.map({
+            VALUE: 4,
+            RANGE11: 0,
+            RANGE12: 3,
+            RANGE21: 0,
+            RANGE22: 10
+        }),
+        40 / 3,
+        'Stage extrapolates above the source range'
+    );
+
+    t.equal(
+        extension.map({
+            VALUE: 1,
+            RANGE11: 0,
+            RANGE12: 3,
+            RANGE21: 10,
+            RANGE22: 0
+        }),
+        20 / 3,
+        'Stage supports reversed destination ranges'
+    );
+
+    t.equal(
+        extension.map({
+            VALUE: 1.5,
+            RANGE11: 0,
+            RANGE12: 3,
+            RANGE21: 0,
+            RANGE22: 10
+        }),
+        5,
+        'Stage preserves decimal source values'
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO exposes reordered blocks and timer blocks', t => {
     const runtime = new MockRuntime(null);
     const extension = new Scratch3ArduinoUnoBlocks(runtime);
@@ -2015,8 +2140,8 @@ tap.test('Arduino UNO exposes reordered blocks and timer blocks', t => {
 
     t.equal(
         info.blocks.length,
-        11,
-        'Arduino UNO exposes nine blocks and two visual separators'
+        12,
+        'Arduino UNO exposes ten blocks and two visual separators'
     );
 
     t.equal(info.blocks[0].opcode, 'whenArduinoUnoStart');
@@ -2028,25 +2153,26 @@ tap.test('Arduino UNO exposes reordered blocks and timer blocks', t => {
     t.equal(info.blocks[1].opcode, 'digitalWrite');
     t.equal(info.blocks[2].opcode, 'digitalRead');
     t.equal(info.blocks[3].opcode, 'analogRead');
-    t.equal(info.blocks[4].opcode, 'pwmWrite');
+    t.equal(info.blocks[4].opcode, 'map');
+    t.equal(info.blocks[5].opcode, 'pwmWrite');
 
     t.equal(
-        info.blocks[5],
+        info.blocks[6],
         '---',
         'entry/I/O and tone groups are visually separated'
     );
 
-    t.equal(info.blocks[6].opcode, 'toneStart');
-    t.equal(info.blocks[7].opcode, 'toneStop');
+    t.equal(info.blocks[7].opcode, 'toneStart');
+    t.equal(info.blocks[8].opcode, 'toneStop');
 
     t.equal(
-        info.blocks[8],
+        info.blocks[9],
         '---',
         'tone and timer groups are visually separated'
     );
 
-    const timerReadBlock = info.blocks[9];
-    const timerResetBlock = info.blocks[10];
+    const timerReadBlock = info.blocks[10];
+    const timerResetBlock = info.blocks[11];
 
     t.equal(
         timerReadBlock.opcode,
