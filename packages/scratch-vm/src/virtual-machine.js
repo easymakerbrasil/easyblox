@@ -3262,9 +3262,11 @@ class VirtualMachine extends EventEmitter {
      * Upload-runtime metadata such as the Serial Monitor baud rate.
      * @returns {object} Validated EasyBlox Arduino UNO IR.
      */
-    _getValidatedArduinoUnoUploadIr () {
+    _getValidatedArduinoUnoUploadIr (
+        boardId = 'arduino-uno'
+    ) {
         const uploadProgram = this.getOrCreateUploadProgram(
-            'arduino-uno'
+            boardId
         );
 
         const extractor =
@@ -3295,9 +3297,13 @@ class VirtualMachine extends EventEmitter {
      * @returns {?object} Serial Monitor configuration or null when the
      * Upload program does not initialize Serial.
      */
-    getArduinoUnoUploadSerialConfig () {
+    getArduinoUnoUploadSerialConfig (
+        boardId = 'arduino-uno'
+    ) {
         const ir =
-            this._getValidatedArduinoUnoUploadIr();
+            this._getValidatedArduinoUnoUploadIr(
+                boardId
+            );
 
         const setup =
             Array.isArray(ir.setup) ?
@@ -3323,9 +3329,13 @@ class VirtualMachine extends EventEmitter {
      * Generate Arduino UNO Upload C++ from the current project.
      * @returns {string} Complete deterministic Arduino UNO sketch.
      */
-    generateArduinoUnoUploadCode () {
+    generateArduinoUnoUploadCode (
+        boardId = 'arduino-uno'
+    ) {
         const ir =
-            this._getValidatedArduinoUnoUploadIr();
+            this._getValidatedArduinoUnoUploadIr(
+                boardId
+            );
 
         const generator =
             new ArduinoUnoGenerator();
@@ -3338,9 +3348,13 @@ class VirtualMachine extends EventEmitter {
      * The sketch remains independent from auxiliary build support files.
      * @returns {object} Arduino build bundle.
      */
-    generateArduinoUnoUploadBuildBundle () {
+    generateArduinoUnoUploadBuildBundle (
+        boardId = 'arduino-uno'
+    ) {
         const ir =
-            this._getValidatedArduinoUnoUploadIr();
+            this._getValidatedArduinoUnoUploadIr(
+                boardId
+            );
 
         const generator =
             new ArduinoUnoGenerator();

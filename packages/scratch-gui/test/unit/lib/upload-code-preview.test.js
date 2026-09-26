@@ -10,11 +10,20 @@ describe('generateArduinoUnoUploadPreview', () => {
                 .mockReturnValue('void setup() {}')
         };
 
-        const result = generateArduinoUnoUploadPreview(vm);
+        const result = generateArduinoUnoUploadPreview(
+            vm,
+            'easymaker-test'
+        );
 
         expect(
             vm.generateArduinoUnoUploadCode
         ).toHaveBeenCalledTimes(1);
+
+        expect(
+            vm.generateArduinoUnoUploadCode
+        ).toHaveBeenCalledWith(
+            'easymaker-test'
+        );
 
         expect(result).toEqual({
             code: 'void setup() {}',

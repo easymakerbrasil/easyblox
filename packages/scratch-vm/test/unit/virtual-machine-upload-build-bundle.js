@@ -28,6 +28,38 @@ const findSupportFile = (
         file => file.name === name
     );
 
+    test(
+        'VirtualMachine generates Arduino UNO builds from the requested logical board workspace',
+        t => {
+            const vm =
+                Object.create(
+                    VirtualMachine.prototype
+                );
+
+            let requestedBoardId = null;
+
+            vm._getValidatedArduinoUnoUploadIr =
+                boardId => {
+                    requestedBoardId =
+                        boardId;
+
+                    return createIr();
+                };
+
+            vm.generateArduinoUnoUploadBuildBundle(
+                'easymaker-test'
+            );
+q
+            t.equal(
+                requestedBoardId,
+                'easymaker-test',
+                'logical board ID selects the Upload workspace'
+            );
+
+            t.end();
+        }
+    );
+
 test(
     'VirtualMachine keeps ordinary Arduino UNO builds free from EasyBlox runtime support files',
     t => {

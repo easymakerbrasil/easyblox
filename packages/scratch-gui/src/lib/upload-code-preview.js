@@ -6,10 +6,15 @@ const getErrorMessage = error => {
     return String(error);
 };
 
-export const generateArduinoUnoUploadPreview = vm => {
+export const generateArduinoUnoUploadPreview = (
+    vm,
+    boardId = 'arduino-uno'
+) => {
     try {
         return {
-            code: vm.generateArduinoUnoUploadCode(),
+            code: vm.generateArduinoUnoUploadCode(
+                boardId
+            ),
             error: null
         };
     } catch (error) {
@@ -22,11 +27,15 @@ export const generateArduinoUnoUploadPreview = vm => {
 
 export const subscribeToArduinoUnoUploadPreview = (
     vm,
-    onPreview
+    onPreview,
+    boardId = 'arduino-uno'
 ) => {
     const updatePreview = () => {
         onPreview(
-            generateArduinoUnoUploadPreview(vm)
+            generateArduinoUnoUploadPreview(
+                vm,
+                boardId
+            )
         );
     };
 

@@ -717,9 +717,17 @@ describe('GUI program mode propagation', () => {
             vm.generateArduinoUnoUploadBuildBundle
         ).toHaveBeenCalledTimes(1);
 
+        expect(
+            vm.generateArduinoUnoUploadBuildBundle
+        ).toHaveBeenCalledWith(
+            'arduino-uno'
+        );
+
         expect(runEasyBloxUpload)
             .toHaveBeenCalledWith(
                 expect.objectContaining({
+                    boardId:
+                        'arduino-uno',
                     code:
                         [
                             'void setup() {',
@@ -756,6 +764,15 @@ describe('GUI program mode propagation', () => {
         expect(
             runEasyBloxStageFirmwareRestore
         ).toHaveBeenCalledTimes(1);
+
+        expect(
+            runEasyBloxStageFirmwareRestore
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                boardId:
+                    'arduino-uno'
+            })
+        );
     });
 
     test('tracks Stage firmware diagnosis and only restores after explicit user action', async () => {

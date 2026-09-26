@@ -510,10 +510,19 @@ export const GUIComponent = props => {
         selectedBoard
     ]);
     useEffect(() => {
+        const board =
+            selectedBoard ?
+                getBoardById(
+                    selectedBoard
+                ) :
+                null;
+
         if (
             !vm ||
             programMode !== 'upload' ||
-            selectedBoard !== 'arduino-uno'
+            !board ||
+            board.targetBoardId !==
+                'arduino-uno'
         ) {
             setUploadPreviewCode('');
             setUploadPreviewError(null);
@@ -525,7 +534,8 @@ export const GUIComponent = props => {
             ({code, error}) => {
                 setUploadPreviewCode(code);
                 setUploadPreviewError(error);
-            }
+            },
+            selectedBoard
         );
     }, [
         vm,
@@ -864,12 +874,16 @@ export const GUIComponent = props => {
 
         try {
             const buildBundle =
-                vm.generateArduinoUnoUploadBuildBundle();
+                vm.generateArduinoUnoUploadBuildBundle(
+                    selectedBoard
+                );
             const serialConfig =
                 typeof vm
                     .getArduinoUnoUploadSerialConfig ===
                     'function' ?
-                    vm.getArduinoUnoUploadSerialConfig() :
+                    vm.getArduinoUnoUploadSerialConfig(
+                        selectedBoard
+                    ) :
                     null;
 
             serialMonitorDecoderRef.current =
@@ -896,7 +910,7 @@ export const GUIComponent = props => {
                     vm,
                     board,
                     boardId:
-                        selectedBoard,
+                        board.targetBoardId,
                     boardName:
                         board.name,
                     code:
@@ -1020,7 +1034,7 @@ export const GUIComponent = props => {
                         vm,
                         board,
                         boardId:
-                            selectedBoard,
+                            board.targetBoardId,
                         cachedPortHint:
                             uploadPortHint,
                         peripheralId:

@@ -487,6 +487,7 @@ const extensionLibraryContent = [
 const BOARD_METADATA = {
     arduinoUno: {
         boardId: 'arduino-uno',
+        targetBoardId: 'arduino-uno',
         kind: 'board',
         supportedModes: [
             'stage',

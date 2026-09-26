@@ -13,6 +13,7 @@ describe('EasyBlox extension library classification', () => {
     test('classifies Arduino UNO as a visible board', () => {
         expect(getExtension('arduinoUno')).toMatchObject({
             boardId: 'arduino-uno',
+            targetBoardId: 'arduino-uno',
             kind: 'board',
             supportedModes: [
                 'stage',

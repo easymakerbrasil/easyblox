@@ -13,9 +13,15 @@ const createUploadHat = next => ({
     shadow: false
 });
 
-const loadUploadBlocks = (vm, blocks) => {
+const loadUploadBlocks = (
+    vm,
+    blocks,
+    boardId = 'arduino-uno'
+) => {
     const uploadProgram =
-        vm.getOrCreateUploadProgram('arduino-uno');
+        vm.getOrCreateUploadProgram(
+            boardId
+        );
 
     blocks.forEach(block => {
         uploadProgram.blocks.createBlock(block);
@@ -52,6 +58,48 @@ tap.test(
                 baudRate: 57600
             },
             'Serial Monitor baud comes from canonical Upload IR'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'VirtualMachine reads Serial configuration from a logical board sharing the Arduino UNO target',
+    t => {
+        const vm = new VirtualMachine();
+
+        loadUploadBlocks(
+            vm,
+            [
+                createUploadHat('serial_begin'),
+                {
+                    id: 'serial_begin',
+                    opcode: 'serial_serialBegin',
+                    next: null,
+                    parent: 'upload_hat',
+                    inputs: {},
+                    fields: {
+                        BAUD: {
+                            name: 'BAUD',
+                            value: '38400'
+                        }
+                    },
+                    topLevel: false,
+                    shadow: false
+                }
+            ],
+            'easymaker-test'
+        );
+
+        t.same(
+            vm.getArduinoUnoUploadSerialConfig(
+                'easymaker-test'
+            ),
+            {
+                baudRate: 38400
+            },
+            'Serial Monitor reads the requested logical board workspace'
         );
 
         t.end();
