@@ -1833,7 +1833,9 @@ test('VirtualMachine persists and rehydrates EasyBlox project context with canon
         {
             schemaVersion: 1,
             selectedBoardId: 'arduino-uno',
-            programMode: 'stage'
+            programMode: 'stage',
+            qrCodes: [],
+            qrOverlayPosition: 'topRight'
         },
         'Stage project serialization preserves the selected board'
     );
@@ -1853,7 +1855,9 @@ test('VirtualMachine persists and rehydrates EasyBlox project context with canon
         {
             schemaVersion: 1,
             selectedBoardId: null,
-            programMode: 'stage'
+            programMode: 'stage',
+            qrCodes: [],
+            qrOverlayPosition: 'topRight'
         },
         'project serialization preserves the absence of a selected board'
     );
@@ -1891,7 +1895,9 @@ test('VirtualMachine persists and rehydrates EasyBlox project context with canon
         {
             schemaVersion: 1,
             selectedBoardId: 'arduino-uno',
-            programMode: 'upload'
+            programMode: 'upload',
+            qrCodes: [],
+            qrOverlayPosition: 'topRight'
         },
         'Upload project serialization preserves board and program mode'
     );
