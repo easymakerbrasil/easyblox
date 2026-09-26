@@ -10,30 +10,18 @@ const getExtension = extensionId =>
     extensionLibraryContent.find(item => item.extensionId === extensionId);
 
 describe('EasyBlox extension library classification', () => {
-    test('classifies Arduino UNO as a visible board', () => {
+    test('classifies the Arduino UNO backing extension as a board category', () => {
         expect(getExtension('arduinoUno')).toMatchObject({
-            boardId: 'arduino-uno',
-            targetBoardId: 'arduino-uno',
+            extensionId: 'arduinoUno',
             kind: 'board',
-            supportedModes: [
-                'stage',
-                'upload'
-            ],
-            capabilities: [
-                'bluetoothSerial'
-            ],
             visible: true
         });
     });
 
-    test('keeps micro:bit hidden from the EasyBlox board surface', () => {
+    test('keeps the micro:bit backing extension hidden from the product surface', () => {
         expect(getExtension('microbit')).toMatchObject({
-            boardId: 'microbit',
+            extensionId: 'microbit',
             kind: 'board',
-            supportedModes: [
-                'stage'
-            ],
-            capabilities: [],
             visible: false
         });
     });
@@ -98,27 +86,81 @@ test('exposes only visible extensions to the extension library', () => {
     expect(extensionIds).not.toContain('wedo2');
 });
 
-test('exposes only visible boards to the board selection flow', () => {
+test('exposes only visible board profiles to the board selection flow', () => {
     const boardIds = getVisibleBoards()
-        .map(item => item.extensionId);
+        .map(item => item.boardId);
 
     expect(boardIds).toEqual([
-        'arduinoUno'
+        'arduino-uno'
     ]);
 });
 
-test('resolves known boards by board id regardless of surface visibility', () => {
+test('resolves canonical board profiles regardless of surface visibility', () => {
     expect(getBoardById('arduino-uno')).toMatchObject({
+        name: 'Arduino UNO',
         boardId: 'arduino-uno',
+        targetBoardId: 'arduino-uno',
         extensionId: 'arduinoUno',
         kind: 'board',
+        supportedModes: [
+            'stage',
+            'upload'
+        ],
+        capabilities: [
+            'bluetoothSerial'
+        ],
         visible: true
     });
 
+    expect(getBoardById('easymaker')).toMatchObject({
+        name: 'EasyMaker',
+        boardId: 'easymaker',
+        targetBoardId: 'arduino-uno',
+        extensionId: 'arduinoUno',
+        capabilities: [
+            'bluetoothSerial'
+        ],
+        visible: false
+    });
+
+    expect(getBoardById('easymaker-connection')).toMatchObject({
+        name: 'EasyMaker Connection',
+        boardId: 'easymaker-connection',
+        targetBoardId: 'arduino-uno',
+        extensionId: 'arduinoUno',
+        capabilities: [
+            'bluetoothSerial',
+            'wifi'
+        ],
+        visible: false
+    });
+
+    expect(getBoardById('easyduino-proto')).toMatchObject({
+        name: 'EasyDuino Proto',
+        boardId: 'easyduino-proto',
+        targetBoardId: 'arduino-uno',
+        extensionId: 'arduinoUno',
+        capabilities: [
+            'bluetoothSerial'
+        ],
+        visible: false
+    });
+
+    expect(getBoardById('easyduino-jr')).toMatchObject({
+        name: 'EasyDuino Jr',
+        boardId: 'easyduino-jr',
+        targetBoardId: 'arduino-uno',
+        extensionId: 'arduinoUno',
+        capabilities: [],
+        visible: false
+    });
+
     expect(getBoardById('microbit')).toMatchObject({
+        name: 'micro:bit',
         boardId: 'microbit',
         extensionId: 'microbit',
         kind: 'board',
+        capabilities: [],
         visible: false
     });
 });
@@ -150,6 +192,14 @@ test('filters board categories according to the active board', () => {
 
     expect(
         filterBlocksXMLForActiveBoard(blocksXML, 'arduino-uno')
+            .map(category => category.id)
+    ).toEqual([
+        'music',
+        'arduinoUno'
+    ]);
+
+    expect(
+        filterBlocksXMLForActiveBoard(blocksXML, 'easymaker')
             .map(category => category.id)
     ).toEqual([
         'music',
@@ -225,6 +275,21 @@ test('filters extension categories according to the active project context', () 
         filterBlocksXMLForProjectContext(
             blocksXML,
             'arduino-uno',
+            ['translate'],
+            ['actuators', 'sensors', 'displays']
+        ).map(category => category.id)
+    ).toEqual([
+        'translate',
+        'arduinoUno',
+        'actuators',
+        'sensors',
+        'displays'
+    ]);
+
+    expect(
+        filterBlocksXMLForProjectContext(
+            blocksXML,
+            'easymaker',
             ['translate'],
             ['actuators', 'sensors', 'displays']
         ).map(category => category.id)

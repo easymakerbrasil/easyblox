@@ -484,27 +484,13 @@ const extensionLibraryContent = [
     }
 ];
 
-const BOARD_METADATA = {
+const BOARD_EXTENSION_METADATA = {
     arduinoUno: {
-        boardId: 'arduino-uno',
-        targetBoardId: 'arduino-uno',
         kind: 'board',
-        supportedModes: [
-            'stage',
-            'upload'
-        ],
-        capabilities: [
-            'bluetoothSerial'
-        ],
         visible: true
     },
     microbit: {
-        boardId: 'microbit',
         kind: 'board',
-        supportedModes: [
-            'stage'
-        ],
-        capabilities: [],
         visible: false
     },
     ev3: {
@@ -521,6 +507,95 @@ const BOARD_METADATA = {
     }
 };
 
+const BOARD_PROFILES = [
+    {
+        name: 'Arduino UNO',
+        boardId: 'arduino-uno',
+        targetBoardId: 'arduino-uno',
+        extensionId: 'arduinoUno',
+        iconURL: arduinoUnoIconURL,
+        kind: 'board',
+        supportedModes: [
+            'stage',
+            'upload'
+        ],
+        capabilities: [
+            'bluetoothSerial'
+        ],
+        visible: true
+    },
+    {
+        name: 'EasyMaker',
+        boardId: 'easymaker',
+        targetBoardId: 'arduino-uno',
+        extensionId: 'arduinoUno',
+        kind: 'board',
+        supportedModes: [
+            'stage',
+            'upload'
+        ],
+        capabilities: [
+            'bluetoothSerial'
+        ],
+        visible: false
+    },
+    {
+        name: 'EasyMaker Connection',
+        boardId: 'easymaker-connection',
+        targetBoardId: 'arduino-uno',
+        extensionId: 'arduinoUno',
+        kind: 'board',
+        supportedModes: [
+            'stage',
+            'upload'
+        ],
+        capabilities: [
+            'bluetoothSerial',
+            'wifi'
+        ],
+        visible: false
+    },
+    {
+        name: 'EasyDuino Proto',
+        boardId: 'easyduino-proto',
+        targetBoardId: 'arduino-uno',
+        extensionId: 'arduinoUno',
+        kind: 'board',
+        supportedModes: [
+            'stage',
+            'upload'
+        ],
+        capabilities: [
+            'bluetoothSerial'
+        ],
+        visible: false
+    },
+    {
+        name: 'EasyDuino Jr',
+        boardId: 'easyduino-jr',
+        targetBoardId: 'arduino-uno',
+        extensionId: 'arduinoUno',
+        kind: 'board',
+        supportedModes: [
+            'stage',
+            'upload'
+        ],
+        capabilities: [],
+        visible: false
+    },
+    {
+        name: 'micro:bit',
+        boardId: 'microbit',
+        extensionId: 'microbit',
+        kind: 'board',
+        supportedModes: [
+            'stage'
+        ],
+        capabilities: [],
+        visible: false
+    }
+];
+
 const HIDDEN_EXTENSION_IDS = new Set([
     'gdxfor',
     'makeymakey'
@@ -530,7 +605,7 @@ const classifiedLibraryContent = extensionLibraryContent.map(item => ({
     kind: 'extension',
     visible: true,
     ...item,
-    ...(BOARD_METADATA[item.extensionId] || {}),
+    ...(BOARD_EXTENSION_METADATA[item.extensionId] || {}),
     ...(HIDDEN_EXTENSION_IDS.has(item.extensionId) ?
         {visible: false} :
         {})
@@ -542,14 +617,11 @@ export const getVisibleExtensions = () =>
     );
 
 export const getVisibleBoards = () =>
-    classifiedLibraryContent.filter(item =>
-        item.kind === 'board' && item.visible
-    );
+    BOARD_PROFILES.filter(board => board.visible);
 
 export const getBoardById = boardId =>
-    classifiedLibraryContent.find(item =>
-        item.kind === 'board' &&
-        item.boardId === boardId
+    BOARD_PROFILES.find(board =>
+        board.boardId === boardId
     ) || null;
 
 export const filterBlocksXMLForActiveBoard = (blocksXML, activeBoardId) => {
