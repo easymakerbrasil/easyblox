@@ -28,10 +28,10 @@ describe('BoardSelectionModal', () => {
         ).toBeInTheDocument();
 
         expect(
-            screen.getByRole('button', {
+            screen.queryByRole('button', {
                 name: 'micro:bit'
             })
-        ).toBeInTheDocument();
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', {
                 name: 'LEGO MINDSTORMS EV3'
@@ -76,26 +76,6 @@ describe('BoardSelectionModal', () => {
 
         expect(onConfirm).toHaveBeenCalledTimes(1);
         expect(onConfirm).toHaveBeenCalledWith('arduino-uno');
-    });
-
-    test('selects micro:bit directly from its card', () => {
-        const onConfirm = jest.fn();
-
-        render(
-            <BoardSelectionModal
-                onCancel={jest.fn()}
-                onConfirm={onConfirm}
-            />
-        );
-
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'micro:bit'
-            })
-        );
-
-        expect(onConfirm).toHaveBeenCalledTimes(1);
-        expect(onConfirm).toHaveBeenCalledWith('microbit');
     });
 
     test('shows only boards compatible with the required mode', () => {
