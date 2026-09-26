@@ -107,7 +107,7 @@ test('exposes only visible boards to the board selection flow', () => {
     ]);
 });
 
-test('resolves a visible board by its board id', () => {
+test('resolves known boards by board id regardless of surface visibility', () => {
     expect(getBoardById('arduino-uno')).toMatchObject({
         boardId: 'arduino-uno',
         extensionId: 'arduinoUno',
@@ -115,10 +115,15 @@ test('resolves a visible board by its board id', () => {
         visible: true
     });
 
+    expect(getBoardById('microbit')).toMatchObject({
+        boardId: 'microbit',
+        extensionId: 'microbit',
+        kind: 'board',
+        visible: false
+    });
 });
 
 test('does not expose hidden or unknown boards by board id', () => {
-    expect(getBoardById('microbit')).toBeNull();
     expect(getBoardById('ev3')).toBeNull();
     expect(getBoardById('does-not-exist')).toBeNull();
 });
@@ -155,7 +160,8 @@ test('filters board categories according to the active board', () => {
         filterBlocksXMLForActiveBoard(blocksXML, 'microbit')
             .map(category => category.id)
     ).toEqual([
-        'music'
+        'music',
+        'microbit'
     ]);
 });
 

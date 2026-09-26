@@ -547,7 +547,10 @@ export const getVisibleBoards = () =>
     );
 
 export const getBoardById = boardId =>
-    getVisibleBoards().find(item => item.boardId === boardId) || null;
+    classifiedLibraryContent.find(item =>
+        item.kind === 'board' &&
+        item.boardId === boardId
+    ) || null;
 
 export const filterBlocksXMLForActiveBoard = (blocksXML, activeBoardId) => {
     const activeBoard = activeBoardId ?
