@@ -1,6 +1,8 @@
 import PropTypes from 'prop-types';
 import React from 'react';
 
+import {getVisibleBoards} from '../../lib/libraries/extensions/index.jsx';
+
 class BoardSelector extends React.PureComponent {
     constructor (props) {
         super(props);
@@ -17,6 +19,8 @@ class BoardSelector extends React.PureComponent {
     }
 
     render () {
+        const visibleBoards = getVisibleBoards();
+
         return (
             <select
                 aria-label="Placa"
@@ -26,18 +30,21 @@ class BoardSelector extends React.PureComponent {
                 <option value="">
                     Nenhuma placa
                 </option>
-                <option value="arduino-uno">
-                    Arduino UNO
-                </option>
+                {visibleBoards.map(board => (
+                    <option
+                        key={board.boardId}
+                        value={board.boardId}
+                    >
+                        {board.name}
+                    </option>
+                ))}
             </select>
         );
     }
 }
 
 BoardSelector.propTypes = {
-    selectedBoard: PropTypes.oneOf([
-        'arduino-uno'
-    ]),
+    selectedBoard: PropTypes.string,
     onBoardChange: PropTypes.func.isRequired
 };
 

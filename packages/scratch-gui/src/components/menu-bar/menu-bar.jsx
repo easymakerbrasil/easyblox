@@ -704,9 +704,7 @@ MenuBar.propTypes = {
         'incompatible',
         'unidentified'
     ]),
-    selectedBoard: PropTypes.oneOf([
-        'arduino-uno'
-    ]),
+    selectedBoard: PropTypes.string,
 
     programMode: PropTypes.oneOf([
         'stage',
