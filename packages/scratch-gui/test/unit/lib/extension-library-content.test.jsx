@@ -25,7 +25,7 @@ describe('EasyBlox extension library classification', () => {
         });
     });
 
-    test('classifies micro:bit as a visible board', () => {
+    test('keeps micro:bit hidden from the EasyBlox board surface', () => {
         expect(getExtension('microbit')).toMatchObject({
             boardId: 'microbit',
             kind: 'board',
@@ -33,7 +33,7 @@ describe('EasyBlox extension library classification', () => {
                 'stage'
             ],
             capabilities: [],
-            visible: true
+            visible: false
         });
     });
 
@@ -54,9 +54,15 @@ describe('EasyBlox extension library classification', () => {
         });
     });
 
-    test('keeps Go Direct hidden as an extension', () => {
+    test('keeps non-EasyMaker extensions hidden from the product surface', () => {
         expect(getExtension('gdxfor')).toMatchObject({
             extensionId: 'gdxfor',
+            kind: 'extension',
+            visible: false
+        });
+
+        expect(getExtension('makeymakey')).toMatchObject({
+            extensionId: 'makeymakey',
             kind: 'extension',
             visible: false
         });
@@ -85,6 +91,7 @@ test('exposes only visible extensions to the extension library', () => {
     expect(extensionIds).not.toContain('arduinoUno');
     expect(extensionIds).not.toContain('microbit');
     expect(extensionIds).not.toContain('gdxfor');
+    expect(extensionIds).not.toContain('makeymakey');
     expect(extensionIds).not.toContain('ev3');
     expect(extensionIds).not.toContain('boost');
     expect(extensionIds).not.toContain('wedo2');
@@ -95,8 +102,7 @@ test('exposes only visible boards to the board selection flow', () => {
         .map(item => item.extensionId);
 
     expect(boardIds).toEqual([
-        'arduinoUno',
-        'microbit'
+        'arduinoUno'
     ]);
 });
 
@@ -108,15 +114,10 @@ test('resolves a visible board by its board id', () => {
         visible: true
     });
 
-    expect(getBoardById('microbit')).toMatchObject({
-        boardId: 'microbit',
-        extensionId: 'microbit',
-        kind: 'board',
-        visible: true
-    });
 });
 
 test('does not expose hidden or unknown boards by board id', () => {
+    expect(getBoardById('microbit')).toBeNull();
     expect(getBoardById('ev3')).toBeNull();
     expect(getBoardById('does-not-exist')).toBeNull();
 });
@@ -153,8 +154,7 @@ test('filters board categories according to the active board', () => {
         filterBlocksXMLForActiveBoard(blocksXML, 'microbit')
             .map(category => category.id)
     ).toEqual([
-        'music',
-        'microbit'
+        'music'
     ]);
 });
 

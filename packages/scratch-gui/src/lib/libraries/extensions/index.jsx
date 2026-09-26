@@ -504,7 +504,7 @@ const BOARD_METADATA = {
             'stage'
         ],
         capabilities: [],
-        visible: true
+        visible: false
     },
     ev3: {
         kind: 'board',
@@ -521,7 +521,8 @@ const BOARD_METADATA = {
 };
 
 const HIDDEN_EXTENSION_IDS = new Set([
-    'gdxfor'
+    'gdxfor',
+    'makeymakey'
 ]);
 
 const classifiedLibraryContent = extensionLibraryContent.map(item => ({
