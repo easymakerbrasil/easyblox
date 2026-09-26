@@ -7434,6 +7434,275 @@ tap.test('Arduino UNO generator emits remaining standard operators as batch', t 
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts arduinoUno_map as MapExpression', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('repeat'),
+        {
+            id: 'repeat',
+            opcode: 'control_repeat',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                TIMES: {
+                    name: 'TIMES',
+                    block: 'map',
+                    shadow: 'repeat_shadow'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'map',
+            opcode: 'arduinoUno_map',
+            next: null,
+            parent: 'repeat',
+            inputs: {
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'map_value',
+                    shadow: 'map_value'
+                },
+                RANGE11: {
+                    name: 'RANGE11',
+                    block: 'range11',
+                    shadow: 'range11'
+                },
+                RANGE12: {
+                    name: 'RANGE12',
+                    block: 'range12',
+                    shadow: 'range12'
+                },
+                RANGE21: {
+                    name: 'RANGE21',
+                    block: 'range21',
+                    shadow: 'range21'
+                },
+                RANGE22: {
+                    name: 'RANGE22',
+                    block: 'range22',
+                    shadow: 'range22'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createNumberShadow(
+            'map_value',
+            'map',
+            1.5
+        ),
+        createNumberShadow(
+            'range11',
+            'map',
+            0
+        ),
+        createNumberShadow(
+            'range12',
+            'map',
+            3
+        ),
+        createNumberShadow(
+            'range21',
+            'map',
+            0
+        ),
+        createNumberShadow(
+            'range22',
+            'map',
+            10
+        ),
+        createNumberShadow(
+            'repeat_shadow',
+            'repeat',
+            10
+        )
+    ]);
+
+    const extractor =
+        new UploadProgramExtractor(
+            runtime
+        );
+
+    t.same(
+        extractor.extract(),
+        {
+            setup: [
+                {
+                    type:
+                        'Repeat',
+                    times: {
+                        type:
+                            'MapExpression',
+                        value: {
+                            type:
+                                'DecimalLiteral',
+                            value:
+                                1.5
+                        },
+                        fromLow: {
+                            type:
+                                'IntegerLiteral',
+                            value:
+                                0
+                        },
+                        fromHigh: {
+                            type:
+                                'IntegerLiteral',
+                            value:
+                                3
+                        },
+                        toLow: {
+                            type:
+                                'IntegerLiteral',
+                            value:
+                                0
+                        },
+                        toHigh: {
+                            type:
+                                'IntegerLiteral',
+                            value:
+                                10
+                        }
+                    },
+                    body: []
+                }
+            ],
+            loop: []
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload treats MapExpression result as INTEGER', t => {
+    const validator =
+        new UploadTypeValidator();
+
+    const ir = {
+        setup: [
+            {
+                type:
+                    'Repeat',
+                times: {
+                    type:
+                        'MapExpression',
+                    value: {
+                        type:
+                            'DecimalLiteral',
+                        value:
+                            1.5
+                    },
+                    fromLow: {
+                        type:
+                            'IntegerLiteral',
+                        value:
+                            0
+                    },
+                    fromHigh: {
+                        type:
+                            'IntegerLiteral',
+                        value:
+                            3
+                    },
+                    toLow: {
+                        type:
+                            'IntegerLiteral',
+                        value:
+                            0
+                    },
+                    toHigh: {
+                        type:
+                            'IntegerLiteral',
+                        value:
+                            10
+                    }
+                },
+                body: []
+            }
+        ],
+        loop: []
+    };
+
+    t.doesNotThrow(
+        () =>
+            validator.validate(
+                ir
+            )
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator detects timer nested inside MapExpression', t => {
+    const generator =
+        new ArduinoUnoGenerator();
+
+    const code =
+        generator.generate({
+            setup: [
+                {
+                    type:
+                        'Repeat',
+                    times: {
+                        type:
+                            'MapExpression',
+                        value: {
+                            type:
+                                'TimerReadExpression'
+                        },
+                        fromLow: {
+                            type:
+                                'IntegerLiteral',
+                            value:
+                                0
+                        },
+                        fromHigh: {
+                            type:
+                                'IntegerLiteral',
+                            value:
+                                10
+                        },
+                        toLow: {
+                            type:
+                                'IntegerLiteral',
+                            value:
+                                0
+                        },
+                        toHigh: {
+                            type:
+                                'IntegerLiteral',
+                            value:
+                                10
+                        }
+                    },
+                    body: []
+                }
+            ],
+            loop: []
+        });
+
+    t.equal(
+        code,
+        [
+            'unsigned long easyblox_timer_reset_at = 0;',
+            '',
+            'void setup() {',
+            '    for (int i = 0; i < map(((millis() - easyblox_timer_reset_at) / 1000.0), 0, 10, 0, 10); ++i) {',
+            '    }',
+            '}',
+            '',
+            'void loop() {',
+            '}',
+            ''
+        ].join('\n')
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload extracts operator_divide as expression IR', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('repeat'),

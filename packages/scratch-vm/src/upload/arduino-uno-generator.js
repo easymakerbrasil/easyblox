@@ -1494,6 +1494,15 @@ class ArduinoUnoGenerator {
         case 'UnaryExpression':
             return this._expressionUsesTimer(expression.operand);
 
+        case 'MapExpression':
+            return (
+                this._expressionUsesTimer(expression.value) ||
+                this._expressionUsesTimer(expression.fromLow) ||
+                this._expressionUsesTimer(expression.fromHigh) ||
+                this._expressionUsesTimer(expression.toLow) ||
+                this._expressionUsesTimer(expression.toHigh)
+            );
+
         default:
             return false;
         }
@@ -4359,6 +4368,15 @@ class ArduinoUnoGenerator {
 
         case 'AnalogReadExpression':
             return `analogRead(${this._generateAnalogPin(expression.pin)})`;
+
+        case 'MapExpression':
+            return `map(` +
+                `${this._generateExpression(expression.value)}, ` +
+                `${this._generateExpression(expression.fromLow)}, ` +
+                `${this._generateExpression(expression.fromHigh)}, ` +
+                `${this._generateExpression(expression.toLow)}, ` +
+                `${this._generateExpression(expression.toHigh)}` +
+                `)`;
 
         case 'UltrasonicReadExpression':
             return `easybloxUltrasonicRead(${

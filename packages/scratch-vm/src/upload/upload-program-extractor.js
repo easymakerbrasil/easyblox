@@ -14,6 +14,7 @@ const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
 const DIGITAL_READ_OPCODE = 'arduinoUno_digitalRead';
 const ANALOG_READ_OPCODE = 'arduinoUno_analogRead';
+const MAP_OPCODE = 'arduinoUno_map';
 const ULTRASONIC_READ_OPCODE = 'sensors_ultrasonicRead';
 const DHT_READ_OPCODE = 'sensors_dhtRead';
 const JOYSTICK_INIT_OPCODE = 'sensors_joystickInit';
@@ -1841,6 +1842,36 @@ class UploadProgramExtractor {
                     blocks,
                     block,
                     'PIN'
+                )
+            };
+
+        case MAP_OPCODE:
+            return {
+                type: 'MapExpression',
+                value: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'VALUE'
+                ),
+                fromLow: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'RANGE11'
+                ),
+                fromHigh: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'RANGE12'
+                ),
+                toLow: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'RANGE21'
+                ),
+                toHigh: this._extractExpressionInput(
+                    blocks,
+                    block,
+                    'RANGE22'
                 )
             };
 

@@ -888,6 +888,35 @@ class UploadTypeValidator {
         case 'AnalogReadExpression':
             return VALUE_TYPES.INTEGER;
 
+        case 'MapExpression': {
+            const operands = [
+                expression.value,
+                expression.fromLow,
+                expression.fromHigh,
+                expression.toLow,
+                expression.toHigh
+            ];
+
+            for (const operand of operands) {
+                const operandType =
+                    this._inferExpressionType(
+                        operand
+                    );
+
+                if (
+                    !this._isNumericType(
+                        operandType
+                    )
+                ) {
+                    throw new Error(
+                        'Map operands must be numeric'
+                    );
+                }
+            }
+
+            return VALUE_TYPES.INTEGER;
+        }
+
         case 'UltrasonicReadExpression':
             return VALUE_TYPES.DECIMAL;
 
