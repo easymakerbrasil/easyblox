@@ -19,7 +19,8 @@ describe('EasyBlox BT extension library registration', () => {
             kind: 'extension',
             visible: true,
             featured: true,
-            disabled: false
+            disabled: false,
+            requiredBoardCapability: 'bluetoothSerial'
         });
     });
 

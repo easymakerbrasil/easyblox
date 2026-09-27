@@ -26,6 +26,7 @@ import easyMakerConnectionBoardIconURL from './boards/easymaker-connection.png';
 import easyDuinoProtoBoardIconURL from './boards/easyduino-proto.png';
 import easyDuinoJrBoardIconURL from './boards/easyduino-jr.png';
 import easybloxBtIconURL from './easybloxBt/easyblox-bt.svg';
+import easybloxBtInsetIconURL from './easybloxBt/easyblox-bt-small.svg';
 import easybloxQrIconURL from './easybloxQr/easyblox-qr.svg';
 import easybloxQrInsetIconURL from './easybloxQr/easyblox-qr-small.svg';
 import microbitIconURL from './microbit/microbit.png';
@@ -237,7 +238,7 @@ const extensionLibraryContent = [
         name: 'EasyBlox BT',
         extensionId: 'easybloxBt',
         iconURL: easybloxBtIconURL,
-        insetIconURL: easybloxBtIconURL,
+        insetIconURL: easybloxBtInsetIconURL,
         description: (
             <FormattedMessage
                 defaultMessage="Comunique seus projetos por Bluetooth usando HC-05 ou HC-06."
@@ -246,7 +247,8 @@ const extensionLibraryContent = [
             />
         ),
         featured: true,
-        disabled: false
+        disabled: false,
+        requiredBoardCapability: 'bluetoothSerial'
     },
     {
         name: 'QR Code',

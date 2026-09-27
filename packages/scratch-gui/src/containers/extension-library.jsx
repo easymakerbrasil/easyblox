@@ -5,7 +5,10 @@ import VM from '@scratch/scratch-vm';
 import {defineMessages, injectIntl} from 'react-intl';
 import intlShape from '../lib/intlShape.js';
 
-import {getVisibleExtensions} from '../lib/libraries/extensions/index.jsx';
+import {
+    getBoardById,
+    getVisibleExtensions
+} from '../lib/libraries/extensions/index.jsx';
 
 import LibraryComponent from '../components/library/library.jsx';
 import extensionIcon from '../components/action-menu/icon--sprite.svg';
@@ -20,6 +23,16 @@ const messages = defineMessages({
         defaultMessage: 'Enter the URL of the extension',
         description: 'Prompt for unoffical extension url',
         id: 'gui.extensionLibrary.extensionUrl'
+    },
+    selectBoardForExtension: {
+        defaultMessage: 'Selecione uma placa para usar esta extensão',
+        description: 'Message shown when an extension requires a board capability but no board is selected',
+        id: 'gui.extensionLibrary.selectBoardForExtension'
+    },
+    incompatibleBoardExtension: {
+        defaultMessage: 'Esta extensão não é compatível com a placa selecionada',
+        description: 'Message shown when the selected board does not provide the capability required by an extension',
+        id: 'gui.extensionLibrary.incompatibleBoardExtension'
     }
 });
 
@@ -72,10 +85,55 @@ export class ExtensionLibrary extends React.PureComponent {
         );
     }
     render () {
-        const extensionLibraryThumbnailData = getVisibleExtensions().map(extension => ({
-            rawURL: extension.iconURL || extensionIcon,
-            ...extension
-        }));
+        const activeBoard = this.props.activeBoardId ?
+            getBoardById(this.props.activeBoardId) :
+            null;
+
+        const activeBoardCapabilities = new Set(
+            activeBoard &&
+            Array.isArray(activeBoard.capabilities) ?
+                activeBoard.capabilities :
+                []
+        );
+
+        const extensionLibraryThumbnailData = getVisibleExtensions().map(extension => {
+            const requiredBoardCapability =
+                extension.requiredBoardCapability;
+
+            const boardCapabilityMissing =
+                Boolean(requiredBoardCapability) &&
+                (
+                    !activeBoard ||
+                    !activeBoardCapabilities.has(
+                        requiredBoardCapability
+                    )
+                );
+
+            const staticallyDisabled =
+                Boolean(extension.disabled);
+
+            let disabledMessage = null;
+
+            if (
+                !staticallyDisabled &&
+                boardCapabilityMissing
+            ) {
+                disabledMessage = this.props.intl.formatMessage(
+                    activeBoard ?
+                        messages.incompatibleBoardExtension :
+                        messages.selectBoardForExtension
+                );
+            }
+
+            return {
+                rawURL: extension.iconURL || extensionIcon,
+                ...extension,
+                disabled:
+                    staticallyDisabled ||
+                    boardCapabilityMissing,
+                disabledMessage
+            };
+        });
         return (
             <LibraryComponent
                 data={extensionLibraryThumbnailData}
@@ -93,6 +151,7 @@ export class ExtensionLibrary extends React.PureComponent {
 }
 
 ExtensionLibrary.propTypes = {
+    activeBoardId: PropTypes.string,
     activeExtensionIds: PropTypes.arrayOf(PropTypes.string),
     intl: intlShape.isRequired,
     onCategorySelected: PropTypes.func,
@@ -104,6 +163,7 @@ ExtensionLibrary.propTypes = {
 };
 
 ExtensionLibrary.defaultProps = {
+    activeBoardId: null,
     activeExtensionIds: []
 };
 

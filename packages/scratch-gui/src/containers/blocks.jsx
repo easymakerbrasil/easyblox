@@ -1551,6 +1551,7 @@ class Blocks extends React.Component {
                 ) : null}
                 {extensionLibraryVisible ? (
                     <ExtensionLibrary
+                        activeBoardId={this.props.activeBoardId}
                         activeExtensionIds={this.state.activeExtensionIds}
                         vm={vm}
                         onCategorySelected={this.handleCategorySelected}

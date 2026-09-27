@@ -289,6 +289,7 @@ export class LibraryComponent extends React.Component {
             collaborator={data.collaborator}
             description={data.description}
             disabled={data.disabled}
+            disabledMessage={data.disabledMessage}
             extensionId={data.extensionId}
             featured={data.featured}
             hidden={data.hidden}

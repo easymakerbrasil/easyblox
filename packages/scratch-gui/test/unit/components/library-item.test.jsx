@@ -20,6 +20,44 @@ const createProps = overrides => ({
     ...overrides
 });
 
+describe('LibraryItem disabled state', () => {
+    test('shows the supplied disabled reason instead of Coming Soon', () => {
+        renderWithIntl(
+            <LibraryItem
+                {...createProps({
+                    disabled: true,
+                    disabledMessage:
+                        'Esta extensão não é compatível com a placa selecionada'
+                })}
+            />
+        );
+
+        expect(
+            screen.getByText(
+                'Esta extensão não é compatível com a placa selecionada'
+            )
+        ).toBeInTheDocument();
+
+        expect(
+            screen.queryByText('Coming Soon')
+        ).not.toBeInTheDocument();
+    });
+
+    test('keeps Coming Soon as the fallback for statically disabled items', () => {
+        renderWithIntl(
+            <LibraryItem
+                {...createProps({
+                    disabled: true
+                })}
+            />
+        );
+
+        expect(
+            screen.getByText('Coming Soon')
+        ).toBeInTheDocument();
+    });
+});
+
 describe('LibraryItem removable action', () => {
     test('does not show a remove action by default', () => {
         renderWithIntl(

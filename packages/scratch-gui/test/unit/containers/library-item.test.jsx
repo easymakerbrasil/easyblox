@@ -35,4 +35,38 @@ describe('LibraryItem container remove action', () => {
         expect(onRemove).toHaveBeenCalledWith('Traduzir');
         expect(onSelect).not.toHaveBeenCalled();
     });
+
+    test('forwards the disabled reason and prevents selection', () => {
+        const onSelect = jest.fn();
+
+        renderWithIntl(
+            <LibraryItem
+                disabled
+                disabledMessage="Esta extensão não é compatível com a placa selecionada"
+                id="EasyBlox BT"
+                extensionId="easybloxBt"
+                featured
+                icons={{uri: 'easyblox-bt.svg'}}
+                name="EasyBlox BT"
+                platform="DESKTOP"
+                onMouseEnter={jest.fn()}
+                onMouseLeave={jest.fn()}
+                onSelect={onSelect}
+            />
+        );
+
+        expect(
+            screen.getByText(
+                'Esta extensão não é compatível com a placa selecionada'
+            )
+        ).toBeInTheDocument();
+
+        fireEvent.click(
+            screen
+                .getByText('EasyBlox BT')
+                .closest('button')
+        );
+
+        expect(onSelect).not.toHaveBeenCalled();
+    });
 });

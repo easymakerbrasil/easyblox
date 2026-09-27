@@ -76,11 +76,13 @@ class LibraryItemComponent extends React.PureComponent {
                     <div className={styles.featuredImageContainer}>
                         {this.props.disabled ? (
                             <div className={styles.comingSoonText}>
-                                <FormattedMessage
-                                    defaultMessage="Coming Soon"
-                                    description="Label for extensions that are not yet implemented"
-                                    id="gui.extensionLibrary.comingSoon"
-                                />
+                                {this.props.disabledMessage || (
+                                    <FormattedMessage
+                                        defaultMessage="Coming Soon"
+                                        description="Label for extensions that are not yet implemented"
+                                        id="gui.extensionLibrary.comingSoon"
+                                    />
+                                )}
                             </div>
                         ) : null}
                         {this.props.iconSource ? (
@@ -231,6 +233,10 @@ LibraryItemComponent.propTypes = {
         PropTypes.node
     ]),
     disabled: PropTypes.bool,
+    disabledMessage: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.node
+    ]),
     extensionId: PropTypes.string,
     featured: PropTypes.bool,
     hidden: PropTypes.bool,

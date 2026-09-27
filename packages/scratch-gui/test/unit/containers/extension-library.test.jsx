@@ -4,7 +4,9 @@ describe('ExtensionLibrary active extensions', () => {
     const createProps = overrides => ({
         activeExtensionIds: [],
         intl: {
-            formatMessage: jest.fn(() => 'Extensões')
+            formatMessage: jest.fn(message =>
+                message.defaultMessage || message.id
+            )
         },
         onCategorySelected: jest.fn(),
         onExtensionRemove: jest.fn(),
@@ -77,5 +79,92 @@ describe('ExtensionLibrary active extensions', () => {
 
         expect(onCategorySelected).toHaveBeenCalledTimes(1);
         expect(onCategorySelected).toHaveBeenCalledWith('translate');
+    });
+
+    test('disables board-capability extensions when no board is selected', () => {
+        const instance =
+            new ExtensionLibrary(
+                createProps({})
+            );
+
+        const libraryElement =
+            instance.render();
+
+        const easybloxBt =
+            libraryElement.props.data.find(
+                item =>
+                    item.extensionId ===
+                    'easybloxBt'
+            );
+
+        const easybloxQr =
+            libraryElement.props.data.find(
+                item =>
+                    item.extensionId ===
+                    'easybloxQr'
+            );
+
+        expect(easybloxBt.disabled).toBe(true);
+        expect(easybloxBt.disabledMessage).toBe(
+            'Selecione uma placa para usar esta extensão'
+        );
+
+        expect(easybloxQr.disabled).toBe(false);
+        expect(easybloxQr.disabledMessage).toBeNull();
+    });
+
+    test.each([
+        'arduino-uno',
+        'easymaker',
+        'easymaker-connection',
+        'easyduino-proto'
+    ])(
+        'enables EasyBlox BT for Bluetooth-capable board %s',
+        activeBoardId => {
+            const instance =
+                new ExtensionLibrary(
+                    createProps({
+                        activeBoardId
+                    })
+                );
+
+            const libraryElement =
+                instance.render();
+
+            const easybloxBt =
+                libraryElement.props.data.find(
+                    item =>
+                        item.extensionId ===
+                        'easybloxBt'
+                );
+
+            expect(easybloxBt.disabled).toBe(false);
+            expect(easybloxBt.disabledMessage).toBeNull();
+        }
+    );
+
+    test('disables EasyBlox BT for EasyDuino Jr', () => {
+        const instance =
+            new ExtensionLibrary(
+                createProps({
+                    activeBoardId:
+                        'easyduino-jr'
+                })
+            );
+
+        const libraryElement =
+            instance.render();
+
+        const easybloxBt =
+            libraryElement.props.data.find(
+                item =>
+                    item.extensionId ===
+                    'easybloxBt'
+            );
+
+        expect(easybloxBt.disabled).toBe(true);
+        expect(easybloxBt.disabledMessage).toBe(
+            'Esta extensão não é compatível com a placa selecionada'
+        );
     });
 });

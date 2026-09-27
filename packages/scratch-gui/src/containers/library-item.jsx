@@ -144,6 +144,7 @@ class LibraryItem extends React.PureComponent {
                 collaborator={this.props.collaborator}
                 description={this.props.description}
                 disabled={this.props.disabled}
+                disabledMessage={this.props.disabledMessage}
                 extensionId={this.props.extensionId}
                 featured={this.props.featured}
                 hidden={this.props.hidden}
@@ -182,6 +183,10 @@ LibraryItem.propTypes = {
         PropTypes.node
     ]),
     disabled: PropTypes.bool,
+    disabledMessage: PropTypes.oneOfType([
+        PropTypes.string,
+        PropTypes.node
+    ]),
     extensionId: PropTypes.string,
     featured: PropTypes.bool,
     hidden: PropTypes.bool,
