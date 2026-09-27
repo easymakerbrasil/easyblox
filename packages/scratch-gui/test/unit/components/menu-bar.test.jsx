@@ -305,6 +305,10 @@ describe('MenuBar Component', () => {
                 getByRole
             } = renderWithIntl(
                 getComponent({
+                    easyBloxBtActive:
+                        true,
+                    easyConectBoardCompatible:
+                        true,
                     easyConectOpen:
                         false,
                     easyConectConnected:
@@ -422,6 +426,51 @@ describe('MenuBar Component', () => {
             );
         });
 
+        test('keeps EasyConect disabled when the active board has no Bluetooth capability', () => {
+            const onToggleEasyConect =
+                jest.fn();
+
+            const {getByRole} =
+                renderWithIntl(
+                    getComponent({
+                        easyBloxBtActive:
+                            true,
+                        easyConectBoardCompatible:
+                            false,
+                        onToggleEasyConect
+                    })
+                );
+
+            const easyConectButton =
+                getByRole(
+                    'button',
+                    {
+                        name:
+                            'EasyConect'
+                    }
+                );
+
+            expect(
+                easyConectButton.disabled
+            ).toBe(true);
+
+            expect(
+                easyConectButton.getAttribute(
+                    'title'
+                )
+            ).toBe(
+                'Selecione uma placa compatível com Bluetooth para habilitar o EasyConect.'
+            );
+
+            fireEvent.click(
+                easyConectButton
+            );
+
+            expect(
+                onToggleEasyConect
+            ).toHaveBeenCalledTimes(0);
+        });
+
         test('does not toggle EasyConect before EasyBlox BT is loaded', () => {
             const onToggleEasyConect =
                 jest.fn();
@@ -456,6 +505,8 @@ describe('MenuBar Component', () => {
                 renderWithIntl(
                     getComponent({
                         easyBloxBtActive:
+                            true,
+                        easyConectBoardCompatible:
                             true,
                         easyConectOpen:
                             true
@@ -505,6 +556,8 @@ describe('MenuBar Component', () => {
                 renderWithIntl(
                     getComponent({
                         easyBloxBtActive:
+                            true,
+                        easyConectBoardCompatible:
                             true,
                         onToggleEasyConect
                     })

@@ -214,6 +214,7 @@ describe(
                 render(
                     <EasyConectDesktopWindowContainer
                         easyBloxBtActive
+                        easyConectBoardCompatible
                         isOpen
                         onRequestClose={
                             onRequestClose
@@ -269,6 +270,61 @@ describe(
             ).toHaveBeenCalledTimes(1);
         });
 
+        test('disconnects and closes EasyConect when the active board loses Bluetooth capability', () => {
+            const session =
+                new FakeSession({
+                    status:
+                        'connected',
+                    devices: [],
+                    errorCode:
+                        null
+                });
+
+            const onRequestClose =
+                jest.fn();
+
+            const {rerender} =
+                render(
+                    <EasyConectDesktopWindowContainer
+                        easyBloxBtActive
+                        easyConectBoardCompatible
+                        isOpen
+                        onRequestClose={
+                            onRequestClose
+                        }
+                        session={session}
+                    />
+                );
+
+            expect(
+                session.disconnectCalls
+            ).toBe(0);
+
+            expect(
+                onRequestClose
+            ).toHaveBeenCalledTimes(0);
+
+            rerender(
+                <EasyConectDesktopWindowContainer
+                    easyBloxBtActive
+                    easyConectBoardCompatible={false}
+                    isOpen
+                    onRequestClose={
+                        onRequestClose
+                    }
+                    session={session}
+                />
+            );
+
+            expect(
+                session.disconnectCalls
+            ).toBe(1);
+
+            expect(
+                onRequestClose
+            ).toHaveBeenCalledTimes(1);
+        });
+
         test('disconnects EasyConect when EasyBlox BT is removed while the window is closed', () => {
             const session =
                 new FakeSession({
@@ -286,6 +342,7 @@ describe(
                 render(
                     <EasyConectDesktopWindowContainer
                         easyBloxBtActive
+                        easyConectBoardCompatible
                         isOpen={false}
                         onRequestClose={
                             onRequestClose

@@ -24,6 +24,7 @@ const NOOP =
 
 export const EasyConectDesktopWindowContainer = ({
     easyBloxBtActive = false,
+    easyConectBoardCompatible = false,
     isOpen = false,
     onConnectionStateChange = NOOP,
     onRequestClose,
@@ -72,22 +73,26 @@ export const EasyConectDesktopWindowContainer = ({
         ]
     );
 
-    const previousEasyBloxBtActiveRef =
+    const canUseEasyConect =
+        easyBloxBtActive &&
+        easyConectBoardCompatible;
+
+    const previousCanUseEasyConectRef =
         React.useRef(
-            easyBloxBtActive
+            canUseEasyConect
         );
 
     React.useEffect(
         () => {
-            const wasEasyBloxBtActive =
-                previousEasyBloxBtActiveRef.current;
+            const couldUseEasyConect =
+                previousCanUseEasyConectRef.current;
 
-            previousEasyBloxBtActiveRef.current =
-                easyBloxBtActive;
+            previousCanUseEasyConectRef.current =
+                canUseEasyConect;
 
             if (
-                !wasEasyBloxBtActive ||
-                easyBloxBtActive
+                !couldUseEasyConect ||
+                canUseEasyConect
             ) {
                 return;
             }
@@ -98,7 +103,7 @@ export const EasyConectDesktopWindowContainer = ({
             onRequestClose();
         },
         [
-            easyBloxBtActive,
+            canUseEasyConect,
             easyConectSession,
             onRequestClose
         ]
@@ -187,6 +192,8 @@ export const EasyConectDesktopWindowContainer = ({
 
 EasyConectDesktopWindowContainer.propTypes = {
     easyBloxBtActive:
+        PropTypes.bool,
+    easyConectBoardCompatible:
         PropTypes.bool,
     isOpen:
         PropTypes.bool,

@@ -1249,6 +1249,16 @@ export const GUIComponent = props => {
         const selectedBoardDetails = selectedBoard ?
             getBoardById(selectedBoard) :
             null;
+        const easyConectBoardCompatible =
+            Boolean(
+                selectedBoardDetails &&
+                Array.isArray(
+                    selectedBoardDetails.capabilities
+                ) &&
+                selectedBoardDetails.capabilities.includes(
+                    'bluetoothSerial'
+                )
+            );
         const boxStyles = classNames(styles.bodyWrapper, {
             [styles.bodyWrapperWithoutMenuBar]: menuBarHidden
         });
@@ -1385,6 +1395,7 @@ export const GUIComponent = props => {
                             avatarBadge={avatarBadge}
                             accountMenuOptions={accountMenuOptions}
                             selectedBoard={selectedBoard}
+                            easyConectBoardCompatible={easyConectBoardCompatible}
                             connectionState={connectionState}
                             stageFirmwareIssue={stageFirmwareIssue}
                             onSelectBoard={handleSelectBoard}
@@ -1394,7 +1405,9 @@ export const GUIComponent = props => {
                         />
                     </MenuRefProvider>
                     }
-                    <EasyConectDesktopWindow />
+                    <EasyConectDesktopWindow
+                        easyConectBoardCompatible={easyConectBoardCompatible}
+                    />
                     <Box className={classNames(boxStyles, styles.flexWrapper)}>
                         <Box
                             role="main"

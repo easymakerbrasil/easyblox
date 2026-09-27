@@ -170,6 +170,9 @@ const EASYBLOX_BT_EXTENSION_ID =
 const EASYCONECT_DISABLED_TITLE =
     'Adicione a extensão EasyBlox BT para habilitar o EasyConect.';
 
+const EASYCONECT_BOARD_DISABLED_TITLE =
+    'Selecione uma placa compatível com Bluetooth para habilitar o EasyConect.';
+
 class MenuBar extends React.Component {
     constructor (props) {
         super(props);
@@ -409,9 +412,21 @@ class MenuBar extends React.Component {
         }
     }
     render () {
+        const canUseEasyConect =
+            this.props.easyBloxBtActive &&
+            this.props.easyConectBoardCompatible;
+
         const easyConectActive =
-            this.props.easyConectOpen ||
-            this.props.easyConectConnected;
+            canUseEasyConect &&
+            (
+                this.props.easyConectOpen ||
+                this.props.easyConectConnected
+            );
+
+        const easyConectDisabledTitle =
+            this.props.easyBloxBtActive ?
+                EASYCONECT_BOARD_DISABLED_TITLE :
+                EASYCONECT_DISABLED_TITLE;
 
         const remixMessage = (
             <FormattedMessage
@@ -560,12 +575,12 @@ class MenuBar extends React.Component {
                             }
                         )}
                         disabled={
-                            !this.props.easyBloxBtActive
+                            !canUseEasyConect
                         }
                         title={
-                            this.props.easyBloxBtActive ?
+                            canUseEasyConect ?
                                 'EasyConect' :
-                                EASYCONECT_DISABLED_TITLE
+                                easyConectDisabledTitle
                         }
                         type="button"
                         onClick={this.props.onToggleEasyConect}
@@ -683,6 +698,7 @@ MenuBar.propTypes = {
     onStartSelectingFileUpload: PropTypes.func,
     onToggleLoginOpen: PropTypes.func,
     easyBloxBtActive: PropTypes.bool,
+    easyConectBoardCompatible: PropTypes.bool,
     easyConectConnected: PropTypes.bool,
     easyConectOpen: PropTypes.bool,
     onToggleEasyConect: PropTypes.func,
@@ -730,6 +746,7 @@ MenuBar.defaultProps = {
     logo: scratchLogo,
     onShare: () => {},
     easyBloxBtActive: false,
+    easyConectBoardCompatible: false,
     easyConectConnected: false,
     easyConectOpen: false,
     programMode: 'stage',
