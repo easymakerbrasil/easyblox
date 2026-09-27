@@ -20,6 +20,11 @@ import makeymakeyIconURL from './makeymakey/makeymakey.png';
 import makeymakeyInsetIconURL from './makeymakey/makeymakey-small.svg';
 
 import arduinoUnoIconURL from './arduinoUno/arduino-uno.svg';
+import arduinoUnoBoardIconURL from './boards/arduino-uno.png';
+import easyMakerBoardIconURL from './boards/easymaker.png';
+import easyMakerConnectionBoardIconURL from './boards/easymaker-connection.png';
+import easyDuinoProtoBoardIconURL from './boards/easyduino-proto.png';
+import easyDuinoJrBoardIconURL from './boards/easyduino-jr.png';
 import easybloxBtIconURL from './easybloxBt/easyblox-bt.svg';
 import easybloxQrIconURL from './easybloxQr/easyblox-qr.svg';
 import easybloxQrInsetIconURL from './easybloxQr/easyblox-qr-small.svg';
@@ -513,7 +518,7 @@ const BOARD_PROFILES = [
         boardId: 'arduino-uno',
         targetBoardId: 'arduino-uno',
         extensionId: 'arduinoUno',
-        iconURL: arduinoUnoIconURL,
+        iconURL: arduinoUnoBoardIconURL,
         kind: 'board',
         supportedModes: [
             'stage',
@@ -529,6 +534,7 @@ const BOARD_PROFILES = [
         boardId: 'easymaker',
         targetBoardId: 'arduino-uno',
         extensionId: 'arduinoUno',
+        iconURL: easyMakerBoardIconURL,
         kind: 'board',
         supportedModes: [
             'stage',
@@ -537,13 +543,14 @@ const BOARD_PROFILES = [
         capabilities: [
             'bluetoothSerial'
         ],
-        visible: false
+        visible: true
     },
     {
         name: 'EasyMaker Connection',
         boardId: 'easymaker-connection',
         targetBoardId: 'arduino-uno',
         extensionId: 'arduinoUno',
+        iconURL: easyMakerConnectionBoardIconURL,
         kind: 'board',
         supportedModes: [
             'stage',
@@ -553,13 +560,14 @@ const BOARD_PROFILES = [
             'bluetoothSerial',
             'wifi'
         ],
-        visible: false
+        visible: true
     },
     {
         name: 'EasyDuino Proto',
         boardId: 'easyduino-proto',
         targetBoardId: 'arduino-uno',
         extensionId: 'arduinoUno',
+        iconURL: easyDuinoProtoBoardIconURL,
         kind: 'board',
         supportedModes: [
             'stage',
@@ -568,20 +576,21 @@ const BOARD_PROFILES = [
         capabilities: [
             'bluetoothSerial'
         ],
-        visible: false
+        visible: true
     },
     {
         name: 'EasyDuino Jr',
         boardId: 'easyduino-jr',
         targetBoardId: 'arduino-uno',
         extensionId: 'arduinoUno',
+        iconURL: easyDuinoJrBoardIconURL,
         kind: 'board',
         supportedModes: [
             'stage',
             'upload'
         ],
         capabilities: [],
-        visible: false
+        visible: true
     },
     {
         name: 'micro:bit',

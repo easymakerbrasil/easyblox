@@ -86,12 +86,16 @@ test('exposes only visible extensions to the extension library', () => {
     expect(extensionIds).not.toContain('wedo2');
 });
 
-test('exposes only visible board profiles to the board selection flow', () => {
+test('exposes EasyBlox product boards to the board selection flow', () => {
     const boardIds = getVisibleBoards()
         .map(item => item.boardId);
 
     expect(boardIds).toEqual([
-        'arduino-uno'
+        'arduino-uno',
+        'easymaker',
+        'easymaker-connection',
+        'easyduino-proto',
+        'easyduino-jr'
     ]);
 });
 
@@ -120,7 +124,7 @@ test('resolves canonical board profiles regardless of surface visibility', () =>
         capabilities: [
             'bluetoothSerial'
         ],
-        visible: false
+        visible: true
     });
 
     expect(getBoardById('easymaker-connection')).toMatchObject({
@@ -132,7 +136,7 @@ test('resolves canonical board profiles regardless of surface visibility', () =>
             'bluetoothSerial',
             'wifi'
         ],
-        visible: false
+        visible: true
     });
 
     expect(getBoardById('easyduino-proto')).toMatchObject({
@@ -143,7 +147,7 @@ test('resolves canonical board profiles regardless of surface visibility', () =>
         capabilities: [
             'bluetoothSerial'
         ],
-        visible: false
+        visible: true
     });
 
     expect(getBoardById('easyduino-jr')).toMatchObject({
@@ -152,7 +156,7 @@ test('resolves canonical board profiles regardless of surface visibility', () =>
         targetBoardId: 'arduino-uno',
         extensionId: 'arduinoUno',
         capabilities: [],
-        visible: false
+        visible: true
     });
 
     expect(getBoardById('microbit')).toMatchObject({
@@ -163,6 +167,10 @@ test('resolves canonical board profiles regardless of surface visibility', () =>
         capabilities: [],
         visible: false
     });
+    expect(getBoardById('easymaker').iconURL).toBeTruthy();
+    expect(getBoardById('easymaker-connection').iconURL).toBeTruthy();
+    expect(getBoardById('easyduino-proto').iconURL).toBeTruthy();
+    expect(getBoardById('easyduino-jr').iconURL).toBeTruthy();
 });
 
 test('does not expose hidden or unknown boards by board id', () => {

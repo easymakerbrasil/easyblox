@@ -28,6 +28,30 @@ describe('BoardSelectionModal', () => {
         ).toBeInTheDocument();
 
         expect(
+            screen.getByRole('button', {
+                name: 'EasyMaker'
+            })
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole('button', {
+                name: 'EasyMaker Connection'
+            })
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole('button', {
+                name: 'EasyDuino Proto'
+            })
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole('button', {
+                name: 'EasyDuino Jr'
+            })
+        ).toBeInTheDocument();
+
+        expect(
             screen.queryByRole('button', {
                 name: 'micro:bit'
             })
@@ -58,7 +82,13 @@ describe('BoardSelectionModal', () => {
         ).not.toBeInTheDocument();
     });
 
-    test('selects Arduino UNO directly from its card', () => {
+    test.each([
+        ['Arduino UNO', 'arduino-uno'],
+        ['EasyMaker', 'easymaker'],
+        ['EasyMaker Connection', 'easymaker-connection'],
+        ['EasyDuino Proto', 'easyduino-proto'],
+        ['EasyDuino Jr', 'easyduino-jr']
+    ])('selects %s directly from its card', (name, boardId) => {
         const onConfirm = jest.fn();
 
         render(
@@ -70,12 +100,12 @@ describe('BoardSelectionModal', () => {
 
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'Arduino UNO'
+                name
             })
         );
 
         expect(onConfirm).toHaveBeenCalledTimes(1);
-        expect(onConfirm).toHaveBeenCalledWith('arduino-uno');
+        expect(onConfirm).toHaveBeenCalledWith(boardId);
     });
 
     test('shows only boards compatible with the required mode', () => {
@@ -90,6 +120,30 @@ describe('BoardSelectionModal', () => {
         expect(
             screen.getByRole('button', {
                 name: 'Arduino UNO'
+            })
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole('button', {
+                name: 'EasyMaker'
+            })
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole('button', {
+                name: 'EasyMaker Connection'
+            })
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole('button', {
+                name: 'EasyDuino Proto'
+            })
+        ).toBeInTheDocument();
+
+        expect(
+            screen.getByRole('button', {
+                name: 'EasyDuino Jr'
             })
         ).toBeInTheDocument();
 
