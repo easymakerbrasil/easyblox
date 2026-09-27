@@ -269,6 +269,15 @@ class Runtime extends EventEmitter {
         this._editingTarget = null;
 
         /**
+         * Logical EasyBlox board currently selected for the project.
+         * This is independent from physical connection state and is exposed
+         * to extensions so their pedagogical surface can follow the product.
+         * @type {?string}
+         * @private
+         */
+        this._easybloxSelectedBoardId = null;
+
+        /**
          * Optional EasyBlox Upload block container currently owning the visible
          * programming workspace. Null means Stage resolves through Scratch
          * targets normally.
@@ -822,6 +831,45 @@ class Runtime extends EventEmitter {
      */
     static get THREAD_STEP_INTERVAL_COMPATIBILITY () {
         return 1000 / 30;
+    }
+
+    /**
+     * Set the logical EasyBlox board visible to extensions.
+     * Physical peripheral connection state is deliberately independent.
+     * @param {?string} boardId Selected logical board ID, or null.
+     */
+    setEasyBloxSelectedBoardId (boardId) {
+        if (
+            boardId !== null &&
+            (
+                typeof boardId !== 'string' ||
+                boardId.length === 0
+            )
+        ) {
+            throw new Error(
+                'EasyBlox selected board must be a non-empty board ID or null'
+            );
+        }
+
+        if (this._easybloxSelectedBoardId === boardId) {
+            return;
+        }
+
+        this._easybloxSelectedBoardId = boardId;
+
+        /*
+         * Extension getInfo() may expose a different pedagogical surface for
+         * the newly selected physical product.
+         */
+        this.requestToolboxExtensionsUpdate();
+    }
+
+    /**
+     * Return the logical EasyBlox board currently visible to extensions.
+     * @returns {?string} Selected logical board ID, or null.
+     */
+    getEasyBloxSelectedBoardId () {
+        return this._easybloxSelectedBoardId;
     }
 
     /**
@@ -2524,6 +2572,7 @@ class Runtime extends EventEmitter {
 
         this.targets.map(this.disposeTarget, this);
         this._monitorState = OrderedMap({});
+        this.setEasyBloxSelectedBoardId(null);
         this.emit(Runtime.RUNTIME_DISPOSED);
         this.ioDevices.clock.resetProjectTimer();
         // @todo clear out extensions? turboMode? etc.

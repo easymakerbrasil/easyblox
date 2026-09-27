@@ -811,8 +811,9 @@ class VirtualMachine extends EventEmitter {
                     'upload' :
                     'stage';
 
-            this._easybloxSelectedBoardId =
-                selectedBoardId;
+            this.setEasyBloxSelectedBoard(
+                selectedBoardId
+            );
 
             this._easybloxProgramMode =
                 requestedProgramMode === 'upload' &&
@@ -1884,6 +1885,17 @@ class VirtualMachine extends EventEmitter {
         this._easybloxSelectedBoardId =
             boardId;
 
+        if (
+            typeof this.runtime
+                .setEasyBloxSelectedBoardId ===
+                'function'
+        ) {
+            this.runtime
+                .setEasyBloxSelectedBoardId(
+                    boardId
+                );
+        }
+
         /*
          * Upload cannot exist without an owning logical board.
          */
@@ -2082,8 +2094,9 @@ class VirtualMachine extends EventEmitter {
             mode === 'upload' ? boardId : null;
 
         if (mode === 'upload') {
-            this._easybloxSelectedBoardId =
-                boardId;
+            this.setEasyBloxSelectedBoard(
+                boardId
+            );
         }
 
         if (

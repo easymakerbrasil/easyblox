@@ -1756,6 +1756,104 @@ test('VirtualMachine forwards project loaded runtime events', t => {
     t.end();
 });
 
+test('VirtualMachine exposes selected board context to extensions through Runtime', t => {
+    const vm = new VirtualMachine();
+
+    let toolboxUpdates = 0;
+
+    vm.runtime.on(
+        'TOOLBOX_EXTENSIONS_NEED_UPDATE',
+        () => {
+            toolboxUpdates += 1;
+        }
+    );
+
+    t.equal(
+        vm.runtime.getEasyBloxSelectedBoardId(),
+        null,
+        'runtime starts without a selected logical board'
+    );
+
+    vm.setEasyBloxSelectedBoard(
+        'easymaker'
+    );
+
+    t.equal(
+        vm.runtime.getEasyBloxSelectedBoardId(),
+        'easymaker',
+        'selected logical board is propagated to the runtime'
+    );
+
+    t.equal(
+        toolboxUpdates,
+        1,
+        'changing the selected board refreshes extension metadata'
+    );
+
+    vm.setEasyBloxSelectedBoard(
+        'easymaker'
+    );
+
+    t.equal(
+        toolboxUpdates,
+        1,
+        'selecting the same board again does not cause a redundant refresh'
+    );
+
+    vm.setProgramContext(
+        'upload',
+        'easyduino-proto'
+    );
+
+    t.equal(
+        vm.runtime.getEasyBloxSelectedBoardId(),
+        'easyduino-proto',
+        'Upload context also propagates its owning logical board'
+    );
+
+    t.equal(
+        toolboxUpdates,
+        2,
+        'changing the Upload owner refreshes extension metadata'
+    );
+
+    vm.setEasyBloxSelectedBoard(
+        null
+    );
+
+    t.equal(
+        vm.runtime.getEasyBloxSelectedBoardId(),
+        null,
+        'removing the selected board clears the runtime context'
+    );
+
+    t.equal(
+        toolboxUpdates,
+        3,
+        'removing the board refreshes extension metadata'
+    );
+
+    vm.setEasyBloxSelectedBoard(
+        'easymaker'
+    );
+
+    vm.clear();
+
+    t.equal(
+        vm.runtime.getEasyBloxSelectedBoardId(),
+        null,
+        'clearing the project cannot retain stale board context'
+    );
+
+    t.equal(
+        toolboxUpdates,
+        5,
+        'clearing a selected board refreshes extension metadata'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine persists and rehydrates EasyBlox project context with canonical Upload workspace', async t => {
     const sourceVm = new VirtualMachine();
 
