@@ -343,6 +343,109 @@ test(
 );
 
 test(
+    'VirtualMachine packages compact TM1637 adapter and implementation files',
+    t => {
+        const vm =
+            Object.create(
+                VirtualMachine.prototype
+            );
+
+        vm._getValidatedArduinoUnoUploadIr =
+            () =>
+                createIr([
+                    {
+                        type: 'Tm1637Init',
+                        clkPin: 19,
+                        dioPin: 18
+                    },
+                    {
+                        type: 'Tm1637Show',
+                        value: 1234,
+                        length: 4,
+                        position: 1,
+                        point: '1',
+                        leadingZeros: '0'
+                    },
+                    {
+                        type: 'Tm1637Clear'
+                    }
+                ]);
+
+        const bundle =
+            vm.generateArduinoUnoUploadBuildBundle();
+
+        t.match(
+            bundle.code,
+            /#include "TM1637NumberDisplay\.h"/,
+            'pedagogical sketch uses the compact TM1637 adapter'
+        );
+
+        t.match(
+            bundle.code,
+            /TM1637NumberDisplay display\(A5, A4\);/,
+            'pedagogical sketch declares a high-level display object'
+        );
+
+        t.match(
+            bundle.code,
+            /display\.begin\(\);/,
+            'pedagogical sketch initializes the display'
+        );
+
+        t.match(
+            bundle.code,
+            /display\.setBrightness\(7\);/,
+            'pedagogical sketch preserves maximum TM1637 brightness'
+        );
+
+        t.match(
+            bundle.code,
+            /display\.showNumber\(1234, 4, 1, true, false\);/,
+            'pedagogical sketch shows the number with one high-level call'
+        );
+
+        t.match(
+            bundle.code,
+            /display\.clear\(\);/,
+            'pedagogical sketch clears the display'
+        );
+
+        t.notMatch(
+            bundle.code,
+            /showTm1637Number|writeData|digitSegments|segments\[1\]/,
+            'TM1637 implementation details do not leak into the pedagogical sketch'
+        );
+
+        t.same(
+            bundle.supportFiles.map(
+                file => file.name
+            ),
+            [
+                'TM1637NumberDisplay.h',
+                'TM1637NumberDisplay.cpp',
+                'ErriezTM1637.h',
+                'ErriezTM1637.cpp'
+            ],
+            'adapter and low-level implementation travel as build support files'
+        );
+
+        const adapterImplementation =
+            findSupportFile(
+                bundle,
+                'TM1637NumberDisplay.cpp'
+            );
+
+        t.match(
+            adapterImplementation.content,
+            /writeData\(\s*0x00,\s*segments,\s*4\s*\);/,
+            'Stage-compatible low-level implementation remains available in the raw bundle'
+        );
+
+        t.end();
+    }
+);
+
+test(
     'VirtualMachine derives EasyBloxConfig.h from the canonical hidden Bluetooth channel',
     t => {
         const vm =

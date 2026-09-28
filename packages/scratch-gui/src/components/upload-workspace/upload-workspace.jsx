@@ -141,6 +141,7 @@ const UploadWorkspace = ({
     code,
     error = null,
     onClearSerialMonitor = null,
+    onRequestRawFiles = null,
     onUpload = null,
     outputEntries = [],
     serialMonitorBaudRate = null,
@@ -163,9 +164,33 @@ const UploadWorkspace = ({
         setRawCodeVisible
     ] = useState(false);
 
+    const [
+        rawCodeFiles,
+        setRawCodeFiles
+    ] = useState([]);
+
+    const [
+        rawCodeFileName,
+        setRawCodeFileName
+    ] = useState('');
+
     const hasCode =
         !error &&
         code.trim().length > 0;
+
+        const selectedRawCodeFile =
+        useMemo(
+            () =>
+                rawCodeFiles.find(
+                    file =>
+                        file.name ===
+                        rawCodeFileName
+                ) || null,
+            [
+                rawCodeFiles,
+                rawCodeFileName
+            ]
+        );
 
     const uploadBusy =
         uploadState === 'building' ||
@@ -220,6 +245,8 @@ const UploadWorkspace = ({
         () => {
             if (!hasCode) {
                 setRawCodeVisible(false);
+                setRawCodeFiles([]);
+                setRawCodeFileName('');
             }
         },
         [hasCode]
@@ -268,11 +295,47 @@ const UploadWorkspace = ({
 
     const handleRawCodeOpen = useCallback(
         () => {
-            if (hasCode) {
+            if (
+                !hasCode ||
+                !onRequestRawFiles
+            ) {
+                return;
+            }
+
+            try {
+                const files =
+                    onRequestRawFiles();
+
+                if (
+                    !Array.isArray(files) ||
+                    files.length === 0
+                ) {
+                    return;
+                }
+
+                const preferredFile =
+                    files.find(
+                        file =>
+                            file.name !==
+                            'EasyBloxUpload.ino'
+                    ) ||
+                    files[0];
+
+                setRawCodeFiles(files);
+                setRawCodeFileName(
+                    preferredFile.name
+                );
                 setRawCodeVisible(true);
+            } catch (rawCodeError) {
+                setRawCodeFiles([]);
+                setRawCodeFileName('');
+                setRawCodeVisible(false);
             }
         },
-        [hasCode]
+        [
+            hasCode,
+            onRequestRawFiles
+        ]
     );
 
     const handleRawCodeClose = useCallback(
@@ -282,12 +345,24 @@ const UploadWorkspace = ({
         []
     );
 
+    const handleRawCodeFileChange =
+        useCallback(event => {
+            setRawCodeFileName(
+                event.target.value
+            );
+        }, []);
+
     const handleCopyCode = useCallback(
         () => {
-            copyTextToClipboard(code)
-                .catch(() => null);
+            if (!selectedRawCodeFile) {
+                return;
+            }
+
+            copyTextToClipboard(
+                selectedRawCodeFile.content
+            ).catch(() => null);
         },
-        [code]
+        [selectedRawCodeFile]
     );
 
     return (
@@ -354,7 +429,10 @@ const UploadWorkspace = ({
                 <div className={styles.actionBar}>
                     <button
                         className={`${styles.actionButton} ${styles.secondaryAction}`}
-                        disabled={!hasCode}
+                        disabled={
+                            !hasCode ||
+                            !onRequestRawFiles
+                        }
                         type="button"
                         onClick={handleRawCodeOpen}
                     >
@@ -502,15 +580,46 @@ const UploadWorkspace = ({
                 >
                     <div className={styles.rawCodeBody}>
                         <p className={styles.rawCodeDescription}>
-                            Este é exatamente o código C++ gerado pelo EasyBlox.
+                            Estes são os arquivos reais usados pelo EasyBlox
+                            durante a compilação do programa Arduino.
                         </p>
+
+                        <div className={styles.rawCodeFilePicker}>
+                            <label
+                                className={styles.rawCodeFileLabel}
+                                htmlFor="easyblox-raw-code-file"
+                            >
+                                Arquivo
+                            </label>
+
+                            <select
+                                aria-label="Arquivo do código bruto"
+                                className={styles.rawCodeFileSelect}
+                                id="easyblox-raw-code-file"
+                                value={rawCodeFileName}
+                                onChange={handleRawCodeFileChange}
+                            >
+                                {rawCodeFiles.map(file => (
+                                    <option
+                                        key={file.name}
+                                        value={file.name}
+                                    >
+                                        {file.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
 
                         <textarea
                             aria-label="Código bruto C++"
                             className={styles.rawCodeTextarea}
                             readOnly
                             spellCheck={false}
-                            value={code}
+                            value={
+                                selectedRawCodeFile ?
+                                    selectedRawCodeFile.content :
+                                    ''
+                            }
                         />
 
                         <div className={styles.rawCodeActions}>
@@ -534,6 +643,7 @@ UploadWorkspace.propTypes = {
     code: PropTypes.string.isRequired,
     error: PropTypes.string,
     onClearSerialMonitor: PropTypes.func,
+    onRequestRawFiles: PropTypes.func,
     onUpload: PropTypes.func,
     outputEntries: PropTypes.arrayOf(
         PropTypes.shape({

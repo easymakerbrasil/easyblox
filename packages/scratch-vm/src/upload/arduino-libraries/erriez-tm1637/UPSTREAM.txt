@@ -1,0 +1,13 @@
+Erriez TM1637 button and LED driver
+
+Upstream: https://github.com/Erriez/ErriezTM1637
+Version: 1.1.0
+Pinned ref: 1.1.0
+License: MIT
+
+Vendored canonical files:
+- src/ErriezTM1637.h
+- src/ErriezTM1637.cpp
+- LICENSE -> license.txt
+
+The Arduino source files are preserved from the pinned upstream ref.

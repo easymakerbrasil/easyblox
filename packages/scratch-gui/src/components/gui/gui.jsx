@@ -51,6 +51,7 @@ import {colorModeMap} from '../../lib/settings/color-mode/index.js';
 import {DEFAULT_THEME, themeMap} from '../../lib/settings/theme/index.js';
 import {AccountMenuOptionsPropTypes} from '../../lib/account-menu-options';
 import {
+    generateArduinoUnoUploadRawFiles,
     subscribeToArduinoUnoUploadPreview
 } from '../../lib/upload-code-preview.js';
 
@@ -863,6 +864,25 @@ export const GUIComponent = props => {
         useCallback(() => {
             setSerialMonitorText('');
         }, []);
+
+    const handleRequestUploadRawFiles =
+        useCallback(() => {
+            if (
+                !vm ||
+                !selectedBoard
+            ) {
+                return [];
+            }
+
+            return generateArduinoUnoUploadRawFiles(
+                vm,
+                selectedBoard
+            );
+        }, [
+            vm,
+            selectedBoard
+        ]);
+
     const handleUpload = useCallback(async () => {
         const board = selectedBoard ?
             getBoardById(selectedBoard) :
@@ -1596,6 +1616,9 @@ export const GUIComponent = props => {
                                     error={uploadPreviewError}
                                     onClearSerialMonitor={
                                         handleClearSerialMonitor
+                                    }
+                                    onRequestRawFiles={
+                                        handleRequestUploadRawFiles
                                     }
                                     onUpload={handleUpload}
                                     outputEntries={

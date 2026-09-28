@@ -283,7 +283,8 @@ class ArduinoUnoGenerator {
             usesEasyBloxBt,
             dhtPins,
             ultrasonicPairs,
-            matrixInitialization
+            matrixInitialization,
+            tm1637Initialization
         );
 
         /*
@@ -323,6 +324,13 @@ class ArduinoUnoGenerator {
             );
         }
 
+        if (tm1637Initialization) {
+            lines.push(
+                '#include "TM1637NumberDisplay.h"',
+                ''
+            );
+        }
+
         if (lcdInitialization) {
             lines.push(
                 '#include <Wire.h>',
@@ -347,6 +355,21 @@ class ArduinoUnoGenerator {
                         matrixInitialization.csPin
                     )
                 }, 1);`,
+                ''
+            );
+        }
+
+        if (tm1637Initialization) {
+            lines.push(
+                `TM1637NumberDisplay display(${
+                    this._generateArduinoPin(
+                        tm1637Initialization.clkPin
+                    )
+                }, ${
+                    this._generateArduinoPin(
+                        tm1637Initialization.dioPin
+                    )
+                });`,
                 ''
             );
         }
@@ -536,190 +559,6 @@ class ArduinoUnoGenerator {
                 '    default:',
                 '        break;',
                 '    }',
-                '}',
-                ''
-            );
-        }
-
-        if (tm1637Initialization) {
-            lines.push(
-                'void easybloxTm1637Init(',
-                '    uint8_t clkPin,',
-                '    uint8_t dioPin',
-                ') {',
-                '    pinMode(clkPin, OUTPUT);',
-                '    pinMode(dioPin, OUTPUT);',
-                '',
-                '    digitalWrite(clkPin, HIGH);',
-                '    digitalWrite(dioPin, HIGH);',
-                '}',
-                ''
-            );
-        }
-
-        if (tm1637Initialization) {
-            lines.push(
-                'const uint8_t EASYBLOX_TM1637_DIGITS[10] = {',
-                '    0x3F, 0x06, 0x5B, 0x4F, 0x66,',
-                '    0x6D, 0x7D, 0x07, 0x7F, 0x6F',
-                '};',
-                '',
-                'void easybloxTm1637Start(',
-                '    uint8_t clkPin,',
-                '    uint8_t dioPin',
-                ') {',
-                '    digitalWrite(dioPin, HIGH);',
-                '    digitalWrite(clkPin, HIGH);',
-                '    delayMicroseconds(2);',
-                '    digitalWrite(dioPin, LOW);',
-                '    delayMicroseconds(2);',
-                '    digitalWrite(clkPin, LOW);',
-                '}',
-                '',
-                'void easybloxTm1637Stop(',
-                '    uint8_t clkPin,',
-                '    uint8_t dioPin',
-                ') {',
-                '    digitalWrite(clkPin, LOW);',
-                '    digitalWrite(dioPin, LOW);',
-                '    delayMicroseconds(2);',
-                '    digitalWrite(clkPin, HIGH);',
-                '    delayMicroseconds(2);',
-                '    digitalWrite(dioPin, HIGH);',
-                '}',
-                '',
-                'void easybloxTm1637WriteByte(',
-                '    uint8_t clkPin,',
-                '    uint8_t dioPin,',
-                '    uint8_t value',
-                ') {',
-                '    for (uint8_t bit = 0; bit < 8; ++bit) {',
-                '        digitalWrite(clkPin, LOW);',
-                '        digitalWrite(',
-                '            dioPin,',
-                '            (value & 0x01) ? HIGH : LOW',
-                '        );',
-                '        delayMicroseconds(3);',
-                '        value >>= 1;',
-                '        digitalWrite(clkPin, HIGH);',
-                '        delayMicroseconds(3);',
-                '    }',
-                '',
-                '    digitalWrite(clkPin, LOW);',
-                '    pinMode(dioPin, INPUT_PULLUP);',
-                '    delayMicroseconds(3);',
-                '    digitalWrite(clkPin, HIGH);',
-                '    delayMicroseconds(3);',
-                '    digitalWrite(clkPin, LOW);',
-                '    pinMode(dioPin, OUTPUT);',
-                '}',
-                '',
-                'void easybloxTm1637WriteFrame(',
-                '    uint8_t clkPin,',
-                '    uint8_t dioPin,',
-                '    const uint8_t segments[4]',
-                ') {',
-                '    easybloxTm1637Start(clkPin, dioPin);',
-                '    easybloxTm1637WriteByte(clkPin, dioPin, 0x40);',
-                '    easybloxTm1637Stop(clkPin, dioPin);',
-                '',
-                '    easybloxTm1637Start(clkPin, dioPin);',
-                '    easybloxTm1637WriteByte(clkPin, dioPin, 0xC0);',
-                '',
-                '    for (uint8_t index = 0; index < 4; ++index) {',
-                '        easybloxTm1637WriteByte(',
-                '            clkPin, dioPin, segments[index]',
-                '        );',
-                '    }',
-                '',
-                '    easybloxTm1637Stop(clkPin, dioPin);',
-                '',
-                '    easybloxTm1637Start(clkPin, dioPin);',
-                '    easybloxTm1637WriteByte(clkPin, dioPin, 0x8F);',
-                '    easybloxTm1637Stop(clkPin, dioPin);',
-                '}',
-                '',
-                'void easybloxTm1637Show(',
-                '    uint8_t clkPin,',
-                '    uint8_t dioPin,',
-                '    float value,',
-                '    float lengthValue,',
-                '    float positionValue,',
-                '    bool point,',
-                '    bool leadingZeros',
-                ') {',
-                '    if (!isfinite(value)) {',
-                '        value = 0;',
-                '    }',
-                '',
-                '    value = trunc(value);',
-                '',
-                '    if (value < 0) {',
-                '        value = 0;',
-                '    }',
-                '',
-                '    int requestedLength = (int)round(lengthValue);',
-                '    int position = (int)round(positionValue);',
-                '',
-                '    if (requestedLength < 1) {',
-                '        requestedLength = 1;',
-                '    } else if (requestedLength > 4) {',
-                '        requestedLength = 4;',
-                '    }',
-                '',
-                '    if (position < 1) {',
-                '        position = 1;',
-                '    } else if (position > 4) {',
-                '        position = 4;',
-                '    }',
-                '',
-                '    const uint8_t start = position - 1;',
-                '    const uint8_t available = 4 - start;',
-                '    const uint8_t length =',
-                '        requestedLength < available ?',
-                '            requestedLength : available;',
-                '',
-                '    uint8_t segments[4] = {0, 0, 0, 0};',
-                '    uint8_t digits[4] = {0, 0, 0, 0};',
-                '    long remaining = (long)value;',
-                '',
-                '    if (remaining == 0) {',
-                '        if (leadingZeros) {',
-                '            for (uint8_t index = 0; index < length; ++index) {',
-                '                digits[index] = EASYBLOX_TM1637_DIGITS[0];',
-                '            }',
-                '        } else {',
-                '            digits[length - 1] = EASYBLOX_TM1637_DIGITS[0];',
-                '        }',
-                '    } else {',
-                '        for (int8_t index = length - 1; index >= 0; --index) {',
-                '            if (remaining > 0) {',
-                '                const uint8_t digit = remaining % 10;',
-                '                digits[index] = EASYBLOX_TM1637_DIGITS[digit];',
-                '                remaining /= 10;',
-                '            } else if (leadingZeros) {',
-                '                digits[index] = EASYBLOX_TM1637_DIGITS[0];',
-                '            }',
-                '        }',
-                '    }',
-                '',
-                '    for (uint8_t index = 0; index < length; ++index) {',
-                '        segments[start + index] = digits[index];',
-                '    }',
-                '',
-                '    if (point) {',
-                '        segments[1] |= 0x80;',
-                '    }',
-                '',
-                '    easybloxTm1637WriteFrame(clkPin, dioPin, segments);',
-                '}',
-                '',
-                'void easybloxTm1637Clear(',
-                '    uint8_t clkPin,',
-                '    uint8_t dioPin',
-                ') {',
-                '    const uint8_t segments[4] = {0, 0, 0, 0};',
-                '    easybloxTm1637WriteFrame(clkPin, dioPin, segments);',
                 '}',
                 ''
             );
@@ -2346,6 +2185,7 @@ class ArduinoUnoGenerator {
      * @param {Array<number>} dhtPins DHT sensor pins used by the program.
      * @param {Array<object>} ultrasonicPairs Ultrasonic pin pairs used.
      * @param {?object} matrixInitialization MAX7219 configuration, if used.
+     * @param {?object} tm1637Initialization TM1637 configuration, if used.
      * @returns {Array<string>} Identifiers reserved from internal allocation.
      * @private
      */
@@ -2356,7 +2196,8 @@ class ArduinoUnoGenerator {
         usesEasyBloxBt = false,
         dhtPins = [],
         ultrasonicPairs = [],
-        matrixInitialization = null
+        matrixInitialization = null,
+        tm1637Initialization = null
     ) {
         this._variablesById = new Map();
         this._listsById = new Map();
@@ -2376,6 +2217,49 @@ class ArduinoUnoGenerator {
             ];
 
             for (const identifier of matrixLibraryIdentifiers) {
+                globalUsed.add(identifier);
+                reservedForInternals.add(identifier);
+            }
+        }
+
+        if (tm1637Initialization) {
+            const tm1637LibraryIdentifiers = [
+                'TM1637',
+                'TM1637NumberDisplay',
+                'display',
+                'TM1637_NUMBER_DISPLAY_H_',
+                'ERRIEZ_TM1637_H_',
+                'TM1637_CMD_DATA',
+                'TM1637_CMD_CTRL',
+                'TM1637_CMD_ADDR',
+                'TM1637_DATA_WRITE',
+                'TM1637_DATA_READ_KEYS',
+                'TM1637_DATA_AUTO_INC_ADDR',
+                'TM1637_DATA_FIXED_ADDR',
+                'TM1637_CTRL_PULSE_1_16',
+                'TM1637_CTRL_PULSE_2_16',
+                'TM1637_CTRL_PULSE_4_16',
+                'TM1637_CTRL_PULSE_10_16',
+                'TM1637_CTRL_PULSE_11_16',
+                'TM1637_CTRL_PULSE_12_16',
+                'TM1637_CTRL_PULSE_13_16',
+                'TM1637_CTRL_PULSE_14_16',
+                'TM1637_CTRL_DISPLAY_OFF',
+                'TM1637_CTRL_DISPLAY_ON',
+                'TM1637_NUM_GRIDS',
+                'TM1637_CLK_LOW',
+                'TM1637_CLK_HIGH',
+                'TM1637_CLK_INPUT',
+                'TM1637_CLK_OUTPUT',
+                'TM1637_DIO_LOW',
+                'TM1637_DIO_HIGH',
+                'TM1637_DIO_INPUT',
+                'TM1637_DIO_OUTPUT',
+                'TM1637_DIO_READ',
+                'TM1637_PIN_DELAY'
+            ];
+
+            for (const identifier of tm1637LibraryIdentifiers) {
                 globalUsed.add(identifier);
                 reservedForInternals.add(identifier);
             }
@@ -3103,6 +2987,18 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Report whether an Upload IR requires ErriezTM1637 support.
+     * @param {object} ir EasyBlox Upload IR.
+     * @returns {boolean} True when TM1637 support is required.
+     */
+    usesTm1637 (ir) {
+        return this._containsIrType(
+            ir,
+            'Tm1637Init'
+        );
+    }
+
+    /**
      * Recursively test whether an IR tree contains one exact node type.
      * @param {*} value IR value.
      * @param {string} type exact IR node type.
@@ -3274,10 +3170,8 @@ class ArduinoUnoGenerator {
 
             case 'Tm1637Init':
                 lines.push(
-                    `${indent}easybloxTm1637Init(` +
-                    `${statement.clkPin}, ` +
-                    `${statement.dioPin}` +
-                    ');'
+                    `${indent}display.begin();`,
+                    `${indent}display.setBrightness(7);`
                 );
                 break;
 
@@ -3405,9 +3299,7 @@ class ArduinoUnoGenerator {
                         'false';
 
                 lines.push(
-                    `${indent}easybloxTm1637Show(` +
-                    `${this._tm1637Initialization.clkPin}, ` +
-                    `${this._tm1637Initialization.dioPin}, ` +
+                    `${indent}display.showNumber(` +
                     `${this._generateExpression(statement.value)}, ` +
                     `${statement.length}, ` +
                     `${statement.position}, ` +
@@ -3426,10 +3318,7 @@ class ArduinoUnoGenerator {
                 }
 
                 lines.push(
-                    `${indent}easybloxTm1637Clear(` +
-                    `${this._tm1637Initialization.clkPin}, ` +
-                    `${this._tm1637Initialization.dioPin}` +
-                    ');'
+                    `${indent}display.clear();`
                 );
                 break;
 

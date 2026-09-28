@@ -12,6 +12,12 @@ const GENERATED_CODE = [
     '}'
 ].join('\n');
 
+const RAW_SUPPORT_CODE = [
+    '#pragma once',
+    '',
+    'void internalHelper();'
+].join('\n');
+
 const getTextContent = function (item) {
     return item.textContent;
 };
@@ -220,7 +226,7 @@ describe('UploadWorkspace', () => {
         ).toBeDisabled();
     });
 
-    test('shows the exact canonical C++ in the raw-code view and copies that same text', () => {
+    test('shows the real build files separately from the pedagogical preview', () => {
         const writeText = jest.fn()
             .mockResolvedValue();
 
@@ -235,10 +241,25 @@ describe('UploadWorkspace', () => {
             }
         );
 
+        const onRequestRawFiles =
+            jest.fn().mockReturnValue([
+                {
+                    name: 'EasyBloxUpload.ino',
+                    content: GENERATED_CODE
+                },
+                {
+                    name: 'EasyBloxRuntime.h',
+                    content: RAW_SUPPORT_CODE
+                }
+            ]);
+
         render(
             <UploadWorkspace
                 code={GENERATED_CODE}
                 error={null}
+                onRequestRawFiles={
+                    onRequestRawFiles
+                }
             />
         );
 
@@ -252,6 +273,10 @@ describe('UploadWorkspace', () => {
         );
 
         expect(
+            onRequestRawFiles
+        ).toHaveBeenCalledTimes(1);
+
+        expect(
             screen.getByRole(
                 'dialog',
                 {
@@ -260,15 +285,56 @@ describe('UploadWorkspace', () => {
             )
         ).toBeInTheDocument();
 
-        const rawCode = screen.getByRole(
-            'textbox',
+        const fileSelect =
+            screen.getByRole(
+                'combobox',
+                {
+                    name: 'Arquivo do código bruto'
+                }
+            );
+
+        const rawCode =
+            screen.getByRole(
+                'textbox',
+                {
+                    name: 'Código bruto C++'
+                }
+            );
+
+        expect(fileSelect)
+            .toHaveValue(
+                'EasyBloxRuntime.h'
+            );
+
+        expect(rawCode)
+            .toHaveValue(
+                RAW_SUPPORT_CODE
+            );
+
+        fireEvent.change(
+            fileSelect,
             {
-                name: 'Código bruto C++'
+                target: {
+                    value:
+                        'EasyBloxUpload.ino'
+                }
             }
         );
 
-        expect(rawCode).toHaveValue(GENERATED_CODE);
-        expect(rawCode).toHaveAttribute('readonly');
+        expect(rawCode)
+            .toHaveValue(
+                GENERATED_CODE
+            );
+
+        fireEvent.change(
+            fileSelect,
+            {
+                target: {
+                    value:
+                        'EasyBloxRuntime.h'
+                }
+            }
+        );
 
         fireEvent.click(
             screen.getByRole(
@@ -281,8 +347,11 @@ describe('UploadWorkspace', () => {
 
         expect(writeText)
             .toHaveBeenCalledTimes(1);
+
         expect(writeText)
-            .toHaveBeenCalledWith(GENERATED_CODE);
+            .toHaveBeenCalledWith(
+                RAW_SUPPORT_CODE
+            );
 
         fireEvent.click(
             screen.getByRole(

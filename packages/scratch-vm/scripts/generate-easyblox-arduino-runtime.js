@@ -134,3 +134,35 @@ generateSourcesModule({
     constantName:
         'LEDCONTROL_LIBRARY_SOURCES'
 });
+
+generateSourcesModule({
+    sourceDirectory:
+        path.resolve(
+            scriptDirectory,
+            '../src/upload/arduino-libraries/erriez-tm1637'
+        ),
+    fileNames: [
+        'ErriezTM1637.h',
+        'ErriezTM1637.cpp'
+    ],
+    outputFileName:
+        'erriez-tm1637-library-files.js',
+    constantName:
+        'ERRIEZ_TM1637_LIBRARY_SOURCES'
+});
+
+generateSourcesModule({
+    sourceDirectory:
+        path.resolve(
+            scriptDirectory,
+            '../src/upload/arduino-adapters/tm1637-number-display'
+        ),
+    fileNames: [
+        'TM1637NumberDisplay.h',
+        'TM1637NumberDisplay.cpp'
+    ],
+    outputFileName:
+        'tm1637-number-display-adapter-files.js',
+    constantName:
+        'TM1637_NUMBER_DISPLAY_ADAPTER_SOURCES'
+});

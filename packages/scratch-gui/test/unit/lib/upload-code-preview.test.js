@@ -1,7 +1,56 @@
 import {
     generateArduinoUnoUploadPreview,
+    generateArduinoUnoUploadRawFiles,
     subscribeToArduinoUnoUploadPreview
 } from '../../../src/lib/upload-code-preview';
+
+describe('generateArduinoUnoUploadRawFiles', () => {
+    test('returns the exact Arduino build bundle as inspectable files', () => {
+        const vm = {
+            generateArduinoUnoUploadBuildBundle:
+                jest.fn().mockReturnValue({
+                    code: 'void setup() {}',
+                    supportFiles: [
+                        {
+                            name: 'EasyBloxRuntime.h',
+                            content: '#pragma once\n'
+                        },
+                        {
+                            name: 'EasyBloxRuntime.cpp',
+                            content: 'void helper() {}\n'
+                        }
+                    ]
+                })
+        };
+
+        const result =
+            generateArduinoUnoUploadRawFiles(
+                vm,
+                'easymaker-test'
+            );
+
+        expect(
+            vm.generateArduinoUnoUploadBuildBundle
+        ).toHaveBeenCalledWith(
+            'easymaker-test'
+        );
+
+        expect(result).toEqual([
+            {
+                name: 'EasyBloxUpload.ino',
+                content: 'void setup() {}'
+            },
+            {
+                name: 'EasyBloxRuntime.h',
+                content: '#pragma once\n'
+            },
+            {
+                name: 'EasyBloxRuntime.cpp',
+                content: 'void helper() {}\n'
+            }
+        ]);
+    });
+});
 
 describe('generateArduinoUnoUploadPreview', () => {
     test('returns generated Arduino UNO C++ from the VM', () => {

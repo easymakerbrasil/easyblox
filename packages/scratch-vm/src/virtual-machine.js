@@ -54,6 +54,10 @@ const {
     getLedControlSupportFiles
 } = require('./upload/ledcontrol-arduino-runtime');
 
+const {
+    getErriezTm1637SupportFiles
+} = require('./upload/erriez-tm1637-arduino-runtime');
+
 const {loadCostume} = require('./import/load-costume.js');
 const {loadSound} = require('./import/load-sound.js');
 const {serializeSounds, serializeCostumes} = require('./serialization/serialize-assets');
@@ -3412,6 +3416,12 @@ class VirtualMachine extends EventEmitter {
         if (generator.usesMatrix(ir)) {
             supportFiles.push(
                 ...getLedControlSupportFiles()
+            );
+        }
+
+        if (generator.usesTm1637(ir)) {
+            supportFiles.push(
+                ...getErriezTm1637SupportFiles()
             );
         }
 

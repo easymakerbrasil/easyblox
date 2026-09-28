@@ -56,11 +56,16 @@
 # Keep vendored Arduino source files reproducible across platforms.
 packages/scratch-vm/src/upload/arduino-libraries/**/*.h text eol=lf
 packages/scratch-vm/src/upload/arduino-libraries/**/*.cpp text eol=lf
+packages/scratch-vm/src/upload/arduino-adapters/**/*.h text eol=lf
+packages/scratch-vm/src/upload/arduino-adapters/**/*.cpp text eol=lf
 
 # Preserve the pinned LedControl 1.0.6 upstream formatting verbatim.
 packages/scratch-vm/src/upload/arduino-libraries/ledcontrol/LedControl.h -whitespace
 packages/scratch-vm/src/upload/arduino-libraries/ledcontrol/LedControl.cpp -whitespace
 packages/scratch-vm/src/upload/arduino-libraries/ledcontrol/license.txt -whitespace
+
+# Preserve the pinned ErriezTM1637 1.1.0 upstream formatting verbatim.
+packages/scratch-vm/src/upload/arduino-libraries/erriez-tm1637/ErriezTM1637.cpp -whitespace
 
 # Prefer LF for these files
 .babelrc text eol=lf

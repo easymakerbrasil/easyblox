@@ -11307,7 +11307,7 @@ tap.test('Arduino UNO Upload generates runtime numeric hardware values', t => {
 
     t.match(
         tm1637Code,
-        /easybloxTm1637Show\(5, 6, \(1 \+ 2\), 4, 1, false, false\);/,
+        /display\.showNumber\(\(1 \+ 2\), 4, 1, false, false\);/,
         'generates TM1637 value expression'
     );
 
@@ -17635,8 +17635,8 @@ tap.test(
 
         t.match(
             code,
-            'void easybloxTm1637Init(',
-            'emits internal TM1637 initialization support'
+            'TM1637NumberDisplay display(5, 6);',
+            'declares the compact TM1637 number display adapter'
         );
 
         t.match(
@@ -17653,8 +17653,8 @@ tap.test(
 
         t.match(
             code,
-            'easybloxTm1637Init(5, 6);',
-            'setup initializes TM1637 with semantic IR pins'
+            'display.begin();',
+            'setup initializes TM1637 through the adapter'
         );
 
         t.match(
@@ -17669,10 +17669,10 @@ tap.test(
             'LCD does not require a third-party library'
         );
 
-        t.notMatch(
+        t.match(
             code,
-            '#include <TM1637Display.h>',
-            'TM1637 does not require a third-party library'
+            '#include "TM1637NumberDisplay.h"',
+            'TM1637 uses the compact number display adapter'
         );
 
         const emptyCode = generator.generate({
@@ -17700,7 +17700,7 @@ tap.test(
 
         t.notMatch(
             emptyCode,
-            'easybloxTm1637Init',
+            '#include "TM1637NumberDisplay.h"',
             'does not emit TM1637 support when absent'
         );
 
@@ -17807,6 +17807,84 @@ tap.test(
     }
 );
 
+tap.test(
+    'Arduino UNO Upload generates a compact TM1637NumberDisplay sketch',
+    t => {
+        const generator = new ArduinoUnoGenerator();
+
+        const code = generator.generate({
+            setup: [
+                {
+                    type: 'Tm1637Init',
+                    clkPin: 19,
+                    dioPin: 18
+                },
+                {
+                    type: 'Tm1637Show',
+                    value: 1234,
+                    length: 4,
+                    position: 1,
+                    point: '1',
+                    leadingZeros: '0'
+                },
+                {
+                    type: 'Tm1637Clear'
+                }
+            ],
+            loop: []
+        });
+
+        t.match(
+            code,
+            '#include "TM1637NumberDisplay.h"',
+            'uses the compact TM1637 number-display adapter'
+        );
+
+        t.match(
+            code,
+            /TM1637NumberDisplay display\(A5, A4\);/,
+            'declares a pedagogical display object with Arduino pin notation'
+        );
+
+        t.match(
+            code,
+            'display.begin();',
+            'initializes the display through the adapter API'
+        );
+
+        t.match(
+            code,
+            'display.setBrightness(7);',
+            'preserves the current maximum TM1637 brightness'
+        );
+
+        t.match(
+            code,
+            /display\.showNumber\(1234, 4, 1, true, false\);/,
+            'shows the value through one pedagogical high-level call'
+        );
+
+        t.match(
+            code,
+            'display.clear();',
+            'clears the display through the adapter API'
+        );
+
+        t.notMatch(
+            code,
+            /showTm1637Number|writeData|digitSegments|segments\[1\]/,
+            'keeps TM1637 implementation details out of the pedagogical sketch'
+        );
+
+        t.notMatch(
+            code,
+            '#include "ErriezTM1637.h"',
+            'keeps the low-level Erriez dependency behind the adapter'
+        );
+
+        t.end();
+    }
+);
 tap.test(
     'Arduino UNO Upload generates Display operations as one batch',
     t => {
@@ -17957,28 +18035,22 @@ tap.test(
 
         t.match(
             code,
-            'void easybloxTm1637Show(',
-            'emits TM1637 show helper'
-        );
-
-        t.match(
-            code,
-            'void easybloxTm1637Clear(',
-            'emits TM1637 clear helper'
-        );
-
-        t.match(
-            code,
-            'easybloxTm1637Show(' +
-                '5, 6, 1234, 4, 1, true, false' +
+            'display.showNumber(' +
+                '1234, 4, 1, true, false' +
                 ');',
             'shows the TM1637 value with semantic options'
         );
 
         t.match(
             code,
-            'easybloxTm1637Clear(5, 6);',
-            'clears TM1637'
+            'display.clear();',
+            'clears TM1637 through the adapter'
+        );
+
+        t.notMatch(
+            code,
+            /showTm1637Number|writeData\(0x00, segments, 4\)/,
+            'keeps TM1637 implementation details outside the sketch'
         );
 
         t.end();
@@ -18087,54 +18159,18 @@ tap.test(
             'clamps LCD column to sixteen positions'
         );
 
-        t.match(
+        t.notMatch(
             code,
-            'if (!isfinite(value))',
-            'normalizes non-finite TM1637 values like Stage mode'
+            /isfinite\(value\)|digitSegments|segments\[1\]/,
+            'keeps TM1637 normalization implementation outside the sketch'
         );
 
         t.match(
             code,
-            'value = trunc(value);',
-            'truncates TM1637 decimal values like Stage mode'
-        );
-
-        t.match(
-            code,
-            'if (value < 0)',
-            'clamps TM1637 value to zero'
-        );
-
-        t.match(
-            code,
-            'else if (requestedLength > 4)',
-            'clamps TM1637 requested length'
-        );
-
-        t.match(
-            code,
-            'else if (position > 4)',
-            'clamps TM1637 position'
-        );
-
-        t.match(
-            code,
-            'const uint8_t available = 4 - start;',
-            'limits TM1637 length to remaining physical digits'
-        );
-
-        t.match(
-            code,
-            'segments[1] |= 0x80;',
-            'applies TM1637 point to the Stage-compatible digit'
-        );
-
-        t.match(
-            code,
-            'easybloxTm1637Show(' +
-                '5, 6, -25, 8.6, -2, true, true' +
+            'display.showNumber(' +
+                '-25, 8.6, -2, true, true' +
                 ');',
-            'preserves semantic arguments for runtime normalization'
+            'preserves semantic arguments for adapter normalization'
         );
 
         t.end();

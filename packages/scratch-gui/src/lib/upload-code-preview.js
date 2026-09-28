@@ -25,6 +25,34 @@ export const generateArduinoUnoUploadPreview = (
     }
 };
 
+export const generateArduinoUnoUploadRawFiles = (
+    vm,
+    boardId = 'arduino-uno'
+) => {
+    const buildBundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            boardId
+        );
+
+    const supportFiles =
+        Array.isArray(
+            buildBundle.supportFiles
+        ) ?
+            buildBundle.supportFiles :
+            [];
+
+    return [
+        {
+            name: 'EasyBloxUpload.ino',
+            content: buildBundle.code
+        },
+        ...supportFiles.map(file => ({
+            name: file.name,
+            content: file.content
+        }))
+    ];
+};
+
 export const subscribeToArduinoUnoUploadPreview = (
     vm,
     onPreview,
