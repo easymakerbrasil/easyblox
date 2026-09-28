@@ -184,6 +184,63 @@ test('EasyMaker ProductProfile maps ultrasonic physical ports to fixed pins', t 
     t.end();
 });
 
+test('EasyMaker ProductProfile maps DHT11 physical ports to fixed signal pins', t => {
+    const dht11 =
+        EasyMakerProductProfile.devices.dht11;
+
+    t.equal(
+        dht11.id,
+        'dht-11'
+    );
+
+    t.same(
+        dht11.ports['digital-d2-d3'],
+        {
+            pin: 3
+        }
+    );
+
+    t.same(
+        dht11.ports['digital-d12'],
+        {
+            pin: 12
+        }
+    );
+
+    t.same(
+        dht11.ports['digital-d13'],
+        {
+            pin: 13
+        }
+    );
+
+    t.equal(
+        EasyMakerProductProfile
+            .physicalPorts
+            .digitalD2D3
+            .symbolId,
+        'asterisk'
+    );
+
+    t.equal(
+        EasyMakerProductProfile
+            .physicalPorts
+            .digitalD12
+            .symbolId,
+        'question'
+    );
+
+    t.equal(
+        EasyMakerProductProfile
+            .physicalPorts
+            .digitalD13
+            .symbolId,
+        'chevrons'
+    );
+
+    t.end();
+});
+
 test('EasyMaker ProductProfile maps traffic light physical ports to fixed signals', t => {
     const trafficLight =
         EasyMakerProductProfile.devices.trafficLight;

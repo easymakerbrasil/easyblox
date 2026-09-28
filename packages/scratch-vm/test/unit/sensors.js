@@ -48,7 +48,7 @@ test('Sensors expose the ultrasonic block, colors and pins', t => {
     t.equal(info.color1, '#29B6F6');
     t.equal(info.color2, '#039BE5');
     t.equal(info.color3, '#0277BD');
-    t.equal(info.blocks.length, 7);
+    t.equal(info.blocks.length, 8);
 
     const ultrasonicBlock = info.blocks[0];
 
@@ -275,6 +275,25 @@ test('Sensors expose the DHT block, types and digital pins', t => {
     t.ok(dhtBlock);
 
     t.equal(
+        dhtBlock.hideFromPalette,
+        false
+    );
+
+    const easyMakerDhtBlock =
+        info.blocks.find(
+            block =>
+                block.opcode ===
+                'dhtReadPort'
+        );
+
+    t.ok(easyMakerDhtBlock);
+
+    t.equal(
+        easyMakerDhtBlock.hideFromPalette,
+        true
+    );
+
+    t.equal(
         dhtBlock.blockType,
         BlockType.REPORTER
     );
@@ -337,6 +356,118 @@ test('Sensors expose the DHT block, types and digital pins', t => {
             {text: 'D11', value: '11'},
             {text: 'D12', value: '12'},
             {text: 'D13', value: '13'}
+        ]
+    );
+
+    t.end();
+});
+
+test('Sensors expose EasyMaker DHT physical port symbols', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({}),
+        getEasyBloxSelectedBoardId: () =>
+            'easymaker'
+    };
+
+    const extension =
+        new Scratch3SensorsBlocks(runtime);
+
+    const info = extension.getInfo();
+
+    const legacyBlock =
+        info.blocks.find(
+            block =>
+                block.opcode ===
+                'dhtRead'
+        );
+
+    const physicalBlock =
+        info.blocks.find(
+            block =>
+                block.opcode ===
+                'dhtReadPort'
+        );
+
+    t.equal(
+        legacyBlock.hideFromPalette,
+        true
+    );
+
+    t.equal(
+        physicalBlock.hideFromPalette,
+        false
+    );
+
+    t.equal(
+        physicalBlock.text,
+        '[TYPE] do DHT na porta [PORT]'
+    );
+
+    t.equal(
+        physicalBlock.arguments.PORT.type,
+        ArgumentType.STRING
+    );
+
+    t.equal(
+        physicalBlock.arguments.PORT.menu,
+        'easyMakerDhtPorts'
+    );
+
+    t.equal(
+        physicalBlock.arguments.PORT.defaultValue,
+        'digital-d12'
+    );
+
+    t.equal(
+        info
+            .menus
+            .easyMakerDhtPorts
+            .acceptReporters,
+        false
+    );
+
+    t.same(
+        info
+            .menus
+            .easyMakerDhtPorts
+            .items,
+        [
+            {
+                text: {
+                    src:
+                        EasyMakerPortSymbols
+                            .asterisk
+                            .dataURI,
+                    alt: 'porta asterisco',
+                    width: 32,
+                    height: 32
+                },
+                value: 'digital-d2-d3'
+            },
+            {
+                text: {
+                    src:
+                        EasyMakerPortSymbols
+                            .question
+                            .dataURI,
+                    alt: 'porta interrogação',
+                    width: 32,
+                    height: 32
+                },
+                value: 'digital-d12'
+            },
+            {
+                text: {
+                    src:
+                        EasyMakerPortSymbols
+                            .chevrons
+                            .dataURI,
+                    alt: 'porta menor e maior',
+                    width: 32,
+                    height: 32
+                },
+                value: 'digital-d13'
+            }
         ]
     );
 
@@ -513,6 +644,84 @@ test('Sensors convert DHT temperature hundredths to degrees Celsius', async t =>
                 type: 0
             }
         ]
+    );
+
+    t.end();
+});
+
+test('Sensors resolve EasyMaker DHT physical ports before Stage read', async t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        dhtRead: (pin, type) => {
+            calls.push({
+                pin,
+                type
+            });
+
+            return Promise.resolve({
+                temperature: 2400,
+                humidity: 5300
+            });
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension: () =>
+            sharedPeripheral
+    };
+
+    const extension =
+        new Scratch3SensorsBlocks(runtime);
+
+    t.equal(
+        await extension.dhtReadPort({
+            TYPE: '0',
+            PORT: 'digital-d2-d3'
+        }),
+        24
+    );
+
+    t.equal(
+        await extension.dhtReadPort({
+            TYPE: '0',
+            PORT: 'digital-d12'
+        }),
+        24
+    );
+
+    t.equal(
+        await extension.dhtReadPort({
+            TYPE: '0',
+            PORT: 'digital-d13'
+        }),
+        24
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                pin: 3,
+                type: 0
+            },
+            {
+                pin: 12,
+                type: 0
+            },
+            {
+                pin: 13,
+                type: 0
+            }
+        ]
+    );
+
+    t.equal(
+        extension.dhtReadPort({
+            TYPE: '0',
+            PORT: 'invalid-port'
+        }),
+        null
     );
 
     t.end();

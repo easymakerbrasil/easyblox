@@ -12175,6 +12175,93 @@ tap.test('Arduino UNO Upload extracts DHT and joystick sensor IR', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload resolves EasyMaker DHT physical ports to canonical IR', t => {
+    const extractor = new UploadProgramExtractor({
+        targets: []
+    });
+
+    const extractDhtPort = portId => {
+        const blockMap = {
+            dht: {
+                opcode: 'sensors_dhtReadPort',
+                inputs: {
+                    TYPE: {
+                        block: 'dhtType'
+                    },
+                    PORT: {
+                        block: 'dhtPort'
+                    }
+                }
+            },
+            dhtType: {
+                opcode: 'sensors_menu_dhtTypes',
+                fields: {
+                    dhtTypes: {
+                        value: '1'
+                    }
+                }
+            },
+            dhtPort: {
+                opcode: 'sensors_menu_easyMakerDhtPorts',
+                fields: {
+                    easyMakerDhtPorts: {
+                        value: portId
+                    }
+                }
+            }
+        };
+
+        const blocks = {
+            getBlock: blockId =>
+                blockMap[blockId],
+            getInputs: block =>
+                block.inputs || {},
+            getFields: block =>
+                block.fields || {}
+        };
+
+        return extractor._extractExpression(
+            blocks,
+            'dht'
+        );
+    };
+
+    t.same(
+        extractDhtPort('digital-d2-d3'),
+        {
+            type: 'DhtReadExpression',
+            pin: 3,
+            reading: 'humidity'
+        }
+    );
+
+    t.same(
+        extractDhtPort('digital-d12'),
+        {
+            type: 'DhtReadExpression',
+            pin: 12,
+            reading: 'humidity'
+        }
+    );
+
+    t.same(
+        extractDhtPort('digital-d13'),
+        {
+            type: 'DhtReadExpression',
+            pin: 13,
+            reading: 'humidity'
+        }
+    );
+
+    t.throws(
+        () =>
+            extractDhtPort('invalid-port'),
+        /Unsupported EasyMaker DHT port/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload validates DHT and joystick value types', t => {
     const validator = new UploadTypeValidator();
 
@@ -12468,33 +12555,44 @@ tap.test('Arduino UNO Upload generates DHT and joystick C++ together', t => {
         }]
     });
 
-    t.equal(
-        code.includes('#include <DHT.h>'),
-        false
-    );
-
-    t.equal(
-        (
-            code.match(
-                /struct EasyBloxDhtCacheEntry/g
-            ) || []
-        ).length,
-        1
+    t.match(
+        code,
+        '#include "DHT.h"'
     );
 
     t.match(
         code,
-        'EASYBLOX_DHT_CACHE_INTERVAL_MS = 2000UL'
+        'DHT dht(12, DHT11);'
     );
 
     t.match(
         code,
-        'easybloxDhtTemperature(12)'
+        'dht.begin();'
     );
 
     t.match(
         code,
-        'easybloxDhtHumidity(12)'
+        'dht.readTemperature()'
+    );
+
+    t.match(
+        code,
+        'dht.readHumidity()'
+    );
+
+    t.notMatch(
+        code,
+        'EasyBloxDhtCacheEntry'
+    );
+
+    t.notMatch(
+        code,
+        'easybloxDhtTemperature'
+    );
+
+    t.notMatch(
+        code,
+        'easybloxDhtHumidity'
     );
 
     t.match(
@@ -12524,6 +12622,94 @@ tap.test('Arduino UNO Upload generates DHT and joystick C++ together', t => {
 
     t.end();
 });
+
+tap.test(
+    'Arduino UNO Upload generates deterministic market-style DHT objects',
+    t => {
+        const generator =
+            new ArduinoUnoGenerator();
+
+        const code =
+            generator.generate({
+                globals: {
+                    variables: [
+                        {
+                            id: 'student_dht3',
+                            name: 'dht3',
+                            valueType: 'INTEGER',
+                            initialValue: {
+                                type: 'IntegerLiteral',
+                                value: 0
+                            }
+                        }
+                    ],
+                    lists: []
+                },
+                procedures: [],
+                setup: [
+                    {
+                        type: 'Wait',
+                        duration: {
+                            type: 'DhtReadExpression',
+                            pin: 3,
+                            reading: 'temperature'
+                        }
+                    },
+                    {
+                        type: 'Wait',
+                        duration: {
+                            type: 'DhtReadExpression',
+                            pin: 12,
+                            reading: 'humidity'
+                        }
+                    }
+                ],
+                loop: []
+            });
+
+        t.match(
+            code,
+            'DHT dht3(3, DHT11);'
+        );
+
+        t.match(
+            code,
+            'DHT dht12(12, DHT11);'
+        );
+
+        t.match(
+            code,
+            'dht3.begin();'
+        );
+
+        t.match(
+            code,
+            'dht12.begin();'
+        );
+
+        t.match(
+            code,
+            'dht3.readTemperature()'
+        );
+
+        t.match(
+            code,
+            'dht12.readHumidity()'
+        );
+
+        t.match(
+            code,
+            /long dht3_2\s*=\s*0;/
+        );
+
+        t.notMatch(
+            code,
+            'easybloxDht'
+        );
+
+        t.end();
+    }
+);
 
 tap.test('Arduino UNO Upload resource validator rejects unsupported ultrasonic TRIG pin', t => {
     const validator = new UploadResourceValidator(

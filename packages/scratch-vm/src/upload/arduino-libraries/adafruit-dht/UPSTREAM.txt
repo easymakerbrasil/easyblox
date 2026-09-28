@@ -1,0 +1,11 @@
+﻿Adafruit DHT sensor library
+
+Upstream: https://github.com/adafruit/DHT-sensor-library
+Version: 1.4.7
+Vendored files: DHT.h, DHT.cpp
+License: MIT
+License text: license.txt
+
+These files are distributed as an Arduino build dependency so EasyBlox
+projects remain reproducible without requiring a global Arduino library
+installation.

@@ -49,7 +49,7 @@ const findSupportFile = (
             vm.generateArduinoUnoUploadBuildBundle(
                 'easymaker-test'
             );
-q
+
             t.equal(
                 requestedBoardId,
                 'easymaker-test',
@@ -139,6 +139,75 @@ test(
             bundle.code,
             /EASYBLOX_EBCP_MAGIC_0/,
             'EBCP implementation is hidden from the pedagogical sketch'
+        );
+
+        t.end();
+    }
+);
+
+test(
+    'VirtualMachine packages Adafruit DHT as Arduino support files',
+    t => {
+        const vm =
+            Object.create(
+                VirtualMachine.prototype
+            );
+
+        vm._getValidatedArduinoUnoUploadIr =
+            () =>
+                createIr([
+                    {
+                        type: 'Wait',
+                        duration: {
+                            type: 'DhtReadExpression',
+                            pin: 12,
+                            reading: 'temperature'
+                        }
+                    }
+                ]);
+
+        const bundle =
+            vm.generateArduinoUnoUploadBuildBundle();
+
+        t.match(
+            bundle.code,
+            /#include "DHT\.h"/,
+            'pedagogical sketch uses the conventional DHT library'
+        );
+
+        t.match(
+            bundle.code,
+            /DHT dht\(12, DHT11\);/,
+            'pedagogical sketch declares the conventional DHT object'
+        );
+
+        t.match(
+            bundle.code,
+            /dht\.begin\(\);/,
+            'pedagogical sketch initializes the DHT object'
+        );
+
+        t.match(
+            bundle.code,
+            /dht\.readTemperature\(\)/,
+            'pedagogical sketch uses the conventional DHT API'
+        );
+
+        t.same(
+            bundle.supportFiles.map(
+                file => file.name
+            ),
+            [
+                'DHT.h',
+                'DHT.cpp'
+            ],
+            'DHT implementation travels as build support files'
+        );
+
+        t.notMatch(
+            bundle.code,
+            /easybloxReadDht11|easybloxDhtTemperature|EasyBloxDhtCacheEntry/,
+            'internal DHT implementation does not leak into the pedagogical sketch'
         );
 
         t.end();

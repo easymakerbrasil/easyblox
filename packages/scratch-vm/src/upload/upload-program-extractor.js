@@ -22,6 +22,8 @@ const ULTRASONIC_READ_OPCODE = 'sensors_ultrasonicRead';
 const EASYMAKER_ULTRASONIC_READ_OPCODE =
     'sensors_ultrasonicReadPort';
 const DHT_READ_OPCODE = 'sensors_dhtRead';
+const EASYMAKER_DHT_READ_OPCODE =
+    'sensors_dhtReadPort';
 const JOYSTICK_INIT_OPCODE = 'sensors_joystickInit';
 const JOYSTICK_VALUE_OPCODE = 'sensors_joystickValue';
 const JOYSTICK_CLICKED_OPCODE = 'sensors_joystickClicked';
@@ -1947,6 +1949,52 @@ class UploadProgramExtractor {
                     block,
                     'PIN'
                 ),
+                reading: readingType === 0 ?
+                    'temperature' :
+                    'humidity'
+            };
+        }
+
+        case EASYMAKER_DHT_READ_OPCODE: {
+            const readingType = this._readNumberInput(
+                blocks,
+                block,
+                'TYPE'
+            );
+
+            if (
+                readingType !== 0 &&
+                readingType !== 1
+            ) {
+                throw new Error(
+                    'DHT reading type must be temperature or humidity'
+                );
+            }
+
+            const portId =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'PORT'
+                );
+
+            const port =
+                EasyMakerProductProfile
+                    .devices
+                    .dht11
+                    .ports[portId];
+
+            if (!port) {
+                throw new Error(
+                    `Unsupported EasyMaker DHT port: ${
+                        portId
+                    }`
+                );
+            }
+
+            return {
+                type: 'DhtReadExpression',
+                pin: port.pin,
                 reading: readingType === 0 ?
                     'temperature' :
                     'humidity'

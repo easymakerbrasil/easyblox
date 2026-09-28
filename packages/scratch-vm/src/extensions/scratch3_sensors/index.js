@@ -16,6 +16,13 @@ const EASYMAKER_ULTRASONIC_PORT_ALT_LABELS =
         asterisk: 'porta asterisco'
     });
 
+const EASYMAKER_DHT_PORT_ALT_LABELS =
+    Object.freeze({
+        asterisk: 'porta asterisco',
+        question: 'porta interrogação',
+        chevrons: 'porta menor e maior'
+    });
+
 /**
  * Hardware sensor blocks for supported EasyBlox boards.
  */
@@ -47,6 +54,10 @@ class Scratch3SensorsBlocks {
             selectedBoardId ===
                 EasyMakerProductProfile.id;
 
+        const useEasyMakerDhtSurface =
+            selectedBoardId ===
+                EasyMakerProductProfile.id;
+
         const easyMakerPhysicalPorts =
             Object.values(
                 EasyMakerProductProfile.physicalPorts
@@ -75,6 +86,47 @@ class Scratch3SensorsBlocks {
                 const alt =
                     physicalPort ?
                         EASYMAKER_ULTRASONIC_PORT_ALT_LABELS[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                return {
+                    text:
+                        symbol && alt ?
+                            {
+                                src: symbol.dataURI,
+                                alt,
+                                width: symbol.width,
+                                height: symbol.height
+                            } :
+                            physicalPort.fallbackLabel,
+                    value: portId
+                };
+            });
+
+        const easyMakerDhtPortMenuItems =
+            Object.keys(
+                EasyMakerProductProfile
+                    .devices
+                    .dht11
+                    .ports
+            ).map(portId => {
+                const physicalPort =
+                    easyMakerPhysicalPorts.find(
+                        port =>
+                            port.id === portId
+                    );
+
+                const symbol =
+                    physicalPort ?
+                        EasyMakerPortSymbols[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                const alt =
+                    physicalPort ?
+                        EASYMAKER_DHT_PORT_ALT_LABELS[
                             physicalPort.symbolId
                         ] :
                         null;
@@ -131,6 +183,49 @@ class Scratch3SensorsBlocks {
                 }
             }
         };
+        const legacyDhtBlock = {
+            opcode: 'dhtRead',
+            blockType: BlockType.REPORTER,
+            text: '[TYPE] do DHT no pino [PIN]',
+            hideFromPalette:
+                useEasyMakerDhtSurface,
+            arguments: {
+                TYPE: {
+                    type: ArgumentType.STRING,
+                    menu: 'dhtTypes',
+                    defaultValue: '0'
+                },
+                PIN: {
+                    type: ArgumentType.NUMBER,
+                    menu: 'dhtPins',
+                    defaultValue: 12
+                }
+            }
+        };
+
+        const easyMakerDhtBlock = {
+            opcode: 'dhtReadPort',
+            blockType: BlockType.REPORTER,
+            text: '[TYPE] do DHT na porta [PORT]',
+            hideFromPalette:
+                !useEasyMakerDhtSurface,
+            arguments: {
+                TYPE: {
+                    type: ArgumentType.STRING,
+                    menu: 'dhtTypes',
+                    defaultValue: '0'
+                },
+                PORT: {
+                    type: ArgumentType.STRING,
+                    menu: 'easyMakerDhtPorts',
+                    defaultValue:
+                        EasyMakerProductProfile
+                            .physicalPorts
+                            .digitalD12
+                            .id
+                }
+            }
+        };
 
         return {
             id: EXTENSION_ID,
@@ -141,23 +236,8 @@ class Scratch3SensorsBlocks {
             blocks: [
                 legacyUltrasonicBlock,
                 easyMakerUltrasonicBlock,
-                {
-                    opcode: 'dhtRead',
-                    blockType: BlockType.REPORTER,
-                    text: '[TYPE] do DHT no pino [PIN]',
-                    arguments: {
-                        TYPE: {
-                            type: ArgumentType.STRING,
-                            menu: 'dhtTypes',
-                            defaultValue: '0'
-                        },
-                        PIN: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'dhtPins',
-                            defaultValue: 12
-                        }
-                    }
-                },
+                legacyDhtBlock,
+                easyMakerDhtBlock,
                 '---',
                 {
                     opcode: 'joystickInit',
@@ -228,6 +308,11 @@ class Scratch3SensorsBlocks {
                         {text: 'A4', value: '18'},
                         {text: 'A5', value: '19'}
                     ]
+                },
+                easyMakerDhtPorts: {
+                    acceptReporters: false,
+                    items:
+                        easyMakerDhtPortMenuItems
                 },
                 dhtTypes: {
                     acceptReporters: true,
@@ -364,10 +449,46 @@ class Scratch3SensorsBlocks {
      * @returns {?Promise<number>} Promise resolved with the selected value, or null when unavailable.
      */
     dhtRead (args) {
-        const type = Number(args.TYPE);
-
-        const result = this._peripheral.dhtRead(
+        return this._readDhtValue(
             Number(args.PIN),
+            Number(args.TYPE)
+        );
+    }
+
+    /**
+     * Read temperature or humidity from one EasyMaker DHT physical port.
+     * @param {object} args Scratch block arguments.
+     * @returns {?Promise<number>} Promise resolved with the selected value, or null when unavailable.
+     */
+    dhtReadPort (args) {
+        const portId = String(args.PORT);
+
+        const port =
+            EasyMakerProductProfile
+                .devices
+                .dht11
+                .ports[portId];
+
+        if (!port) {
+            return null;
+        }
+
+        return this._readDhtValue(
+            port.pin,
+            Number(args.TYPE)
+        );
+    }
+
+    /**
+     * Read temperature or humidity from a DHT sensor.
+     * @param {number} pin Arduino pin number.
+     * @param {number} type DHT reading type.
+     * @returns {?Promise<number>} Promise resolved with the selected value, or null when unavailable.
+     * @private
+     */
+    _readDhtValue (pin, type) {
+        const result = this._peripheral.dhtRead(
+            pin,
             type
         );
 

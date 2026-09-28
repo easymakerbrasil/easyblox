@@ -42,6 +42,10 @@ const {
     getEasyBloxBtSupportFiles
 } = require('./upload/easyblox-bt-arduino-runtime');
 
+const {
+    getAdafruitDhtSupportFiles
+} = require('./upload/adafruit-dht-arduino-runtime');
+
 const {loadCostume} = require('./import/load-costume.js');
 const {loadSound} = require('./import/load-sound.js');
 const {serializeSounds, serializeCostumes} = require('./serialization/serialize-assets');
@@ -3372,17 +3376,28 @@ class VirtualMachine extends EventEmitter {
         const generator =
             new ArduinoUnoGenerator();
 
+        const code =
+            generator.generate(
+                ir
+            );
+
+        const supportFiles = [];
+
+        if (generator.usesEasyBloxBt(ir)) {
+            supportFiles.push(
+                ...getEasyBloxBtSupportFiles()
+            );
+        }
+
+        if (generator.usesDht(ir)) {
+            supportFiles.push(
+                ...getAdafruitDhtSupportFiles()
+            );
+        }
+
         return {
-            code:
-                generator.generate(
-                    ir
-                ),
-            supportFiles:
-                generator.usesEasyBloxBt(
-                    ir
-                ) ?
-                    getEasyBloxBtSupportFiles() :
-                    []
+            code,
+            supportFiles
         };
     }
 }

@@ -122,6 +122,24 @@ const EasyMakerProductProfile = Object.freeze({
             })
         }),
 
+        dht11: Object.freeze({
+            id: 'dht-11',
+
+            ports: Object.freeze({
+                'digital-d2-d3': Object.freeze({
+                    pin: 3
+                }),
+
+                'digital-d12': Object.freeze({
+                    pin: 12
+                }),
+
+                'digital-d13': Object.freeze({
+                    pin: 13
+                })
+            })
+        }),
+
         trafficLight: Object.freeze({
             id: 'traffic-light',
 
