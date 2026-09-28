@@ -11824,6 +11824,124 @@ tap.test('Arduino UNO Upload extracts ultrasonic sensor expression', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload resolves EasyMaker ultrasonic physical port to canonical IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_block'),
+        {
+            id: 'if_block',
+            opcode: 'control_if',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'greater_than',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'greater_than',
+            opcode: 'operator_gt',
+            next: null,
+            parent: 'if_block',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'ultrasonic_read',
+                    shadow: null
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'threshold',
+                    shadow: 'threshold'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'ultrasonic_read',
+            opcode: 'sensors_ultrasonicReadPort',
+            next: null,
+            parent: 'greater_than',
+            inputs: {
+                PORT: {
+                    name: 'PORT',
+                    block: 'ultrasonic_port',
+                    shadow: 'ultrasonic_port'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'ultrasonic_port',
+            'ultrasonic_read',
+            'sensors_menu_easyMakerUltrasonicPorts',
+            'easyMakerUltrasonicPorts',
+            'analog-a4-a5'
+        ),
+        createNumberShadow(
+            'threshold',
+            'greater_than',
+            20
+        )
+    ]);
+
+    const extractor =
+        new UploadProgramExtractor(runtime);
+
+    const validator =
+        new UploadTypeValidator();
+
+    const resourceValidator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const generator =
+        new ArduinoUnoGenerator();
+
+    const ir = extractor.extract();
+
+    t.same(ir, {
+        setup: [{
+            type: 'If',
+            condition: {
+                type: 'BinaryExpression',
+                operator: 'GreaterThan',
+                left: {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: 18,
+                    echoPin: 19
+                },
+                right: {
+                    type: 'IntegerLiteral',
+                    value: 20
+                }
+            },
+            body: []
+        }],
+        loop: []
+    });
+
+    validator.validate(ir);
+    resourceValidator.validate(ir);
+
+    t.match(
+        generator.generate(ir),
+        /easybloxUltrasonicRead\(18, 19\)/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload treats ultrasonic sensor expression as decimal', t => {
     const validator = new UploadTypeValidator();
 

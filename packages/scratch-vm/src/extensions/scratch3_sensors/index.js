@@ -1,7 +1,20 @@
 const BlockType = require('../../extension-support/block-type');
 const ArgumentType = require('../../extension-support/argument-type');
 
+const EasyMakerProductProfile =
+    require('../../board-profiles/easymaker-product-profile');
+
+const EasyMakerPortSymbols =
+    require('../../board-profiles/easymaker-port-symbols');
+
 const EXTENSION_ID = 'sensors';
+
+const EASYMAKER_ULTRASONIC_PORT_ALT_LABELS =
+    Object.freeze({
+        triangle: 'porta triângulo',
+        pentagon: 'porta pentágono',
+        asterisk: 'porta asterisco'
+    });
 
 /**
  * Hardware sensor blocks for supported EasyBlox boards.
@@ -24,6 +37,101 @@ class Scratch3SensorsBlocks {
      * @returns {object} Extension metadata.
      */
     getInfo () {
+        const selectedBoardId =
+            typeof this.runtime.getEasyBloxSelectedBoardId ===
+                'function' ?
+                this.runtime.getEasyBloxSelectedBoardId() :
+                null;
+
+        const useEasyMakerUltrasonicSurface =
+            selectedBoardId ===
+                EasyMakerProductProfile.id;
+
+        const easyMakerPhysicalPorts =
+            Object.values(
+                EasyMakerProductProfile.physicalPorts
+            );
+
+        const easyMakerUltrasonicPortMenuItems =
+            Object.keys(
+                EasyMakerProductProfile
+                    .devices
+                    .ultrasonic
+                    .ports
+            ).map(portId => {
+                const physicalPort =
+                    easyMakerPhysicalPorts.find(
+                        port =>
+                            port.id === portId
+                    );
+
+                const symbol =
+                    physicalPort ?
+                        EasyMakerPortSymbols[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                const alt =
+                    physicalPort ?
+                        EASYMAKER_ULTRASONIC_PORT_ALT_LABELS[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                return {
+                    text:
+                        symbol && alt ?
+                            {
+                                src: symbol.dataURI,
+                                alt,
+                                width: symbol.width,
+                                height: symbol.height
+                            } :
+                            physicalPort.fallbackLabel,
+                    value: portId
+                };
+            });
+
+        const legacyUltrasonicBlock = {
+            opcode: 'ultrasonicRead',
+            blockType: BlockType.REPORTER,
+            text: 'distância do ultrassônico TRIG [TRIG] ECHO [ECHO] (cm)',
+            hideFromPalette:
+                useEasyMakerUltrasonicSurface,
+            arguments: {
+                TRIG: {
+                    type: ArgumentType.NUMBER,
+                    menu: 'ultrasonicPins',
+                    defaultValue: 16
+                },
+                ECHO: {
+                    type: ArgumentType.NUMBER,
+                    menu: 'ultrasonicPins',
+                    defaultValue: 17
+                }
+            }
+        };
+
+        const easyMakerUltrasonicBlock = {
+            opcode: 'ultrasonicReadPort',
+            blockType: BlockType.REPORTER,
+            text: 'distância do ultrassônico na porta [PORT] (cm)',
+            hideFromPalette:
+                !useEasyMakerUltrasonicSurface,
+            arguments: {
+                PORT: {
+                    type: ArgumentType.STRING,
+                    menu: 'easyMakerUltrasonicPorts',
+                    defaultValue:
+                        EasyMakerProductProfile
+                            .physicalPorts
+                            .analogA2A3
+                            .id
+                }
+            }
+        };
+
         return {
             id: EXTENSION_ID,
             name: 'Sensores Arduino',
@@ -31,23 +139,8 @@ class Scratch3SensorsBlocks {
             color2: '#039BE5',
             color3: '#0277BD',
             blocks: [
-                {
-                    opcode: 'ultrasonicRead',
-                    blockType: BlockType.REPORTER,
-                    text: 'distância do ultrassônico TRIG [TRIG] ECHO [ECHO] (cm)',
-                    arguments: {
-                        TRIG: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'ultrasonicPins',
-                            defaultValue: 16
-                        },
-                        ECHO: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'ultrasonicPins',
-                            defaultValue: 17
-                        }
-                    }
-                },
+                legacyUltrasonicBlock,
+                easyMakerUltrasonicBlock,
                 {
                     opcode: 'dhtRead',
                     blockType: BlockType.REPORTER,
@@ -107,6 +200,12 @@ class Scratch3SensorsBlocks {
                 }
             ],
             menus: {
+                easyMakerUltrasonicPorts: {
+                    acceptReporters: false,
+                    items:
+                        easyMakerUltrasonicPortMenuItems
+                },
+
                 ultrasonicPins: {
                     acceptReporters: true,
                     items: [
@@ -203,9 +302,47 @@ class Scratch3SensorsBlocks {
      * @returns {?Promise<number>} Promise resolved with centimeters, or null when unavailable.
      */
     ultrasonicRead (args) {
-        const result = this._peripheral.ultrasonicRead(
+        return this._readUltrasonicDistance(
             Number(args.TRIG),
             Number(args.ECHO)
+        );
+    }
+
+    /**
+     * Read ultrasonic distance from one EasyMaker physical port.
+     * @param {object} args Scratch block arguments.
+     * @returns {?Promise<number>} Promise resolved with centimeters, or null when unavailable.
+     */
+    ultrasonicReadPort (args) {
+        const portId = String(args.PORT);
+
+        const port =
+            EasyMakerProductProfile
+                .devices
+                .ultrasonic
+                .ports[portId];
+
+        if (!port) {
+            return null;
+        }
+
+        return this._readUltrasonicDistance(
+            port.trigPin,
+            port.echoPin
+        );
+    }
+
+    /**
+     * Read ultrasonic distance using canonical Arduino pins.
+     * @param {number} trigPin Arduino trigger pin.
+     * @param {number} echoPin Arduino echo pin.
+     * @returns {?Promise<number>} Promise resolved with centimeters, or null when unavailable.
+     * @private
+     */
+    _readUltrasonicDistance (trigPin, echoPin) {
+        const result = this._peripheral.ultrasonicRead(
+            trigPin,
+            echoPin
         );
 
         if (!result) {

@@ -10,12 +10,17 @@ const {
     EASYCONECT_OUTPUTS_SIGNAL_IDS
 } = require('@easymaker/easyconect-core');
 
+const EasyMakerProductProfile =
+    require('../board-profiles/easymaker-product-profile');
+
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
 const DIGITAL_READ_OPCODE = 'arduinoUno_digitalRead';
 const ANALOG_READ_OPCODE = 'arduinoUno_analogRead';
 const MAP_OPCODE = 'arduinoUno_map';
 const ULTRASONIC_READ_OPCODE = 'sensors_ultrasonicRead';
+const EASYMAKER_ULTRASONIC_READ_OPCODE =
+    'sensors_ultrasonicReadPort';
 const DHT_READ_OPCODE = 'sensors_dhtRead';
 const JOYSTICK_INIT_OPCODE = 'sensors_joystickInit';
 const JOYSTICK_VALUE_OPCODE = 'sensors_joystickValue';
@@ -1889,6 +1894,35 @@ class UploadProgramExtractor {
                     'ECHO'
                 )
             };
+
+        case EASYMAKER_ULTRASONIC_READ_OPCODE: {
+            const portId =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'PORT'
+                );
+
+            const port =
+                EasyMakerProductProfile
+                    .devices
+                    .ultrasonic
+                    .ports[portId];
+
+            if (!port) {
+                throw new Error(
+                    `Unsupported EasyMaker ultrasonic port: ${
+                        portId
+                    }`
+                );
+            }
+
+            return {
+                type: 'UltrasonicReadExpression',
+                trigPin: port.trigPin,
+                echoPin: port.echoPin
+            };
+        }
 
         case DHT_READ_OPCODE: {
             const readingType = this._readNumberInput(

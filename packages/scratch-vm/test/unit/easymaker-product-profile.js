@@ -148,6 +148,42 @@ test('EasyMaker ProductProfile defines the canonical digital physical ports', t 
     t.end();
 });
 
+test('EasyMaker ProductProfile maps ultrasonic physical ports to fixed pins', t => {
+    const ultrasonic =
+        EasyMakerProductProfile.devices.ultrasonic;
+
+    t.equal(
+        ultrasonic.id,
+        'ultrasonic'
+    );
+
+    t.same(
+        ultrasonic.ports['analog-a2-a3'],
+        {
+            trigPin: 16,
+            echoPin: 17
+        }
+    );
+
+    t.same(
+        ultrasonic.ports['analog-a4-a5'],
+        {
+            trigPin: 18,
+            echoPin: 19
+        }
+    );
+
+    t.same(
+        ultrasonic.ports['digital-d2-d3'],
+        {
+            trigPin: 2,
+            echoPin: 3
+        }
+    );
+
+    t.end();
+});
+
 test('EasyMaker ProductProfile maps traffic light physical ports to fixed signals', t => {
     const trafficLight =
         EasyMakerProductProfile.devices.trafficLight;

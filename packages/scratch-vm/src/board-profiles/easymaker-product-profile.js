@@ -101,6 +101,27 @@ const EasyMakerProductProfile = Object.freeze({
     }),
 
     devices: Object.freeze({
+        ultrasonic: Object.freeze({
+            id: 'ultrasonic',
+
+            ports: Object.freeze({
+                'analog-a2-a3': Object.freeze({
+                    trigPin: 16,
+                    echoPin: 17
+                }),
+
+                'analog-a4-a5': Object.freeze({
+                    trigPin: 18,
+                    echoPin: 19
+                }),
+
+                'digital-d2-d3': Object.freeze({
+                    trigPin: 2,
+                    echoPin: 3
+                })
+            })
+        }),
+
         trafficLight: Object.freeze({
             id: 'traffic-light',
 

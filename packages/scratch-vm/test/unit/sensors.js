@@ -4,6 +4,9 @@ const BlockType = require('../../src/extension-support/block-type');
 const ArgumentType = require('../../src/extension-support/argument-type');
 const Scratch3SensorsBlocks = require('../../src/extensions/scratch3_sensors');
 
+const EasyMakerPortSymbols =
+    require('../../src/board-profiles/easymaker-port-symbols');
+
 const test = tap.test;
 
 test('Sensors reuse the registered Arduino UNO peripheral', t => {
@@ -45,9 +48,28 @@ test('Sensors expose the ultrasonic block, colors and pins', t => {
     t.equal(info.color1, '#29B6F6');
     t.equal(info.color2, '#039BE5');
     t.equal(info.color3, '#0277BD');
-    t.equal(info.blocks.length, 6);
+    t.equal(info.blocks.length, 7);
 
     const ultrasonicBlock = info.blocks[0];
+
+    t.equal(
+        ultrasonicBlock.hideFromPalette,
+        false
+    );
+
+    const easyMakerUltrasonicBlock =
+        info.blocks.find(
+            block =>
+                block.opcode ===
+                'ultrasonicReadPort'
+        );
+
+    t.ok(easyMakerUltrasonicBlock);
+
+    t.equal(
+        easyMakerUltrasonicBlock.hideFromPalette,
+        true
+    );
 
     t.equal(
         ultrasonicBlock.opcode,
@@ -115,6 +137,123 @@ test('Sensors expose the ultrasonic block, colors and pins', t => {
             {text: 'A3', value: '17'},
             {text: 'A4', value: '18'},
             {text: 'A5', value: '19'}
+        ]
+    );
+
+    t.end();
+});
+
+test('Sensors expose EasyMaker ultrasonic physical port symbols', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({}),
+        getEasyBloxSelectedBoardId: () =>
+            'easymaker'
+    };
+
+    const extension =
+        new Scratch3SensorsBlocks(runtime);
+
+    const info = extension.getInfo();
+
+    const legacyBlock =
+        info.blocks.find(
+            block =>
+                block.opcode ===
+                'ultrasonicRead'
+        );
+
+    const physicalBlock =
+        info.blocks.find(
+            block =>
+                block.opcode ===
+                'ultrasonicReadPort'
+        );
+
+    t.equal(
+        legacyBlock.hideFromPalette,
+        true
+    );
+
+    t.equal(
+        physicalBlock.hideFromPalette,
+        false
+    );
+
+    t.equal(
+        physicalBlock.blockType,
+        BlockType.REPORTER
+    );
+
+    t.equal(
+        physicalBlock.text,
+        'distância do ultrassônico na porta [PORT] (cm)'
+    );
+
+    t.equal(
+        physicalBlock.arguments.PORT.type,
+        ArgumentType.STRING
+    );
+
+    t.equal(
+        physicalBlock.arguments.PORT.menu,
+        'easyMakerUltrasonicPorts'
+    );
+
+    t.equal(
+        physicalBlock.arguments.PORT.defaultValue,
+        'analog-a2-a3'
+    );
+
+    t.equal(
+        info
+            .menus
+            .easyMakerUltrasonicPorts
+            .acceptReporters,
+        false
+    );
+
+    t.same(
+        info
+            .menus
+            .easyMakerUltrasonicPorts
+            .items,
+        [
+            {
+                text: {
+                    src:
+                        EasyMakerPortSymbols
+                            .triangle
+                            .dataURI,
+                    alt: 'porta triângulo',
+                    width: 32,
+                    height: 32
+                },
+                value: 'analog-a2-a3'
+            },
+            {
+                text: {
+                    src:
+                        EasyMakerPortSymbols
+                            .pentagon
+                            .dataURI,
+                    alt: 'porta pentágono',
+                    width: 32,
+                    height: 32
+                },
+                value: 'analog-a4-a5'
+            },
+            {
+                text: {
+                    src:
+                        EasyMakerPortSymbols
+                            .asterisk
+                            .dataURI,
+                    alt: 'porta asterisco',
+                    width: 32,
+                    height: 32
+                },
+                value: 'digital-d2-d3'
+            }
         ]
     );
 
@@ -238,6 +377,55 @@ test('Sensors convert ultrasonic millimeters to centimeters', async t => {
                 echoPin: 17
             }
         ]
+    );
+
+    t.end();
+});
+
+test('Sensors resolve EasyMaker ultrasonic physical port before Stage read', async t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        ultrasonicRead: (trigPin, echoPin) => {
+            calls.push({
+                trigPin,
+                echoPin
+            });
+
+            return Promise.resolve(500);
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension: () =>
+            sharedPeripheral
+    };
+
+    const extension =
+        new Scratch3SensorsBlocks(runtime);
+
+    const result =
+        await extension.ultrasonicReadPort({
+            PORT: 'analog-a4-a5'
+        });
+
+    t.equal(result, 50);
+
+    t.same(
+        calls,
+        [
+            {
+                trigPin: 18,
+                echoPin: 19
+            }
+        ]
+    );
+
+    t.equal(
+        extension.ultrasonicReadPort({
+            PORT: 'invalid-port'
+        }),
+        null
     );
 
     t.end();
