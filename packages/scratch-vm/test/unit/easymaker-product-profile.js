@@ -69,8 +69,8 @@ test('EasyMaker ProductProfile defines the canonical analog physical ports', t =
         ports.analogA4A5,
         {
             id: 'analog-a4-a5',
-            symbolId: 'hexagon',
-            fallbackLabel: 'A4/A5',
+            symbolId: 'pentagon',
+            fallbackLabel: '\u2B1F',
             pins: [
                 18,
                 19
@@ -216,7 +216,7 @@ test('EasyMaker ProductProfile maps LCD to the physical A4 A5 port', t => {
             .physicalPorts
             .analogA4A5
             .symbolId,
-        'hexagon'
+        'pentagon'
     );
 
     t.end();

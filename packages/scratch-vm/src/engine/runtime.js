@@ -1506,12 +1506,27 @@ class Runtime extends EventEmitter {
         if (!argInfo.dataURI) {
             log.warn('Missing data URI in extension block with argument type IMAGE');
         }
+
+        const requestedWidth = Number(argInfo.width);
+        const requestedHeight = Number(argInfo.height);
+
+        const width =
+            Number.isFinite(requestedWidth) &&
+            requestedWidth > 0 ?
+                requestedWidth :
+                24;
+
+        const height =
+            Number.isFinite(requestedHeight) &&
+            requestedHeight > 0 ?
+                requestedHeight :
+                24;
+
         return {
             type: 'field_image',
             src: argInfo.dataURI || '',
-            // TODO these probably shouldn't be hardcoded...?
-            width: 24,
-            height: 24,
+            width,
+            height,
             // Whether or not the inline image should be flipped horizontally
             // in RTL languages. Defaults to false, indicating that the
             // image will not be flipped.

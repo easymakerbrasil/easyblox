@@ -1,5 +1,10 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
+const EasyMakerProductProfile =
+    require('../../board-profiles/easymaker-product-profile');
+
+const EasyMakerPortSymbols =
+    require('../../board-profiles/easymaker-port-symbols');
 
 const EXTENSION_ID = 'displays';
 
@@ -54,6 +59,50 @@ class Scratch3DisplaysBlocks {
      * @returns {object} Extension metadata.
      */
     getInfo () {
+        const selectedBoardId =
+            typeof this.runtime.getEasyBloxSelectedBoardId === 'function' ?
+                this.runtime.getEasyBloxSelectedBoardId() :
+                null;
+
+        const easyMakerLcdPort =
+            EasyMakerProductProfile
+                .physicalPorts
+                .analogA4A5;
+
+        const easyMakerLcdSymbol =
+            EasyMakerPortSymbols[
+                easyMakerLcdPort.symbolId
+            ] || null;
+
+        const useEasyMakerLcdSurface =
+            selectedBoardId ===
+                EasyMakerProductProfile.id &&
+            Boolean(easyMakerLcdSymbol);
+
+        const lcdInitBlock =
+            useEasyMakerLcdSurface ?
+                {
+                    opcode: 'lcdInit',
+                    blockType: BlockType.COMMAND,
+                    text: 'iniciar LCD na porta [PORT]',
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.IMAGE,
+                            dataURI:
+                                easyMakerLcdSymbol.dataURI,
+                            width:
+                                easyMakerLcdSymbol.width,
+                            height:
+                                easyMakerLcdSymbol.height
+                        }
+                    }
+                } :
+                {
+                    opcode: 'lcdInit',
+                    blockType: BlockType.COMMAND,
+                    text: 'iniciar LCD 16x2 I2C'
+                };
+
         return {
             id: EXTENSION_ID,
             name: 'Displays',
@@ -119,11 +168,7 @@ class Scratch3DisplaysBlocks {
                     blockType: BlockType.LABEL,
                     text: 'Display LCD'
                 },
-                {
-                    opcode: 'lcdInit',
-                    blockType: BlockType.COMMAND,
-                    text: 'iniciar LCD 16x2 I2C'
-                },
+                lcdInitBlock,
                 {
                     opcode: 'lcdWrite',
                     blockType: BlockType.COMMAND,
@@ -219,7 +264,7 @@ class Scratch3DisplaysBlocks {
                     opcode: 'tm1637Clear',
                     blockType: BlockType.COMMAND,
                     text: 'limpar display 7 segmentos'
-                },
+                }
             ],
             menus: {
                 matrixPins: {
@@ -458,7 +503,7 @@ class Scratch3DisplaysBlocks {
         );
     }
 
-        /**
+    /**
      * Check whether a pin can be used by the TM1637 display.
      * @param {number} pin Arduino pin number.
      * @returns {boolean} True when valid.

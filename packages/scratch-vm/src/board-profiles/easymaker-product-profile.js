@@ -45,8 +45,8 @@ const EasyMakerProductProfile = Object.freeze({
 
         analogA4A5: Object.freeze({
             id: 'analog-a4-a5',
-            symbolId: 'hexagon',
-            fallbackLabel: 'A4/A5',
+            symbolId: 'pentagon',
+            fallbackLabel: '\u2B1F',
             pins: Object.freeze([
                 18,
                 19

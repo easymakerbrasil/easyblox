@@ -838,6 +838,42 @@ test('getBlocksXML preserves all execution modes when no mode is provided', t =>
     t.end();
 });
 
+test('inline images support optional custom dimensions', t => {
+    const runtime = new Runtime();
+
+    t.same(
+        runtime._constructInlineImageJson({
+            dataURI: 'default image'
+        }),
+        {
+            type: 'field_image',
+            src: 'default image',
+            width: 24,
+            height: 24,
+            flip_rtl: false
+        },
+        'inline images keep the canonical 24x24 default'
+    );
+
+    t.same(
+        runtime._constructInlineImageJson({
+            dataURI: 'large image',
+            width: 32,
+            height: 32
+        }),
+        {
+            type: 'field_image',
+            src: 'large image',
+            width: 32,
+            height: 32,
+            flip_rtl: false
+        },
+        'inline images can request larger visual dimensions'
+    );
+
+    t.end();
+});
+
 test('custom field types should be added to block and EXTENSION_FIELD_ADDED callback triggered', t => {
     const runtime = new Runtime();
 

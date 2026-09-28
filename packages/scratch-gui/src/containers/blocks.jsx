@@ -1190,13 +1190,7 @@ class Blocks extends React.Component {
         }
     }
     handleBlocksInfoUpdate (categoryInfo) {
-        const shouldRecreateQrFlyout =
-            categoryInfo &&
-            categoryInfo.id ===
-                'easybloxQr';
-
         const flyout =
-            shouldRecreateQrFlyout &&
             this.workspace &&
             typeof this.workspace.getFlyout ===
                 'function' ?

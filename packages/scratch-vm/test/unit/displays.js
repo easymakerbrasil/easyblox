@@ -1,4 +1,6 @@
 const test = require('tap').test;
+const ArgumentType =
+    require('../../src/extension-support/argument-type');
 const BlockType =
     require('../../src/extension-support/block-type');
 
@@ -47,108 +49,108 @@ test('Displays expose matrix, LCD and TM1637 blocks and menus', t => {
     t.equal(info.color3, '#8E0000');
 
     t.equal(
-    info.blocks[0].blockType,
-    BlockType.LABEL,
-    'matrix section starts with a flyout label'
-);
-
-t.equal(
-    info.blocks[0].text,
-    'Matriz de LED 8x8'
-);
-
-t.equal(
-    info.blocks[5],
-    '---',
-    'matrix and LCD sections are separated'
-);
-
-t.equal(
-    info.blocks[6].blockType,
-    BlockType.LABEL,
-    'LCD section starts with a flyout label'
-);
-
-t.equal(
-    info.blocks[6].text,
-    'Display LCD'
-);
-
-t.equal(
-    info.blocks[11],
-    '---',
-    'LCD and 7 segment sections are separated'
-);
-
-t.equal(
-    info.blocks[12].blockType,
-    BlockType.LABEL,
-    '7 segment section starts with a flyout label'
-);
-
-t.equal(
-    info.blocks[12].text,
-    'Display 7 SEG'
-);
-
-const executableBlocks =
-    info.blocks.filter(block =>
-        block &&
-        typeof block === 'object' &&
-        block.opcode
+        info.blocks[0].blockType,
+        BlockType.LABEL,
+        'matrix section starts with a flyout label'
     );
 
-t.same(
-    executableBlocks.map(block => block.opcode),
-    [
-        'configureMatrix',
-        'matrixWrite',
-        'matrixClear',
-        'matrixBrightness',
-        'lcdInit',
-        'lcdWrite',
-        'lcdClear',
-        'lcdMode',
-        'tm1637Init',
-        'tm1637Show',
-        'tm1637Clear'
-    ]
-);
-
-const configureBlock =
-    executableBlocks.find(
-        block => block.opcode === 'configureMatrix'
+    t.equal(
+        info.blocks[0].text,
+        'Matriz de LED 8x8'
     );
 
-const writeBlock =
-    executableBlocks.find(
-        block => block.opcode === 'matrixWrite'
+    t.equal(
+        info.blocks[5],
+        '---',
+        'matrix and LCD sections are separated'
     );
 
-const clearBlock =
-    executableBlocks.find(
-        block => block.opcode === 'matrixClear'
+    t.equal(
+        info.blocks[6].blockType,
+        BlockType.LABEL,
+        'LCD section starts with a flyout label'
     );
 
-const brightnessBlock =
-    executableBlocks.find(
-        block => block.opcode === 'matrixBrightness'
+    t.equal(
+        info.blocks[6].text,
+        'Display LCD'
     );
 
-const tm1637InitBlock =
-    executableBlocks.find(
-        block => block.opcode === 'tm1637Init'
+    t.equal(
+        info.blocks[11],
+        '---',
+        'LCD and 7 segment sections are separated'
     );
 
-const tm1637ShowBlock =
-    executableBlocks.find(
-        block => block.opcode === 'tm1637Show'
+    t.equal(
+        info.blocks[12].blockType,
+        BlockType.LABEL,
+        '7 segment section starts with a flyout label'
     );
 
-const tm1637ClearBlock =
-    executableBlocks.find(
-        block => block.opcode === 'tm1637Clear'
+    t.equal(
+        info.blocks[12].text,
+        'Display 7 SEG'
     );
+
+    const executableBlocks =
+        info.blocks.filter(block =>
+            block &&
+            typeof block === 'object' &&
+            block.opcode
+        );
+
+    t.same(
+        executableBlocks.map(block => block.opcode),
+        [
+            'configureMatrix',
+            'matrixWrite',
+            'matrixClear',
+            'matrixBrightness',
+            'lcdInit',
+            'lcdWrite',
+            'lcdClear',
+            'lcdMode',
+            'tm1637Init',
+            'tm1637Show',
+            'tm1637Clear'
+        ]
+    );
+
+    const configureBlock =
+        executableBlocks.find(
+            block => block.opcode === 'configureMatrix'
+        );
+
+    const writeBlock =
+        executableBlocks.find(
+            block => block.opcode === 'matrixWrite'
+        );
+
+    const clearBlock =
+        executableBlocks.find(
+            block => block.opcode === 'matrixClear'
+        );
+
+    const brightnessBlock =
+        executableBlocks.find(
+            block => block.opcode === 'matrixBrightness'
+        );
+
+    const tm1637InitBlock =
+        executableBlocks.find(
+            block => block.opcode === 'tm1637Init'
+        );
+
+    const tm1637ShowBlock =
+        executableBlocks.find(
+            block => block.opcode === 'tm1637Show'
+        );
+
+    const tm1637ClearBlock =
+        executableBlocks.find(
+            block => block.opcode === 'tm1637Clear'
+        );
 
     t.equal(
         configureBlock.text,
@@ -336,6 +338,96 @@ const tm1637ClearBlock =
     t.same(
         info.menus.tm1637LeadingZeros.items.map(item => item.value),
         ['0', '1']
+    );
+
+    t.end();
+});
+
+test('Displays expose EasyMaker LCD through a large physical port symbol', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({}),
+        getEasyBloxSelectedBoardId: () =>
+            'easymaker'
+    };
+
+    const extension =
+        new Scratch3DisplaysBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const lcdInitBlock =
+        info.blocks.find(block =>
+            block &&
+            typeof block === 'object' &&
+            block.opcode === 'lcdInit'
+        );
+
+    t.equal(
+        lcdInitBlock.text,
+        'iniciar LCD na porta [PORT]'
+    );
+
+    t.equal(
+        lcdInitBlock.opcode,
+        'lcdInit',
+        'EasyMaker keeps the canonical LCD opcode'
+    );
+
+    t.equal(
+        lcdInitBlock.arguments.PORT.type,
+        ArgumentType.IMAGE,
+        'physical port is a presentation-only inline image'
+    );
+
+    t.match(
+        lcdInitBlock.arguments.PORT.dataURI,
+        /^data:image\/svg\+xml,/,
+        'physical port uses a vector SVG asset'
+    );
+
+    t.equal(
+        lcdInitBlock.arguments.PORT.width,
+        32,
+        'physical symbol is visually prominent'
+    );
+
+    t.equal(
+        lcdInitBlock.arguments.PORT.height,
+        32
+    );
+
+    t.end();
+});
+
+test('Displays keep the generic LCD surface for non-EasyMaker boards', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({}),
+        getEasyBloxSelectedBoardId: () =>
+            'arduino-uno'
+    };
+
+    const extension =
+        new Scratch3DisplaysBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const lcdInitBlock =
+        info.blocks.find(block =>
+            block &&
+            typeof block === 'object' &&
+            block.opcode === 'lcdInit'
+        );
+
+    t.equal(
+        lcdInitBlock.text,
+        'iniciar LCD 16x2 I2C'
+    );
+
+    t.equal(
+        lcdInitBlock.opcode,
+        'lcdInit'
     );
 
     t.end();

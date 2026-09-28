@@ -1993,7 +1993,7 @@ describe('Blocks active extensions', () => {
             );
     });
 
-    test('recreates the QR flyout immediately when QR block info changes', () => {
+    test('recreates the flyout immediately when extension block info changes', () => {
         const flyout = {
             setRecyclingEnabled:
                 jest.fn()
@@ -2025,7 +2025,7 @@ describe('Blocks active extensions', () => {
             .call(
                 instance,
                 {
-                    id: 'easybloxQr'
+                    id: 'displays'
                 }
             );
 
@@ -2040,7 +2040,7 @@ describe('Blocks active extensions', () => {
             instance.handleExtensionAdded
         ).toHaveBeenCalledWith(
             {
-                id: 'easybloxQr'
+                id: 'displays'
             },
             false
         );
