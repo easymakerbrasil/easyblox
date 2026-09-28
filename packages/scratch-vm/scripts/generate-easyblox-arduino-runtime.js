@@ -118,3 +118,19 @@ generateSourcesModule({
     constantName:
         'HCSR04_LIBRARY_SOURCES'
 });
+
+generateSourcesModule({
+    sourceDirectory:
+        path.resolve(
+            scriptDirectory,
+            '../src/upload/arduino-libraries/ledcontrol'
+        ),
+    fileNames: [
+        'LedControl.h',
+        'LedControl.cpp'
+    ],
+    outputFileName:
+        'ledcontrol-library-files.js',
+    constantName:
+        'LEDCONTROL_LIBRARY_SOURCES'
+});

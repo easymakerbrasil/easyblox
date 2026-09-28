@@ -282,7 +282,8 @@ class ArduinoUnoGenerator {
             procedures,
             usesEasyBloxBt,
             dhtPins,
-            ultrasonicPairs
+            ultrasonicPairs,
+            matrixInitialization
         );
 
         /*
@@ -315,11 +316,37 @@ class ArduinoUnoGenerator {
             );
         }
 
+        if (matrixInitialization) {
+            lines.push(
+                '#include "LedControl.h"',
+                ''
+            );
+        }
+
         if (lcdInitialization) {
             lines.push(
                 '#include <Wire.h>',
                 '',
                 'uint8_t easyblox_lcd_address = 0;',
+                ''
+            );
+        }
+
+        if (matrixInitialization) {
+            lines.push(
+                `LedControl matrix(${
+                    this._generateArduinoPin(
+                        matrixInitialization.dinPin
+                    )
+                }, ${
+                    this._generateArduinoPin(
+                        matrixInitialization.clkPin
+                    )
+                }, ${
+                    this._generateArduinoPin(
+                        matrixInitialization.csPin
+                    )
+                }, 1);`,
                 ''
             );
         }
@@ -390,74 +417,6 @@ class ArduinoUnoGenerator {
                 'float readDistanceCm(UltraSonicDistanceSensor &sensor) {',
                 '    const float distanceCm = sensor.measureDistanceCm();',
                 '    return distanceCm < 0.0f ? 0.0f : distanceCm;',
-                '}',
-                ''
-            );
-        }
-
-        if (matrixInitialization) {
-            lines.push(
-                'void easybloxMatrixWriteByte(',
-                '    uint8_t dinPin,',
-                '    uint8_t clkPin,',
-                '    uint8_t value',
-                ') {',
-                '    for (int8_t bit = 7; bit >= 0; --bit) {',
-                '        digitalWrite(clkPin, LOW);',
-                '        digitalWrite(',
-                '            dinPin,',
-                '            (value & (1 << bit)) ? HIGH : LOW',
-                '        );',
-                '        digitalWrite(clkPin, HIGH);',
-                '    }',
-                '}',
-                '',
-                'void easybloxMatrixWriteRegister(',
-                '    uint8_t dinPin,',
-                '    uint8_t csPin,',
-                '    uint8_t clkPin,',
-                '    uint8_t reg,',
-                '    uint8_t value',
-                ') {',
-                '    digitalWrite(csPin, LOW);',
-                '    easybloxMatrixWriteByte(dinPin, clkPin, reg);',
-                '    easybloxMatrixWriteByte(dinPin, clkPin, value);',
-                '    digitalWrite(csPin, HIGH);',
-                '}',
-                '',
-                'void easybloxMatrixInit(',
-                '    uint8_t dinPin,',
-                '    uint8_t csPin,',
-                '    uint8_t clkPin',
-                ') {',
-                '    pinMode(dinPin, OUTPUT);',
-                '    pinMode(csPin, OUTPUT);',
-                '    pinMode(clkPin, OUTPUT);',
-                '',
-                '    digitalWrite(csPin, HIGH);',
-                '    digitalWrite(clkPin, LOW);',
-                '',
-                '    easybloxMatrixWriteRegister(',
-                '        dinPin, csPin, clkPin, 0x0F, 0x00',
-                '    );',
-                '    easybloxMatrixWriteRegister(',
-                '        dinPin, csPin, clkPin, 0x09, 0x00',
-                '    );',
-                '    easybloxMatrixWriteRegister(',
-                '        dinPin, csPin, clkPin, 0x0B, 0x07',
-                '    );',
-                '    easybloxMatrixWriteRegister(',
-                '        dinPin, csPin, clkPin, 0x0A, 0x08',
-                '    );',
-                '    easybloxMatrixWriteRegister(',
-                '        dinPin, csPin, clkPin, 0x0C, 0x01',
-                '    );',
-                '',
-                '    for (uint8_t row = 1; row <= 8; ++row) {',
-                '        easybloxMatrixWriteRegister(',
-                '            dinPin, csPin, clkPin, row, 0x00',
-                '        );',
-                '    }',
                 '}',
                 ''
             );
@@ -768,39 +727,7 @@ class ArduinoUnoGenerator {
 
         if (matrixInitialization) {
             lines.push(
-                'void easybloxMatrixWrite(',
-                '    uint8_t dinPin,',
-                '    uint8_t csPin,',
-                '    uint8_t clkPin,',
-                '    uint8_t row0,',
-                '    uint8_t row1,',
-                '    uint8_t row2,',
-                '    uint8_t row3,',
-                '    uint8_t row4,',
-                '    uint8_t row5,',
-                '    uint8_t row6,',
-                '    uint8_t row7',
-                ') {',
-                '    const uint8_t rows[8] = {',
-                '        row0, row1, row2, row3,',
-                '        row4, row5, row6, row7',
-                '    };',
-                '',
-                '    for (uint8_t row = 0; row < 8; ++row) {',
-                '        easybloxMatrixWriteRegister(',
-                '            dinPin,',
-                '            csPin,',
-                '            clkPin,',
-                '            row + 1,',
-                '            rows[row]',
-                '        );',
-                '    }',
-                '}',
-                '',
-                'void easybloxMatrixBrightness(',
-                '    uint8_t dinPin,',
-                '    uint8_t csPin,',
-                '    uint8_t clkPin,',
+                'uint8_t matrixIntensityFromPercent(',
                 '    float brightnessPercent',
                 ') {',
                 '    int brightness = (int)round(brightnessPercent);',
@@ -811,28 +738,9 @@ class ArduinoUnoGenerator {
                 '        brightness = 100;',
                 '    }',
                 '',
-                '    const uint8_t intensity =',
-                '        (uint8_t)((brightness * 15L + 50L) / 100L);',
-                '',
-                '    easybloxMatrixWriteRegister(',
-                '        dinPin,',
-                '        csPin,',
-                '        clkPin,',
-                '        0x0A,',
-                '        intensity',
+                '    return (uint8_t)(',
+                '        (brightness * 15L + 50L) / 100L',
                 '    );',
-                '}',
-                '',
-                'void easybloxMatrixClear(',
-                '    uint8_t dinPin,',
-                '    uint8_t csPin,',
-                '    uint8_t clkPin',
-                ') {',
-                '    for (uint8_t row = 1; row <= 8; ++row) {',
-                '        easybloxMatrixWriteRegister(',
-                '            dinPin, csPin, clkPin, row, 0x00',
-                '        );',
-                '    }',
                 '}',
                 ''
             );
@@ -2437,6 +2345,7 @@ class ArduinoUnoGenerator {
      * @param {boolean} usesEasyBloxBt Whether Bluetooth runtime is emitted.
      * @param {Array<number>} dhtPins DHT sensor pins used by the program.
      * @param {Array<object>} ultrasonicPairs Ultrasonic pin pairs used.
+     * @param {?object} matrixInitialization MAX7219 configuration, if used.
      * @returns {Array<string>} Identifiers reserved from internal allocation.
      * @private
      */
@@ -2446,7 +2355,8 @@ class ArduinoUnoGenerator {
         procedures,
         usesEasyBloxBt = false,
         dhtPins = [],
-        ultrasonicPairs = []
+        ultrasonicPairs = [],
+        matrixInitialization = null
     ) {
         this._variablesById = new Map();
         this._listsById = new Map();
@@ -2457,6 +2367,19 @@ class ArduinoUnoGenerator {
 
         const globalUsed = this._createCppReservedIdentifierSet();
         const reservedForInternals = new Set(globalUsed);
+
+        if (matrixInitialization) {
+            const matrixLibraryIdentifiers = [
+                'LedControl',
+                'matrix',
+                'matrixIntensityFromPercent'
+            ];
+
+            for (const identifier of matrixLibraryIdentifiers) {
+                globalUsed.add(identifier);
+                reservedForInternals.add(identifier);
+            }
+        }
 
         if (usesEasyBloxBt) {
             for (
@@ -3168,6 +3091,18 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Report whether an Upload IR requires LedControl/MAX7219 support.
+     * @param {object} ir EasyBlox Upload IR.
+     * @returns {boolean} True when matrix support is required.
+     */
+    usesMatrix (ir) {
+        return this._containsIrType(
+            ir,
+            'MatrixInit'
+        );
+    }
+
+    /**
      * Recursively test whether an IR tree contains one exact node type.
      * @param {*} value IR value.
      * @param {string} type exact IR node type.
@@ -3324,11 +3259,10 @@ class ArduinoUnoGenerator {
 
             case 'MatrixInit':
                 lines.push(
-                    `${indent}easybloxMatrixInit(` +
-                    `${statement.dinPin}, ` +
-                    `${statement.csPin}, ` +
-                    `${statement.clkPin}` +
-                    ');'
+                    `${indent}matrix.shutdown(0, false);`,
+                    `${indent}matrix.setScanLimit(0, 7);`,
+                    `${indent}matrix.setIntensity(0, 8);`,
+                    `${indent}matrix.clearDisplay(0);`
                 );
                 break;
 
@@ -3364,14 +3298,17 @@ class ArduinoUnoGenerator {
                         .padStart(2, '0')}`
                 );
 
-                lines.push(
-                    `${indent}easybloxMatrixWrite(` +
-                    `${this._matrixInitialization.dinPin}, ` +
-                    `${this._matrixInitialization.csPin}, ` +
-                    `${this._matrixInitialization.clkPin}, ` +
-                    `${rowArguments.join(', ')}` +
-                    ');'
-                );
+                for (
+                    let row = 0;
+                    row < rowArguments.length;
+                    row++
+                ) {
+                    lines.push(
+                        `${indent}matrix.setRow(` +
+                        `0, ${row}, ${rowArguments[row]}` +
+                        ');'
+                    );
+                }
                 break;
             }
 
@@ -3383,16 +3320,12 @@ class ArduinoUnoGenerator {
                 }
 
                 lines.push(
-                    `${indent}easybloxMatrixBrightness(` +
-                    `${this._matrixInitialization.dinPin}, ` +
-                    `${this._matrixInitialization.csPin}, ` +
-                    `${this._matrixInitialization.clkPin}, ` +
-                    `${
+                    `${indent}matrix.setIntensity(0, ` +
+                    `matrixIntensityFromPercent(${
                         this._generateExpression(
                             statement.brightnessPercent
                         )
-                    }` +
-                    ');'
+                    }));`
                 );
                 break;
 
@@ -3404,11 +3337,7 @@ class ArduinoUnoGenerator {
                 }
 
                 lines.push(
-                    `${indent}easybloxMatrixClear(` +
-                    `${this._matrixInitialization.dinPin}, ` +
-                    `${this._matrixInitialization.csPin}, ` +
-                    `${this._matrixInitialization.clkPin}` +
-                    ');'
+                    `${indent}matrix.clearDisplay(0);`
                 );
                 break;
 

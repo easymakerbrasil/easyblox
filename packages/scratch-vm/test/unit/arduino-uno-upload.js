@@ -11285,7 +11285,7 @@ tap.test('Arduino UNO Upload generates runtime numeric hardware values', t => {
 
     t.match(
         matrixCode,
-        /easybloxMatrixBrightness\(2, 3, 4, \(1 \+ 2\)\);/,
+        /matrix\.setIntensity\(0, matrixIntensityFromPercent\(\(1 \+ 2\)\)\);/,
         'generates matrix brightness expression'
     );
 
@@ -17605,8 +17605,8 @@ tap.test(
 
         t.match(
             code,
-            'void easybloxMatrixInit(',
-            'emits internal MAX7219 initialization support'
+            'LedControl matrix(2, 4, 3, 1);',
+            'declares MAX7219 through LedControl'
         );
 
         t.match(
@@ -17641,8 +17641,8 @@ tap.test(
 
         t.match(
             code,
-            'easybloxMatrixInit(2, 3, 4);',
-            'setup initializes MAX7219 with semantic IR pins'
+            'matrix.shutdown(0, false);',
+            'setup initializes MAX7219 through LedControl'
         );
 
         t.match(
@@ -17657,10 +17657,10 @@ tap.test(
             'setup initializes TM1637 with semantic IR pins'
         );
 
-        t.notMatch(
+        t.match(
             code,
-            '#include <LedControl.h>',
-            'MAX7219 does not require a third-party library'
+            '#include "LedControl.h"',
+            'MAX7219 uses the vendored LedControl dependency'
         );
 
         t.notMatch(
@@ -17688,7 +17688,7 @@ tap.test(
 
         t.notMatch(
             emptyCode,
-            'easybloxMatrixInit',
+            '#include "LedControl.h"',
             'does not emit MAX7219 support when absent'
         );
 
@@ -17702,6 +17702,105 @@ tap.test(
             emptyCode,
             'easybloxTm1637Init',
             'does not emit TM1637 support when absent'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload generates MAX7219 with LedControl API',
+    t => {
+        const generator = new ArduinoUnoGenerator();
+
+        const code = generator.generate({
+            setup: [
+                {
+                    type: 'MatrixInit',
+                    dinPin: 18,
+                    csPin: 19,
+                    clkPin: 13
+                },
+                {
+                    type: 'MatrixWrite',
+                    bitmap: '0066FFFF7E3C1800'
+                },
+                {
+                    type: 'MatrixBrightness',
+                    brightnessPercent: 75
+                },
+                {
+                    type: 'MatrixClear'
+                }
+            ],
+            loop: []
+        });
+
+        t.match(
+            code,
+            /#include "LedControl\.h"/,
+            'uses the conventional LedControl Arduino library'
+        );
+
+        t.match(
+            code,
+            /LedControl matrix\(A4, 13, A5, 1\);/,
+            'declares one MAX7219 controller with Arduino pin notation'
+        );
+
+        t.match(
+            code,
+            /matrix\.shutdown\(0, false\);/,
+            'wakes the MAX7219 during initialization'
+        );
+
+        t.match(
+            code,
+            /matrix\.setScanLimit\(0, 7\);/,
+            'enables all eight MAX7219 rows'
+        );
+
+        t.match(
+            code,
+            /matrix\.setIntensity\(0, 8\);/,
+            'preserves the current default MAX7219 intensity'
+        );
+
+        t.match(
+            code,
+            /matrix\.clearDisplay\(0\);/,
+            'clears the matrix through the LedControl API'
+        );
+
+        const expectedRows = [
+            'matrix.setRow(0, 0, 0x00);',
+            'matrix.setRow(0, 1, 0x66);',
+            'matrix.setRow(0, 2, 0xFF);',
+            'matrix.setRow(0, 3, 0xFF);',
+            'matrix.setRow(0, 4, 0x7E);',
+            'matrix.setRow(0, 5, 0x3C);',
+            'matrix.setRow(0, 6, 0x18);',
+            'matrix.setRow(0, 7, 0x00);'
+        ];
+
+        for (const row of expectedRows) {
+            t.match(
+                code,
+                row,
+                `writes normalized MAX7219 row through LedControl: ${row}`
+            );
+        }
+
+        t.match(
+            code,
+            /matrix\.setIntensity\(0, /,
+            'sets runtime brightness through the LedControl API'
+        );
+
+        t.notMatch(
+            code,
+            /easybloxMatrix/,
+            'does not expose proprietary MAX7219 helpers'
         );
 
         t.end();
@@ -17770,41 +17869,37 @@ tap.test(
 
         t.match(
             code,
-            'void easybloxMatrixWrite(',
-            'emits MAX7219 write helper'
+            'matrix.setRow(0, 0, 0x00);',
+            'writes MAX7219 rows through LedControl'
         );
 
         t.match(
             code,
-            'void easybloxMatrixBrightness(',
-            'emits MAX7219 brightness helper'
+            'uint8_t matrixIntensityFromPercent(',
+            'emits neutral MAX7219 brightness normalization'
+        );
+
+        t.notMatch(
+            code,
+            'easybloxMatrix',
+            'does not emit proprietary MAX7219 helpers'
         );
 
         t.match(
             code,
-            'void easybloxMatrixClear(',
-            'emits MAX7219 clear helper'
-        );
-
-        t.match(
-            code,
-            'easybloxMatrixWrite(' +
-                '2, 3, 4, ' +
-                '0x00, 0x66, 0xFF, 0xFF, ' +
-                '0x7E, 0x3C, 0x18, 0x00' +
-                ');',
+            'matrix.setRow(0, 7, 0x00);',
             'writes the eight normalized MAX7219 rows'
         );
 
         t.match(
             code,
-            'easybloxMatrixBrightness(2, 3, 4, 75);',
+            'matrix.setIntensity(0, matrixIntensityFromPercent(75));',
             'sets MAX7219 brightness'
         );
 
         t.match(
             code,
-            'easybloxMatrixClear(2, 3, 4);',
+            'matrix.clearDisplay(0);',
             'clears MAX7219 matrix'
         );
 

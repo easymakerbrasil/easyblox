@@ -1,0 +1,17 @@
+LedControl Arduino Library
+
+Upstream repository:
+https://github.com/wayoda/LedControl
+
+Pinned version:
+1.0.6
+
+Pinned upstream ref:
+1.0.6
+
+Vendored Arduino sources:
+src/LedControl.h
+src/LedControl.cpp
+
+License:
+MIT

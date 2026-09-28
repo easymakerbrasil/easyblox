@@ -50,6 +50,10 @@ const {
     getHcsr04SupportFiles
 } = require('./upload/hcsr04-arduino-runtime');
 
+const {
+    getLedControlSupportFiles
+} = require('./upload/ledcontrol-arduino-runtime');
+
 const {loadCostume} = require('./import/load-costume.js');
 const {loadSound} = require('./import/load-sound.js');
 const {serializeSounds, serializeCostumes} = require('./serialization/serialize-assets');
@@ -3402,6 +3406,12 @@ class VirtualMachine extends EventEmitter {
         if (generator.usesUltrasonic(ir)) {
             supportFiles.push(
                 ...getHcsr04SupportFiles()
+            );
+        }
+
+        if (generator.usesMatrix(ir)) {
+            supportFiles.push(
+                ...getLedControlSupportFiles()
             );
         }
 

@@ -278,6 +278,71 @@ test(
 );
 
 test(
+    'VirtualMachine packages LedControl as Arduino support files',
+    t => {
+        const vm =
+            Object.create(
+                VirtualMachine.prototype
+            );
+
+        vm._getValidatedArduinoUnoUploadIr =
+            () =>
+                createIr([
+                    {
+                        type: 'MatrixInit',
+                        dinPin: 18,
+                        csPin: 19,
+                        clkPin: 13
+                    },
+                    {
+                        type: 'MatrixWrite',
+                        bitmap: '0066FFFF7E3C1800'
+                    }
+                ]);
+
+        const bundle =
+            vm.generateArduinoUnoUploadBuildBundle();
+
+        t.match(
+            bundle.code,
+            /#include "LedControl\.h"/,
+            'pedagogical sketch uses the conventional LedControl library'
+        );
+
+        t.match(
+            bundle.code,
+            /LedControl matrix\(A4, 13, A5, 1\);/,
+            'pedagogical sketch declares the conventional MAX7219 object'
+        );
+
+        t.match(
+            bundle.code,
+            /matrix\.setRow\(0, 0, 0x00\);/,
+            'pedagogical sketch writes matrix rows through LedControl'
+        );
+
+        t.same(
+            bundle.supportFiles.map(
+                file => file.name
+            ),
+            [
+                'LedControl.h',
+                'LedControl.cpp'
+            ],
+            'LedControl implementation travels as build support files'
+        );
+
+        t.notMatch(
+            bundle.code,
+            /easybloxMatrix/,
+            'legacy proprietary MAX7219 helpers do not leak into the sketch'
+        );
+
+        t.end();
+    }
+);
+
+test(
     'VirtualMachine derives EasyBloxConfig.h from the canonical hidden Bluetooth channel',
     t => {
         const vm =
