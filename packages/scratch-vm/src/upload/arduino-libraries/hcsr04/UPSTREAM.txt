@@ -1,0 +1,12 @@
+HCSR04 Arduino library
+
+Upstream: https://github.com/Martinsos/arduino-lib-hc-sr04
+Version: 2.0.0
+Commit: 46a8be5ab2211152601d16748d95df1702bcee72
+Vendored files: HCSR04.h, HCSR04.cpp
+License: MIT
+License text: license.txt
+
+These files are distributed as an Arduino build dependency so EasyBlox
+projects remain reproducible without requiring a global Arduino library
+installation.

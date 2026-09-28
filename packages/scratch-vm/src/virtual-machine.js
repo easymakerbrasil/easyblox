@@ -46,6 +46,10 @@ const {
     getAdafruitDhtSupportFiles
 } = require('./upload/adafruit-dht-arduino-runtime');
 
+const {
+    getHcsr04SupportFiles
+} = require('./upload/hcsr04-arduino-runtime');
+
 const {loadCostume} = require('./import/load-costume.js');
 const {loadSound} = require('./import/load-sound.js');
 const {serializeSounds, serializeCostumes} = require('./serialization/serialize-assets');
@@ -3392,6 +3396,12 @@ class VirtualMachine extends EventEmitter {
         if (generator.usesDht(ir)) {
             supportFiles.push(
                 ...getAdafruitDhtSupportFiles()
+            );
+        }
+
+        if (generator.usesUltrasonic(ir)) {
+            supportFiles.push(
+                ...getHcsr04SupportFiles()
             );
         }
 

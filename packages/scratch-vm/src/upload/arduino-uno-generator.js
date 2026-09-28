@@ -127,16 +127,12 @@ class ArduinoUnoGenerator {
             loopStatements
         );
 
-        const usesUltrasonic = (
-            this._irUsesExpressionType(
-                analysisSetupStatements,
-                'UltrasonicReadExpression'
-            ) ||
-            this._irUsesExpressionType(
-                loopStatements,
-                'UltrasonicReadExpression'
-            )
-        );
+        const ultrasonicPairs = this._collectUltrasonicPairs([
+            ...analysisSetupStatements,
+            ...loopStatements
+        ]);
+
+        const usesUltrasonic = ultrasonicPairs.length > 0;
 
         const dhtPins = this._collectDhtPins([
             ...analysisSetupStatements,
@@ -285,7 +281,8 @@ class ArduinoUnoGenerator {
             lists,
             procedures,
             usesEasyBloxBt,
-            dhtPins
+            dhtPins,
+            ultrasonicPairs
         );
 
         /*
@@ -307,6 +304,13 @@ class ArduinoUnoGenerator {
         if (dhtPins.length > 0) {
             lines.push(
                 '#include "DHT.h"',
+                ''
+            );
+        }
+
+        if (usesUltrasonic) {
+            lines.push(
+                '#include "HCSR04.h"',
                 ''
             );
         }
@@ -343,6 +347,25 @@ class ArduinoUnoGenerator {
             lines.push('');
         }
 
+        if (usesUltrasonic) {
+            for (const pair of ultrasonicPairs) {
+                lines.push(
+                    `UltraSonicDistanceSensor ${
+                        this._getUltrasonicIdentifier(
+                            pair.trigPin,
+                            pair.echoPin
+                        )
+                    }(${
+                        this._generateArduinoPin(pair.trigPin)
+                    }, ${
+                        this._generateArduinoPin(pair.echoPin)
+                    });`
+                );
+            }
+
+            lines.push('');
+        }
+
         for (const motor of motorConfigurations) {
             lines.push(
                 `const int MOTOR${motor.motor}_IN1 = ${motor.in1Pin};`,
@@ -364,27 +387,9 @@ class ArduinoUnoGenerator {
 
         if (usesUltrasonic) {
             lines.push(
-                'float easybloxUltrasonicRead(uint8_t trigPin, uint8_t echoPin) {',
-                '    pinMode(trigPin, OUTPUT);',
-                '    pinMode(echoPin, INPUT);',
-                '',
-                '    digitalWrite(trigPin, LOW);',
-                '    delayMicroseconds(2);',
-                '    digitalWrite(trigPin, HIGH);',
-                '    delayMicroseconds(10);',
-                '    digitalWrite(trigPin, LOW);',
-                '',
-                '    const unsigned long duration = pulseIn(echoPin, HIGH, 30000UL);',
-                '',
-                '    if (duration == 0) {',
-                '        return 0.0f;',
-                '    }',
-                '',
-                '    const uint16_t distanceMm = static_cast<uint16_t>(',
-                '        (duration * 343UL) / 2000UL',
-                '    );',
-                '',
-                '    return static_cast<float>(distanceMm) / 10.0f;',
+                'float readDistanceCm(UltraSonicDistanceSensor &sensor) {',
+                '    const float distanceCm = sensor.measureDistanceCm();',
+                '    return distanceCm < 0.0f ? 0.0f : distanceCm;',
                 '}',
                 ''
             );
@@ -1731,6 +1736,79 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Collect unique ultrasonic TRIG/ECHO pairs referenced anywhere in
+     * EasyBlox IR.
+     * @param {*} value IR value.
+     * @returns {Array<object>} Unique pin pairs in deterministic order.
+     * @private
+     */
+    _collectUltrasonicPairs (value) {
+        const pairs = new Map();
+
+        const visit = item => {
+            if (Array.isArray(item)) {
+                for (const child of item) {
+                    visit(child);
+                }
+                return;
+            }
+
+            if (
+                !item ||
+                typeof item !== 'object'
+            ) {
+                return;
+            }
+
+            if (item.type === 'UltrasonicReadExpression') {
+                const key = `${item.trigPin}:${item.echoPin}`;
+
+                if (!pairs.has(key)) {
+                    pairs.set(key, {
+                        trigPin: item.trigPin,
+                        echoPin: item.echoPin
+                    });
+                }
+            }
+
+            for (const child of Object.values(item)) {
+                visit(child);
+            }
+        };
+
+        visit(value);
+
+        return Array.from(pairs.values())
+            .sort((left, right) =>
+                left.trigPin - right.trigPin ||
+                left.echoPin - right.echoPin
+            );
+    }
+
+    /**
+     * Resolve the generated HCSR04 object for one TRIG/ECHO pair.
+     * @param {number} trigPin Ultrasonic trigger pin.
+     * @param {number} echoPin Ultrasonic echo pin.
+     * @returns {string} Deterministic Arduino identifier.
+     * @private
+     */
+    _getUltrasonicIdentifier (trigPin, echoPin) {
+        const key = `${trigPin}:${echoPin}`;
+
+        if (
+            !this._ultrasonicIdentifiersByPair ||
+            !this._ultrasonicIdentifiersByPair.has(key)
+        ) {
+            throw new Error(
+                `Missing Arduino UNO ultrasonic identifier for pins: ` +
+                `${trigPin}/${echoPin}`
+            );
+        }
+
+        return this._ultrasonicIdentifiersByPair.get(key);
+    }
+
+    /**
      * Collect unique DHT pins referenced anywhere in EasyBlox IR.
      * @param {*} value IR value.
      * @returns {Array<number>} Unique DHT pins in deterministic order.
@@ -2358,6 +2436,7 @@ class ArduinoUnoGenerator {
      * @param {Array<object>} procedures Procedure declarations.
      * @param {boolean} usesEasyBloxBt Whether Bluetooth runtime is emitted.
      * @param {Array<number>} dhtPins DHT sensor pins used by the program.
+     * @param {Array<object>} ultrasonicPairs Ultrasonic pin pairs used.
      * @returns {Array<string>} Identifiers reserved from internal allocation.
      * @private
      */
@@ -2366,29 +2445,60 @@ class ArduinoUnoGenerator {
         lists,
         procedures,
         usesEasyBloxBt = false,
-        dhtPins = []
+        dhtPins = [],
+        ultrasonicPairs = []
     ) {
         this._variablesById = new Map();
         this._listsById = new Map();
         this._proceduresById = new Map();
         this._currentProcedureParameterIdentifiers = null;
         this._dhtIdentifiersByPin = new Map();
+        this._ultrasonicIdentifiersByPair = new Map();
 
         const globalUsed = this._createCppReservedIdentifierSet();
         const reservedForInternals = new Set(globalUsed);
-
-        /*
-        * Internal EasyBlox helper emitted by the Ultrasonic reporter.
-        * Reserve it from student variables, lists, procedures and parameters.
-        */
-        globalUsed.add('easybloxUltrasonicRead');
-        reservedForInternals.add('easybloxUltrasonicRead');
 
         if (usesEasyBloxBt) {
             for (
                 const identifier
                 of EASYBLOX_BT_INTERNAL_IDENTIFIERS
             ) {
+                globalUsed.add(identifier);
+                reservedForInternals.add(identifier);
+            }
+        }
+
+        if (ultrasonicPairs.length > 0) {
+            const ultrasonicLibraryIdentifiers = [
+                'UltraSonicDistanceSensor',
+                'HCSR04_H',
+                'readDistanceCm'
+            ];
+
+            for (const identifier of ultrasonicLibraryIdentifiers) {
+                globalUsed.add(identifier);
+                reservedForInternals.add(identifier);
+            }
+
+            for (const pair of ultrasonicPairs) {
+                const trigPin =
+                    this._generateArduinoPin(pair.trigPin);
+                const echoPin =
+                    this._generateArduinoPin(pair.echoPin);
+
+                const identifier =
+                    ultrasonicPairs.length === 1 ?
+                        'distanceSensor' :
+                        `distanceSensor${trigPin}_${echoPin}`;
+
+                const key =
+                    `${pair.trigPin}:${pair.echoPin}`;
+
+                this._ultrasonicIdentifiersByPair.set(
+                    key,
+                    identifier
+                );
+
                 globalUsed.add(identifier);
                 reservedForInternals.add(identifier);
             }
@@ -3046,6 +3156,15 @@ class ArduinoUnoGenerator {
      */
     usesDht (ir) {
         return this._collectDhtPins(ir).length > 0;
+    }
+
+    /**
+     * Report whether an Upload IR requires the HCSR04 library.
+     * @param {object} ir EasyBlox Upload IR.
+     * @returns {boolean} True when HCSR04 support is required.
+     */
+    usesUltrasonic (ir) {
+        return this._collectUltrasonicPairs(ir).length > 0;
     }
 
     /**
@@ -4236,9 +4355,12 @@ class ArduinoUnoGenerator {
                 `)`;
 
         case 'UltrasonicReadExpression':
-            return `easybloxUltrasonicRead(${
-                expression.trigPin
-            }, ${expression.echoPin})`;
+            return `readDistanceCm(${
+                this._getUltrasonicIdentifier(
+                    expression.trigPin,
+                    expression.echoPin
+                )
+            })`;
 
         case 'DhtReadExpression': {
             const dhtIdentifier =
@@ -4663,6 +4785,27 @@ class ArduinoUnoGenerator {
             .replace(/\r/g, '\\r')
             .replace(/\n/g, '\\n')
             .replace(/\t/g, '\\t');
+    }
+
+    /**
+     * Generate Arduino notation for a canonical UNO pin.
+     * Analog pins use their familiar A0..A5 Arduino notation.
+     * @param {number} pin Canonical Arduino UNO pin.
+     * @returns {string} Arduino pin notation.
+     * @private
+     */
+    _generateArduinoPin (pin) {
+        if (!Number.isInteger(pin)) {
+            throw new Error(
+                `Invalid Arduino UNO pin: ${pin}`
+            );
+        }
+
+        if (pin >= 14 && pin <= 19) {
+            return this._generateAnalogPin(pin);
+        }
+
+        return String(pin);
     }
 
     /**

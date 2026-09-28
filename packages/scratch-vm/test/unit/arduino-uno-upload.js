@@ -11936,7 +11936,7 @@ tap.test('Arduino UNO Upload resolves EasyMaker ultrasonic physical port to cano
 
     t.match(
         generator.generate(ir),
-        /easybloxUltrasonicRead\(18, 19\)/
+        /UltraSonicDistanceSensor distanceSensor\(A4, A5\);/
     );
 
     t.end();
@@ -11991,31 +11991,17 @@ tap.test('Arduino UNO Upload generates ultrasonic sensor expression', t => {
     };
 
     t.equal(generator.generate(ir), [
-        'float easybloxUltrasonicRead(uint8_t trigPin, uint8_t echoPin) {',
-        '    pinMode(trigPin, OUTPUT);',
-        '    pinMode(echoPin, INPUT);',
+        '#include "HCSR04.h"',
         '',
-        '    digitalWrite(trigPin, LOW);',
-        '    delayMicroseconds(2);',
-        '    digitalWrite(trigPin, HIGH);',
-        '    delayMicroseconds(10);',
-        '    digitalWrite(trigPin, LOW);',
+        'UltraSonicDistanceSensor distanceSensor(A2, A3);',
         '',
-        '    const unsigned long duration = pulseIn(echoPin, HIGH, 30000UL);',
-        '',
-        '    if (duration == 0) {',
-        '        return 0.0f;',
-        '    }',
-        '',
-        '    const uint16_t distanceMm = static_cast<uint16_t>(',
-        '        (duration * 343UL) / 2000UL',
-        '    );',
-        '',
-        '    return static_cast<float>(distanceMm) / 10.0f;',
+        'float readDistanceCm(UltraSonicDistanceSensor &sensor) {',
+        '    const float distanceCm = sensor.measureDistanceCm();',
+        '    return distanceCm < 0.0f ? 0.0f : distanceCm;',
         '}',
         '',
         'void setup() {',
-        '    if ((easybloxUltrasonicRead(16, 17) > 20)) {',
+        '    if ((readDistanceCm(distanceSensor) > 20)) {',
         '    }',
         '}',
         '',
@@ -12026,6 +12012,140 @@ tap.test('Arduino UNO Upload generates ultrasonic sensor expression', t => {
 
     t.end();
 });
+
+tap.test(
+    'Arduino UNO Upload generates deterministic HCSR04 objects across program contexts',
+    t => {
+        const generator = new ArduinoUnoGenerator();
+
+        const code = generator.generate({
+            globals: {
+                variables: [
+                    {
+                        id: 'student_distance_sensor',
+                        name: 'distanceSensor2_3',
+                        valueType: 'DECIMAL',
+                        initialValue: {
+                            type: 'DecimalLiteral',
+                            value: 0
+                        }
+                    },
+                    {
+                        id: 'student_reader',
+                        name: 'readDistanceCm',
+                        valueType: 'DECIMAL',
+                        initialValue: {
+                            type: 'DecimalLiteral',
+                            value: 0
+                        }
+                    }
+                ],
+                lists: []
+            },
+
+            procedures: [
+                {
+                    id: 'procedure_ultrasonic',
+                    name: 'ler distancia',
+                    parameters: [],
+                    body: [
+                        {
+                            type: 'Wait',
+                            duration: {
+                                type: 'UltrasonicReadExpression',
+                                trigPin: 18,
+                                echoPin: 19
+                            }
+                        }
+                    ]
+                }
+            ],
+
+            setup: [
+                {
+                    type: 'Wait',
+                    duration: {
+                        type: 'UltrasonicReadExpression',
+                        trigPin: 16,
+                        echoPin: 17
+                    }
+                },
+                {
+                    type: 'Wait',
+                    duration: {
+                        type: 'UltrasonicReadExpression',
+                        trigPin: 16,
+                        echoPin: 17
+                    }
+                },
+                {
+                    type: 'Wait',
+                    duration: {
+                        type: 'UltrasonicReadExpression',
+                        trigPin: 2,
+                        echoPin: 3
+                    }
+                }
+            ],
+
+            loop: []
+        });
+
+        t.match(
+            code,
+            /UltraSonicDistanceSensor distanceSensor2_3\(2, 3\);/,
+            'generates deterministic object for digital D2/D3'
+        );
+
+        t.match(
+            code,
+            /UltraSonicDistanceSensor distanceSensorA2_A3\(A2, A3\);/,
+            'generates Arduino-style object for A2/A3'
+        );
+
+        t.match(
+            code,
+            /UltraSonicDistanceSensor distanceSensorA4_A5\(A4, A5\);/,
+            'collects ultrasonic sensor used inside a procedure'
+        );
+
+        t.equal(
+            (
+                code.match(
+                    /UltraSonicDistanceSensor distanceSensorA2_A3\(A2, A3\);/g
+                ) || []
+            ).length,
+            1,
+            'deduplicates repeated use of the same TRIG/ECHO pair'
+        );
+
+        t.match(
+            code,
+            /readDistanceCm\(distanceSensorA4_A5\)/,
+            'procedure uses its deterministic HCSR04 object'
+        );
+
+        t.match(
+            code,
+            /float distanceSensor2_3_2 = 0;/,
+            'student symbol does not collide with generated sensor object'
+        );
+
+        t.match(
+            code,
+            /float readDistanceCm_2 = 0;/,
+            'student symbol does not collide with normalization helper'
+        );
+
+        t.notMatch(
+            code,
+            /easybloxUltrasonicRead/,
+            'legacy EasyBlox ultrasonic helper is not emitted'
+        );
+
+        t.end();
+    }
+);
 
 tap.test('Arduino UNO Upload extracts DHT and joystick sensor IR', t => {
     const extractor = new UploadProgramExtractor({

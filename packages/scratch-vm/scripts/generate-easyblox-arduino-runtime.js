@@ -102,3 +102,19 @@ generateSourcesModule({
     constantName:
         'ADAFRUIT_DHT_LIBRARY_SOURCES'
 });
+
+generateSourcesModule({
+    sourceDirectory:
+        path.resolve(
+            scriptDirectory,
+            '../src/upload/arduino-libraries/hcsr04'
+        ),
+    fileNames: [
+        'HCSR04.h',
+        'HCSR04.cpp'
+    ],
+    outputFileName:
+        'hcsr04-library-files.js',
+    constantName:
+        'HCSR04_LIBRARY_SOURCES'
+});

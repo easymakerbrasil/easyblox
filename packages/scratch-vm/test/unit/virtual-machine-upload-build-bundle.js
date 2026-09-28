@@ -215,6 +215,69 @@ test(
 );
 
 test(
+    'VirtualMachine packages HCSR04 as Arduino support files',
+    t => {
+        const vm =
+            Object.create(
+                VirtualMachine.prototype
+            );
+
+        vm._getValidatedArduinoUnoUploadIr =
+            () =>
+                createIr([
+                    {
+                        type: 'Wait',
+                        duration: {
+                            type: 'UltrasonicReadExpression',
+                            trigPin: 16,
+                            echoPin: 17
+                        }
+                    }
+                ]);
+
+        const bundle =
+            vm.generateArduinoUnoUploadBuildBundle();
+
+        t.match(
+            bundle.code,
+            /#include "HCSR04\.h"/,
+            'pedagogical sketch uses the conventional HCSR04 library'
+        );
+
+        t.match(
+            bundle.code,
+            /UltraSonicDistanceSensor distanceSensor\(A2, A3\);/,
+            'pedagogical sketch declares the conventional HCSR04 object'
+        );
+
+        t.match(
+            bundle.code,
+            /sensor\.measureDistanceCm\(\)/,
+            'pedagogical sketch uses the real HCSR04 measurement API'
+        );
+
+        t.same(
+            bundle.supportFiles.map(
+                file => file.name
+            ),
+            [
+                'HCSR04.h',
+                'HCSR04.cpp'
+            ],
+            'HCSR04 implementation travels as build support files'
+        );
+
+        t.notMatch(
+            bundle.code,
+            /easybloxUltrasonicRead/,
+            'legacy proprietary ultrasonic helper does not leak into the sketch'
+        );
+
+        t.end();
+    }
+);
+
+test(
     'VirtualMachine derives EasyBloxConfig.h from the canonical hidden Bluetooth channel',
     t => {
         const vm =
