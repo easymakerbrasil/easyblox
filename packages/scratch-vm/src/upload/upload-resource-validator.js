@@ -663,6 +663,24 @@ class UploadResourceValidator {
      * @private
      */
     _validateMatrixInitialization (statement) {
+        const fixedMatrixPins =
+            this.boardProfile.matrixPins;
+
+        if (fixedMatrixPins) {
+            if (
+                statement.dinPin !==
+                    fixedMatrixPins.dinPin ||
+                statement.csPin !==
+                    fixedMatrixPins.csPin ||
+                statement.clkPin !==
+                    fixedMatrixPins.clkPin
+            ) {
+                throw new Error(
+                    'Matrix pins are fixed by the selected board'
+                );
+            }
+        }
+
         const supportedDigitalPins =
             Array.isArray(this.boardProfile.digitalPins) ?
                 this.boardProfile.digitalPins :

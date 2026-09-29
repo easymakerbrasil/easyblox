@@ -905,7 +905,26 @@ class UploadProgramExtractor {
             };
         }
 
-        case MATRIX_INIT_OPCODE:
+        case MATRIX_INIT_OPCODE: {
+            if (
+                this.program &&
+                this.program.boardId ===
+                    EasyMakerProductProfile.id
+            ) {
+                const pins =
+                    EasyMakerProductProfile
+                        .dedicatedResources
+                        .matrixJoystick
+                        .pins;
+
+                return {
+                    type: 'MatrixInit',
+                    dinPin: pins.a4,
+                    csPin: pins.a5,
+                    clkPin: pins.d13
+                };
+            }
+
             return {
                 type: 'MatrixInit',
                 dinPin: this._readNumberInput(
@@ -924,6 +943,7 @@ class UploadProgramExtractor {
                     'CLK'
                 )
             };
+        }
 
         case LCD_INIT_OPCODE:
             return {

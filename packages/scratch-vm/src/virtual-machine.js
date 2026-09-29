@@ -75,6 +75,27 @@ const EASYMAKER_ARDUINO_UNO_UPLOAD_PROFILE =
                         .matrixJoystick
                         .pins
                         .d13
+            }),
+        matrixPins:
+            Object.freeze({
+                dinPin:
+                    EasyMakerProductProfile
+                        .dedicatedResources
+                        .matrixJoystick
+                        .pins
+                        .a4,
+                csPin:
+                    EasyMakerProductProfile
+                        .dedicatedResources
+                        .matrixJoystick
+                        .pins
+                        .a5,
+                clkPin:
+                    EasyMakerProductProfile
+                        .dedicatedResources
+                        .matrixJoystick
+                        .pins
+                        .d13
             })
     });
 

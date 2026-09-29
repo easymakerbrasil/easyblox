@@ -433,6 +433,60 @@ test('Displays keep the generic LCD surface for non-EasyMaker boards', t => {
     t.end();
 });
 
+test('Displays expose fixed EasyMaker matrix JST initialization', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({}),
+        getEasyBloxSelectedBoardId: () =>
+            'easymaker'
+    };
+
+    const extension =
+        new Scratch3DisplaysBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const matrixInitBlock =
+        info.blocks.find(block =>
+            block &&
+            typeof block === 'object' &&
+            block.opcode === 'configureMatrix'
+        );
+
+    t.equal(
+        matrixInitBlock.text,
+        'inicializar matriz 8×8'
+    );
+
+    t.equal(
+        matrixInitBlock.arguments,
+        undefined,
+        'EasyMaker matrix exposes no Arduino pin arguments'
+    );
+
+    extension.configureMatrix({
+        DIN: '2',
+        CS: '4',
+        CLK: '12'
+    });
+
+    t.same(
+        [
+            extension._matrixDinPin,
+            extension._matrixCsPin,
+            extension._matrixClkPin
+        ],
+        [
+            18,
+            19,
+            13
+        ],
+        'EasyMaker always uses the dedicated JST matrix wiring'
+    );
+
+    t.end();
+});
+
 test('Displays configure matrix pins locally', t => {
     const runtime = {
         getPeripheralExtension: () => ({})

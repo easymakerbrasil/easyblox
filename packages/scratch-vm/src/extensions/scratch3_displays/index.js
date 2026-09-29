@@ -64,6 +64,43 @@ class Scratch3DisplaysBlocks {
                 this.runtime.getEasyBloxSelectedBoardId() :
                 null;
 
+        const useEasyMakerMatrixSurface =
+            selectedBoardId ===
+                EasyMakerProductProfile.id;
+
+        const matrixInitBlock =
+            useEasyMakerMatrixSurface ?
+                {
+                    opcode: 'configureMatrix',
+                    blockType: BlockType.COMMAND,
+                    text: 'inicializar matriz 8×8'
+                } :
+                {
+                    opcode: 'configureMatrix',
+                    blockType: BlockType.COMMAND,
+                    text: 'configurar matriz 8×8 DIN [DIN] CS [CS] CLK [CLK]',
+                    arguments: {
+                        DIN: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'matrixPins',
+                            defaultValue:
+                                DEFAULT_MATRIX_DIN_PIN
+                        },
+                        CS: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'matrixPins',
+                            defaultValue:
+                                DEFAULT_MATRIX_CS_PIN
+                        },
+                        CLK: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'matrixPins',
+                            defaultValue:
+                                DEFAULT_MATRIX_CLK_PIN
+                        }
+                    }
+                };
+
         const easyMakerLcdPort =
             EasyMakerProductProfile
                 .physicalPorts
@@ -114,28 +151,7 @@ class Scratch3DisplaysBlocks {
                     blockType: BlockType.LABEL,
                     text: 'Matriz de LED 8x8'
                 },
-                {
-                    opcode: 'configureMatrix',
-                    blockType: BlockType.COMMAND,
-                    text: 'configurar matriz 8×8 DIN [DIN] CS [CS] CLK [CLK]',
-                    arguments: {
-                        DIN: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'matrixPins',
-                            defaultValue: DEFAULT_MATRIX_DIN_PIN
-                        },
-                        CS: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'matrixPins',
-                            defaultValue: DEFAULT_MATRIX_CS_PIN
-                        },
-                        CLK: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'matrixPins',
-                            defaultValue: DEFAULT_MATRIX_CLK_PIN
-                        }
-                    }
-                },
+                matrixInitBlock,
                 {
                     opcode: 'matrixWrite',
                     blockType: BlockType.COMMAND,
@@ -382,6 +398,22 @@ class Scratch3DisplaysBlocks {
     }
 
     /**
+     * Report whether the active physical board is EasyMaker.
+     * @returns {boolean} True when EasyMaker is selected.
+     * @private
+     */
+    _isEasyMakerSelected () {
+        return (
+            typeof this.runtime
+                .getEasyBloxSelectedBoardId ===
+                    'function' &&
+            this.runtime
+                .getEasyBloxSelectedBoardId() ===
+                    EasyMakerProductProfile.id
+        );
+    }
+
+    /**
      * Check whether a pin can be used by the MAX7219 matrix.
      * @param {number} pin Arduino pin number.
      * @returns {boolean} True when valid.
@@ -400,6 +432,20 @@ class Scratch3DisplaysBlocks {
      * @returns {void} No transport command is sent.
      */
     configureMatrix (args) {
+        if (this._isEasyMakerSelected()) {
+            const pins =
+                EasyMakerProductProfile
+                    .dedicatedResources
+                    .matrixJoystick
+                    .pins;
+
+            this._matrixDinPin = pins.a4;
+            this._matrixCsPin = pins.a5;
+            this._matrixClkPin = pins.d13;
+
+            return;
+        }
+
         const dinPin = Number(args.DIN);
         const csPin = Number(args.CS);
         const clkPin = Number(args.CLK);

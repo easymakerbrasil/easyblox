@@ -2499,6 +2499,62 @@ test('VirtualMachine generates Arduino UNO Serial Upload C++ from current runtim
     t.end();
 });
 
+test('VirtualMachine uses EasyMaker fixed matrix JST wiring in Upload', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat('matrix_init'),
+            {
+                id: 'matrix_init',
+                opcode: 'displays_configureMatrix',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {},
+                fields: {},
+                topLevel: false,
+                shadow: false
+            }
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /#include "MAX7219Matrix\.h"/
+    );
+
+    t.match(
+        code,
+        /MAX7219Matrix matrix\(A4, 13, A5\);/,
+        'EasyMaker uses the dedicated JST matrix wiring'
+    );
+
+    t.match(
+        code,
+        /matrix\.begin\(\);/
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same fixed matrix JST wiring'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine uses EasyMaker fixed joystick JST wiring in Upload', t => {
     const vm = new VirtualMachine();
 
