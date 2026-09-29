@@ -58,6 +58,10 @@ class Scratch3SensorsBlocks {
             selectedBoardId ===
                 EasyMakerProductProfile.id;
 
+        const useEasyMakerJoystickSurface =
+            selectedBoardId ===
+                EasyMakerProductProfile.id;
+
         const easyMakerPhysicalPorts =
             Object.values(
                 EasyMakerProductProfile.physicalPorts
@@ -242,6 +246,8 @@ class Scratch3SensorsBlocks {
                 {
                     opcode: 'joystickInit',
                     blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        useEasyMakerJoystickSurface,
                     text: 'inicializar joystick X [X] Y [Y] CLICK [CLICK]',
                     arguments: {
                         X: {
@@ -260,6 +266,13 @@ class Scratch3SensorsBlocks {
                             defaultValue: 13
                         }
                     }
+                },
+                {
+                    opcode: 'joystickInitEasyMaker',
+                    blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        !useEasyMakerJoystickSurface,
+                    text: 'inicializar joystick'
                 },
                 {
                     opcode: 'joystickValue',
@@ -515,6 +528,10 @@ class Scratch3SensorsBlocks {
      * @returns {void}
      */
     joystickInit (args) {
+        if (this._isEasyMakerSelected()) {
+            return this.joystickInitEasyMaker();
+        }
+
         const xPin = Number(args.X);
         const yPin = Number(args.Y);
         const clickPin = Number(args.CLICK);
@@ -537,6 +554,22 @@ class Scratch3SensorsBlocks {
         this._joystickXPin = xPin;
         this._joystickYPin = yPin;
         this._joystickClickPin = clickPin;
+    }
+
+    /**
+     * Configure the fixed EasyMaker joystick JST connector.
+     * @returns {void}
+     */
+    joystickInitEasyMaker () {
+        const pins =
+            EasyMakerProductProfile
+                .dedicatedResources
+                .matrixJoystick
+                .pins;
+
+        this._joystickXPin = pins.a4;
+        this._joystickYPin = pins.a5;
+        this._joystickClickPin = pins.d13;
     }
 
     /**
@@ -598,6 +631,22 @@ class Scratch3SensorsBlocks {
             return values.clicked;
         });
 
+    }
+
+    /**
+     * Report whether the active physical board is EasyMaker.
+     * @returns {boolean} True when EasyMaker is selected.
+     * @private
+     */
+    _isEasyMakerSelected () {
+        return (
+            typeof this.runtime
+                .getEasyBloxSelectedBoardId ===
+                    'function' &&
+            this.runtime
+                .getEasyBloxSelectedBoardId() ===
+                    EasyMakerProductProfile.id
+        );
     }
 }
 

@@ -48,7 +48,7 @@ test('Sensors expose the ultrasonic block, colors and pins', t => {
     t.equal(info.color1, '#29B6F6');
     t.equal(info.color2, '#039BE5');
     t.equal(info.color3, '#0277BD');
-    t.equal(info.blocks.length, 8);
+    t.equal(info.blocks.length, 9);
 
     const ultrasonicBlock = info.blocks[0];
 
@@ -871,6 +871,98 @@ test('Sensors expose the joystick blocks and menus', t => {
             {text: 'X', value: 'X'},
             {text: 'Y', value: 'Y'}
         ]
+    );
+
+    t.end();
+});
+
+test('Sensors expose fixed EasyMaker joystick initialization', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({}),
+        getEasyBloxSelectedBoardId:
+            () => 'easymaker'
+    };
+
+    const extension =
+        new Scratch3SensorsBlocks(runtime);
+
+    const info = extension.getInfo();
+
+    const genericInitBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'joystickInit'
+        );
+
+    const easyMakerInitBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'joystickInitEasyMaker'
+        );
+
+    t.equal(
+        genericInitBlock.hideFromPalette,
+        true,
+        'EasyMaker hides manual joystick pin configuration'
+    );
+
+    t.equal(
+        easyMakerInitBlock.hideFromPalette,
+        false,
+        'EasyMaker exposes dedicated joystick initialization'
+    );
+
+    t.equal(
+        easyMakerInitBlock.text,
+        'inicializar joystick'
+    );
+
+    t.equal(
+        easyMakerInitBlock.arguments,
+        undefined,
+        'EasyMaker joystick exposes no Arduino pin arguments'
+    );
+
+    extension.joystickInit({
+        X: '14',
+        Y: '15',
+        CLICK: '12'
+    });
+
+    t.equal(
+        extension._joystickXPin,
+        18
+    );
+
+    t.equal(
+        extension._joystickYPin,
+        19
+    );
+
+    t.equal(
+        extension._joystickClickPin,
+        13
+    );
+
+    extension.joystickInitEasyMaker();
+
+    t.equal(
+        extension._joystickXPin,
+        18
+    );
+
+    t.equal(
+        extension._joystickYPin,
+        19
+    );
+
+    t.equal(
+        extension._joystickClickPin,
+        13
     );
 
     t.end();

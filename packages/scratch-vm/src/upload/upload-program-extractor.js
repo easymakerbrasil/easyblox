@@ -25,6 +25,8 @@ const DHT_READ_OPCODE = 'sensors_dhtRead';
 const EASYMAKER_DHT_READ_OPCODE =
     'sensors_dhtReadPort';
 const JOYSTICK_INIT_OPCODE = 'sensors_joystickInit';
+const EASYMAKER_JOYSTICK_INIT_OPCODE =
+    'sensors_joystickInitEasyMaker';
 const JOYSTICK_VALUE_OPCODE = 'sensors_joystickValue';
 const JOYSTICK_CLICKED_OPCODE = 'sensors_joystickClicked';
 const MATRIX_INIT_OPCODE = 'displays_configureMatrix';
@@ -887,6 +889,21 @@ class UploadProgramExtractor {
                     'CLICK'
                 )
             };
+
+        case EASYMAKER_JOYSTICK_INIT_OPCODE: {
+            const pins =
+                EasyMakerProductProfile
+                    .dedicatedResources
+                    .matrixJoystick
+                    .pins;
+
+            return {
+                type: 'JoystickInit',
+                xPin: pins.a4,
+                yPin: pins.a5,
+                clickPin: pins.d13
+            };
+        }
 
         case MATRIX_INIT_OPCODE:
             return {

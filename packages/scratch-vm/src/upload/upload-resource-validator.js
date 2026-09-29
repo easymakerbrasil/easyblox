@@ -869,6 +869,24 @@ class UploadResourceValidator {
      * @private
      */
     _validateJoystickInitialization (statement) {
+        const fixedJoystickPins =
+            this.boardProfile.joystickPins;
+
+        if (fixedJoystickPins) {
+            if (
+                statement.xPin !==
+                    fixedJoystickPins.xPin ||
+                statement.yPin !==
+                    fixedJoystickPins.yPin ||
+                statement.clickPin !==
+                    fixedJoystickPins.clickPin
+            ) {
+                throw new Error(
+                    'Joystick pins are fixed by the selected board'
+                );
+            }
+        }
+
         const supportedAnalogPins =
             Array.isArray(this.boardProfile.analogPins) ?
                 this.boardProfile.analogPins :

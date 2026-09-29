@@ -54,7 +54,28 @@ const EASYMAKER_ARDUINO_UNO_UPLOAD_PROFILE =
                     EasyMakerProductProfile
                         .simpleDigitalPorts
                 ).map(port => port.pin)
-            )
+            ),
+        joystickPins:
+            Object.freeze({
+                xPin:
+                    EasyMakerProductProfile
+                        .dedicatedResources
+                        .matrixJoystick
+                        .pins
+                        .a4,
+                yPin:
+                    EasyMakerProductProfile
+                        .dedicatedResources
+                        .matrixJoystick
+                        .pins
+                        .a5,
+                clickPin:
+                    EasyMakerProductProfile
+                        .dedicatedResources
+                        .matrixJoystick
+                        .pins
+                        .d13
+            })
     });
 
 const {

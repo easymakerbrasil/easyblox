@@ -2499,6 +2499,132 @@ test('VirtualMachine generates Arduino UNO Serial Upload C++ from current runtim
     t.end();
 });
 
+test('VirtualMachine uses EasyMaker fixed joystick JST wiring in Upload', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat('joystick_init'),
+            {
+                id: 'joystick_init',
+                opcode:
+                    'sensors_joystickInitEasyMaker',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {},
+                fields: {},
+                topLevel: false,
+                shadow: false
+            }
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /pinMode\(A4, INPUT\);/
+    );
+
+    t.match(
+        code,
+        /pinMode\(A5, INPUT\);/
+    );
+
+    t.match(
+        code,
+        /pinMode\(13, INPUT_PULLUP\);/
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same fixed joystick JST wiring'
+    );
+
+    t.end();
+});
+
+test('VirtualMachine rejects legacy joystick wiring on EasyMaker Upload', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat('joystick_init'),
+            {
+                id: 'joystick_init',
+                opcode: 'sensors_joystickInit',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {
+                    X: {
+                        name: 'X',
+                        block: 'joystick_x',
+                        shadow: 'joystick_x'
+                    },
+                    Y: {
+                        name: 'Y',
+                        block: 'joystick_y',
+                        shadow: 'joystick_y'
+                    },
+                    CLICK: {
+                        name: 'CLICK',
+                        block: 'joystick_click',
+                        shadow: 'joystick_click'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'joystick_x',
+                'joystick_init',
+                'sensors_menu_joystickAnalogPins',
+                'joystickAnalogPins',
+                14
+            ),
+            createExtensionMenuShadow(
+                'joystick_y',
+                'joystick_init',
+                'sensors_menu_joystickAnalogPins',
+                'joystickAnalogPins',
+                15
+            ),
+            createExtensionMenuShadow(
+                'joystick_click',
+                'joystick_init',
+                'sensors_menu_joystickClickPins',
+                'joystickClickPins',
+                12
+            )
+        ],
+        'easymaker'
+    );
+
+    t.throws(
+        () =>
+            vm.generateArduinoUnoUploadCode(
+                'easymaker'
+            ),
+        /Joystick pins are fixed by the selected board/,
+        'legacy joystick blocks cannot bypass the EasyMaker JST wiring'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine uses EasyMaker fixed motor wiring in Upload', t => {
     const vm = new VirtualMachine();
 
