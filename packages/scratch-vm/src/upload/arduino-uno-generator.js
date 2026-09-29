@@ -319,7 +319,7 @@ class ArduinoUnoGenerator {
 
         if (matrixInitialization) {
             lines.push(
-                '#include "LedControl.h"',
+                '#include "MAX7219Matrix.h"',
                 ''
             );
         }
@@ -342,7 +342,7 @@ class ArduinoUnoGenerator {
 
         if (matrixInitialization) {
             lines.push(
-                `LedControl matrix(${
+                `MAX7219Matrix matrix(${
                     this._generateArduinoPin(
                         matrixInitialization.dinPin
                     )
@@ -354,7 +354,7 @@ class ArduinoUnoGenerator {
                     this._generateArduinoPin(
                         matrixInitialization.csPin
                     )
-                }, 1);`,
+                });`,
                 ''
             );
         }
@@ -559,27 +559,6 @@ class ArduinoUnoGenerator {
                 '    default:',
                 '        break;',
                 '    }',
-                '}',
-                ''
-            );
-        }
-
-        if (matrixInitialization) {
-            lines.push(
-                'uint8_t matrixIntensityFromPercent(',
-                '    float brightnessPercent',
-                ') {',
-                '    int brightness = (int)round(brightnessPercent);',
-                '',
-                '    if (brightness < 0) {',
-                '        brightness = 0;',
-                '    } else if (brightness > 100) {',
-                '        brightness = 100;',
-                '    }',
-                '',
-                '    return (uint8_t)(',
-                '        (brightness * 15L + 50L) / 100L',
-                '    );',
                 '}',
                 ''
             );
@@ -2211,9 +2190,12 @@ class ArduinoUnoGenerator {
 
         if (matrixInitialization) {
             const matrixLibraryIdentifiers = [
-                'LedControl',
+                'MAX7219Matrix',
                 'matrix',
-                'matrixIntensityFromPercent'
+                'MAX7219_MATRIX_H_',
+                'LedControl',
+                'LedControl_h',
+                'charTable'
             ];
 
             for (const identifier of matrixLibraryIdentifiers) {
@@ -3155,10 +3137,7 @@ class ArduinoUnoGenerator {
 
             case 'MatrixInit':
                 lines.push(
-                    `${indent}matrix.shutdown(0, false);`,
-                    `${indent}matrix.setScanLimit(0, 7);`,
-                    `${indent}matrix.setIntensity(0, 8);`,
-                    `${indent}matrix.clearDisplay(0);`
+                    `${indent}matrix.begin();`
                 );
                 break;
 
@@ -3182,27 +3161,23 @@ class ArduinoUnoGenerator {
                     );
                 }
 
-                const rows =
-                    this._normalizeMatrixBitmap(statement.bitmap);
+                const normalizedBitmap =
+                    this._normalizeMatrixBitmap(
+                        statement.bitmap
+                    )
+                        .map(row =>
+                            row
+                                .toString(16)
+                                .toUpperCase()
+                                .padStart(2, '0')
+                        )
+                        .join('');
 
-                const rowArguments = rows.map(row =>
-                    `0x${row
-                        .toString(16)
-                        .toUpperCase()
-                        .padStart(2, '0')}`
+                lines.push(
+                    `${indent}matrix.drawBitmap(` +
+                    `"${normalizedBitmap}"` +
+                    ');'
                 );
-
-                for (
-                    let row = 0;
-                    row < rowArguments.length;
-                    row++
-                ) {
-                    lines.push(
-                        `${indent}matrix.setRow(` +
-                        `0, ${row}, ${rowArguments[row]}` +
-                        ');'
-                    );
-                }
                 break;
             }
 
@@ -3214,12 +3189,11 @@ class ArduinoUnoGenerator {
                 }
 
                 lines.push(
-                    `${indent}matrix.setIntensity(0, ` +
-                    `matrixIntensityFromPercent(${
+                    `${indent}matrix.setBrightness(${
                         this._generateExpression(
                             statement.brightnessPercent
                         )
-                    }));`
+                    });`
                 );
                 break;
 
@@ -3231,7 +3205,7 @@ class ArduinoUnoGenerator {
                 }
 
                 lines.push(
-                    `${indent}matrix.clearDisplay(0);`
+                    `${indent}matrix.clear();`
                 );
                 break;
 

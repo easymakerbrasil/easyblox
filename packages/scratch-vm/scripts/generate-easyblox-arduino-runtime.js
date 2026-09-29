@@ -139,6 +139,22 @@ generateSourcesModule({
     sourceDirectory:
         path.resolve(
             scriptDirectory,
+            '../src/upload/arduino-adapters/max7219-matrix'
+        ),
+    fileNames: [
+        'MAX7219Matrix.h',
+        'MAX7219Matrix.cpp'
+    ],
+    outputFileName:
+        'max7219-matrix-adapter-files.js',
+    constantName:
+        'MAX7219_MATRIX_ADAPTER_SOURCES'
+});
+
+generateSourcesModule({
+    sourceDirectory:
+        path.resolve(
+            scriptDirectory,
             '../src/upload/arduino-libraries/erriez-tm1637'
         ),
     fileNames: [

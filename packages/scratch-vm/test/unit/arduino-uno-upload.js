@@ -11285,7 +11285,7 @@ tap.test('Arduino UNO Upload generates runtime numeric hardware values', t => {
 
     t.match(
         matrixCode,
-        /matrix\.setIntensity\(0, matrixIntensityFromPercent\(\(1 \+ 2\)\)\);/,
+        /matrix\.setBrightness\(\(1 \+ 2\)\);/,
         'generates matrix brightness expression'
     );
 
@@ -17605,8 +17605,8 @@ tap.test(
 
         t.match(
             code,
-            'LedControl matrix(2, 4, 3, 1);',
-            'declares MAX7219 through LedControl'
+            'MAX7219Matrix matrix(2, 4, 3);',
+            'declares the compact MAX7219 matrix adapter'
         );
 
         t.match(
@@ -17641,8 +17641,8 @@ tap.test(
 
         t.match(
             code,
-            'matrix.shutdown(0, false);',
-            'setup initializes MAX7219 through LedControl'
+            'matrix.begin();',
+            'setup initializes MAX7219 through the adapter'
         );
 
         t.match(
@@ -17659,8 +17659,8 @@ tap.test(
 
         t.match(
             code,
-            '#include "LedControl.h"',
-            'MAX7219 uses the vendored LedControl dependency'
+            '#include "MAX7219Matrix.h"',
+            'MAX7219 uses the compact matrix adapter'
         );
 
         t.notMatch(
@@ -17688,7 +17688,7 @@ tap.test(
 
         t.notMatch(
             emptyCode,
-            '#include "LedControl.h"',
+            '#include "MAX7219Matrix.h"',
             'does not emit MAX7219 support when absent'
         );
 
@@ -17709,7 +17709,7 @@ tap.test(
 );
 
 tap.test(
-    'Arduino UNO Upload generates MAX7219 with LedControl API',
+    'Arduino UNO Upload generates a compact MAX7219Matrix sketch',
     t => {
         const generator = new ArduinoUnoGenerator();
 
@@ -17738,69 +17738,50 @@ tap.test(
 
         t.match(
             code,
-            /#include "LedControl\.h"/,
-            'uses the conventional LedControl Arduino library'
+            '#include "MAX7219Matrix.h"',
+            'uses the compact MAX7219 matrix adapter'
         );
 
         t.match(
             code,
-            /LedControl matrix\(A4, 13, A5, 1\);/,
-            'declares one MAX7219 controller with Arduino pin notation'
+            /MAX7219Matrix matrix\(A4, 13, A5\);/,
+            'declares a pedagogical matrix object with Arduino pin notation'
         );
 
         t.match(
             code,
-            /matrix\.shutdown\(0, false\);/,
-            'wakes the MAX7219 during initialization'
+            'matrix.begin();',
+            'initializes the matrix through the adapter API'
         );
 
         t.match(
             code,
-            /matrix\.setScanLimit\(0, 7\);/,
-            'enables all eight MAX7219 rows'
+            'matrix.drawBitmap("0066FFFF7E3C1800");',
+            'draws the normalized bitmap with one high-level call'
         );
 
         t.match(
             code,
-            /matrix\.setIntensity\(0, 8\);/,
-            'preserves the current default MAX7219 intensity'
+            'matrix.setBrightness(75);',
+            'sets brightness through the adapter API'
         );
 
         t.match(
             code,
-            /matrix\.clearDisplay\(0\);/,
-            'clears the matrix through the LedControl API'
-        );
-
-        const expectedRows = [
-            'matrix.setRow(0, 0, 0x00);',
-            'matrix.setRow(0, 1, 0x66);',
-            'matrix.setRow(0, 2, 0xFF);',
-            'matrix.setRow(0, 3, 0xFF);',
-            'matrix.setRow(0, 4, 0x7E);',
-            'matrix.setRow(0, 5, 0x3C);',
-            'matrix.setRow(0, 6, 0x18);',
-            'matrix.setRow(0, 7, 0x00);'
-        ];
-
-        for (const row of expectedRows) {
-            t.match(
-                code,
-                row,
-                `writes normalized MAX7219 row through LedControl: ${row}`
-            );
-        }
-
-        t.match(
-            code,
-            /matrix\.setIntensity\(0, /,
-            'sets runtime brightness through the LedControl API'
+            'matrix.clear();',
+            'clears the matrix through the adapter API'
         );
 
         t.notMatch(
             code,
-            /easybloxMatrix/,
-            'does not expose proprietary MAX7219 helpers'
+            /matrix\.setRow|matrixIntensityFromPercent|matrix\.setIntensity|matrix\.shutdown|matrix\.setScanLimit|matrix\.clearDisplay/,
+            'keeps MAX7219 implementation details out of the pedagogical sketch'
+        );
+
+        t.notMatch(
+            code,
+            '#include "LedControl.h"',
+            'keeps the low-level LedControl dependency behind the adapter'
         );
 
         t.end();
@@ -17947,38 +17928,26 @@ tap.test(
 
         t.match(
             code,
-            'matrix.setRow(0, 0, 0x00);',
-            'writes MAX7219 rows through LedControl'
+            'matrix.drawBitmap("0066FFFF7E3C1800");',
+            'draws the normalized MAX7219 bitmap'
         );
 
         t.match(
             code,
-            'uint8_t matrixIntensityFromPercent(',
-            'emits neutral MAX7219 brightness normalization'
-        );
-
-        t.notMatch(
-            code,
-            'easybloxMatrix',
-            'does not emit proprietary MAX7219 helpers'
-        );
-
-        t.match(
-            code,
-            'matrix.setRow(0, 7, 0x00);',
-            'writes the eight normalized MAX7219 rows'
-        );
-
-        t.match(
-            code,
-            'matrix.setIntensity(0, matrixIntensityFromPercent(75));',
+            'matrix.setBrightness(75);',
             'sets MAX7219 brightness'
         );
 
         t.match(
             code,
-            'matrix.clearDisplay(0);',
+            'matrix.clear();',
             'clears MAX7219 matrix'
+        );
+
+        t.notMatch(
+            code,
+            /matrix\.setRow|matrixIntensityFromPercent|matrix\.setIntensity/,
+            'keeps MAX7219 implementation details outside the sketch'
         );
 
         t.match(
@@ -18117,22 +18086,16 @@ tap.test(
             loop: []
         });
 
-        t.match(
+        t.notMatch(
             code,
-            'int brightness = (int)round(brightnessPercent);',
-            'rounds MAX7219 brightness'
+            /round\(brightnessPercent\)|brightness < 0|brightness > 100/,
+            'keeps MAX7219 brightness normalization outside the sketch'
         );
 
         t.match(
             code,
-            'if (brightness < 0)',
-            'clamps negative MAX7219 brightness'
-        );
-
-        t.match(
-            code,
-            'else if (brightness > 100)',
-            'clamps MAX7219 brightness above 100'
+            'matrix.setBrightness(175.6);',
+            'preserves brightness argument for adapter normalization'
         );
 
         t.match(

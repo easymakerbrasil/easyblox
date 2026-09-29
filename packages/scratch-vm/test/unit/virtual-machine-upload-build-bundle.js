@@ -278,7 +278,7 @@ test(
 );
 
 test(
-    'VirtualMachine packages LedControl as Arduino support files',
+    'VirtualMachine packages compact MAX7219 adapter and implementation files',
     t => {
         const vm =
             Object.create(
@@ -297,6 +297,13 @@ test(
                     {
                         type: 'MatrixWrite',
                         bitmap: '0066FFFF7E3C1800'
+                    },
+                    {
+                        type: 'MatrixBrightness',
+                        brightnessPercent: 75
+                    },
+                    {
+                        type: 'MatrixClear'
                     }
                 ]);
 
@@ -305,20 +312,44 @@ test(
 
         t.match(
             bundle.code,
-            /#include "LedControl\.h"/,
-            'pedagogical sketch uses the conventional LedControl library'
+            /#include "MAX7219Matrix\.h"/,
+            'pedagogical sketch uses the compact MAX7219 adapter'
         );
 
         t.match(
             bundle.code,
-            /LedControl matrix\(A4, 13, A5, 1\);/,
-            'pedagogical sketch declares the conventional MAX7219 object'
+            /MAX7219Matrix matrix\(A4, 13, A5\);/,
+            'pedagogical sketch declares a high-level matrix object'
         );
 
         t.match(
             bundle.code,
-            /matrix\.setRow\(0, 0, 0x00\);/,
-            'pedagogical sketch writes matrix rows through LedControl'
+            /matrix\.begin\(\);/,
+            'pedagogical sketch initializes the matrix'
+        );
+
+        t.match(
+            bundle.code,
+            /matrix\.drawBitmap\("0066FFFF7E3C1800"\);/,
+            'pedagogical sketch draws the bitmap with one high-level call'
+        );
+
+        t.match(
+            bundle.code,
+            /matrix\.setBrightness\(75\);/,
+            'pedagogical sketch sets matrix brightness'
+        );
+
+        t.match(
+            bundle.code,
+            /matrix\.clear\(\);/,
+            'pedagogical sketch clears the matrix'
+        );
+
+        t.notMatch(
+            bundle.code,
+            /matrix\.setRow|matrixIntensityFromPercent|matrix\.setIntensity|matrix\.shutdown|matrix\.clearDisplay/,
+            'MAX7219 implementation details do not leak into the pedagogical sketch'
         );
 
         t.same(
@@ -326,16 +357,24 @@ test(
                 file => file.name
             ),
             [
+                'MAX7219Matrix.h',
+                'MAX7219Matrix.cpp',
                 'LedControl.h',
                 'LedControl.cpp'
             ],
-            'LedControl implementation travels as build support files'
+            'adapter and LedControl implementation travel as build support files'
         );
 
-        t.notMatch(
-            bundle.code,
-            /easybloxMatrix/,
-            'legacy proprietary MAX7219 helpers do not leak into the sketch'
+        const adapterImplementation =
+            findSupportFile(
+                bundle,
+                'MAX7219Matrix.cpp'
+            );
+
+        t.match(
+            adapterImplementation.content,
+            /setRow\(\s*0,\s*row,\s*value\s*\);/,
+            'low-level row writes remain available in the raw bundle'
         );
 
         t.end();
