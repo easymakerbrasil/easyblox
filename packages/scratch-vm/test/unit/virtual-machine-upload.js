@@ -3005,6 +3005,129 @@ test('VirtualMachine uses EasyMaker LED physical ports in Upload', t => {
     t.end();
 });
 
+test('VirtualMachine uses EasyMaker RGB LED physical ports in Upload', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat('rgb_digital'),
+            {
+                id: 'rgb_digital',
+                opcode: 'actuators_rgbLedDigitalWrite',
+                next: 'rgb_pwm',
+                parent: 'upload_hat',
+                inputs: {
+                    COLOR: {
+                        name: 'COLOR',
+                        block: 'rgb_digital_color',
+                        shadow: 'rgb_digital_color'
+                    },
+                    STATE: {
+                        name: 'STATE',
+                        block: 'rgb_digital_state',
+                        shadow: 'rgb_digital_state'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'rgb_digital_color',
+                'rgb_digital',
+                'actuators_menu_rgbLedColors',
+                'rgbLedColors',
+                'B'
+            ),
+            createExtensionMenuShadow(
+                'rgb_digital_state',
+                'rgb_digital',
+                'actuators_menu_ledStates',
+                'ledStates',
+                1
+            ),
+            {
+                id: 'rgb_pwm',
+                opcode: 'actuators_rgbLedPwmWrite',
+                next: null,
+                parent: 'rgb_digital',
+                inputs: {
+                    COLOR: {
+                        name: 'COLOR',
+                        block: 'rgb_pwm_color',
+                        shadow: 'rgb_pwm_color'
+                    },
+                    VALUE: {
+                        name: 'VALUE',
+                        block: 'rgb_pwm_value',
+                        shadow: 'rgb_pwm_value'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'rgb_pwm_color',
+                'rgb_pwm',
+                'actuators_menu_rgbLedColors',
+                'rgbLedColors',
+                'G'
+            ),
+            createNumberShadow(
+                'rgb_pwm_value',
+                'rgb_pwm',
+                128,
+                'easyblox_pwm_value'
+            )
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /pinMode\(8, OUTPUT\);/,
+        'EasyMaker configures the selected digital RGB channel'
+    );
+
+    t.match(
+        code,
+        /digitalWrite\(8, HIGH\);/,
+        'EasyMaker digital RGB B resolves to D8'
+    );
+
+    t.match(
+        code,
+        /pinMode\(10, OUTPUT\);/,
+        'EasyMaker configures the selected PWM RGB channel'
+    );
+
+    t.match(
+        code,
+        /analogWrite\(10, 128\);/,
+        'EasyMaker PWM RGB G resolves to D10'
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same EasyMaker RGB wiring'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine uses EasyMaker simple digital relay ports in Upload', t => {
     const vm = new VirtualMachine();
 

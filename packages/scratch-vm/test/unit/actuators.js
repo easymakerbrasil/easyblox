@@ -47,7 +47,7 @@ test('Actuators expose the servo block and supported servo pins', t => {
     t.equal(info.color1, '#2E7D32');
     t.equal(info.color2, '#1B5E20');
     t.equal(info.color3, '#124116');
-    t.equal(info.blocks.length, 9);
+    t.equal(info.blocks.length, 11);
 
     const servoBlock = info.blocks[5];
 
@@ -527,6 +527,313 @@ test('Actuators expose EasyMaker LED on its physical ports', t => {
             }
         ],
         'LED writes resolve only valid EasyMaker mappings'
+    );
+
+    t.end();
+});
+
+test('Actuators expose EasyMaker RGB LED digital and PWM surfaces', t => {
+    const digitalCalls = [];
+    const pwmCalls = [];
+
+    const sharedPeripheral = {
+        digitalWrite: (pin, state) => {
+            digitalCalls.push({
+                pin,
+                state
+            });
+
+            return 47;
+        },
+
+        pwmWrite: (pin, value) => {
+            pwmCalls.push({
+                pin,
+                value
+            });
+
+            return 48;
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension:
+            () => sharedPeripheral,
+
+        getEasyBloxSelectedBoardId:
+            () => EasyMakerProductProfile.id
+    };
+
+    const extension =
+        new Scratch3ActuatorsBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const digitalBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'rgbLedDigitalWrite'
+        );
+
+    const pwmBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'rgbLedPwmWrite'
+        );
+
+    t.ok(
+        digitalBlock,
+        'EasyMaker exposes the digital RGB LED block'
+    );
+
+    t.ok(
+        pwmBlock,
+        'EasyMaker exposes the PWM RGB LED block'
+    );
+
+    t.equal(
+        digitalBlock.hideFromPalette,
+        false,
+        'digital RGB LED block is visible for EasyMaker'
+    );
+
+    t.equal(
+        pwmBlock.hideFromPalette,
+        false,
+        'PWM RGB LED block is visible for EasyMaker'
+    );
+
+    t.equal(
+        digitalBlock.text,
+        'definir LED RGB [PORT] cor [COLOR] como [STATE]'
+    );
+
+    t.equal(
+        pwmBlock.text,
+        'definir LED RGB [PORT] cor [COLOR] intensidade [VALUE]'
+    );
+
+    t.equal(
+        digitalBlock.arguments.PORT.type,
+        'image'
+    );
+
+    t.equal(
+        pwmBlock.arguments.PORT.type,
+        'image'
+    );
+
+    t.ok(
+        /^data:image\/svg\+xml,/.test(
+            digitalBlock.arguments.PORT.dataURI
+        ),
+        'digital RGB LED uses the EasyMaker equals SVG symbol'
+    );
+
+    t.ok(
+        /^data:image\/svg\+xml,/.test(
+            pwmBlock.arguments.PORT.dataURI
+        ),
+        'PWM RGB LED uses the EasyMaker exclamation SVG symbol'
+    );
+
+    t.equal(
+        digitalBlock.arguments.COLOR.menu,
+        'rgbLedColors'
+    );
+
+    t.equal(
+        pwmBlock.arguments.COLOR.menu,
+        'rgbLedColors'
+    );
+
+    t.equal(
+        digitalBlock.arguments.STATE.menu,
+        'ledStates'
+    );
+
+    t.equal(
+        pwmBlock.arguments.VALUE.type,
+        'pwm_value'
+    );
+
+    t.same(
+        info.menus.rgbLedColors.items,
+        [
+            {text: 'R', value: 'R'},
+            {text: 'G', value: 'G'},
+            {text: 'B', value: 'B'}
+        ]
+    );
+
+    t.equal(
+        extension.rgbLedDigitalWrite({
+            COLOR: 'R',
+            STATE: '1'
+        }),
+        47
+    );
+
+    t.equal(
+        extension.rgbLedDigitalWrite({
+            COLOR: 'B',
+            STATE: '0'
+        }),
+        47
+    );
+
+    t.equal(
+        extension.rgbLedPwmWrite({
+            COLOR: 'G',
+            VALUE: '128'
+        }),
+        48
+    );
+
+    t.equal(
+        extension.rgbLedPwmWrite({
+            COLOR: 'B',
+            VALUE: '999'
+        }),
+        48,
+        'PWM RGB intensity is clamped to 255'
+    );
+
+    t.equal(
+        extension.rgbLedDigitalWrite({
+            COLOR: 'X',
+            STATE: '1'
+        }),
+        null,
+        'digital RGB rejects unknown colors'
+    );
+
+    t.equal(
+        extension.rgbLedDigitalWrite({
+            COLOR: 'R',
+            STATE: '2'
+        }),
+        null,
+        'digital RGB rejects invalid digital states'
+    );
+
+    t.equal(
+        extension.rgbLedPwmWrite({
+            COLOR: 'X',
+            VALUE: '128'
+        }),
+        null,
+        'PWM RGB rejects unknown colors'
+    );
+
+    t.same(
+        digitalCalls,
+        [
+            {
+                pin: 4,
+                state: 1
+            },
+            {
+                pin: 8,
+                state: 0
+            }
+        ],
+        'digital RGB resolves R/G/B through D4/D7/D8'
+    );
+
+    t.same(
+        pwmCalls,
+        [
+            {
+                pin: 10,
+                value: 128
+            },
+            {
+                pin: 11,
+                value: 255
+            }
+        ],
+        'PWM RGB resolves R/G/B through D9/D10/D11'
+    );
+
+    t.end();
+});
+
+test('Actuators hide EasyMaker RGB LED surfaces on generic boards', t => {
+    const runtime = {
+        getPeripheralExtension:
+            () => ({
+                digitalWrite: () => 1,
+                pwmWrite: () => 1
+            }),
+
+        getEasyBloxSelectedBoardId:
+            () => null
+    };
+
+    const extension =
+        new Scratch3ActuatorsBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const digitalBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'rgbLedDigitalWrite'
+        );
+
+    const pwmBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'rgbLedPwmWrite'
+        );
+
+    t.ok(
+        digitalBlock,
+        'digital RGB metadata remains registered'
+    );
+
+    t.ok(
+        pwmBlock,
+        'PWM RGB metadata remains registered'
+    );
+
+    t.equal(
+        digitalBlock.hideFromPalette,
+        true,
+        'digital RGB surface is hidden on generic boards'
+    );
+
+    t.equal(
+        pwmBlock.hideFromPalette,
+        true,
+        'PWM RGB surface is hidden on generic boards'
+    );
+
+    t.equal(
+        extension.rgbLedDigitalWrite({
+            COLOR: 'R',
+            STATE: '1'
+        }),
+        null
+    );
+
+    t.equal(
+        extension.rgbLedPwmWrite({
+            COLOR: 'R',
+            VALUE: '128'
+        }),
+        null
     );
 
     t.end();

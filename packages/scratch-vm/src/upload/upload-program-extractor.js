@@ -54,6 +54,10 @@ const MOTOR_STOP_OPCODE = 'actuators_motorStop';
 const SERVO_WRITE_OPCODE = 'actuators_servoWrite';
 const RELAY_WRITE_OPCODE = 'actuators_relayWrite';
 const EASYMAKER_LED_WRITE_OPCODE = 'actuators_ledWrite';
+const EASYMAKER_RGB_LED_DIGITAL_WRITE_OPCODE =
+    'actuators_rgbLedDigitalWrite';
+const EASYMAKER_RGB_LED_PWM_WRITE_OPCODE =
+    'actuators_rgbLedPwmWrite';
 const SERIAL_BEGIN_OPCODE = 'serial_serialBegin';
 const SERIAL_WRITE_OPCODE = 'serial_serialWrite';
 const SERIAL_WRITE_LINE_OPCODE = 'serial_serialWriteLine';
@@ -827,6 +831,71 @@ class UploadProgramExtractor {
                     block,
                     'STATE'
                 )
+            };
+        }
+
+        case EASYMAKER_RGB_LED_DIGITAL_WRITE_OPCODE:
+        case EASYMAKER_RGB_LED_PWM_WRITE_OPCODE: {
+            const isPwm =
+                block.opcode ===
+                EASYMAKER_RGB_LED_PWM_WRITE_OPCODE;
+
+            const portId = isPwm ?
+                'digital-d9-d10-d11' :
+                'digital-d4-d7-d8';
+
+            const port =
+                EasyMakerProductProfile
+                    .devices
+                    .rgbLed
+                    .ports[portId];
+
+            const color =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'COLOR'
+                ).toUpperCase();
+
+            const pinsByColor = {
+                R: port.redPin,
+                G: port.greenPin,
+                B: port.bluePin
+            };
+
+            const pin =
+                pinsByColor[color];
+
+            if (!Number.isInteger(pin)) {
+                throw new Error(
+                    `RGB LED color is not supported by EasyMaker: ${color}`
+                );
+            }
+
+            const reservedPins = [
+                port.redPin,
+                port.greenPin,
+                port.bluePin
+            ];
+
+            return {
+                type: 'RgbLedWrite',
+                portId,
+                mode: port.mode,
+                color,
+                pin,
+                reservedPins,
+                value: isPwm ?
+                    this._readRuntimeNumberInput(
+                        blocks,
+                        block,
+                        'VALUE'
+                    ) :
+                    this._readDigitalValue(
+                        blocks,
+                        block,
+                        'STATE'
+                    )
             };
         }
 

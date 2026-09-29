@@ -4997,6 +4997,322 @@ tap.test('Arduino UNO Upload rejects EasyMaker LED pins outside its physical con
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts EasyMaker digital RGB LED into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('rgb_write'),
+        {
+            id: 'rgb_write',
+            opcode: 'actuators_rgbLedDigitalWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                COLOR: {
+                    name: 'COLOR',
+                    block: 'rgb_color',
+                    shadow: 'rgb_color'
+                },
+                STATE: {
+                    name: 'STATE',
+                    block: 'rgb_state',
+                    shadow: 'rgb_state'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'rgb_color',
+            'rgb_write',
+            'actuators_menu_rgbLedColors',
+            'rgbLedColors',
+            'R'
+        ),
+        createExtensionMenuShadow(
+            'rgb_state',
+            'rgb_write',
+            'actuators_menu_ledStates',
+            'ledStates',
+            1
+        )
+    ]);
+
+    const extractor =
+        new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor.extract(),
+        {
+            setup: [{
+                type: 'RgbLedWrite',
+                portId: 'digital-d4-d7-d8',
+                mode: 'digital',
+                color: 'R',
+                pin: 4,
+                reservedPins: [4, 7, 8],
+                value: true
+            }],
+            loop: []
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts EasyMaker PWM RGB LED into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('rgb_write'),
+        {
+            id: 'rgb_write',
+            opcode: 'actuators_rgbLedPwmWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                COLOR: {
+                    name: 'COLOR',
+                    block: 'rgb_color',
+                    shadow: 'rgb_color'
+                },
+                VALUE: {
+                    name: 'VALUE',
+                    block: 'rgb_value',
+                    shadow: 'rgb_value'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'rgb_color',
+            'rgb_write',
+            'actuators_menu_rgbLedColors',
+            'rgbLedColors',
+            'G'
+        ),
+        createNumberShadow(
+            'rgb_value',
+            'rgb_write',
+            128,
+            'easyblox_pwm_value'
+        )
+    ]);
+
+    const extractor =
+        new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor.extract(),
+        {
+            setup: [{
+                type: 'RgbLedWrite',
+                portId: 'digital-d9-d10-d11',
+                mode: 'pwm',
+                color: 'G',
+                pin: 10,
+                reservedPins: [9, 10, 11],
+                value: 128
+            }],
+            loop: []
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts EasyMaker RGB LED semantic IR', t => {
+    const validator =
+        new UploadTypeValidator();
+
+    const ir = {
+        setup: [
+            {
+                type: 'RgbLedWrite',
+                portId: 'digital-d4-d7-d8',
+                mode: 'digital',
+                color: 'B',
+                pin: 8,
+                reservedPins: [4, 7, 8],
+                value: false
+            },
+            {
+                type: 'RgbLedWrite',
+                portId: 'digital-d9-d10-d11',
+                mode: 'pwm',
+                color: 'R',
+                pin: 9,
+                reservedPins: [9, 10, 11],
+                value: 128
+            }
+        ],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload reserves the whole EasyMaker PWM RGB connector against Servo', t => {
+    const validator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const ir = {
+        setup: [
+            {
+                type: 'RgbLedWrite',
+                portId: 'digital-d9-d10-d11',
+                mode: 'pwm',
+                color: 'R',
+                pin: 9,
+                reservedPins: [9, 10, 11],
+                value: 128
+            },
+            {
+                type: 'ServoWrite',
+                pin: 11,
+                angle: 90
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Servo cannot be used with PWM on the selected pin/,
+        'EasyMaker PWM RGB connector remains incompatible with Servo PWM resources'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload reserves the whole EasyMaker PWM RGB connector against Relay', t => {
+    const validator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const ir = {
+        setup: [
+            {
+                type: 'RgbLedWrite',
+                portId: 'digital-d9-d10-d11',
+                mode: 'pwm',
+                color: 'R',
+                pin: 9,
+                reservedPins: [9, 10, 11],
+                value: 128
+            },
+            {
+                type: 'RelayWrite',
+                pin: 11,
+                state: true
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Relay and PWM cannot use the same pin/,
+        'Relay D11 conflicts although RGB actively writes only D9'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload reserves the whole EasyMaker digital RGB connector against Motor 2', t => {
+    const validator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const ir = {
+        setup: [
+            {
+                type: 'RgbLedWrite',
+                portId: 'digital-d4-d7-d8',
+                mode: 'digital',
+                color: 'R',
+                pin: 4,
+                reservedPins: [4, 7, 8],
+                value: true
+            },
+            {
+                type: 'MotorWrite',
+                motor: 2,
+                direction: 0,
+                speedPercent: 100
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor and DigitalWrite cannot use the same pin/,
+        'Motor 2 conflicts through RGB reserved D7/D8 although RGB actively writes D4'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates EasyMaker RGB LED C++', t => {
+    const generator =
+        new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [
+            {
+                type: 'RgbLedWrite',
+                portId: 'digital-d4-d7-d8',
+                mode: 'digital',
+                color: 'R',
+                pin: 4,
+                reservedPins: [4, 7, 8],
+                value: true
+            },
+            {
+                type: 'RgbLedWrite',
+                portId: 'digital-d9-d10-d11',
+                mode: 'pwm',
+                color: 'G',
+                pin: 10,
+                reservedPins: [9, 10, 11],
+                value: 128
+            }
+        ],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /pinMode\(4, OUTPUT\);/
+    );
+
+    t.match(
+        code,
+        /digitalWrite\(4, HIGH\);/
+    );
+
+    t.match(
+        code,
+        /pinMode\(10, OUTPUT\);/
+    );
+
+    t.match(
+        code,
+        /analogWrite\(10, 128\);/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload extracts RelayWrite into semantic IR', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('relay_write'),

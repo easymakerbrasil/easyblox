@@ -454,6 +454,69 @@ class UploadTypeValidator {
                 );
                 break;
 
+            case 'RgbLedWrite': {
+                if (
+                    statement.mode !== 'digital' &&
+                    statement.mode !== 'pwm'
+                ) {
+                    throw new Error(
+                        'RGB LED mode must be digital or pwm'
+                    );
+                }
+
+                if (
+                    statement.color !== 'R' &&
+                    statement.color !== 'G' &&
+                    statement.color !== 'B'
+                ) {
+                    throw new Error(
+                        'RGB LED color must be R, G or B'
+                    );
+                }
+
+                if (!Number.isInteger(statement.pin)) {
+                    throw new Error(
+                        'RGB LED pin must be an integer'
+                    );
+                }
+
+                if (
+                    !Array.isArray(statement.reservedPins) ||
+                    statement.reservedPins.length !== 3 ||
+                    statement.reservedPins.some(
+                        pin => !Number.isInteger(pin)
+                    ) ||
+                    new Set(
+                        statement.reservedPins
+                    ).size !== 3 ||
+                    !statement.reservedPins.includes(
+                        statement.pin
+                    )
+                ) {
+                    throw new Error(
+                        'RGB LED reserved pins must contain three unique integer pins including the active pin'
+                    );
+                }
+
+                if (statement.mode === 'digital') {
+                    if (
+                        typeof statement.value !==
+                        'boolean'
+                    ) {
+                        throw new Error(
+                            'RGB LED digital value must be boolean'
+                        );
+                    }
+                } else {
+                    this._validateRuntimeNumericValue(
+                        statement.value,
+                        'RGB LED PWM value must be numeric'
+                    );
+                }
+
+                break;
+            }
+
             case 'ServoWrite':
                 this._validateRuntimeNumericValue(
                     statement.angle,

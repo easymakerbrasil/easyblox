@@ -297,6 +297,24 @@ class UploadResourceValidator {
             digitalWritePins
         );
 
+        const supportedDigitalWritePins =
+            Array.isArray(
+                this.boardProfile.digitalPins
+            ) ?
+                this.boardProfile.digitalPins :
+                [];
+
+        for (const pin of digitalWritePins) {
+            if (
+                !supportedDigitalWritePins
+                    .includes(pin)
+            ) {
+                throw new Error(
+                    'DigitalWrite pin is not supported by the selected board'
+                );
+            }
+        }
+
         const supportedPwmPins =
             Array.isArray(this.boardProfile.pwmPins) ?
                 this.boardProfile.pwmPins :
@@ -426,13 +444,11 @@ class UploadResourceValidator {
             }
         }
 
-        if (tonePins.size > 0) {
-            for (const pin of motorPwmPins) {
-                if (tonePwmConflictPins.includes(pin)) {
-                    throw new Error(
-                        'Tone cannot be used with Motor PWM on the selected pin'
-                    );
-                }
+        for (const pin of digitalWritePins) {
+            if (motorPins.has(pin)) {
+                throw new Error(
+                    'Motor and DigitalWrite cannot use the same pin'
+                );
             }
         }
 
@@ -441,6 +457,16 @@ class UploadResourceValidator {
                 throw new Error(
                     'Motor and PWM cannot use the same pin'
                 );
+            }
+        }
+
+        if (tonePins.size > 0) {
+            for (const pin of motorPwmPins) {
+                if (tonePwmConflictPins.includes(pin)) {
+                    throw new Error(
+                        'Tone cannot be used with Motor PWM on the selected pin'
+                    );
+                }
             }
         }
 
@@ -979,6 +1005,19 @@ class UploadResourceValidator {
             }
 
             if (
+                statement.type === 'RgbLedWrite' &&
+                statement.mode === 'digital' &&
+                Array.isArray(statement.reservedPins)
+            ) {
+                for (
+                    const pin of
+                    statement.reservedPins
+                ) {
+                    digitalWritePins.add(pin);
+                }
+            }
+
+            if (
                 (
                     statement.type === 'Repeat' ||
                     statement.type === 'If'
@@ -1020,6 +1059,19 @@ class UploadResourceValidator {
         for (const statement of statements) {
             if (statement.type === 'PwmWrite') {
                 pwmWritePins.add(statement.pin);
+            }
+
+            if (
+                statement.type === 'RgbLedWrite' &&
+                statement.mode === 'pwm' &&
+                Array.isArray(statement.reservedPins)
+            ) {
+                for (
+                    const pin of
+                    statement.reservedPins
+                ) {
+                    pwmWritePins.add(pin);
+                }
             }
 
             if (

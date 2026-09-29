@@ -155,6 +155,30 @@ class Scratch3ActuatorsBlocks {
                 };
             });
 
+        const easyMakerRgbDigitalPort =
+            easyMakerPhysicalPorts.find(
+                candidate =>
+                    candidate.id ===
+                    'digital-d4-d7-d8'
+            );
+
+        const easyMakerRgbDigitalSymbol =
+            EasyMakerPortSymbols[
+                easyMakerRgbDigitalPort.symbolId
+            ];
+
+        const easyMakerRgbPwmPort =
+            easyMakerPhysicalPorts.find(
+                candidate =>
+                    candidate.id ===
+                    'digital-d9-d10-d11'
+            );
+
+        const easyMakerRgbPwmSymbol =
+            EasyMakerPortSymbols[
+                easyMakerRgbPwmPort.symbolId
+            ];
+
         return {
             id: EXTENSION_ID,
             name: 'Atuadores',
@@ -316,6 +340,69 @@ class Scratch3ActuatorsBlocks {
                         }
                     }
                 },
+                {
+                    opcode: 'rgbLedDigitalWrite',
+                    blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        !useEasyMakerSurface,
+                    text:
+                        'definir LED RGB [PORT] cor [COLOR] como [STATE]',
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.IMAGE,
+                            dataURI:
+                                easyMakerRgbDigitalSymbol
+                                    .dataURI,
+                            width:
+                                easyMakerRgbDigitalSymbol
+                                    .width,
+                            height:
+                                easyMakerRgbDigitalSymbol
+                                    .height
+                        },
+                        COLOR: {
+                            type: ArgumentType.STRING,
+                            menu: 'rgbLedColors',
+                            defaultValue: 'R'
+                        },
+                        STATE: {
+                            type: ArgumentType.STRING,
+                            menu: 'ledStates',
+                            defaultValue: '1'
+                        }
+                    }
+                },
+                {
+                    opcode: 'rgbLedPwmWrite',
+                    blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        !useEasyMakerSurface,
+                    text:
+                        'definir LED RGB [PORT] cor [COLOR] intensidade [VALUE]',
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.IMAGE,
+                            dataURI:
+                                easyMakerRgbPwmSymbol
+                                    .dataURI,
+                            width:
+                                easyMakerRgbPwmSymbol
+                                    .width,
+                            height:
+                                easyMakerRgbPwmSymbol
+                                    .height
+                        },
+                        COLOR: {
+                            type: ArgumentType.STRING,
+                            menu: 'rgbLedColors',
+                            defaultValue: 'R'
+                        },
+                        VALUE: {
+                            type: ArgumentType.PWM_VALUE,
+                            defaultValue: 255
+                        }
+                    }
+                },
             ],
             menus: {
                 servoPins: {
@@ -422,6 +509,15 @@ class Scratch3ActuatorsBlocks {
                     acceptReporters: true,
                     items:
                         easyMakerLedPortMenuItems
+                },
+
+                rgbLedColors: {
+                    acceptReporters: true,
+                    items: [
+                        {text: 'R', value: 'R'},
+                        {text: 'G', value: 'G'},
+                        {text: 'B', value: 'B'}
+                    ]
                 },
 
                 ledStates: {
@@ -712,6 +808,101 @@ class Scratch3ActuatorsBlocks {
         return this._peripheral.digitalWrite(
             pin,
             state
+        );
+    }
+
+    /**
+     * Set one channel of the EasyMaker digital RGB LED HIGH or LOW.
+     * @param {object} args Scratch block arguments.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    rgbLedDigitalWrite (args) {
+        if (!this._isEasyMakerSelected()) {
+            return null;
+        }
+
+        const color =
+            String(args.COLOR).toUpperCase();
+
+        const state =
+            Number(args.STATE);
+
+        const port =
+            EasyMakerProductProfile
+                .devices
+                .rgbLed
+                .ports[
+                    'digital-d4-d7-d8'
+                ];
+
+        const pinsByColor = {
+            R: port.redPin,
+            G: port.greenPin,
+            B: port.bluePin
+        };
+
+        const pin =
+            pinsByColor[color];
+
+        if (
+            !Number.isInteger(pin) ||
+            (state !== 0 && state !== 1)
+        ) {
+            return null;
+        }
+
+        return this._peripheral.digitalWrite(
+            pin,
+            state
+        );
+    }
+
+    /**
+     * Set the PWM intensity of one EasyMaker RGB LED channel.
+     * @param {object} args Scratch block arguments.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    rgbLedPwmWrite (args) {
+        if (!this._isEasyMakerSelected()) {
+            return null;
+        }
+
+        const color =
+            String(args.COLOR).toUpperCase();
+
+        const value =
+            Math.max(
+                0,
+                Math.min(
+                    255,
+                    Number(args.VALUE)
+                )
+            );
+
+        const port =
+            EasyMakerProductProfile
+                .devices
+                .rgbLed
+                .ports[
+                    'digital-d9-d10-d11'
+                ];
+
+        const pinsByColor = {
+            R: port.redPin,
+            G: port.greenPin,
+            B: port.bluePin
+        };
+
+        const pin =
+            pinsByColor[color];
+
+        if (!Number.isInteger(pin)) {
+            return null;
+        }
+
+        return this._peripheral.pwmWrite(
+            pin,
+            value
         );
     }
 }

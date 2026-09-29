@@ -1940,7 +1940,8 @@ class ArduinoUnoGenerator {
             if (
                 statement.type === 'DigitalWrite' ||
                 statement.type === 'PwmWrite' ||
-                statement.type === 'RelayWrite'
+                statement.type === 'RelayWrite' ||
+                statement.type === 'RgbLedWrite'
             ) {
                 pins.add(statement.pin);
             } else if (
@@ -2987,6 +2988,7 @@ class ArduinoUnoGenerator {
                     lines.push(
                         `${indent}analogWrite(${statement.pin}, ${value});`
                     );
+
                     break;
                 }
 
@@ -2997,6 +2999,68 @@ class ArduinoUnoGenerator {
                 const valueExpression = this._generateExpression(
                     statement.value
                 );
+
+                lines.push(
+                    `${indent}{`,
+                    `${indent}    float ${valueIdentifier} = ${valueExpression};`,
+                    `${indent}    if (${valueIdentifier} < 0) {`,
+                    `${indent}        ${valueIdentifier} = 0;`,
+                    `${indent}    } else if (${valueIdentifier} > 255) {`,
+                    `${indent}        ${valueIdentifier} = 255;`,
+                    `${indent}    }`,
+                    `${indent}    analogWrite(${statement.pin}, (int)${valueIdentifier});`,
+                    `${indent}}`
+                );
+
+                break;
+            }
+
+            case 'RgbLedWrite': {
+                if (statement.mode === 'digital') {
+                    lines.push(
+                        `${indent}digitalWrite(${statement.pin}, ${
+                            statement.value ?
+                                'HIGH' :
+                                'LOW'
+                        });`
+                    );
+
+                    break;
+                }
+
+                if (statement.mode !== 'pwm') {
+                    throw new Error(
+                        `Unsupported RGB LED mode: ${statement.mode}`
+                    );
+                }
+
+                if (typeof statement.value === 'number') {
+                    const value = Math.trunc(
+                        Math.max(
+                            0,
+                            Math.min(
+                                255,
+                                statement.value
+                            )
+                        )
+                    );
+
+                    lines.push(
+                        `${indent}analogWrite(${statement.pin}, ${value});`
+                    );
+
+                    break;
+                }
+
+                const valueIdentifier =
+                    identifiers.allocate(
+                        'rgbPwmValue'
+                    );
+
+                const valueExpression =
+                    this._generateExpression(
+                        statement.value
+                    );
 
                 lines.push(
                     `${indent}{`,
