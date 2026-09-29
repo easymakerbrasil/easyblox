@@ -45,6 +45,7 @@ const TONE_START_OPCODE = 'arduinoUno_toneStart';
 const TONE_STOP_OPCODE = 'arduinoUno_toneStop';
 const TIMER_READ_OPCODE = 'arduinoUno_timerRead';
 const TIMER_RESET_OPCODE = 'arduinoUno_timerReset';
+const EASYMAKER_MOTOR_INIT_OPCODE = 'actuators_motorInit';
 const MOTOR_CONFIGURE_OPCODE = 'actuators_motorConfigure';
 const MOTOR_WRITE_OPCODE = 'actuators_motorWrite';
 const MOTOR_STOP_OPCODE = 'actuators_motorStop';
@@ -1023,6 +1024,47 @@ class UploadProgramExtractor {
             return {
                 type: 'Tm1637Clear'
             };
+
+        case EASYMAKER_MOTOR_INIT_OPCODE: {
+            if (
+                !this.program ||
+                this.program.boardId !==
+                    EasyMakerProductProfile.id
+            ) {
+                throw new Error(
+                    'EasyMaker motor initialization requires EasyMaker board'
+                );
+            }
+
+            const motor =
+                this._readNumberInput(
+                    blocks,
+                    block,
+                    'MOTOR'
+                );
+
+            const configuration =
+                EasyMakerProductProfile
+                    .dedicatedResources
+                    .motors[motor];
+
+            if (!configuration) {
+                throw new Error(
+                    'Motor is not supported by EasyMaker'
+                );
+            }
+
+            return {
+                type: 'MotorConfigure',
+                motor,
+                in1Pin:
+                    configuration.in1Pin,
+                in2Pin:
+                    configuration.in2Pin,
+                pwmPin:
+                    configuration.pwmPin
+            };
+        }
 
         case MOTOR_CONFIGURE_OPCODE:
             return {

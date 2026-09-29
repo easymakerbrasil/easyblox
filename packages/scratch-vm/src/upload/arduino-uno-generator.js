@@ -73,6 +73,18 @@ const EASYBLOX_MOTORS_SERVO_CPP_SERVOS =
  */
 class ArduinoUnoGenerator {
     /**
+     * @param {object} options Generator hardware defaults.
+     */
+    constructor (options = {}) {
+        this._motorDefaults =
+            options &&
+            options.motors &&
+            typeof options.motors === 'object' ?
+                options.motors :
+                ArduinoUnoBoardProfile.motors;
+    }
+
+    /**
      * Generate a complete Arduino sketch.
      * @param {object} ir EasyBlox Upload IR.
      * @returns {string} Complete deterministic Arduino sketch.
@@ -1637,7 +1649,7 @@ class ArduinoUnoGenerator {
             }
 
             const defaultConfiguration =
-                ArduinoUnoBoardProfile.motors[motor];
+                this._motorDefaults[motor];
 
             if (!defaultConfiguration) {
                 continue;

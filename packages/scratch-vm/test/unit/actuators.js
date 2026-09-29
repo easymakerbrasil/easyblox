@@ -44,9 +44,9 @@ test('Actuators expose the servo block and supported servo pins', t => {
     t.equal(info.color1, '#2E7D32');
     t.equal(info.color2, '#1B5E20');
     t.equal(info.color3, '#124116');
-    t.equal(info.blocks.length, 7);
+    t.equal(info.blocks.length, 8);
 
-    const servoBlock = info.blocks[4];
+    const servoBlock = info.blocks[5];
 
     t.equal(servoBlock.opcode, 'servoWrite');
     t.equal(
@@ -92,13 +92,31 @@ test('Actuators expose configured motor blocks and motor menus', t => {
     const extension = new Scratch3ActuatorsBlocks(runtime);
     const info = extension.getInfo();
 
-    const motorConfigureBlock = info.blocks[0];
-    const motorWriteBlock = info.blocks[1];
-    const motorStopBlock = info.blocks[2];
+    const motorInitBlock = info.blocks[0];
+    const motorConfigureBlock = info.blocks[1];
+    const motorWriteBlock = info.blocks[2];
+    const motorStopBlock = info.blocks[3];
+
+    t.equal(
+        motorInitBlock.opcode,
+        'motorInit'
+    );
+
+    t.equal(
+        motorInitBlock.hideFromPalette,
+        true,
+        'generic Arduino hides EasyMaker motor initialization'
+    );
 
     t.equal(
         motorConfigureBlock.opcode,
         'motorConfigure'
+    );
+
+    t.equal(
+        motorConfigureBlock.hideFromPalette,
+        false,
+        'generic Arduino keeps motor configuration visible'
     );
 
     t.equal(
@@ -234,7 +252,7 @@ test('Actuators expose relay block and relay menus', t => {
     const extension = new Scratch3ActuatorsBlocks(runtime);
     const info = extension.getInfo();
 
-    const relayBlock = info.blocks[6];
+    const relayBlock = info.blocks[7];
 
     t.equal(relayBlock.opcode, 'relayWrite');
 
@@ -389,7 +407,7 @@ test('Actuators normalize servo angles to integer values from 0 to 180', t => {
     t.end();
 });
 
-test('Actuators initialize the two motor profiles with EasyMaker defaults', t => {
+test('Actuators initialize the two generic Arduino motor profiles', t => {
     const runtime = {
         getPeripheralExtension: () => ({})
     };
@@ -410,6 +428,160 @@ test('Actuators initialize the two motor profiles with EasyMaker defaults', t =>
                 pwmPin: 5
             }
         }
+    );
+
+    t.end();
+});
+
+test('Actuators hide configuration and use fixed EasyMaker motor wiring', t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        motorWrite: (
+            in1Pin,
+            in2Pin,
+            pwmPin,
+            direction,
+            speed
+        ) => {
+            calls.push({
+                method: 'write',
+                in1Pin,
+                in2Pin,
+                pwmPin,
+                direction,
+                speed
+            });
+
+            return 42;
+        },
+
+        motorStop: (
+            in1Pin,
+            in2Pin,
+            pwmPin,
+            stopMode
+        ) => {
+            calls.push({
+                method: 'stop',
+                in1Pin,
+                in2Pin,
+                pwmPin,
+                stopMode
+            });
+
+            return 43;
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension:
+            () => sharedPeripheral,
+
+        getEasyBloxSelectedBoardId:
+            () => 'easymaker'
+    };
+
+    const extension =
+        new Scratch3ActuatorsBlocks(
+            runtime
+        );
+
+    const info = extension.getInfo();
+
+    const motorInitBlock =
+        info.blocks[0];
+
+    const motorConfigureBlock =
+        info.blocks[1];
+
+    t.equal(
+        motorInitBlock.opcode,
+        'motorInit'
+    );
+
+    t.equal(
+        motorInitBlock.text,
+        'iniciar motor [MOTOR] [PORT]'
+    );
+
+    t.equal(
+        motorInitBlock.arguments.PORT.type,
+        ArgumentType.IMAGE,
+        'EasyMaker motor initialization uses the physical port symbol'
+    );
+
+    t.match(
+        motorInitBlock.arguments.PORT.dataURI,
+        /^data:image\/svg\+xml,/,
+        'EasyMaker motor symbol is exposed as an SVG image'
+    );
+
+    t.equal(
+        motorInitBlock.hideFromPalette,
+        false,
+        'EasyMaker exposes fixed motor initialization'
+    );
+
+    t.equal(
+        motorConfigureBlock.opcode,
+        'motorConfigure'
+    );
+
+    t.equal(
+        motorConfigureBlock.hideFromPalette,
+        true,
+        'EasyMaker hides manual motor pin configuration'
+    );
+
+    extension.motorInit({
+        MOTOR: '1'
+    });
+
+    extension.motorConfigure({
+        MOTOR: '1',
+        IN1: '2',
+        IN2: '4',
+        PWM: '3'
+    });
+
+    extension.motorWrite({
+        MOTOR: '1',
+        DIRECTION: '0',
+        SPEED: '100'
+    });
+
+    extension.motorStop({
+        MOTOR: '2'
+    });
+
+    t.same(
+        calls,
+        [
+            {
+                method: 'stop',
+                in1Pin: 4,
+                in2Pin: 7,
+                pwmPin: 5,
+                stopMode: 0
+            },
+            {
+                method: 'write',
+                in1Pin: 4,
+                in2Pin: 7,
+                pwmPin: 5,
+                direction: 0,
+                speed: 255
+            },
+            {
+                method: 'stop',
+                in1Pin: 8,
+                in2Pin: 12,
+                pwmPin: 6,
+                stopMode: 0
+            }
+        ],
+        'EasyMaker always uses the canonical fixed motor wiring'
     );
 
     t.end();

@@ -1,6 +1,12 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
 
+const EasyMakerProductProfile =
+    require('../../board-profiles/easymaker-product-profile');
+
+const EasyMakerPortSymbols =
+    require('../../board-profiles/easymaker-port-symbols');
+
 const EXTENSION_ID = 'actuators';
 
 /**
@@ -33,6 +39,20 @@ class Scratch3ActuatorsBlocks {
      * @returns {object} Extension metadata.
      */
     getInfo () {
+        const useEasyMakerMotorSurface =
+            this._isEasyMakerSelected();
+
+        const easyMakerMotorSymbolId =
+            EasyMakerProductProfile
+                .dedicatedResources
+                .motors[1]
+                .symbolId;
+
+        const easyMakerMotorSymbol =
+            EasyMakerPortSymbols[
+                easyMakerMotorSymbolId
+            ];
+
         return {
             id: EXTENSION_ID,
             name: 'Atuadores',
@@ -41,8 +61,36 @@ class Scratch3ActuatorsBlocks {
             color3: '#124116',
             blocks: [
                 {
+                    opcode: 'motorInit',
+                    blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        !useEasyMakerMotorSurface,
+                    text: 'iniciar motor [MOTOR] [PORT]',
+                    arguments: {
+                        MOTOR: {
+                            type: ArgumentType.STRING,
+                            menu: 'motorNumbers',
+                            defaultValue: '1'
+                        },
+                        PORT: {
+                            type: ArgumentType.IMAGE,
+                            dataURI:
+                                easyMakerMotorSymbol
+                                    .dataURI,
+                            width:
+                                easyMakerMotorSymbol
+                                    .width,
+                            height:
+                                easyMakerMotorSymbol
+                                    .height
+                        }
+                    }
+                },
+                {
                     opcode: 'motorConfigure',
                     blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        useEasyMakerMotorSurface,
                     text: 'configurar motor [MOTOR] IN1 [IN1] IN2 [IN2] PWM [PWM]',
                     arguments: {
                         MOTOR: {
@@ -251,6 +299,80 @@ class Scratch3ActuatorsBlocks {
     }
 
     /**
+     * Report whether the active physical board is EasyMaker.
+     * @returns {boolean} True when EasyMaker is selected.
+     * @private
+     */
+    _isEasyMakerSelected () {
+        return (
+            typeof this.runtime
+                .getEasyBloxSelectedBoardId ===
+                'function' &&
+            this.runtime
+                .getEasyBloxSelectedBoardId() ===
+                EasyMakerProductProfile.id
+        );
+    }
+
+    /**
+     * Resolve one motor configuration for the active board.
+     * EasyMaker uses its fixed PCB wiring; generic boards retain
+     * the locally configurable motor profiles.
+     * @param {number} motor Logical motor number.
+     * @returns {?object} Motor pin configuration.
+     * @private
+     */
+    _getMotorConfiguration (motor) {
+        if (this._isEasyMakerSelected()) {
+            return (
+                EasyMakerProductProfile
+                    .dedicatedResources
+                    .motors[motor] ||
+                null
+            );
+        }
+
+        return this._motors[motor] || null;
+    }
+
+    /**
+     * Initialize one fixed EasyMaker motor resource.
+     * In Stage mode initialization leaves the motor safely stopped.
+     * @param {object} args Scratch block arguments.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    motorInit (args) {
+        if (!this._isEasyMakerSelected()) {
+            return null;
+        }
+
+        const motor = Number(args.MOTOR);
+
+        if (
+            !Number.isInteger(motor) ||
+            (motor !== 1 && motor !== 2)
+        ) {
+            return null;
+        }
+
+        const configuration =
+            this._getMotorConfiguration(
+                motor
+            );
+
+        if (!configuration) {
+            return null;
+        }
+
+        return this._peripheral.motorStop(
+            configuration.in1Pin,
+            configuration.in2Pin,
+            configuration.pwmPin,
+            0
+        );
+    }
+
+    /**
      * Configure one local DC motor profile.
      * @param {object} args Scratch block arguments.
      * @returns {void}
@@ -304,7 +426,14 @@ class Scratch3ActuatorsBlocks {
             return null;
         }
 
-        const configuration = this._motors[motor];
+        const configuration =
+            this._getMotorConfiguration(
+                motor
+            );
+
+        if (!configuration) {
+            return null;
+        }
 
         const speedPercent = Math.max(
             0,
@@ -342,7 +471,14 @@ class Scratch3ActuatorsBlocks {
             return null;
         }
 
-        const configuration = this._motors[motor];
+        const configuration =
+            this._getMotorConfiguration(
+                motor
+            );
+
+        if (!configuration) {
+            return null;
+        }
 
         return this._peripheral.motorStop(
             configuration.in1Pin,

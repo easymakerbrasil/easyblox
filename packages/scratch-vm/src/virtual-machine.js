@@ -35,8 +35,20 @@ const UploadResourceValidator =
     require('./upload/upload-resource-validator');
 const ArduinoUnoBoardProfile =
     require('./upload/board-profiles/arduino-uno-board-profile');
+const EasyMakerProductProfile =
+    require('./board-profiles/easymaker-product-profile');
 const ArduinoUnoGenerator =
     require('./upload/arduino-uno-generator');
+
+const EASYMAKER_ARDUINO_UNO_UPLOAD_PROFILE =
+    Object.freeze({
+        ...ArduinoUnoBoardProfile,
+        id: EasyMakerProductProfile.id,
+        motors:
+            EasyMakerProductProfile
+                .dedicatedResources
+                .motors
+    });
 
 const {
     getEasyBloxBtSupportFiles
@@ -3290,6 +3302,23 @@ class VirtualMachine extends EventEmitter {
     }
 
     /**
+     * Resolve the Upload hardware profile for one Arduino-family board.
+     * @param {string} boardId Logical EasyBlox board ID.
+     * @returns {object} Upload hardware profile.
+     * @private
+     */
+    _getArduinoUnoUploadBoardProfile (
+        boardId = 'arduino-uno'
+    ) {
+        return (
+            boardId ===
+                EasyMakerProductProfile.id
+        ) ?
+            EASYMAKER_ARDUINO_UNO_UPLOAD_PROFILE :
+            ArduinoUnoBoardProfile;
+    }
+
+    /**
      * Extract and validate the canonical Arduino UNO Upload program.
      * This is the semantic source used both for generated C++ and
      * Upload-runtime metadata such as the Serial Monitor baud rate.
@@ -3305,10 +3334,15 @@ class VirtualMachine extends EventEmitter {
         const extractor =
             new UploadProgramExtractor(uploadProgram);
 
+        const boardProfile =
+            this._getArduinoUnoUploadBoardProfile(
+                boardId
+            );
+
         const contextValidator = new UploadContextValidator();
         const typeValidator = new UploadTypeValidator();
         const resourceValidator = new UploadResourceValidator(
-            ArduinoUnoBoardProfile
+            boardProfile
         );
 
         const ir = extractor.extract();
@@ -3370,8 +3404,15 @@ class VirtualMachine extends EventEmitter {
                 boardId
             );
 
+        const boardProfile =
+            this._getArduinoUnoUploadBoardProfile(
+                boardId
+            );
+
         const generator =
-            new ArduinoUnoGenerator();
+            new ArduinoUnoGenerator({
+                motors: boardProfile.motors
+            });
 
         return generator.generate(ir);
     }
@@ -3389,8 +3430,15 @@ class VirtualMachine extends EventEmitter {
                 boardId
             );
 
+        const boardProfile =
+            this._getArduinoUnoUploadBoardProfile(
+                boardId
+            );
+
         const generator =
-            new ArduinoUnoGenerator();
+            new ArduinoUnoGenerator({
+                motors: boardProfile.motors
+            });
 
         const code =
             generator.generate(

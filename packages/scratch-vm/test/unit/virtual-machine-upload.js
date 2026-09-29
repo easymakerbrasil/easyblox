@@ -25,10 +25,13 @@ const createRuntimeWithBlocks = blockDefinitions => {
 
 const loadCanonicalArduinoUnoUploadProgram = (
     vm,
-    blockDefinitions
+    blockDefinitions,
+    boardId = 'arduino-uno'
 ) => {
     const uploadProgram =
-        vm.getOrCreateUploadProgram('arduino-uno');
+        vm.getOrCreateUploadProgram(
+            boardId
+        );
 
     blockDefinitions.forEach(block =>
         uploadProgram.blocks.createBlock(block)
@@ -2492,6 +2495,126 @@ test('VirtualMachine generates Arduino UNO Serial Upload C++ from current runtim
         '}',
         ''
     ].join('\n'));
+
+    t.end();
+});
+
+test('VirtualMachine uses EasyMaker fixed motor wiring in Upload', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat('motor_init'),
+            {
+                id: 'motor_init',
+                opcode: 'actuators_motorInit',
+                next: 'motor_write',
+                parent: 'upload_hat',
+                inputs: {
+                    MOTOR: {
+                        name: 'MOTOR',
+                        block: 'motor_init_number',
+                        shadow: 'motor_init_number'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'motor_init_number',
+                'motor_init',
+                'actuators_menu_motorNumbers',
+                'motorNumbers',
+                1
+            ),
+            {
+                id: 'motor_write',
+                opcode: 'actuators_motorWrite',
+                next: null,
+                parent: 'motor_init',
+                inputs: {
+                    MOTOR: {
+                        name: 'MOTOR',
+                        block: 'motor_number',
+                        shadow: 'motor_number'
+                    },
+                    DIRECTION: {
+                        name: 'DIRECTION',
+                        block: 'motor_direction',
+                        shadow: 'motor_direction'
+                    },
+                    SPEED: {
+                        name: 'SPEED',
+                        block: 'motor_speed',
+                        shadow: 'motor_speed'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'motor_number',
+                'motor_write',
+                'actuators_menu_motorNumbers',
+                'motorNumbers',
+                1
+            ),
+            createExtensionMenuShadow(
+                'motor_direction',
+                'motor_write',
+                'actuators_menu_motorDirections',
+                'motorDirections',
+                0
+            ),
+            createNumberShadow(
+                'motor_speed',
+                'motor_write',
+                100,
+                'easyblox_motor_speed'
+            )
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /const int MOTOR1_IN1 = 4;/
+    );
+
+    t.match(
+        code,
+        /const int MOTOR1_IN2 = 7;/
+    );
+
+    t.match(
+        code,
+        /const int MOTOR1_PWM = 5;/
+    );
+
+    t.notMatch(
+        code,
+        /const int MOTOR1_IN1 = 2;/,
+        'EasyMaker does not inherit generic Arduino motor defaults'
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same EasyMaker motor profile'
+    );
 
     t.end();
 });
