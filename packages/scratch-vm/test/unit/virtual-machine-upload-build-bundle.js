@@ -382,6 +382,116 @@ test(
 );
 
 test(
+    'VirtualMachine packages compact LCD16x2 adapter and implementation files',
+    t => {
+        const vm =
+            Object.create(
+                VirtualMachine.prototype
+            );
+
+        vm._getValidatedArduinoUnoUploadIr =
+            () =>
+                createIr([
+                    {
+                        type: 'LcdInit'
+                    },
+                    {
+                        type: 'LcdWrite',
+                        text: 'EasyBlox',
+                        row: 2,
+                        column: 5
+                    },
+                    {
+                        type: 'LcdMode',
+                        mode: '4'
+                    },
+                    {
+                        type: 'LcdClear'
+                    }
+                ]);
+
+        const bundle =
+            vm.generateArduinoUnoUploadBuildBundle();
+
+        t.match(
+            bundle.code,
+            /#include "LCD16x2\.h"/,
+            'pedagogical sketch uses the compact LCD adapter'
+        );
+
+        t.match(
+            bundle.code,
+            /LCD16x2 lcd;/,
+            'pedagogical sketch declares a high-level LCD object'
+        );
+
+        t.match(
+            bundle.code,
+            /lcd\.begin\(\);/,
+            'pedagogical sketch initializes LCD'
+        );
+
+        t.match(
+            bundle.code,
+            /lcd\.write\("EasyBlox", 2, 5\);/,
+            'pedagogical sketch writes LCD text'
+        );
+
+        t.match(
+            bundle.code,
+            /lcd\.setMode\(4\);/,
+            'pedagogical sketch sets LCD mode'
+        );
+
+        t.match(
+            bundle.code,
+            /lcd\.clear\(\);/,
+            'pedagogical sketch clears LCD'
+        );
+
+        t.notMatch(
+            bundle.code,
+            /easybloxLcd|easyblox_lcd_|Wire\.|0x27|0x3F|delayMicroseconds/,
+            'LCD transport details do not leak into the pedagogical sketch'
+        );
+
+        t.same(
+            bundle.supportFiles.map(
+                file => file.name
+            ),
+            [
+                'LCD16x2.h',
+                'LCD16x2.cpp'
+            ],
+            'LCD adapter travels as build support files'
+        );
+
+        const adapterImplementation =
+            findSupportFile(
+                bundle,
+                'LCD16x2.cpp'
+            );
+
+        t.match(
+            adapterImplementation.content,
+            /0x27/
+        );
+
+        t.match(
+            adapterImplementation.content,
+            /0x3F/
+        );
+
+        t.match(
+            adapterImplementation.content,
+            /Wire\.begin\(\)/
+        );
+
+        t.end();
+    }
+);
+
+test(
     'VirtualMachine packages compact TM1637 adapter and implementation files',
     t => {
         const vm =

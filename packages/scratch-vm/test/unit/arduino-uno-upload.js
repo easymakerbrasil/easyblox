@@ -17599,38 +17599,32 @@ tap.test(
 
         t.match(
             code,
-            '#include <Wire.h>',
-            'LCD uses the Arduino core Wire dependency'
+            '#include "LCD16x2.h"',
+            'LCD uses the compact LCD16x2 adapter'
+        );
+
+        t.match(
+            code,
+            'LCD16x2 lcd;',
+            'declares a high-level LCD object'
+        );
+
+        t.match(
+            code,
+            'lcd.begin();',
+            'setup initializes LCD through the adapter'
+        );
+
+        t.notMatch(
+            code,
+            /#include <Wire\.h>|easybloxLcd|0x27|0x3F/,
+            'keeps LCD transport details outside the sketch'
         );
 
         t.match(
             code,
             'MAX7219Matrix matrix(2, 4, 3);',
             'declares the compact MAX7219 matrix adapter'
-        );
-
-        t.match(
-            code,
-            'void easybloxLcdInit()',
-            'emits internal LCD initialization support'
-        );
-
-        t.match(
-            code,
-            'uint8_t easybloxLcdDetectAddress()',
-            'emits LCD I2C address auto-detection support'
-        );
-
-        t.match(
-            code,
-            '0x27',
-            'LCD auto-detection checks address 0x27'
-        );
-
-        t.match(
-            code,
-            '0x3F',
-            'LCD auto-detection checks address 0x3F'
         );
 
         t.match(
@@ -17643,12 +17637,6 @@ tap.test(
             code,
             'matrix.begin();',
             'setup initializes MAX7219 through the adapter'
-        );
-
-        t.match(
-            code,
-            'easybloxLcdInit();',
-            'setup initializes the LCD explicitly'
         );
 
         t.match(
@@ -17682,20 +17670,14 @@ tap.test(
 
         t.notMatch(
             emptyCode,
-            '#include <Wire.h>',
-            'does not emit Wire when LCD is absent'
+            '#include "LCD16x2.h"',
+            'does not emit LCD support when absent'
         );
 
         t.notMatch(
             emptyCode,
             '#include "MAX7219Matrix.h"',
             'does not emit MAX7219 support when absent'
-        );
-
-        t.notMatch(
-            emptyCode,
-            'easybloxLcdInit',
-            'does not emit LCD support when absent'
         );
 
         t.notMatch(
@@ -17782,6 +17764,81 @@ tap.test(
             code,
             '#include "LedControl.h"',
             'keeps the low-level LedControl dependency behind the adapter'
+        );
+
+        t.end();
+    }
+);
+
+tap.test(
+    'Arduino UNO Upload generates a compact LCD16x2 sketch',
+    t => {
+        const generator =
+            new ArduinoUnoGenerator();
+
+        const code =
+            generator.generate({
+                setup: [
+                    {
+                        type: 'LcdInit'
+                    },
+                    {
+                        type: 'LcdWrite',
+                        text: 'Olá, João!',
+                        row: 2,
+                        column: 5
+                    },
+                    {
+                        type: 'LcdMode',
+                        mode: '4'
+                    },
+                    {
+                        type: 'LcdClear'
+                    }
+                ],
+                loop: []
+            });
+
+        t.match(
+            code,
+            '#include "LCD16x2.h"',
+            'uses the compact LCD adapter'
+        );
+
+        t.match(
+            code,
+            'LCD16x2 lcd;',
+            'declares a pedagogical LCD object'
+        );
+
+        t.match(
+            code,
+            'lcd.begin();',
+            'initializes LCD through the adapter'
+        );
+
+        t.match(
+            code,
+            'lcd.write("Ola, Joao!", 2, 5);',
+            'normalizes accents and writes LCD text with one high-level call'
+        );
+
+        t.match(
+            code,
+            'lcd.setMode(4);',
+            'sets LCD mode with one high-level call'
+        );
+
+        t.match(
+            code,
+            'lcd.clear();',
+            'clears LCD with one high-level call'
+        );
+
+        t.notMatch(
+            code,
+            /easybloxLcd|easyblox_lcd_|Wire\.|0x27|0x3F|delayMicroseconds/,
+            'keeps LCD implementation details out of the pedagogical sketch'
         );
 
         t.end();
@@ -17952,54 +18009,26 @@ tap.test(
 
         t.match(
             code,
-            'void easybloxLcdWrite(',
-            'emits LCD write helper'
-        );
-
-        const lcdAddressDeclarationIndex =
-            code.indexOf(
-                'uint8_t easyblox_lcd_address = 0;'
-            );
-
-        const lcdWriteHelperIndex =
-            code.indexOf(
-                'void easybloxLcdWrite('
-            );
-
-        t.ok(
-            lcdAddressDeclarationIndex !== -1 &&
-            lcdAddressDeclarationIndex < lcdWriteHelperIndex,
-            'declares LCD address before helpers that use it'
+            'lcd.write("EasyBlox", 2, 5);',
+            'writes text through the high-level LCD API'
         );
 
         t.match(
             code,
-            'void easybloxLcdClear()',
-            'emits LCD clear helper'
+            'lcd.setMode(4);',
+            'sets the semantic LCD mode'
         );
 
         t.match(
             code,
-            'void easybloxLcdMode(',
-            'emits LCD mode helper'
+            'lcd.clear();',
+            'clears LCD through the adapter'
         );
 
-        t.match(
+        t.notMatch(
             code,
-            'easybloxLcdWrite("EasyBlox", 2, 5);',
-            'writes text using one-based Scratch LCD coordinates'
-        );
-
-        t.match(
-            code,
-            'easybloxLcdMode(4);',
-            'emits the semantic LCD mode'
-        );
-
-        t.match(
-            code,
-            'easybloxLcdClear();',
-            'clears LCD'
+            /easybloxLcd|Wire\.|easyblox_lcd_/,
+            'keeps LCD implementation details outside the sketch'
         );
 
         t.match(
@@ -18046,6 +18075,24 @@ tap.test(
                 0x00
             ],
             'normalizes MAX7219 bitmap like Stage mode'
+        );
+
+        t.equal(
+            generator._normalizeLcdText(
+                'Olá, João!',
+                1
+            ),
+            'Ola, Joao!',
+            'removes LCD accents exactly like Stage mode'
+        );
+
+        t.equal(
+            generator._normalizeLcdText(
+                'ABCDEFG',
+                14
+            ),
+            'ABC',
+            'clips LCD text to the remaining display columns'
         );
 
         const code = generator.generate({
@@ -18098,28 +18145,16 @@ tap.test(
             'preserves brightness argument for adapter normalization'
         );
 
-        t.match(
+        t.notMatch(
             code,
-            'int row = (int)round(rowValue);',
-            'rounds LCD row'
+            /round\(rowValue\)|row > 2|round\(columnValue\)|column > 16/,
+            'keeps LCD coordinate normalization outside the sketch'
         );
 
         t.match(
             code,
-            'else if (row > 2)',
-            'clamps LCD row to two lines'
-        );
-
-        t.match(
-            code,
-            'int column = (int)round(columnValue);',
-            'rounds LCD column'
-        );
-
-        t.match(
-            code,
-            'else if (column > 16)',
-            'clamps LCD column to sixteen positions'
+            'lcd.write("EasyBlox", 8.7, -3.2);',
+            'preserves LCD coordinates for adapter normalization'
         );
 
         t.notMatch(

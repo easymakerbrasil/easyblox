@@ -284,6 +284,7 @@ class ArduinoUnoGenerator {
             dhtPins,
             ultrasonicPairs,
             matrixInitialization,
+            lcdInitialization,
             tm1637Initialization
         );
 
@@ -333,9 +334,7 @@ class ArduinoUnoGenerator {
 
         if (lcdInitialization) {
             lines.push(
-                '#include <Wire.h>',
-                '',
-                'uint8_t easyblox_lcd_address = 0;',
+                '#include "LCD16x2.h"',
                 ''
             );
         }
@@ -370,6 +369,13 @@ class ArduinoUnoGenerator {
                         tm1637Initialization.dioPin
                     )
                 });`,
+                ''
+            );
+        }
+
+        if (lcdInitialization) {
+            lines.push(
+                'LCD16x2 lcd;',
                 ''
             );
         }
@@ -440,201 +446,6 @@ class ArduinoUnoGenerator {
                 'float readDistanceCm(UltraSonicDistanceSensor &sensor) {',
                 '    const float distanceCm = sensor.measureDistanceCm();',
                 '    return distanceCm < 0.0f ? 0.0f : distanceCm;',
-                '}',
-                ''
-            );
-        }
-
-        if (lcdInitialization) {
-            lines.push(
-                'uint8_t easyblox_lcd_display_control = 0x04;',
-                'uint8_t easyblox_lcd_entry_mode = 0x02;',
-                '',
-                'void easybloxLcdWrite(',
-                '    const char *text,',
-                '    float rowValue,',
-                '    float columnValue',
-                ') {',
-                '    if (easyblox_lcd_address == 0) {',
-                '        return;',
-                '    }',
-                '',
-                '    int row = (int)round(rowValue);',
-                '    int column = (int)round(columnValue);',
-                '',
-                '    if (row < 1) {',
-                '        row = 1;',
-                '    } else if (row > 2) {',
-                '        row = 2;',
-                '    }',
-                '',
-                '    if (column < 1) {',
-                '        column = 1;',
-                '    } else if (column > 16) {',
-                '        column = 16;',
-                '    }',
-                '',
-                '    const uint8_t rowOffsets[2] = {0x00, 0x40};',
-                '    const uint8_t address =',
-                '        rowOffsets[row - 1] + (column - 1);',
-                '',
-                '    easybloxLcdCommand(0x80 | address);',
-                '',
-                '    for (uint16_t index = 0; text[index] != \'\\0\'; ++index) {',
-                '        easybloxLcdSend((uint8_t)text[index], 0x01);',
-                '    }',
-                '}',
-                '',
-                'void easybloxLcdClear() {',
-                '    easybloxLcdCommand(0x01);',
-                '    delayMicroseconds(2000);',
-                '}',
-                '',
-                'void easybloxLcdMode(uint8_t mode) {',
-                '    switch (mode) {',
-                '    case 0:',
-                '        easyblox_lcd_display_control |= 0x01;',
-                '        easybloxLcdCommand(',
-                '            0x08 | easyblox_lcd_display_control',
-                '        );',
-                '        break;',
-                '',
-                '    case 1:',
-                '        easyblox_lcd_display_control &= ~0x01;',
-                '        easybloxLcdCommand(',
-                '            0x08 | easyblox_lcd_display_control',
-                '        );',
-                '        break;',
-                '',
-                '    case 2:',
-                '        easyblox_lcd_display_control |= 0x02;',
-                '        easybloxLcdCommand(',
-                '            0x08 | easyblox_lcd_display_control',
-                '        );',
-                '        break;',
-                '',
-                '    case 3:',
-                '        easyblox_lcd_display_control &= ~0x02;',
-                '        easybloxLcdCommand(',
-                '            0x08 | easyblox_lcd_display_control',
-                '        );',
-                '        break;',
-                '',
-                '    case 4:',
-                '        easyblox_lcd_display_control |= 0x04;',
-                '        easybloxLcdCommand(',
-                '            0x08 | easyblox_lcd_display_control',
-                '        );',
-                '        break;',
-                '',
-                '    case 5:',
-                '        easyblox_lcd_display_control &= ~0x04;',
-                '        easybloxLcdCommand(',
-                '            0x08 | easyblox_lcd_display_control',
-                '        );',
-                '        break;',
-                '',
-                '    case 6:',
-                '        easyblox_lcd_entry_mode |= 0x01;',
-                '        easybloxLcdCommand(',
-                '            0x04 | easyblox_lcd_entry_mode',
-                '        );',
-                '        break;',
-                '',
-                '    case 7:',
-                '        easyblox_lcd_entry_mode &= ~0x01;',
-                '        easybloxLcdCommand(',
-                '            0x04 | easyblox_lcd_entry_mode',
-                '        );',
-                '        break;',
-                '',
-                '    case 8:',
-                '        easybloxLcdCommand(0x18);',
-                '        break;',
-                '',
-                '    case 9:',
-                '        easybloxLcdCommand(0x1C);',
-                '        break;',
-                '',
-                '    default:',
-                '        break;',
-                '    }',
-                '}',
-                ''
-            );
-        }
-
-        if (lcdInitialization) {
-            lines.push(
-                'uint8_t easybloxLcdDetectAddress() {',
-                '    const uint8_t addresses[] = {0x27, 0x3F};',
-                '',
-                '    for (uint8_t index = 0; index < 2; ++index) {',
-                '        Wire.beginTransmission(addresses[index]);',
-                '',
-                '        if (Wire.endTransmission() == 0) {',
-                '            return addresses[index];',
-                '        }',
-                '    }',
-                '',
-                '    return 0;',
-                '}',
-                '',
-                'void easybloxLcdExpanderWrite(uint8_t value) {',
-                '    if (easyblox_lcd_address == 0) {',
-                '        return;',
-                '    }',
-                '',
-                '    Wire.beginTransmission(easyblox_lcd_address);',
-                '    Wire.write(value | 0x08);',
-                '    Wire.endTransmission();',
-                '}',
-                '',
-                'void easybloxLcdPulseEnable(uint8_t value) {',
-                '    easybloxLcdExpanderWrite(value | 0x04);',
-                '    delayMicroseconds(1);',
-                '    easybloxLcdExpanderWrite(value & ~0x04);',
-                '    delayMicroseconds(50);',
-                '}',
-                '',
-                'void easybloxLcdWrite4Bits(uint8_t value) {',
-                '    easybloxLcdExpanderWrite(value);',
-                '    easybloxLcdPulseEnable(value);',
-                '}',
-                '',
-                'void easybloxLcdSend(uint8_t value, uint8_t mode) {',
-                '    easybloxLcdWrite4Bits((value & 0xF0) | mode);',
-                '    easybloxLcdWrite4Bits((value << 4) | mode);',
-                '}',
-                '',
-                'void easybloxLcdCommand(uint8_t value) {',
-                '    easybloxLcdSend(value, 0x00);',
-                '}',
-                '',
-                'void easybloxLcdInit() {',
-                '    Wire.begin();',
-                '    easyblox_lcd_address = easybloxLcdDetectAddress();',
-                '',
-                '    if (easyblox_lcd_address == 0) {',
-                '        return;',
-                '    }',
-                '',
-                '    delay(50);',
-                '',
-                '    easybloxLcdWrite4Bits(0x30);',
-                '    delayMicroseconds(4500);',
-                '    easybloxLcdWrite4Bits(0x30);',
-                '    delayMicroseconds(4500);',
-                '    easybloxLcdWrite4Bits(0x30);',
-                '    delayMicroseconds(150);',
-                '    easybloxLcdWrite4Bits(0x20);',
-                '',
-                '    easybloxLcdCommand(0x28);',
-                '    easybloxLcdCommand(0x08);',
-                '    easybloxLcdCommand(0x01);',
-                '    delayMicroseconds(2000);',
-                '    easybloxLcdCommand(0x06);',
-                '    easybloxLcdCommand(0x0C);',
                 '}',
                 ''
             );
@@ -2164,6 +1975,7 @@ class ArduinoUnoGenerator {
      * @param {Array<number>} dhtPins DHT sensor pins used by the program.
      * @param {Array<object>} ultrasonicPairs Ultrasonic pin pairs used.
      * @param {?object} matrixInitialization MAX7219 configuration, if used.
+     * @param {?object} lcdInitialization LCD 16x2 configuration, if used.
      * @param {?object} tm1637Initialization TM1637 configuration, if used.
      * @returns {Array<string>} Identifiers reserved from internal allocation.
      * @private
@@ -2176,6 +1988,7 @@ class ArduinoUnoGenerator {
         dhtPins = [],
         ultrasonicPairs = [],
         matrixInitialization = null,
+        lcdInitialization = null,
         tm1637Initialization = null
     ) {
         this._variablesById = new Map();
@@ -2199,6 +2012,21 @@ class ArduinoUnoGenerator {
             ];
 
             for (const identifier of matrixLibraryIdentifiers) {
+                globalUsed.add(identifier);
+                reservedForInternals.add(identifier);
+            }
+        }
+
+        if (lcdInitialization) {
+            const lcdAdapterIdentifiers = [
+                'LCD16x2',
+                'lcd',
+                'LCD16X2_H_',
+                'Wire',
+                'TwoWire'
+            ];
+
+            for (const identifier of lcdAdapterIdentifiers) {
                 globalUsed.add(identifier);
                 reservedForInternals.add(identifier);
             }
@@ -2930,6 +2758,50 @@ class ArduinoUnoGenerator {
     }
 
     /**
+     * Normalize LCD text exactly like Stage mode.
+     * Accented Latin characters are reduced to ASCII, unsupported
+     * characters become '?', and text is clipped to the available
+     * columns of the 16x2 display.
+     * @param {*} text LCD text value.
+     * @param {*} columnValue One-based LCD column.
+     * @returns {string} Stage-compatible LCD text.
+     * @private
+     */
+    _normalizeLcdText (
+        text,
+        columnValue
+    ) {
+        const column =
+            Math.max(
+                1,
+                Math.min(
+                    16,
+                    Math.round(
+                        Number(columnValue)
+                    )
+                )
+            );
+
+        const availableColumns =
+            17 - column;
+
+        return String(text)
+            .normalize('NFD')
+            .replace(
+                /[\u0300-\u036f]/g,
+                ''
+            )
+            .replace(
+                /[^\x20-\x7E]/g,
+                '?'
+            )
+            .slice(
+                0,
+                availableColumns
+            );
+    }
+
+    /**
      * Report whether an Upload IR requires EasyBlox BT support.
      * @param {object} ir EasyBlox Upload IR.
      * @returns {boolean} True when EasyBlox BT support is required.
@@ -2965,6 +2837,18 @@ class ArduinoUnoGenerator {
         return this._containsIrType(
             ir,
             'MatrixInit'
+        );
+    }
+
+    /**
+     * Report whether an Upload IR requires LCD16x2 support.
+     * @param {object} ir EasyBlox Upload IR.
+     * @returns {boolean} True when LCD support is required.
+     */
+    usesLcd (ir) {
+        return this._containsIrType(
+            ir,
+            'LcdInit'
         );
     }
 
@@ -3143,7 +3027,7 @@ class ArduinoUnoGenerator {
 
             case 'LcdInit':
                 lines.push(
-                    `${indent}easybloxLcdInit();`
+                    `${indent}lcd.begin();`
                 );
                 break;
 
@@ -3217,10 +3101,15 @@ class ArduinoUnoGenerator {
                 }
 
                 const text =
-                    JSON.stringify(String(statement.text));
+                    JSON.stringify(
+                        this._normalizeLcdText(
+                            statement.text,
+                            statement.column
+                        )
+                    );
 
                 lines.push(
-                    `${indent}easybloxLcdWrite(` +
+                    `${indent}lcd.write(` +
                     `${text}, ` +
                     `${statement.row}, ` +
                     `${statement.column}` +
@@ -3237,7 +3126,7 @@ class ArduinoUnoGenerator {
                 }
 
                 lines.push(
-                    `${indent}easybloxLcdMode(` +
+                    `${indent}lcd.setMode(` +
                     `${Number(statement.mode)}` +
                     ');'
                 );
@@ -3251,7 +3140,7 @@ class ArduinoUnoGenerator {
                 }
 
                 lines.push(
-                    `${indent}easybloxLcdClear();`
+                    `${indent}lcd.clear();`
                 );
                 break;
 

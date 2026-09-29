@@ -55,6 +55,10 @@ const {
 } = require('./upload/ledcontrol-arduino-runtime');
 
 const {
+    getLcd16x2SupportFiles
+} = require('./upload/lcd16x2-arduino-runtime');
+
+const {
     getErriezTm1637SupportFiles
 } = require('./upload/erriez-tm1637-arduino-runtime');
 
@@ -3416,6 +3420,12 @@ class VirtualMachine extends EventEmitter {
         if (generator.usesMatrix(ir)) {
             supportFiles.push(
                 ...getLedControlSupportFiles()
+            );
+        }
+
+        if (generator.usesLcd(ir)) {
+            supportFiles.push(
+                ...getLcd16x2SupportFiles()
             );
         }
 

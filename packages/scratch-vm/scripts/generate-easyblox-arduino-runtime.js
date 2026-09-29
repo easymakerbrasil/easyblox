@@ -155,6 +155,22 @@ generateSourcesModule({
     sourceDirectory:
         path.resolve(
             scriptDirectory,
+            '../src/upload/arduino-adapters/lcd16x2'
+        ),
+    fileNames: [
+        'LCD16x2.h',
+        'LCD16x2.cpp'
+    ],
+    outputFileName:
+        'lcd16x2-adapter-files.js',
+    constantName:
+        'LCD16X2_ADAPTER_SOURCES'
+});
+
+generateSourcesModule({
+    sourceDirectory:
+        path.resolve(
+            scriptDirectory,
             '../src/upload/arduino-libraries/erriez-tm1637'
         ),
     fileNames: [
