@@ -96,7 +96,12 @@ const EASYMAKER_ARDUINO_UNO_UPLOAD_PROFILE =
                         .matrixJoystick
                         .pins
                         .d13
-            })
+            }),
+        tm1637Ports:
+            EasyMakerProductProfile
+                .devices
+                .tm1637
+                .ports
     });
 
 const {

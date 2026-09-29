@@ -717,6 +717,102 @@ test('Displays propagate asynchronous matrix commands from the shared peripheral
     t.end();
 });
 
+test('Displays expose EasyMaker TM1637 physical ports', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({}),
+        getEasyBloxSelectedBoardId: () =>
+            'easymaker'
+    };
+
+    const extension =
+        new Scratch3DisplaysBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const initBlock =
+        info.blocks.find(block =>
+            block &&
+            typeof block === 'object' &&
+            block.opcode === 'tm1637Init'
+        );
+
+    t.equal(
+        initBlock.text,
+        'inicializar display 7 segmentos na porta [PORT]'
+    );
+
+    t.equal(
+        initBlock.arguments.PORT.menu,
+        'easyMakerTm1637Ports'
+    );
+
+    t.equal(
+        initBlock.arguments.PORT.defaultValue,
+        'analog-a2-a3'
+    );
+
+    const portItems =
+        info.menus
+            .easyMakerTm1637Ports
+            .items;
+
+    t.same(
+        portItems.map(item => item.value),
+        [
+            'analog-a2-a3',
+            'analog-a4-a5',
+            'digital-d2-d3'
+        ]
+    );
+
+    portItems.forEach(item => {
+        t.match(
+            item.text.src,
+            /^data:image\/svg\+xml,/,
+            'EasyMaker TM1637 port uses a physical SVG symbol'
+        );
+    });
+
+    extension.tm1637Init({
+        PORT: 'digital-d2-d3'
+    });
+
+    t.same(
+        [
+            extension._tm1637ClkPin,
+            extension._tm1637DioPin
+        ],
+        [2, 3]
+    );
+
+    extension.tm1637Init({
+        PORT: 'analog-a2-a3'
+    });
+
+    t.same(
+        [
+            extension._tm1637ClkPin,
+            extension._tm1637DioPin
+        ],
+        [16, 17]
+    );
+
+    extension.tm1637Init({
+        PORT: 'analog-a4-a5'
+    });
+
+    t.same(
+        [
+            extension._tm1637ClkPin,
+            extension._tm1637DioPin
+        ],
+        [18, 19]
+    );
+
+    t.end();
+});
+
 test('Displays configure TM1637 pins locally', t => {
     const runtime = {
         getPeripheralExtension: () => ({})

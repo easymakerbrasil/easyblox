@@ -315,6 +315,42 @@ test('EasyMaker ProductProfile maps LCD to the physical A4 A5 port', t => {
     t.end();
 });
 
+test('EasyMaker ProductProfile maps TM1637 physical ports to CLK and DIO', t => {
+    const tm1637 =
+        EasyMakerProductProfile.devices.tm1637;
+
+    t.equal(
+        tm1637.id,
+        'tm1637'
+    );
+
+    t.same(
+        tm1637.ports['analog-a2-a3'],
+        {
+            clkPin: 16,
+            dioPin: 17
+        }
+    );
+
+    t.same(
+        tm1637.ports['analog-a4-a5'],
+        {
+            clkPin: 18,
+            dioPin: 19
+        }
+    );
+
+    t.same(
+        tm1637.ports['digital-d2-d3'],
+        {
+            clkPin: 2,
+            dioPin: 3
+        }
+    );
+
+    t.end();
+});
+
 test('EasyMaker ProductProfile defines the simple digital I/O ports', t => {
     t.same(
         EasyMakerProductProfile.simpleDigitalPorts,

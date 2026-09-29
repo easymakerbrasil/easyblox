@@ -2499,6 +2499,133 @@ test('VirtualMachine generates Arduino UNO Serial Upload C++ from current runtim
     t.end();
 });
 
+test('VirtualMachine uses EasyMaker TM1637 physical port wiring in Upload', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat('tm1637_init'),
+            {
+                id: 'tm1637_init',
+                opcode: 'displays_tm1637Init',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {
+                    PORT: {
+                        name: 'PORT',
+                        block: 'tm1637_port',
+                        shadow: 'tm1637_port'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'tm1637_port',
+                'tm1637_init',
+                'displays_menu_easyMakerTm1637Ports',
+                'easyMakerTm1637Ports',
+                'analog-a2-a3'
+            )
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /#include "TM1637NumberDisplay\.h"/
+    );
+
+    t.match(
+        code,
+        /TM1637NumberDisplay display\(A2, A3\);/,
+        'EasyMaker maps A2/A3 to CLK=A2 and DIO=A3'
+    );
+
+    t.match(
+        code,
+        /display\.begin\(\);/
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same EasyMaker TM1637 port'
+    );
+
+    t.end();
+});
+
+test('VirtualMachine rejects unsupported legacy TM1637 wiring on EasyMaker Upload', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat('tm1637_init'),
+            {
+                id: 'tm1637_init',
+                opcode: 'displays_tm1637Init',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {
+                    CLK: {
+                        name: 'CLK',
+                        block: 'tm1637_clk',
+                        shadow: 'tm1637_clk'
+                    },
+                    DIO: {
+                        name: 'DIO',
+                        block: 'tm1637_dio',
+                        shadow: 'tm1637_dio'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'tm1637_clk',
+                'tm1637_init',
+                'displays_menu_matrixPins',
+                'matrixPins',
+                12
+            ),
+            createExtensionMenuShadow(
+                'tm1637_dio',
+                'tm1637_init',
+                'displays_menu_matrixPins',
+                'matrixPins',
+                11
+            )
+        ],
+        'easymaker'
+    );
+
+    t.throws(
+        () =>
+            vm.generateArduinoUnoUploadCode(
+                'easymaker'
+            ),
+        /TM1637 port is not supported by the selected board/,
+        'legacy EasyMaker blocks cannot bypass the physical TM1637 ports'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine uses EasyMaker fixed matrix JST wiring in Upload', t => {
     const vm = new VirtualMachine();
 

@@ -950,7 +950,56 @@ class UploadProgramExtractor {
                 type: 'LcdInit'
             };
 
-        case TM1637_INIT_OPCODE:
+        case TM1637_INIT_OPCODE: {
+            if (
+                this.program &&
+                this.program.boardId ===
+                    EasyMakerProductProfile.id
+            ) {
+                const inputs =
+                    blocks.getInputs(block);
+
+                const fields =
+                    blocks.getFields(block);
+
+                const hasPhysicalPort =
+                    (
+                        inputs &&
+                        inputs.PORT
+                    ) ||
+                    (
+                        fields &&
+                        fields.PORT
+                    );
+
+                if (hasPhysicalPort) {
+                    const portId =
+                        this._readMenuValue(
+                            blocks,
+                            block,
+                            'PORT'
+                        );
+
+                    const port =
+                        EasyMakerProductProfile
+                            .devices
+                            .tm1637
+                            .ports[portId];
+
+                    if (!port) {
+                        throw new Error(
+                            'Unsupported EasyMaker TM1637 port'
+                        );
+                    }
+
+                    return {
+                        type: 'Tm1637Init',
+                        clkPin: port.clkPin,
+                        dioPin: port.dioPin
+                    };
+                }
+            }
+
             return {
                 type: 'Tm1637Init',
                 clkPin: this._readNumberInput(
@@ -964,6 +1013,7 @@ class UploadProgramExtractor {
                     'DIO'
                 )
             };
+        }
 
         case MATRIX_WRITE_OPCODE:
             return {

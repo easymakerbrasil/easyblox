@@ -8,6 +8,13 @@ const EasyMakerPortSymbols =
 
 const EXTENSION_ID = 'displays';
 
+const EASYMAKER_TM1637_PORT_ALT_LABELS =
+    Object.freeze({
+        triangle: 'porta triângulo',
+        pentagon: 'porta pentágono',
+        asterisk: 'porta asterisco'
+    });
+
 const MATRIX_SIZE = 8;
 const DEFAULT_MATRIX = '0066FFFF7E3C1800';
 
@@ -100,6 +107,99 @@ class Scratch3DisplaysBlocks {
                         }
                     }
                 };
+        const useEasyMakerTm1637Surface =
+            selectedBoardId ===
+                EasyMakerProductProfile.id;
+
+        const easyMakerPhysicalPorts =
+            Object.values(
+                EasyMakerProductProfile
+                    .physicalPorts
+            );
+
+        const easyMakerTm1637PortMenuItems =
+            Object.keys(
+                EasyMakerProductProfile
+                    .devices
+                    .tm1637
+                    .ports
+            ).map(portId => {
+                const physicalPort =
+                    easyMakerPhysicalPorts.find(
+                        port =>
+                            port.id === portId
+                    );
+
+                const symbol =
+                    physicalPort ?
+                        EasyMakerPortSymbols[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                const alt =
+                    physicalPort ?
+                        EASYMAKER_TM1637_PORT_ALT_LABELS[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                return {
+                    text:
+                        symbol && alt ?
+                            {
+                                src: symbol.dataURI,
+                                alt,
+                                width: symbol.width,
+                                height: symbol.height
+                            } :
+                            physicalPort ?
+                                physicalPort.fallbackLabel :
+                                portId,
+                    value: portId
+                };
+            });
+
+        const tm1637InitBlock =
+            useEasyMakerTm1637Surface ?
+                {
+                    opcode: 'tm1637Init',
+                    blockType: BlockType.COMMAND,
+                    text:
+                        'inicializar display 7 segmentos na porta [PORT]',
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.STRING,
+                            menu: 'easyMakerTm1637Ports',
+                            defaultValue:
+                                EasyMakerProductProfile
+                                    .physicalPorts
+                                    .analogA2A3
+                                    .id
+                        }
+                    }
+                } :
+                {
+                    opcode: 'tm1637Init',
+                    blockType: BlockType.COMMAND,
+                    text:
+                        'inicializar display 7 segmentos CLK [CLK] DIO [DIO]',
+                    arguments: {
+                        CLK: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'matrixPins',
+                            defaultValue:
+                                DEFAULT_TM1637_CLK_PIN
+                        },
+                        DIO: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'matrixPins',
+                            defaultValue:
+                                DEFAULT_TM1637_DIO_PIN
+                        }
+                    }
+                };
+
 
         const easyMakerLcdPort =
             EasyMakerProductProfile
@@ -228,23 +328,7 @@ class Scratch3DisplaysBlocks {
                     blockType: BlockType.LABEL,
                     text: 'Display 7 SEG'
                 },
-                {
-                    opcode: 'tm1637Init',
-                    blockType: BlockType.COMMAND,
-                    text: 'inicializar display 7 segmentos CLK [CLK] DIO [DIO]',
-                    arguments: {
-                        CLK: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'matrixPins',
-                            defaultValue: DEFAULT_TM1637_CLK_PIN
-                        },
-                        DIO: {
-                            type: ArgumentType.NUMBER,
-                            menu: 'matrixPins',
-                            defaultValue: DEFAULT_TM1637_DIO_PIN
-                        }
-                    }
-                },
+                tm1637InitBlock,
                 {
                     opcode: 'tm1637Show',
                     blockType: BlockType.COMMAND,
@@ -305,6 +389,11 @@ class Scratch3DisplaysBlocks {
                         {text: 'A4', value: '18'},
                         {text: 'A5', value: '19'}
                     ]
+                },
+                easyMakerTm1637Ports: {
+                    acceptReporters: true,
+                    items:
+                        easyMakerTm1637PortMenuItems
                 },
                 tm1637Lengths: {
                     acceptReporters: true,
@@ -568,6 +657,65 @@ class Scratch3DisplaysBlocks {
      * @returns {null} No transport command is sent.
      */
     tm1637Init (args) {
+        if (this._isEasyMakerSelected()) {
+            const ports =
+                EasyMakerProductProfile
+                    .devices
+                    .tm1637
+                    .ports;
+
+            const portId =
+                typeof args.PORT === 'undefined' ?
+                    null :
+                    String(args.PORT);
+
+            const selectedPort =
+                portId ?
+                    ports[portId] :
+                    null;
+
+            if (selectedPort) {
+                this._tm1637ClkPin =
+                    selectedPort.clkPin;
+
+                this._tm1637DioPin =
+                    selectedPort.dioPin;
+
+                return;
+            }
+
+            /*
+             * Preserve compatible legacy EasyMaker projects which still
+             * contain the former explicit CLK/DIO block.
+             */
+            const legacyClkPin =
+                Number(args.CLK);
+
+            const legacyDioPin =
+                Number(args.DIO);
+
+            const legacyPort =
+                Object.values(ports).find(
+                    port =>
+                        port.clkPin ===
+                            legacyClkPin &&
+                        port.dioPin ===
+                            legacyDioPin
+                );
+
+            if (!legacyPort) {
+                return;
+            }
+
+            this._tm1637ClkPin =
+                legacyPort.clkPin;
+
+            this._tm1637DioPin =
+                legacyPort.dioPin;
+
+            return;
+        }
+
         const clkPin = Number(args.CLK);
         const dioPin = Number(args.DIO);
 

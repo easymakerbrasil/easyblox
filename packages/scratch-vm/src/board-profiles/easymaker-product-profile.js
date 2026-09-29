@@ -187,6 +187,27 @@ const EasyMakerProductProfile = Object.freeze({
                 sdaPin: 18,
                 sclPin: 19
             })
+        }),
+
+        tm1637: Object.freeze({
+            id: 'tm1637',
+
+            ports: Object.freeze({
+                'analog-a2-a3': Object.freeze({
+                    clkPin: 16,
+                    dioPin: 17
+                }),
+
+                'analog-a4-a5': Object.freeze({
+                    clkPin: 18,
+                    dioPin: 19
+                }),
+
+                'digital-d2-d3': Object.freeze({
+                    clkPin: 2,
+                    dioPin: 3
+                })
+            })
         })
     }),
 

@@ -724,6 +724,27 @@ class UploadResourceValidator {
      * @private
      */
     _validateTm1637Initialization (statement) {
+        const supportedTm1637Ports =
+            this.boardProfile.tm1637Ports;
+
+        if (supportedTm1637Ports) {
+            const matchesPhysicalPort =
+                Object.values(
+                    supportedTm1637Ports
+                ).some(port =>
+                    port.clkPin ===
+                        statement.clkPin &&
+                    port.dioPin ===
+                        statement.dioPin
+                );
+
+            if (!matchesPhysicalPort) {
+                throw new Error(
+                    'TM1637 port is not supported by the selected board'
+                );
+            }
+        }
+
         const supportedDigitalPins =
             Array.isArray(this.boardProfile.digitalPins) ?
                 this.boardProfile.digitalPins :
