@@ -315,6 +315,36 @@ test('EasyMaker ProductProfile maps LCD to the physical A4 A5 port', t => {
     t.end();
 });
 
+test('EasyMaker ProductProfile defines the simple digital I/O ports', t => {
+    t.same(
+        EasyMakerProductProfile.simpleDigitalPorts,
+        {
+            d3: {
+                id: 'digital-d3',
+                physicalPortId:
+                    'digital-d2-d3',
+                pin: 3
+            },
+
+            d12: {
+                id: 'digital-d12',
+                physicalPortId:
+                    'digital-d12',
+                pin: 12
+            },
+
+            d13: {
+                id: 'digital-d13',
+                physicalPortId:
+                    'digital-d13',
+                pin: 13
+            }
+        }
+    );
+
+    t.end();
+});
+
 test('EasyMaker ProductProfile defines the dedicated matrix and joystick bus', t => {
     t.same(
         EasyMakerProductProfile.dedicatedResources.matrixJoystick,

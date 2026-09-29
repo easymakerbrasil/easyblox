@@ -100,6 +100,26 @@ const EasyMakerProductProfile = Object.freeze({
         })
     }),
 
+    simpleDigitalPorts: Object.freeze({
+        d3: Object.freeze({
+            id: 'digital-d3',
+            physicalPortId: 'digital-d2-d3',
+            pin: 3
+        }),
+
+        d12: Object.freeze({
+            id: 'digital-d12',
+            physicalPortId: 'digital-d12',
+            pin: 12
+        }),
+
+        d13: Object.freeze({
+            id: 'digital-d13',
+            physicalPortId: 'digital-d13',
+            pin: 13
+        })
+    }),
+
     devices: Object.freeze({
         ultrasonic: Object.freeze({
             id: 'ultrasonic',

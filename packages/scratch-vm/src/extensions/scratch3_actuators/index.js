@@ -9,6 +9,13 @@ const EasyMakerPortSymbols =
 
 const EXTENSION_ID = 'actuators';
 
+const EASYMAKER_SIMPLE_DIGITAL_PORT_ALT_LABELS =
+    Object.freeze({
+        asterisk: 'porta asterisco',
+        question: 'porta interrogação',
+        chevrons: 'porta menor e maior'
+    });
+
 /**
  * Shared actuator blocks for supported hardware boards.
  */
@@ -55,6 +62,54 @@ class Scratch3ActuatorsBlocks {
             EasyMakerPortSymbols[
                 easyMakerMotorSymbolId
             ];
+
+        const easyMakerPhysicalPorts =
+            Object.values(
+                EasyMakerProductProfile
+                    .physicalPorts
+            );
+
+        const easyMakerDigitalPortMenuItems =
+            Object.values(
+                EasyMakerProductProfile
+                    .simpleDigitalPorts
+            ).map(port => {
+                const physicalPort =
+                    easyMakerPhysicalPorts.find(
+                        candidate =>
+                            candidate.id ===
+                            port.physicalPortId
+                    );
+
+                const symbol =
+                    physicalPort ?
+                        EasyMakerPortSymbols[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                const alt =
+                    physicalPort ?
+                        EASYMAKER_SIMPLE_DIGITAL_PORT_ALT_LABELS[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                return {
+                    text:
+                        symbol && alt ?
+                            {
+                                src: symbol.dataURI,
+                                alt,
+                                width: symbol.width,
+                                height: symbol.height
+                            } :
+                            physicalPort ?
+                                physicalPort.fallbackLabel :
+                                port.id,
+                    value: String(port.pin)
+                };
+            });
 
         return {
             id: EXTENSION_ID,
@@ -178,11 +233,17 @@ class Scratch3ActuatorsBlocks {
                 {
                     opcode: 'relayWrite',
                     blockType: BlockType.COMMAND,
-                    text: 'definir relé no pino [PIN] como [STATE]',
+                    text:
+                        useEasyMakerSurface ?
+                            'definir relé na porta [PIN] como [STATE]' :
+                            'definir relé no pino [PIN] como [STATE]',
                     arguments: {
                         PIN: {
                             type: ArgumentType.NUMBER,
-                            menu: 'relayPins',
+                            menu:
+                                useEasyMakerSurface ?
+                                    'easyMakerDigitalPorts' :
+                                    'relayPins',
                             defaultValue: 12
                         },
                         STATE: {
@@ -265,6 +326,11 @@ class Scratch3ActuatorsBlocks {
                         {text: 'frente', value: '0'},
                         {text: 'trás', value: '1'}
                     ]
+                },
+                easyMakerDigitalPorts: {
+                    acceptReporters: true,
+                    items:
+                        easyMakerDigitalPortMenuItems
                 },
                 relayPins: {
                     acceptReporters: true,
@@ -518,6 +584,18 @@ class Scratch3ActuatorsBlocks {
     relayWrite (args) {
         const pin = Number(args.PIN);
         const state = Number(args.STATE);
+
+        if (this._isEasyMakerSelected()) {
+            const supportedPins =
+                Object.values(
+                    EasyMakerProductProfile
+                        .simpleDigitalPorts
+                ).map(port => port.pin);
+
+            if (!supportedPins.includes(pin)) {
+                return null;
+            }
+        }
 
         return this._peripheral.relayWrite(
             pin,

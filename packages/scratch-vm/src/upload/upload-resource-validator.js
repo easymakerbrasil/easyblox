@@ -361,6 +361,26 @@ class UploadResourceValidator {
             }
         }
 
+        const supportedRelayPins =
+            Array.isArray(
+                this.boardProfile.relayPins
+            ) ?
+                this.boardProfile.relayPins :
+                null;
+
+        if (supportedRelayPins) {
+            for (const pin of relayPins) {
+                if (
+                    !supportedRelayPins
+                        .includes(pin)
+                ) {
+                    throw new Error(
+                        'Relay pin is not supported by the selected board'
+                    );
+                }
+            }
+        }
+
         const supportedServoPins =
             Array.isArray(this.boardProfile.servoPins) ?
                 this.boardProfile.servoPins :

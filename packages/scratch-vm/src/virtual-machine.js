@@ -47,7 +47,14 @@ const EASYMAKER_ARDUINO_UNO_UPLOAD_PROFILE =
         motors:
             EasyMakerProductProfile
                 .dedicatedResources
-                .motors
+                .motors,
+        relayPins:
+            Object.freeze(
+                Object.values(
+                    EasyMakerProductProfile
+                        .simpleDigitalPorts
+                ).map(port => port.pin)
+            )
     });
 
 const {

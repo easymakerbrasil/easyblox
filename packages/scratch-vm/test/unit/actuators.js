@@ -351,6 +351,124 @@ test('Actuators expose relay block and relay menus', t => {
     t.end();
 });
 
+test('Actuators expose EasyMaker relay on simple digital ports', t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        relayWrite: (pin, state) => {
+            calls.push({
+                pin,
+                state
+            });
+
+            return 45;
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension:
+            () => sharedPeripheral,
+        getEasyBloxSelectedBoardId:
+            () => 'easymaker'
+    };
+
+    const extension =
+        new Scratch3ActuatorsBlocks(
+            runtime
+        );
+
+    const info = extension.getInfo();
+    const relayBlock = info.blocks[7];
+
+    t.equal(
+        relayBlock.opcode,
+        'relayWrite'
+    );
+
+    t.equal(
+        relayBlock.text,
+        'definir relé na porta [PIN] como [STATE]'
+    );
+
+    t.equal(
+        relayBlock.arguments.PIN.menu,
+        'easyMakerDigitalPorts'
+    );
+
+    t.same(
+        info.menus
+            .easyMakerDigitalPorts
+            .items
+            .map(item => ({
+                alt: item.text.alt,
+                value: item.value
+            })),
+        [
+            {
+                alt: 'porta asterisco',
+                value: '3'
+            },
+            {
+                alt: 'porta interrogação',
+                value: '12'
+            },
+            {
+                alt: 'porta menor e maior',
+                value: '13'
+            }
+        ]
+    );
+
+    t.ok(
+        info.menus
+            .easyMakerDigitalPorts
+            .items
+            .every(
+                item =>
+                    /^data:image\/svg\+xml,/
+                        .test(item.text.src)
+            ),
+        'EasyMaker relay ports use the physical SVG symbols'
+    );
+
+    const validResult =
+        extension.relayWrite({
+            PIN: '3',
+            STATE: '1'
+        });
+
+    const invalidResult =
+        extension.relayWrite({
+            PIN: '8',
+            STATE: '1'
+        });
+
+    t.equal(
+        validResult,
+        45,
+        'EasyMaker accepts a supported simple digital port'
+    );
+
+    t.equal(
+        invalidResult,
+        null,
+        'EasyMaker rejects ports outside the simple digital contract'
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                pin: 3,
+                state: 1
+            }
+        ],
+        'only supported EasyMaker relay ports reach the peripheral'
+    );
+
+    t.end();
+});
+
 test('Actuators delegate servo writes to the shared peripheral', t => {
     const calls = [];
 

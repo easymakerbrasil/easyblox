@@ -2619,6 +2619,141 @@ test('VirtualMachine uses EasyMaker fixed motor wiring in Upload', t => {
     t.end();
 });
 
+test('VirtualMachine uses EasyMaker simple digital relay ports in Upload', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat('relay_write'),
+            {
+                id: 'relay_write',
+                opcode: 'actuators_relayWrite',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {
+                    PIN: {
+                        name: 'PIN',
+                        block: 'relay_pin',
+                        shadow: 'relay_pin'
+                    },
+                    STATE: {
+                        name: 'STATE',
+                        block: 'relay_state',
+                        shadow: 'relay_state'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'relay_pin',
+                'relay_write',
+                'actuators_menu_easyMakerDigitalPorts',
+                'easyMakerDigitalPorts',
+                3
+            ),
+            createExtensionMenuShadow(
+                'relay_state',
+                'relay_write',
+                'actuators_menu_relayStates',
+                'relayStates',
+                1
+            )
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /pinMode\(3, OUTPUT\);/,
+        'EasyMaker configures the selected simple digital relay port'
+    );
+
+    t.match(
+        code,
+        /digitalWrite\(3, HIGH\);/,
+        'EasyMaker writes the relay state to the selected simple digital port'
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same EasyMaker relay port'
+    );
+
+    t.end();
+});
+
+test('VirtualMachine rejects legacy relay pins outside EasyMaker simple digital ports', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat('relay_write'),
+            {
+                id: 'relay_write',
+                opcode: 'actuators_relayWrite',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {
+                    PIN: {
+                        name: 'PIN',
+                        block: 'relay_pin',
+                        shadow: 'relay_pin'
+                    },
+                    STATE: {
+                        name: 'STATE',
+                        block: 'relay_state',
+                        shadow: 'relay_state'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'relay_pin',
+                'relay_write',
+                'actuators_menu_relayPins',
+                'relayPins',
+                8
+            ),
+            createExtensionMenuShadow(
+                'relay_state',
+                'relay_write',
+                'actuators_menu_relayStates',
+                'relayStates',
+                1
+            )
+        ],
+        'easymaker'
+    );
+
+    t.throws(
+        () =>
+            vm.generateArduinoUnoUploadCode(
+                'easymaker'
+            ),
+        /Relay pin is not supported by the selected board/,
+        'legacy relay blocks cannot bypass the EasyMaker digital port contract'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine rejects Arduino UNO Upload resource conflicts', t => {
     const vm = new VirtualMachine();
 
