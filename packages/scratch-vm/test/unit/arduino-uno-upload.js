@@ -4888,6 +4888,115 @@ tap.test('Arduino UNO Upload generates ServoWrite C++', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts EasyMaker LED into DigitalWrite IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('led_write'),
+        {
+            id: 'led_write',
+            opcode: 'actuators_ledWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                PORT: {
+                    name: 'PORT',
+                    block: 'led_port',
+                    shadow: 'led_port'
+                },
+                STATE: {
+                    name: 'STATE',
+                    block: 'led_state',
+                    shadow: 'led_state'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'led_port',
+            'led_write',
+            'actuators_menu_easyMakerLedPorts',
+            'easyMakerLedPorts',
+            8
+        ),
+        createExtensionMenuShadow(
+            'led_state',
+            'led_write',
+            'actuators_menu_ledStates',
+            'ledStates',
+            1
+        )
+    ]);
+
+    const extractor =
+        new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor.extract(),
+        {
+            setup: [{
+                type: 'DigitalWrite',
+                pin: 8,
+                value: true
+            }],
+            loop: []
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects EasyMaker LED pins outside its physical contract', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('led_write'),
+        {
+            id: 'led_write',
+            opcode: 'actuators_ledWrite',
+            next: null,
+            parent: 'upload_hat',
+            inputs: {
+                PORT: {
+                    name: 'PORT',
+                    block: 'led_port',
+                    shadow: 'led_port'
+                },
+                STATE: {
+                    name: 'STATE',
+                    block: 'led_state',
+                    shadow: 'led_state'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'led_port',
+            'led_write',
+            'actuators_menu_easyMakerLedPorts',
+            'easyMakerLedPorts',
+            4
+        ),
+        createExtensionMenuShadow(
+            'led_state',
+            'led_write',
+            'actuators_menu_ledStates',
+            'ledStates',
+            1
+        )
+    ]);
+
+    const extractor =
+        new UploadProgramExtractor(runtime);
+
+    t.throws(
+        () => extractor.extract(),
+        /LED pin is not supported by EasyMaker: 4/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload extracts RelayWrite into semantic IR', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('relay_write'),

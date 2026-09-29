@@ -3,6 +3,9 @@ const tap = require('tap');
 const ArgumentType = require('../../src/extension-support/argument-type');
 const Scratch3ActuatorsBlocks = require('../../src/extensions/scratch3_actuators');
 
+const EasyMakerProductProfile =
+    require('../../src/board-profiles/easymaker-product-profile');
+
 const test = tap.test;
 
 test('Actuators reuse the registered Arduino UNO peripheral', t => {
@@ -44,7 +47,7 @@ test('Actuators expose the servo block and supported servo pins', t => {
     t.equal(info.color1, '#2E7D32');
     t.equal(info.color2, '#1B5E20');
     t.equal(info.color3, '#124116');
-    t.equal(info.blocks.length, 8);
+    t.equal(info.blocks.length, 9);
 
     const servoBlock = info.blocks[5];
 
@@ -346,6 +349,230 @@ test('Actuators expose relay block and relay menus', t => {
             {text: 'A4', value: '18'},
             {text: 'A5', value: '19'}
         ]
+    );
+
+    t.end();
+});
+
+test('Actuators expose EasyMaker LED on its physical ports', t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        digitalWrite: (pin, state) => {
+            calls.push({
+                pin,
+                state
+            });
+
+            return 46;
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension:
+            () => sharedPeripheral,
+
+        getEasyBloxSelectedBoardId:
+            () => EasyMakerProductProfile.id
+    };
+
+    const extension =
+        new Scratch3ActuatorsBlocks(runtime);
+
+    const info = extension.getInfo();
+
+    const ledBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode === 'ledWrite'
+        );
+
+    t.ok(
+        ledBlock,
+        'EasyMaker exposes the LED block'
+    );
+
+    t.equal(
+        ledBlock.hideFromPalette,
+        false,
+        'LED block is visible for EasyMaker'
+    );
+
+    t.equal(
+        ledBlock.text,
+        'definir LED na porta [PORT] como [STATE]'
+    );
+
+    t.equal(
+        ledBlock.arguments.PORT.menu,
+        'easyMakerLedPorts'
+    );
+
+    t.equal(
+        ledBlock.arguments.STATE.menu,
+        'ledStates'
+    );
+
+    t.same(
+        info.menus
+            .easyMakerLedPorts
+            .items
+            .map(item => ({
+                alt: item.text.alt,
+                value: item.value
+            })),
+        [
+            {
+                alt: 'porta asterisco',
+                value: '3'
+            },
+            {
+                alt: 'porta igual',
+                value: '8'
+            },
+            {
+                alt: 'porta exclamação',
+                value: '11'
+            },
+            {
+                alt: 'porta interrogação',
+                value: '12'
+            },
+            {
+                alt: 'porta menor e maior',
+                value: '13'
+            }
+        ]
+    );
+
+    t.ok(
+        info.menus
+            .easyMakerLedPorts
+            .items
+            .every(
+                item =>
+                    /^data:image\/svg\+xml,/
+                        .test(item.text.src)
+            ),
+        'EasyMaker LED ports use the physical SVG symbols'
+    );
+
+    t.same(
+        info.menus.ledStates.items,
+        [
+            {text: 'ligado', value: '1'},
+            {text: 'desligado', value: '0'}
+        ]
+    );
+
+    const validResult =
+        extension.ledWrite({
+            PORT: '8',
+            STATE: '1'
+        });
+
+    const secondValidResult =
+        extension.ledWrite({
+            PORT: '13',
+            STATE: '0'
+        });
+
+    const invalidPortResult =
+        extension.ledWrite({
+            PORT: '4',
+            STATE: '1'
+        });
+
+    const invalidStateResult =
+        extension.ledWrite({
+            PORT: '3',
+            STATE: '2'
+        });
+
+    t.equal(
+        validResult,
+        46,
+        'EasyMaker accepts an LED physical port'
+    );
+
+    t.equal(
+        secondValidResult,
+        46,
+        'EasyMaker accepts every mapped LED output'
+    );
+
+    t.equal(
+        invalidPortResult,
+        null,
+        'EasyMaker rejects pins outside the LED contract'
+    );
+
+    t.equal(
+        invalidStateResult,
+        null,
+        'EasyMaker rejects invalid LED states'
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                pin: 8,
+                state: 1
+            },
+            {
+                pin: 13,
+                state: 0
+            }
+        ],
+        'LED writes resolve only valid EasyMaker mappings'
+    );
+
+    t.end();
+});
+
+test('Actuators hide the EasyMaker LED surface on generic boards', t => {
+    const runtime = {
+        getPeripheralExtension:
+            () => ({
+                digitalWrite: () => 1
+            }),
+
+        getEasyBloxSelectedBoardId:
+            () => null
+    };
+
+    const extension =
+        new Scratch3ActuatorsBlocks(runtime);
+
+    const info = extension.getInfo();
+
+    const ledBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode === 'ledWrite'
+        );
+
+    t.ok(
+        ledBlock,
+        'LED block metadata remains registered'
+    );
+
+    t.equal(
+        ledBlock.hideFromPalette,
+        true,
+        'EasyMaker LED surface is hidden on generic boards'
+    );
+
+    t.equal(
+        extension.ledWrite({
+            PORT: '3',
+            STATE: '1'
+        }),
+        null,
+        'generic boards cannot invoke the EasyMaker LED surface'
     );
 
     t.end();

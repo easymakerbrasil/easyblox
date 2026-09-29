@@ -241,6 +241,85 @@ test('EasyMaker ProductProfile maps DHT11 physical ports to fixed signal pins', 
     t.end();
 });
 
+test('EasyMaker ProductProfile maps LED physical ports to fixed pins', t => {
+    const led =
+        EasyMakerProductProfile.devices.led;
+
+    t.equal(
+        led.id,
+        'led'
+    );
+
+    t.same(
+        led.ports['digital-d2-d3'],
+        {
+            pin: 3
+        }
+    );
+
+    t.same(
+        led.ports['digital-d4-d7-d8'],
+        {
+            pin: 8
+        }
+    );
+
+    t.same(
+        led.ports['digital-d9-d10-d11'],
+        {
+            pin: 11
+        }
+    );
+
+    t.same(
+        led.ports['digital-d12'],
+        {
+            pin: 12
+        }
+    );
+
+    t.same(
+        led.ports['digital-d13'],
+        {
+            pin: 13
+        }
+    );
+
+    t.end();
+});
+
+test('EasyMaker ProductProfile maps RGB LED physical ports to fixed channels', t => {
+    const rgbLed =
+        EasyMakerProductProfile.devices.rgbLed;
+
+    t.equal(
+        rgbLed.id,
+        'rgb-led'
+    );
+
+    t.same(
+        rgbLed.ports['digital-d4-d7-d8'],
+        {
+            mode: 'digital',
+            redPin: 4,
+            greenPin: 7,
+            bluePin: 8
+        }
+    );
+
+    t.same(
+        rgbLed.ports['digital-d9-d10-d11'],
+        {
+            mode: 'pwm',
+            redPin: 9,
+            greenPin: 10,
+            bluePin: 11
+        }
+    );
+
+    t.end();
+});
+
 test('EasyMaker ProductProfile maps traffic light physical ports to fixed signals', t => {
     const trafficLight =
         EasyMakerProductProfile.devices.trafficLight;

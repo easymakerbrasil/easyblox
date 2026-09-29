@@ -2928,6 +2928,83 @@ test('VirtualMachine uses EasyMaker fixed motor wiring in Upload', t => {
     t.end();
 });
 
+test('VirtualMachine uses EasyMaker LED physical ports in Upload', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat('led_write'),
+            {
+                id: 'led_write',
+                opcode: 'actuators_ledWrite',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {
+                    PORT: {
+                        name: 'PORT',
+                        block: 'led_port',
+                        shadow: 'led_port'
+                    },
+                    STATE: {
+                        name: 'STATE',
+                        block: 'led_state',
+                        shadow: 'led_state'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'led_port',
+                'led_write',
+                'actuators_menu_easyMakerLedPorts',
+                'easyMakerLedPorts',
+                8
+            ),
+            createExtensionMenuShadow(
+                'led_state',
+                'led_write',
+                'actuators_menu_ledStates',
+                'ledStates',
+                1
+            )
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /pinMode\(8, OUTPUT\);/,
+        'EasyMaker configures the selected LED physical port'
+    );
+
+    t.match(
+        code,
+        /digitalWrite\(8, HIGH\);/,
+        'EasyMaker writes the LED state to the selected physical port'
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same EasyMaker LED port'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine uses EasyMaker simple digital relay ports in Upload', t => {
     const vm = new VirtualMachine();
 

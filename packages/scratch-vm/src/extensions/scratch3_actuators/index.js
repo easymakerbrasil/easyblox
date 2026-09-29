@@ -12,6 +12,8 @@ const EXTENSION_ID = 'actuators';
 const EASYMAKER_SIMPLE_DIGITAL_PORT_ALT_LABELS =
     Object.freeze({
         asterisk: 'porta asterisco',
+        equals: 'porta igual',
+        exclamation: 'porta exclamação',
         question: 'porta interrogação',
         chevrons: 'porta menor e maior'
     });
@@ -107,6 +109,48 @@ class Scratch3ActuatorsBlocks {
                             physicalPort ?
                                 physicalPort.fallbackLabel :
                                 port.id,
+                    value: String(port.pin)
+                };
+            });
+
+        const easyMakerLedPortMenuItems =
+            Object.entries(
+                EasyMakerProductProfile
+                    .devices
+                    .led
+                    .ports
+            ).map(([physicalPortId, port]) => {
+                const physicalPort =
+                    easyMakerPhysicalPorts.find(
+                        candidate =>
+                            candidate.id ===
+                            physicalPortId
+                    );
+
+                const symbol =
+                    physicalPort ?
+                        EasyMakerPortSymbols[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                const alt =
+                    physicalPort ?
+                        EASYMAKER_SIMPLE_DIGITAL_PORT_ALT_LABELS[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                return {
+                    text:
+                        symbol && alt ?
+                            {
+                                src: symbol.dataURI,
+                                width: symbol.width,
+                                height: symbol.height,
+                                alt
+                            } :
+                            String(port.pin),
                     value: String(port.pin)
                 };
             });
@@ -252,7 +296,26 @@ class Scratch3ActuatorsBlocks {
                             defaultValue: '1'
                         }
                     }
-                }
+                },
+                {
+                    opcode: 'ledWrite',
+                    blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        !useEasyMakerSurface,
+                    text: 'definir LED na porta [PORT] como [STATE]',
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.NUMBER,
+                            menu: 'easyMakerLedPorts',
+                            defaultValue: 3
+                        },
+                        STATE: {
+                            type: ArgumentType.STRING,
+                            menu: 'ledStates',
+                            defaultValue: '1'
+                        }
+                    }
+                },
             ],
             menus: {
                 servoPins: {
@@ -353,6 +416,19 @@ class Scratch3ActuatorsBlocks {
                         {text: 'A3', value: '17'},
                         {text: 'A4', value: '18'},
                         {text: 'A5', value: '19'}
+                    ]
+                },
+                easyMakerLedPorts: {
+                    acceptReporters: true,
+                    items:
+                        easyMakerLedPortMenuItems
+                },
+
+                ledStates: {
+                    acceptReporters: true,
+                    items: [
+                        {text: 'ligado', value: '1'},
+                        {text: 'desligado', value: '0'}
                     ]
                 },
                 relayStates: {
@@ -598,6 +674,42 @@ class Scratch3ActuatorsBlocks {
         }
 
         return this._peripheral.relayWrite(
+            pin,
+            state
+        );
+    }
+
+    /**
+     * Set one EasyMaker LED output HIGH or LOW.
+     * The physical port is resolved by the EasyMaker ProductProfile.
+     * @param {object} args Scratch block arguments.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    ledWrite (args) {
+        if (!this._isEasyMakerSelected()) {
+            return null;
+        }
+
+        const pin = Number(args.PORT);
+        const state = Number(args.STATE);
+
+        const supportedPins =
+            Object.values(
+                EasyMakerProductProfile
+                    .devices
+                    .led
+                    .ports
+            ).map(port => port.pin);
+
+        if (
+            !Number.isInteger(pin) ||
+            !supportedPins.includes(pin) ||
+            (state !== 0 && state !== 1)
+        ) {
+            return null;
+        }
+
+        return this._peripheral.digitalWrite(
             pin,
             state
         );

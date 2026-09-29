@@ -53,6 +53,7 @@ const MOTOR_WRITE_OPCODE = 'actuators_motorWrite';
 const MOTOR_STOP_OPCODE = 'actuators_motorStop';
 const SERVO_WRITE_OPCODE = 'actuators_servoWrite';
 const RELAY_WRITE_OPCODE = 'actuators_relayWrite';
+const EASYMAKER_LED_WRITE_OPCODE = 'actuators_ledWrite';
 const SERIAL_BEGIN_OPCODE = 'serial_serialBegin';
 const SERIAL_WRITE_OPCODE = 'serial_serialWrite';
 const SERIAL_WRITE_LINE_OPCODE = 'serial_serialWriteLine';
@@ -795,6 +796,39 @@ class UploadProgramExtractor {
                 pin: this._readNumberInput(blocks, block, 'PIN'),
                 value: this._readDigitalValue(blocks, block, 'VALUE')
             };
+
+        case EASYMAKER_LED_WRITE_OPCODE: {
+            const pin =
+                this._readNumberInput(
+                    blocks,
+                    block,
+                    'PORT'
+                );
+
+            const supportedPins =
+                Object.values(
+                    EasyMakerProductProfile
+                        .devices
+                        .led
+                        .ports
+                ).map(port => port.pin);
+
+            if (!supportedPins.includes(pin)) {
+                throw new Error(
+                    `LED pin is not supported by EasyMaker: ${pin}`
+                );
+            }
+
+            return {
+                type: 'DigitalWrite',
+                pin,
+                value: this._readDigitalValue(
+                    blocks,
+                    block,
+                    'STATE'
+                )
+            };
+        }
 
         case TONE_START_OPCODE: {
             const fields = blocks.getFields(block);

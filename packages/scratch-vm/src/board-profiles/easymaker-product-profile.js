@@ -160,6 +160,52 @@ const EasyMakerProductProfile = Object.freeze({
             })
         }),
 
+        led: Object.freeze({
+            id: 'led',
+
+            ports: Object.freeze({
+                'digital-d2-d3': Object.freeze({
+                    pin: 3
+                }),
+
+                'digital-d4-d7-d8': Object.freeze({
+                    pin: 8
+                }),
+
+                'digital-d9-d10-d11': Object.freeze({
+                    pin: 11
+                }),
+
+                'digital-d12': Object.freeze({
+                    pin: 12
+                }),
+
+                'digital-d13': Object.freeze({
+                    pin: 13
+                })
+            })
+        }),
+
+        rgbLed: Object.freeze({
+            id: 'rgb-led',
+
+            ports: Object.freeze({
+                'digital-d4-d7-d8': Object.freeze({
+                    mode: 'digital',
+                    redPin: 4,
+                    greenPin: 7,
+                    bluePin: 8
+                }),
+
+                'digital-d9-d10-d11': Object.freeze({
+                    mode: 'pwm',
+                    redPin: 9,
+                    greenPin: 10,
+                    bluePin: 11
+                })
+            })
+        }),
+
         trafficLight: Object.freeze({
             id: 'traffic-light',
 
