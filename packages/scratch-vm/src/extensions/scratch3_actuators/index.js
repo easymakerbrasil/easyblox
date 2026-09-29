@@ -39,8 +39,11 @@ class Scratch3ActuatorsBlocks {
      * @returns {object} Extension metadata.
      */
     getInfo () {
-        const useEasyMakerMotorSurface =
+        const useEasyMakerSurface =
             this._isEasyMakerSelected();
+
+        const useEasyMakerMotorSurface =
+            useEasyMakerSurface;
 
         const easyMakerMotorSymbolId =
             EasyMakerProductProfile
@@ -152,11 +155,17 @@ class Scratch3ActuatorsBlocks {
                 {
                     opcode: 'servoWrite',
                     blockType: BlockType.COMMAND,
-                    text: 'mover servo no pino [PIN] para [ANGLE] graus',
+                    text:
+                        useEasyMakerSurface ?
+                            'mover servo [PIN] para [ANGLE] graus' :
+                            'mover servo no pino [PIN] para [ANGLE] graus',
                     arguments: {
                         PIN: {
                             type: ArgumentType.NUMBER,
-                            menu: 'servoPins',
+                            menu:
+                                useEasyMakerSurface ?
+                                    'easyMakerServoPorts' :
+                                    'servoPins',
                             defaultValue: 5
                         },
                         ANGLE: {
@@ -196,6 +205,19 @@ class Scratch3ActuatorsBlocks {
                         {text: 'D11', value: '11'}
                     ]
                 },
+
+                easyMakerServoPorts: {
+                    acceptReporters: true,
+                    items:
+                        EasyMakerProductProfile
+                            .dedicatedResources
+                            .servoPorts
+                            .map((pin, index) => ({
+                                text: String(index + 1),
+                                value: String(pin)
+                            }))
+                },
+
                 motorNumbers: {
                     acceptReporters: true,
                     items: [

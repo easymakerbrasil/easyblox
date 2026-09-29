@@ -84,6 +84,51 @@ test('Actuators expose the servo block and supported servo pins', t => {
     t.end();
 });
 
+test('Actuators expose numbered EasyMaker servo ports', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({}),
+        getEasyBloxSelectedBoardId:
+            () => 'easymaker'
+    };
+
+    const extension =
+        new Scratch3ActuatorsBlocks(
+            runtime
+        );
+
+    const info = extension.getInfo();
+    const servoBlock = info.blocks[5];
+
+    t.equal(
+        servoBlock.opcode,
+        'servoWrite'
+    );
+
+    t.equal(
+        servoBlock.text,
+        'mover servo [PIN] para [ANGLE] graus'
+    );
+
+    t.equal(
+        servoBlock.arguments.PIN.menu,
+        'easyMakerServoPorts'
+    );
+
+    t.same(
+        info.menus
+            .easyMakerServoPorts
+            .items,
+        [
+            {text: '1', value: '5'},
+            {text: '2', value: '9'},
+            {text: '3', value: '10'},
+            {text: '4', value: '11'}
+        ]
+    );
+
+    t.end();
+});
+
 test('Actuators expose configured motor blocks and motor menus', t => {
     const runtime = {
         getPeripheralExtension: () => ({})
