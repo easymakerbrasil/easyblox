@@ -116,7 +116,7 @@ test('Actuators expose numbered EasyMaker servo ports', t => {
 
     t.equal(
         servoBlock.text,
-        'mover servo [PIN] para [ANGLE] graus'
+        'mover servo na porta [PIN] para [ANGLE] graus'
     );
 
     t.equal(
@@ -672,9 +672,18 @@ test('Actuators expose EasyMaker RGB LED digital and PWM surfaces', t => {
     t.same(
         info.menus.rgbLedColors.items,
         [
-            {text: 'R', value: 'R'},
-            {text: 'G', value: 'G'},
-            {text: 'B', value: 'B'}
+            {
+                text: 'vermelho',
+                value: 'R'
+            },
+            {
+                text: 'verde',
+                value: 'G'
+            },
+            {
+                text: 'azul',
+                value: 'B'
+            }
         ]
     );
 
@@ -1812,7 +1821,7 @@ test('Actuators hide configuration and use fixed EasyMaker motor wiring', t => {
 
     t.equal(
         motorInitBlock.text,
-        'iniciar motor [MOTOR] [PORT]'
+        'inicializar motor [MOTOR] na porta [PORT]'
     );
 
     t.equal(

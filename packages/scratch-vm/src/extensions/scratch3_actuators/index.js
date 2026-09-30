@@ -275,7 +275,7 @@ class Scratch3ActuatorsBlocks {
                     blockType: BlockType.COMMAND,
                     hideFromPalette:
                         !useEasyMakerMotorSurface,
-                    text: 'iniciar motor [MOTOR] [PORT]',
+                    text: 'inicializar motor [MOTOR] na porta [PORT]',
                     arguments: {
                         MOTOR: {
                             type: ArgumentType.STRING,
@@ -364,7 +364,7 @@ class Scratch3ActuatorsBlocks {
                     blockType: BlockType.COMMAND,
                     text:
                         useEasyMakerSurface ?
-                            'mover servo [PIN] para [ANGLE] graus' :
+                            'mover servo na porta [PIN] para [ANGLE] graus' :
                             'mover servo no pino [PIN] para [ANGLE] graus',
                     arguments: {
                         PIN: {
@@ -668,9 +668,18 @@ class Scratch3ActuatorsBlocks {
                 rgbLedColors: {
                     acceptReporters: true,
                     items: [
-                        {text: 'R', value: 'R'},
-                        {text: 'G', value: 'G'},
-                        {text: 'B', value: 'B'}
+                        {
+                            text: 'vermelho',
+                            value: 'R'
+                        },
+                        {
+                            text: 'verde',
+                            value: 'G'
+                        },
+                        {
+                            text: 'azul',
+                            value: 'B'
+                        }
                     ]
                 },
 
