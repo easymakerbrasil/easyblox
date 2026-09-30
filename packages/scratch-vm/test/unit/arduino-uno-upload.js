@@ -1209,6 +1209,37 @@ tap.test('Arduino UNO Upload resource validator accepts one configuration per mo
     t.end();
 });
 
+tap.test('Arduino UNO Upload resource validator rejects Tone and DigitalWrite on the same pin', t => {
+    const validator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const ir = {
+        setup: [
+            {
+                type: 'ToneStart',
+                pin: 8,
+                frequency: 65,
+                duration: 500
+            },
+            {
+                type: 'DigitalWrite',
+                pin: 8,
+                value: true
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Tone and DigitalWrite cannot use the same pin/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload resource validator rejects Servo and Tone on the same pin', t => {
     const validator = new UploadResourceValidator(
         ArduinoUnoBoardProfile

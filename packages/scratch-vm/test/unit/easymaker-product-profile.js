@@ -288,6 +288,53 @@ test('EasyMaker ProductProfile maps LED physical ports to fixed pins', t => {
     t.end();
 });
 
+test('EasyMaker ProductProfile maps buzzer physical ports to fixed signal pins', t => {
+    const buzzer =
+        EasyMakerProductProfile.devices.buzzer;
+
+    t.equal(
+        buzzer.id,
+        'buzzer'
+    );
+
+    t.same(
+        buzzer.ports['digital-d2-d3'],
+        {
+            pin: 3
+        }
+    );
+
+    t.same(
+        buzzer.ports['digital-d4-d7-d8'],
+        {
+            pin: 8
+        }
+    );
+
+    t.same(
+        buzzer.ports['digital-d9-d10-d11'],
+        {
+            pin: 11
+        }
+    );
+
+    t.same(
+        buzzer.ports['digital-d12'],
+        {
+            pin: 12
+        }
+    );
+
+    t.same(
+        buzzer.ports['digital-d13'],
+        {
+            pin: 13
+        }
+    );
+
+    t.end();
+});
+
 test('EasyMaker ProductProfile maps RGB LED physical ports to fixed channels', t => {
     const rgbLed =
         EasyMakerProductProfile.devices.rgbLed;

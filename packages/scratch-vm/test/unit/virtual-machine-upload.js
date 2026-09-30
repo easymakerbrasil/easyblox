@@ -2928,6 +2928,141 @@ test('VirtualMachine uses EasyMaker fixed motor wiring in Upload', t => {
     t.end();
 });
 
+test('VirtualMachine uses EasyMaker Buzzer physical ports in Upload', t => {
+    const vm =
+        new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat(
+                'buzzer_start'
+            ),
+            {
+                id: 'buzzer_start',
+                opcode:
+                    'arduinoUno_toneStart',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {
+                    PIN: {
+                        name: 'PIN',
+                        block:
+                            'buzzer_port',
+                        shadow:
+                            'buzzer_port'
+                    }
+                },
+                fields: {
+                    NOTE: {
+                        name: 'NOTE',
+                        value: '65'
+                    },
+                    DURATION: {
+                        name: 'DURATION',
+                        value: '500'
+                    }
+                },
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'buzzer_port',
+                'buzzer_start',
+                'arduinoUno_menu_easyMakerBuzzerPorts',
+                'easyMakerBuzzerPorts',
+                3
+            )
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /tone\(3, 65, 500\);/,
+        'EasyMaker Buzzer asterisk port resolves to D3'
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same EasyMaker Buzzer wiring'
+    );
+
+    t.end();
+});
+
+test('VirtualMachine rejects unsupported legacy Buzzer pins on EasyMaker Upload', t => {
+    const vm =
+        new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat(
+                'buzzer_start'
+            ),
+            {
+                id: 'buzzer_start',
+                opcode:
+                    'arduinoUno_toneStart',
+                next: null,
+                parent: 'upload_hat',
+                inputs: {
+                    PIN: {
+                        name: 'PIN',
+                        block:
+                            'buzzer_pin',
+                        shadow:
+                            'buzzer_pin'
+                    }
+                },
+                fields: {
+                    NOTE: {
+                        name: 'NOTE',
+                        value: '65'
+                    },
+                    DURATION: {
+                        name: 'DURATION',
+                        value: '500'
+                    }
+                },
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'buzzer_pin',
+                'buzzer_start',
+                'arduinoUno_menu_digitalPins',
+                'digitalPins',
+                6
+            )
+        ],
+        'easymaker'
+    );
+
+    t.throws(
+        () =>
+            vm.generateArduinoUnoUploadCode(
+                'easymaker'
+            ),
+        /Buzzer pin is not supported by EasyMaker: 6/,
+        'legacy generic pin cannot bypass the EasyMaker Buzzer contract'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine uses EasyMaker LED physical ports in Upload', t => {
     const vm = new VirtualMachine();
 

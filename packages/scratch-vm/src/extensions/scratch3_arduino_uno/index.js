@@ -5,7 +5,22 @@ const BlockType = require('../../extension-support/block-type');
 
 const ArduinoUnoPeripheral = require('./peripheral');
 
+const EasyMakerProductProfile =
+    require('../../board-profiles/easymaker-product-profile');
+
+const EasyMakerPortSymbols =
+    require('../../board-profiles/easymaker-port-symbols');
+
 const EXTENSION_ID = 'arduinoUno';
+
+const EASYMAKER_BUZZER_PORT_ALT_LABELS =
+    Object.freeze({
+        asterisk: 'porta asterisco',
+        equals: 'porta igual',
+        exclamation: 'porta exclamação',
+        question: 'porta interrogação',
+        chevrons: 'porta menor e maior'
+    });
 
 /**
  * Scratch blocks and lifecycle for Arduino UNO.
@@ -25,6 +40,57 @@ class Scratch3ArduinoUnoBlocks {
      * @returns {object} Extension metadata.
      */
     getInfo () {
+        const useEasyMakerSurface =
+            this._isEasyMakerSelected();
+
+        const easyMakerPhysicalPorts =
+            Object.values(
+                EasyMakerProductProfile
+                    .physicalPorts
+            );
+
+        const easyMakerBuzzerPortMenuItems =
+            Object.entries(
+                EasyMakerProductProfile
+                    .devices
+                    .buzzer
+                    .ports
+            ).map(([physicalPortId, port]) => {
+                const physicalPort =
+                    easyMakerPhysicalPorts.find(
+                        candidate =>
+                            candidate.id ===
+                            physicalPortId
+                    );
+
+                const symbol =
+                    physicalPort ?
+                        EasyMakerPortSymbols[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                const alt =
+                    physicalPort ?
+                        EASYMAKER_BUZZER_PORT_ALT_LABELS[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                return {
+                    text:
+                        symbol && alt ?
+                            {
+                                src: symbol.dataURI,
+                                width: symbol.width,
+                                height: symbol.height,
+                                alt
+                            } :
+                            String(port.pin),
+                    value: String(port.pin)
+                };
+            });
+
         return {
             id: EXTENSION_ID,
             name: 'Arduino UNO',
@@ -126,17 +192,29 @@ class Scratch3ArduinoUnoBlocks {
                 {
                     opcode: 'toneStart',
                     blockType: BlockType.COMMAND,
-                    text: 'tocar nota [NOTE] no pino [PIN] por [DURATION]',
+                    text:
+                        useEasyMakerSurface ?
+                            'tocar nota [NOTE] na porta [PIN] por [DURATION]' :
+                            'tocar nota [NOTE] no pino [PIN] por [DURATION]',
                     arguments: {
                         NOTE: {
                             type: ArgumentType.NUMBER,
                             menu: 'toneNotes',
-                            defaultValue: 262
+                            defaultValue:
+                                useEasyMakerSurface ?
+                                    65 :
+                                    262
                         },
                         PIN: {
                             type: ArgumentType.NUMBER,
-                            menu: 'digitalPins',
-                            defaultValue: 6
+                            menu:
+                                useEasyMakerSurface ?
+                                    'easyMakerBuzzerPorts' :
+                                    'digitalPins',
+                            defaultValue:
+                                useEasyMakerSurface ?
+                                    3 :
+                                    6
                         },
                         DURATION: {
                             type: ArgumentType.NUMBER,
@@ -148,12 +226,21 @@ class Scratch3ArduinoUnoBlocks {
                 {
                     opcode: 'toneStop',
                     blockType: BlockType.COMMAND,
-                    text: 'parar tom no pino [PIN]',
+                    text:
+                        useEasyMakerSurface ?
+                            'parar tom na porta [PIN]' :
+                            'parar tom no pino [PIN]',
                     arguments: {
                         PIN: {
                             type: ArgumentType.NUMBER,
-                            menu: 'digitalPins',
-                            defaultValue: 6
+                            menu:
+                                useEasyMakerSurface ?
+                                    'easyMakerBuzzerPorts' :
+                                    'digitalPins',
+                            defaultValue:
+                                useEasyMakerSurface ?
+                                    3 :
+                                    6
                         }
                     }
                 },
@@ -203,6 +290,11 @@ class Scratch3ArduinoUnoBlocks {
                         {text: 'A4', value: '18'},
                         {text: 'A5', value: '19'}
                     ]
+                },
+                easyMakerBuzzerPorts: {
+                    acceptReporters: true,
+                    items:
+                        easyMakerBuzzerPortMenuItems
                 },
                 toneNotes: {
                     acceptReporters: false,
@@ -371,6 +463,22 @@ class Scratch3ArduinoUnoBlocks {
     }
 
     /**
+     * Report whether the active logical product is EasyMaker.
+     * @returns {boolean} True when EasyMaker is selected.
+     * @private
+     */
+    _isEasyMakerSelected () {
+        return (
+            typeof this.runtime
+                .getEasyBloxSelectedBoardId ===
+                'function' &&
+            this.runtime
+                .getEasyBloxSelectedBoardId() ===
+                EasyMakerProductProfile.id
+        );
+    }
+
+    /**
      * Play a musical note on an Arduino UNO digital pin in Stage mode.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
@@ -379,6 +487,20 @@ class Scratch3ArduinoUnoBlocks {
         const pin = Number(args.PIN);
         const frequency = Number(args.NOTE);
         const duration = Number(args.DURATION);
+
+        if (this._isEasyMakerSelected()) {
+            const supportedPins =
+                Object.values(
+                    EasyMakerProductProfile
+                        .devices
+                        .buzzer
+                        .ports
+                ).map(port => port.pin);
+
+            if (!supportedPins.includes(pin)) {
+                return null;
+            }
+        }
 
         return this._peripheral.toneStart(
             pin,
@@ -393,8 +515,25 @@ class Scratch3ArduinoUnoBlocks {
      * @returns {?number} Command sequence number or null when unavailable.
      */
     toneStop (args) {
+        const pin =
+            Number(args.PIN);
+
+        if (this._isEasyMakerSelected()) {
+            const supportedPins =
+                Object.values(
+                    EasyMakerProductProfile
+                        .devices
+                        .buzzer
+                        .ports
+                ).map(port => port.pin);
+
+            if (!supportedPins.includes(pin)) {
+                return null;
+            }
+        }
+
         return this._peripheral.toneStop(
-            Number(args.PIN)
+            pin
         );
     }
 

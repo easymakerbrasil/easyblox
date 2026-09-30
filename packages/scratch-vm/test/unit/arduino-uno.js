@@ -3029,6 +3029,208 @@ tap.test('Arduino UNO exposes musical Tone blocks and delegates note duration', 
     t.end();
 });
 
+tap.test('Arduino UNO exposes EasyMaker buzzer Tone surface on physical ports', t => {
+    const runtime =
+        new MockRuntime(null);
+
+    runtime.getEasyBloxSelectedBoardId =
+        () => 'easymaker';
+
+    const extension =
+        new Scratch3ArduinoUnoBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const toneStartBlock =
+        info.blocks.find(
+            block =>
+                block.opcode ===
+                    'toneStart'
+        );
+
+    const toneStopBlock =
+        info.blocks.find(
+            block =>
+                block.opcode ===
+                    'toneStop'
+        );
+
+    t.equal(
+        toneStartBlock.text,
+        'tocar nota [NOTE] na porta [PIN] por [DURATION]'
+    );
+
+    t.equal(
+        toneStartBlock
+            .arguments
+            .NOTE
+            .defaultValue,
+        65,
+        'EasyMaker defaults Buzzer to C2'
+    );
+
+    t.equal(
+        toneStartBlock
+            .arguments
+            .PIN
+            .menu,
+        'easyMakerBuzzerPorts'
+    );
+
+    t.equal(
+        toneStartBlock
+            .arguments
+            .PIN
+            .defaultValue,
+        3
+    );
+
+    t.equal(
+        toneStopBlock.text,
+        'parar tom na porta [PIN]'
+    );
+
+    t.equal(
+        toneStopBlock
+            .arguments
+            .PIN
+            .menu,
+        'easyMakerBuzzerPorts'
+    );
+
+    t.equal(
+        toneStopBlock
+            .arguments
+            .PIN
+            .defaultValue,
+        3
+    );
+
+    t.same(
+        info.menus
+            .easyMakerBuzzerPorts
+            .items
+            .map(item => ({
+                alt: item.text.alt,
+                value: item.value
+            })),
+        [
+            {
+                alt: 'porta asterisco',
+                value: '3'
+            },
+            {
+                alt: 'porta igual',
+                value: '8'
+            },
+            {
+                alt: 'porta exclamação',
+                value: '11'
+            },
+            {
+                alt: 'porta interrogação',
+                value: '12'
+            },
+            {
+                alt: 'porta menor e maior',
+                value: '13'
+            }
+        ]
+    );
+
+    t.ok(
+        info.menus
+            .easyMakerBuzzerPorts
+            .items
+            .every(
+                item =>
+                    /^data:image\/svg\+xml,/
+                        .test(item.text.src)
+            ),
+        'EasyMaker Buzzer ports use physical SVG symbols'
+    );
+
+    const calls = [];
+
+    extension._peripheral.toneStart = (
+        pin,
+        frequency,
+        duration
+    ) => {
+        calls.push({
+            type: 'start',
+            pin,
+            frequency,
+            duration
+        });
+
+        return 50;
+    };
+
+    extension._peripheral.toneStop =
+        pin => {
+            calls.push({
+                type: 'stop',
+                pin
+            });
+
+            return 51;
+        };
+
+    t.equal(
+        extension.toneStart({
+            PIN: '8',
+            NOTE: '65',
+            DURATION: '500'
+        }),
+        50
+    );
+
+    t.equal(
+        extension.toneStart({
+            PIN: '6',
+            NOTE: '65',
+            DURATION: '500'
+        }),
+        null,
+        'EasyMaker rejects pins outside the Buzzer contract'
+    );
+
+    t.equal(
+        extension.toneStop({
+            PIN: '13'
+        }),
+        51
+    );
+
+    t.equal(
+        extension.toneStop({
+            PIN: '6'
+        }),
+        null,
+        'EasyMaker rejects invalid Buzzer stop pins'
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                type: 'start',
+                pin: 8,
+                frequency: 65,
+                duration: 500
+            },
+            {
+                type: 'stop',
+                pin: 13
+            }
+        ]
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO exposes the DIGITAL_WRITE block and delegates numeric values', t => {
     const runtime = new MockRuntime(null);
     const extension = new Scratch3ArduinoUnoBlocks(runtime);

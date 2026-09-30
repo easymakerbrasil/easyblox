@@ -996,27 +996,74 @@ class UploadProgramExtractor {
                 );
             }
 
-            return {
-                type: 'ToneStart',
-                pin: this._readNumberInput(
+            const pin =
+                this._readNumberInput(
                     blocks,
                     block,
                     'PIN'
-                ),
+                );
+
+            if (
+                this.program &&
+                this.program.boardId ===
+                    EasyMakerProductProfile.id
+            ) {
+                const supportedPins =
+                    Object.values(
+                        EasyMakerProductProfile
+                            .devices
+                            .buzzer
+                            .ports
+                    ).map(port => port.pin);
+
+                if (!supportedPins.includes(pin)) {
+                    throw new Error(
+                        `Buzzer pin is not supported by EasyMaker: ${pin}`
+                    );
+                }
+            }
+
+            return {
+                type: 'ToneStart',
+                pin,
                 frequency,
                 duration
             };
         }
 
-        case TONE_STOP_OPCODE:
-            return {
-                type: 'ToneStop',
-                pin: this._readNumberInput(
+        case TONE_STOP_OPCODE: {
+            const pin =
+                this._readNumberInput(
                     blocks,
                     block,
                     'PIN'
-                )
+                );
+
+            if (
+                this.program &&
+                this.program.boardId ===
+                    EasyMakerProductProfile.id
+            ) {
+                const supportedPins =
+                    Object.values(
+                        EasyMakerProductProfile
+                            .devices
+                            .buzzer
+                            .ports
+                    ).map(port => port.pin);
+
+                if (!supportedPins.includes(pin)) {
+                    throw new Error(
+                        `Buzzer pin is not supported by EasyMaker: ${pin}`
+                    );
+                }
+            }
+
+            return {
+                type: 'ToneStop',
+                pin
             };
+        }
 
         case PWM_WRITE_OPCODE:
             return {

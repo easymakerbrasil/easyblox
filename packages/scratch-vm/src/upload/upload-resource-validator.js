@@ -462,6 +462,14 @@ class UploadResourceValidator {
             }
         }
 
+        for (const pin of tonePins) {
+            if (digitalWritePins.has(pin)) {
+                throw new Error(
+                    'Tone and DigitalWrite cannot use the same pin'
+                );
+            }
+        }
+
         for (const pin of digitalWritePins) {
             if (motorPins.has(pin)) {
                 throw new Error(
