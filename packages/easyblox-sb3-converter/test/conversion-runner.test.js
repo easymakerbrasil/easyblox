@@ -1,0 +1,464 @@
+const test =
+    require('node:test');
+
+const assert =
+    require('node:assert/strict');
+
+const {
+    PROJECT_ORIGINS,
+    analyzeExternalSb3Project,
+    convertExternalSb3Project,
+    detectSb3ProjectOrigin
+} = require('..');
+
+test(
+    'conversion runner identifies PictoBlox from board metadata and applies simple mappings',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    blocks: {
+                        servo: {
+                            opcode:
+                                'actuators_setServo',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {
+                                ANGLE: [
+                                    1,
+                                    [
+                                        4,
+                                        '90'
+                                    ]
+                                ]
+                            },
+                            fields: {
+                                SERVO_CHANNEL: [
+                                    '9',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                false,
+                            topLevel:
+                                true,
+                            x:
+                                100,
+                            y:
+                                100
+                        }
+                    }
+                }
+            ]
+        };
+
+        const original =
+            JSON.parse(
+                JSON.stringify(
+                    project
+                )
+            );
+
+        assert.equal(
+            detectSb3ProjectOrigin(
+                project
+            ),
+            PROJECT_ORIGINS
+                .PICTOBLOX
+        );
+
+        const analysis =
+            analyzeExternalSb3Project(
+                project
+            );
+
+        assert.equal(
+            analysis.origin,
+            PROJECT_ORIGINS
+                .PICTOBLOX
+        );
+
+        assert.equal(
+            analysis.canConvert,
+            true
+        );
+
+        assert.equal(
+            analysis.plan
+                .convertibleBlockCount,
+            1
+        );
+
+        const result =
+            convertExternalSb3Project(
+                project
+            );
+
+        assert.deepEqual(
+            project,
+            original,
+            'conversion runner does not mutate the source project'
+        );
+
+        assert.equal(
+            result.canConvert,
+            true
+        );
+
+        assert.equal(
+            result.project
+                .targets[0]
+                .blocks
+                .servo
+                .opcode,
+            'actuators_servoWrite'
+        );
+
+        assert.equal(
+            result.report
+                .processedBlockCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .convertedBlockCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .deferredStructuralBlockCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .reviewBlockCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .requiresStructuralConversion,
+            false
+        );
+
+        assert.equal(
+            result.report
+                .requiresReview,
+            false
+        );
+    }
+);
+
+test(
+    'conversion runner reports structural mappings and review items without deleting them',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    blocks: {
+                        matrix: {
+                            opcode:
+                                'displayModule_displayMatrix',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {
+                                MATRIX: [
+                                    1,
+                                    'matrixShadow'
+                                ]
+                            },
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        matrixShadow: {
+                            opcode:
+                                'matrix2',
+                            next:
+                                null,
+                            parent:
+                                'matrix',
+                            inputs: {},
+                            fields: {
+                                MATRIX: [
+                                    '0000000000000000000000000000000000000000000000000000000000000000',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                true,
+                            topLevel:
+                                false
+                        },
+
+                        unsupported: {
+                            opcode:
+                                'displayModule_write',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        }
+                    }
+                }
+            ]
+        };
+
+        const original =
+            JSON.parse(
+                JSON.stringify(
+                    project
+                )
+            );
+
+        const result =
+            convertExternalSb3Project(
+                project
+            );
+
+        assert.deepEqual(
+            project,
+            original
+        );
+
+        assert.equal(
+            result.canConvert,
+            true
+        );
+
+        assert.equal(
+            result.report
+                .processedBlockCount,
+            2
+        );
+
+        assert.equal(
+            result.report
+                .convertedBlockCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .deferredStructuralBlockCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .reviewBlockCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .requiresStructuralConversion,
+            true
+        );
+
+        assert.equal(
+            result.report
+                .requiresReview,
+            true
+        );
+
+        assert.deepEqual(
+            result.project
+                .targets[0]
+                .blocks
+                .matrix,
+            original.targets[0]
+                .blocks.matrix
+        );
+
+        assert.deepEqual(
+            result.project
+                .targets[0]
+                .blocks
+                .unsupported,
+            original.targets[0]
+                .blocks.unsupported
+        );
+    }
+);
+
+test(
+    'conversion runner recognizes board-neutral PictoBlox mappings without board metadata',
+    () => {
+        const project = {
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    blocks: {
+                        qr: {
+                            opcode:
+                                'qrCodeScanner_isDetected',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        }
+                    }
+                }
+            ]
+        };
+
+        assert.equal(
+            detectSb3ProjectOrigin(
+                project
+            ),
+            PROJECT_ORIGINS
+                .PICTOBLOX
+        );
+
+        const result =
+            convertExternalSb3Project(
+                project
+            );
+
+        assert.equal(
+            result.project
+                .targets[0]
+                .blocks
+                .qr
+                .opcode,
+            'easybloxQr_isDetected'
+        );
+    }
+);
+
+test(
+    'conversion runner does not guess EasyBlox or ambiguous Scratch projects as PictoBlox',
+    () => {
+        const easyBloxProject = {
+            easybloxProject: {
+                schemaVersion:
+                    1,
+                selectedBoardId:
+                    null,
+                programMode:
+                    'stage'
+            },
+
+            targets: []
+        };
+
+        const scratchLikeProject = {
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    blocks: {
+                        motion: {
+                            opcode:
+                                'motion_movesteps',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        }
+                    }
+                }
+            ]
+        };
+
+        assert.equal(
+            detectSb3ProjectOrigin(
+                easyBloxProject
+            ),
+            PROJECT_ORIGINS
+                .EASYBLOX
+        );
+
+        assert.equal(
+            detectSb3ProjectOrigin(
+                scratchLikeProject
+            ),
+            PROJECT_ORIGINS
+                .UNKNOWN
+        );
+
+        const easyBloxResult =
+            convertExternalSb3Project(
+                easyBloxProject
+            );
+
+        assert.deepEqual(
+            easyBloxResult,
+            {
+                origin:
+                    PROJECT_ORIGINS
+                        .EASYBLOX,
+                canConvert:
+                    false,
+                project:
+                    null,
+                report:
+                    null
+            }
+        );
+
+        const unknownResult =
+            convertExternalSb3Project(
+                scratchLikeProject
+            );
+
+        assert.deepEqual(
+            unknownResult,
+            {
+                origin:
+                    PROJECT_ORIGINS
+                        .UNKNOWN,
+                canConvert:
+                    false,
+                project:
+                    null,
+                report:
+                    null
+            }
+        );
+    }
+);
