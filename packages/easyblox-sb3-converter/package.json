@@ -1,0 +1,16 @@
+{
+    "name": "@easymaker/easyblox-sb3-converter",
+    "version": "0.1.0",
+    "private": true,
+    "description": "External SB3 conversion core for EasyBlox.",
+    "license": "AGPL-3.0-only",
+    "main": "src/index.js",
+    "scripts": {
+      "build": "node --check src/index.js && node --check src/conversion-plan.js",
+      "test": "node --test test/*.test.js"
+    },
+    "dependencies": {
+      "@easymaker/easyblox-pictoblox-analyzer": "0.1.0"
+    }
+  }
+  

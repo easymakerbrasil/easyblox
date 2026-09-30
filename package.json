@@ -16,6 +16,7 @@
   "author": "Scratch Foundation",
   "workspaces": [
   "packages/easyblox-pictoblox-analyzer",
+  "packages/easyblox-sb3-converter",
   "packages/easyblox-hardware-service",
   "packages/easyblox-windows-bluetooth",
   "packages/easyblox-controller-core",
