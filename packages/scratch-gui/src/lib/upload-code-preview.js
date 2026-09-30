@@ -37,6 +37,196 @@ const PEDAGOGICAL_ERROR_MESSAGES = Object.freeze({
         'Há algo para corrigir no bloco "converter": ele precisa receber um número antes de fazer a conversão.'
 });
 
+const HARDWARE_RESOURCE_LABELS =
+    Object.freeze({
+        'Motor': 'o motor',
+        'Servo': 'o servo',
+        'Tone': 'o buzzer',
+        'Relay': 'o relé',
+        'Ultrasonic':
+            'o sensor ultrassônico',
+        'DHT':
+            'o sensor DHT',
+        'Joystick CLICK':
+            'o botão do joystick',
+        'Joystick':
+            'o joystick',
+        'DigitalRead':
+            'um sensor digital',
+        'AnalogRead':
+            'um sensor analógico',
+        'DigitalWrite':
+            'uma saída digital',
+        'PWM':
+            'uma saída com intensidade',
+        'Motor PWM':
+            'o controle de velocidade do motor'
+    });
+
+const getHardwareResourceLabel =
+    resource =>
+        HARDWARE_RESOURCE_LABELS[
+            resource
+        ] || null;
+
+const getArduinoPinLabel =
+    pin => {
+        if (
+            pin >= 14 &&
+            pin <= 19
+        ) {
+            return `A${pin - 14}`;
+        }
+
+        return `D${pin}`;
+    };
+
+const getHardwareConflictMessage = (
+    message,
+    boardId
+) => {
+    const useEasyMakerSurface =
+        boardId === 'easymaker';
+
+    if (
+        message ===
+        'RGB LED and Traffic Light cannot use the same physical connector'
+    ) {
+        return (
+            'Há um conflito entre o LED RGB e o semáforo: ' +
+            'os dois estão usando a mesma porta física. ' +
+            'Escolha outra porta para um deles.'
+        );
+    }
+
+    const samePinMatch =
+        message.match(
+            /^(.+) and (.+) cannot use the same pin$/
+        );
+
+    if (samePinMatch) {
+        const firstResource =
+            getHardwareResourceLabel(
+                samePinMatch[1]
+            );
+
+        const secondResource =
+            getHardwareResourceLabel(
+                samePinMatch[2]
+            );
+
+        if (
+            firstResource &&
+            secondResource
+        ) {
+            if (useEasyMakerSurface) {
+                return (
+                    `Há um conflito entre ${firstResource} e ${secondResource}: ` +
+                    'os dois recursos estão usando a mesma conexão da placa. ' +
+                    'Escolha outra porta para um dos componentes que puder ser movido.'
+                );
+            }
+
+            return (
+                `Há um conflito entre ${firstResource} e ${secondResource}: ` +
+                'os dois recursos estão usando o mesmo pino. ' +
+                'Escolha outro pino para um deles.'
+            );
+        }
+    }
+
+    const selectedPinMatch =
+        message.match(
+            /^(.+) cannot be used with (.+) on the selected pin$/
+        );
+
+    if (selectedPinMatch) {
+        const firstResource =
+            getHardwareResourceLabel(
+                selectedPinMatch[1]
+            );
+
+        const secondResource =
+            getHardwareResourceLabel(
+                selectedPinMatch[2]
+            );
+
+        if (
+            firstResource &&
+            secondResource
+        ) {
+            if (useEasyMakerSurface) {
+                return (
+                    `Há um conflito entre ${firstResource} e ${secondResource} ` +
+                    'nessa combinação de portas. ' +
+                    'Escolha outra porta compatível para um dos componentes que puder ser movido.'
+                );
+            }
+
+            return (
+                `Há um conflito entre ${firstResource} e ${secondResource} ` +
+                'nessa combinação de pinos. ' +
+                'Escolha outro pino compatível para um deles.'
+            );
+        }
+    }
+
+    const displayConflictMatch =
+        message.match(
+            /^Display resource conflict on pin (\d+)$/
+        );
+
+    if (displayConflictMatch) {
+        if (useEasyMakerSurface) {
+            return (
+                'Um display está usando uma conexão da placa que já está ocupada por outro recurso. ' +
+                'Escolha outra porta para o componente que puder ser movido.'
+            );
+        }
+
+        const pin =
+            getArduinoPinLabel(
+                Number(
+                    displayConflictMatch[1]
+                )
+            );
+
+        return (
+            `Um display está usando o pino ${pin}, que já está ocupado por outro recurso. ` +
+            'Escolha outro pino ou remova o recurso em conflito.'
+        );
+    }
+
+    const connectivityConflictMatch =
+        message.match(
+            /^Connectivity resource conflict on pin (\d+)$/
+        );
+
+    if (connectivityConflictMatch) {
+        if (useEasyMakerSurface) {
+            return (
+                'Há um conflito entre o EasyBlox BT e outro componente: ' +
+                'os dois estão usando a mesma conexão da placa. ' +
+                'Escolha outra porta para o outro componente ou remova um dos recursos.'
+            );
+        }
+
+        const pin =
+            getArduinoPinLabel(
+                Number(
+                    connectivityConflictMatch[1]
+                )
+            );
+
+        return (
+            `O EasyBlox BT está usando o pino ${pin}, que já está ocupado por outro recurso. ` +
+            'Escolha outro pino para o componente em conflito.'
+        );
+    }
+
+    return null;
+};
+
 const DEFAULT_PEDAGOGICAL_ERROR_MESSAGE =
     'Há algo para corrigir no programa antes de carregar. Revise os blocos usados e tente novamente.';
 
@@ -48,7 +238,10 @@ const getTechnicalErrorMessage = error => {
     return String(error);
 };
 
-const getErrorMessage = error => {
+const getErrorMessage = (
+    error,
+    boardId = 'arduino-uno'
+) => {
     const message =
         getTechnicalErrorMessage(error);
 
@@ -61,6 +254,16 @@ const getErrorMessage = error => {
         return PEDAGOGICAL_ERROR_MESSAGES[
             message
         ];
+    }
+
+    const hardwareConflictMessage =
+        getHardwareConflictMessage(
+            message,
+            boardId
+        );
+
+    if (hardwareConflictMessage) {
+        return hardwareConflictMessage;
     }
 
     if (
@@ -124,7 +327,11 @@ export const generateArduinoUnoUploadPreview = (
     } catch (error) {
         return {
             code: '',
-            error: getErrorMessage(error)
+            error:
+                getErrorMessage(
+                    error,
+                    boardId
+                )
         };
     }
 };

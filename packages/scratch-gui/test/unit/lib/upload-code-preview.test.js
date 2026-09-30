@@ -227,6 +227,133 @@ describe('generateArduinoUnoUploadPreview', () => {
         }
     );
 
+    test.each([
+        [
+            'RGB LED and Traffic Light cannot use the same physical connector',
+            'Há um conflito entre o LED RGB e o semáforo: ' +
+                'os dois estão usando a mesma porta física. ' +
+                'Escolha outra porta para um deles.'
+        ],
+        [
+            'Servo and Tone cannot use the same pin',
+            'Há um conflito entre o servo e o buzzer: ' +
+                'os dois recursos estão usando a mesma conexão da placa. ' +
+                'Escolha outra porta para um dos componentes que puder ser movido.'
+        ],
+        [
+            'Ultrasonic and Servo cannot use the same pin',
+            'Há um conflito entre o sensor ultrassônico e o servo: ' +
+                'os dois recursos estão usando a mesma conexão da placa. ' +
+                'Escolha outra porta para um dos componentes que puder ser movido.'
+        ],
+        [
+            'DHT and Joystick CLICK cannot use the same pin',
+            'Há um conflito entre o sensor DHT e o botão do joystick: ' +
+                'os dois recursos estão usando a mesma conexão da placa. ' +
+                'Escolha outra porta para um dos componentes que puder ser movido.'
+        ],
+        [
+            'Tone cannot be used with Motor PWM on the selected pin',
+            'Há um conflito entre o buzzer e o controle de velocidade do motor ' +
+                'nessa combinação de portas. ' +
+                'Escolha outra porta compatível para um dos componentes que puder ser movido.'
+        ],
+        [
+            'Display resource conflict on pin 18',
+            'Um display está usando uma conexão da placa que já está ocupada por outro recurso. ' +
+                'Escolha outra porta para o componente que puder ser movido.'
+        ],
+        [
+            'Connectivity resource conflict on pin 3',
+            'Há um conflito entre o EasyBlox BT e outro componente: ' +
+                'os dois estão usando a mesma conexão da placa. ' +
+                'Escolha outra porta para o outro componente ou remova um dos recursos.'
+        ]
+    ])(
+        'translates EasyMaker hardware conflict %s',
+        (
+            technicalMessage,
+            pedagogicalMessage
+        ) => {
+            const vm = {
+                generateArduinoUnoUploadCode:
+                    jest.fn(() => {
+                        throw new Error(
+                            technicalMessage
+                        );
+                    })
+            };
+
+            const result =
+                generateArduinoUnoUploadPreview(
+                    vm,
+                    'easymaker'
+                );
+
+            expect(result).toEqual({
+                code: '',
+                error:
+                    pedagogicalMessage
+            });
+
+            expect(result.error)
+                .not.toContain(
+                    technicalMessage
+                );
+        }
+    );
+
+    test.each([
+        [
+            'Servo and Tone cannot use the same pin',
+            'Há um conflito entre o servo e o buzzer: ' +
+                'os dois recursos estão usando o mesmo pino. ' +
+                'Escolha outro pino para um deles.'
+        ],
+        [
+            'Servo cannot be used with PWM on the selected pin',
+            'Há um conflito entre o servo e uma saída com intensidade ' +
+                'nessa combinação de pinos. ' +
+                'Escolha outro pino compatível para um deles.'
+        ],
+        [
+            'Display resource conflict on pin 18',
+            'Um display está usando o pino A4, que já está ocupado por outro recurso. ' +
+                'Escolha outro pino ou remova o recurso em conflito.'
+        ],
+        [
+            'Connectivity resource conflict on pin 3',
+            'O EasyBlox BT está usando o pino D3, que já está ocupado por outro recurso. ' +
+                'Escolha outro pino para o componente em conflito.'
+        ]
+    ])(
+        'translates Arduino UNO hardware conflict %s',
+        (
+            technicalMessage,
+            pedagogicalMessage
+        ) => {
+            const vm = {
+                generateArduinoUnoUploadCode:
+                    jest.fn(() => {
+                        throw new Error(
+                            technicalMessage
+                        );
+                    })
+            };
+
+            expect(
+                generateArduinoUnoUploadPreview(
+                    vm,
+                    'arduino-uno'
+                )
+            ).toEqual({
+                code: '',
+                error:
+                    pedagogicalMessage
+            });
+        }
+    );
+
     test('updates the preview immediately and when the project changes', () => {
         const listeners = {};
         const vm = {
