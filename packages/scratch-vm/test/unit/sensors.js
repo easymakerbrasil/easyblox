@@ -161,6 +161,12 @@ test('Sensors expose EasyMaker ultrasonic physical port symbols', t => {
 
     const info = extension.getInfo();
 
+    t.equal(
+        info.name,
+        'Sensores',
+        'EasyMaker exposes the pedagogical Sensors category name'
+    );
+
     const legacyBlock =
         info.blocks.find(
             block =>

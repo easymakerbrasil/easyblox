@@ -56,7 +56,7 @@ test('Displays expose matrix, LCD and TM1637 blocks and menus', t => {
 
     t.equal(
         info.blocks[0].text,
-        'Matriz de LED 8x8'
+        'Matriz de LED 8×8'
     );
 
     t.equal(
@@ -73,7 +73,7 @@ test('Displays expose matrix, LCD and TM1637 blocks and menus', t => {
 
     t.equal(
         info.blocks[6].text,
-        'Display LCD'
+        'Display LCD 16×2'
     );
 
     t.equal(
@@ -90,7 +90,7 @@ test('Displays expose matrix, LCD and TM1637 blocks and menus', t => {
 
     t.equal(
         info.blocks[12].text,
-        'Display 7 SEG'
+        'Display de 7 segmentos'
     );
 
     const executableBlocks =
@@ -203,7 +203,7 @@ test('Displays expose matrix, LCD and TM1637 blocks and menus', t => {
 
     t.equal(
         tm1637InitBlock.text,
-        'inicializar display 7 segmentos CLK [CLK] DIO [DIO]'
+        'inicializar display de 7 segmentos CLK [CLK] DIO [DIO]'
     );
 
     t.equal(
@@ -250,7 +250,7 @@ test('Displays expose matrix, LCD and TM1637 blocks and menus', t => {
 
     t.equal(
         tm1637ClearBlock.text,
-        'limpar display 7 segmentos'
+        'limpar display de 7 segmentos'
     );
 
     t.same(
@@ -365,7 +365,7 @@ test('Displays expose EasyMaker LCD through a large physical port symbol', t => 
 
     t.equal(
         lcdInitBlock.text,
-        'iniciar LCD na porta [PORT]'
+        'inicializar LCD 16×2 na porta [PORT]'
     );
 
     t.equal(
@@ -422,7 +422,7 @@ test('Displays keep the generic LCD surface for non-EasyMaker boards', t => {
 
     t.equal(
         lcdInitBlock.text,
-        'iniciar LCD 16x2 I2C'
+        'inicializar LCD 16×2 I2C'
     );
 
     t.equal(
@@ -739,7 +739,7 @@ test('Displays expose EasyMaker TM1637 physical ports', t => {
 
     t.equal(
         initBlock.text,
-        'inicializar display 7 segmentos na porta [PORT]'
+        'inicializar display de 7 segmentos na porta [PORT]'
     );
 
     t.equal(

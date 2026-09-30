@@ -166,7 +166,7 @@ class Scratch3DisplaysBlocks {
                     opcode: 'tm1637Init',
                     blockType: BlockType.COMMAND,
                     text:
-                        'inicializar display 7 segmentos na porta [PORT]',
+                        'inicializar display de 7 segmentos na porta [PORT]',
                     arguments: {
                         PORT: {
                             type: ArgumentType.STRING,
@@ -183,7 +183,7 @@ class Scratch3DisplaysBlocks {
                     opcode: 'tm1637Init',
                     blockType: BlockType.COMMAND,
                     text:
-                        'inicializar display 7 segmentos CLK [CLK] DIO [DIO]',
+                        'inicializar display de 7 segmentos CLK [CLK] DIO [DIO]',
                     arguments: {
                         CLK: {
                             type: ArgumentType.NUMBER,
@@ -221,7 +221,7 @@ class Scratch3DisplaysBlocks {
                 {
                     opcode: 'lcdInit',
                     blockType: BlockType.COMMAND,
-                    text: 'iniciar LCD na porta [PORT]',
+                    text: 'inicializar LCD 16×2 na porta [PORT]',
                     arguments: {
                         PORT: {
                             type: ArgumentType.IMAGE,
@@ -237,7 +237,7 @@ class Scratch3DisplaysBlocks {
                 {
                     opcode: 'lcdInit',
                     blockType: BlockType.COMMAND,
-                    text: 'iniciar LCD 16x2 I2C'
+                    text: 'inicializar LCD 16×2 I2C'
                 };
 
         return {
@@ -249,7 +249,7 @@ class Scratch3DisplaysBlocks {
             blocks: [
                 {
                     blockType: BlockType.LABEL,
-                    text: 'Matriz de LED 8x8'
+                    text: 'Matriz de LED 8×8'
                 },
                 matrixInitBlock,
                 {
@@ -282,7 +282,7 @@ class Scratch3DisplaysBlocks {
                 '---',
                 {
                     blockType: BlockType.LABEL,
-                    text: 'Display LCD'
+                    text: 'Display LCD 16×2'
                 },
                 lcdInitBlock,
                 {
@@ -326,7 +326,7 @@ class Scratch3DisplaysBlocks {
                 '---',
                 {
                     blockType: BlockType.LABEL,
-                    text: 'Display 7 SEG'
+                    text: 'Display de 7 segmentos'
                 },
                 tm1637InitBlock,
                 {
@@ -363,7 +363,7 @@ class Scratch3DisplaysBlocks {
                 {
                     opcode: 'tm1637Clear',
                     blockType: BlockType.COMMAND,
-                    text: 'limpar display 7 segmentos'
+                    text: 'limpar display de 7 segmentos'
                 }
             ],
             menus: {

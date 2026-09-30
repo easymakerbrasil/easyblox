@@ -374,7 +374,10 @@ class Scratch3SensorsBlocks {
 
         return {
             id: EXTENSION_ID,
-            name: 'Sensores Arduino',
+            name:
+                useEasyMakerGenericSensorSurface ?
+                    'Sensores' :
+                    'Sensores Arduino',
             color1: '#29B6F6',
             color2: '#039BE5',
             color3: '#0277BD',
