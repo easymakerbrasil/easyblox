@@ -6,7 +6,6 @@ import classNames from 'classnames';
 import Box from '../box/box.jsx';
 import Dots from './dots.jsx';
 
-import bluetoothIcon from './icons/bluetooth-white.svg';
 import closeIcon from '../close-button/icon--close.svg';
 
 import styles from './connection-modal.css';
@@ -22,7 +21,7 @@ const ConnectingStep = props => (
                     />
                     <img
                         className={styles.bluetoothConnectingIcon}
-                        src={bluetoothIcon}
+                        src={props.connectionTransportIconURL}
                     />
                 </div>
             </Box>
@@ -64,6 +63,7 @@ const ConnectingStep = props => (
 ConnectingStep.propTypes = {
     connectingMessage: PropTypes.node.isRequired,
     connectionIconURL: PropTypes.string.isRequired,
+    connectionTransportIconURL: PropTypes.string.isRequired,
     onDisconnect: PropTypes.func
 };
 

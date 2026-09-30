@@ -2,6 +2,8 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import bindAll from 'lodash.bindall';
 import ConnectionModalComponent, {PHASES} from '../components/connection-modal/connection-modal.jsx';
+import bluetoothIcon from '../components/connection-modal/icons/bluetooth-white.svg';
+import usbIcon from '../components/connection-modal/icons/usb-white.svg';
 import VM from '@scratch/scratch-vm';
 import analytics from '../lib/analytics';
 import extensionData from '../lib/libraries/extensions/index.jsx';
@@ -11,6 +13,17 @@ import {connect} from 'react-redux';
 
 import {closeConnectionModal} from '../reducers/modals';
 import {isMicroBitUpdateSupported, selectAndUpdateMicroBit} from '../lib/microbit-update';
+
+const getConnectionTransportIconKind =
+    connectionTransport => {
+        if (
+            connectionTransport === 'serial'
+        ) {
+            return 'usb';
+        }
+
+        return 'bluetooth';
+    };
 
 class ConnectionModal extends React.Component {
     constructor (props) {
@@ -142,11 +155,27 @@ class ConnectionModal extends React.Component {
             this.state.extension && this.state.extension.connectionTransport,
             this.props.platform
         );
+
+        const connectionTransport =
+            this.state.extension &&
+            this.state.extension.connectionTransport;
+
+        const connectionTransportIconKind =
+            getConnectionTransportIconKind(
+                connectionTransport
+            );
+
+        const connectionTransportIconURL =
+            connectionTransportIconKind === 'usb' ?
+                usbIcon :
+                bluetoothIcon;
+
         return (
             <ConnectionModalComponent
                 connectingMessage={this.state.extension && this.state.extension.connectingMessage}
                 connectionIconURL={this.state.extension && this.state.extension.connectionIconURL}
                 connectionSmallIconURL={this.state.extension && this.state.extension.connectionSmallIconURL}
+                connectionTransportIconURL={connectionTransportIconURL}
                 connectionTipIconURL={this.state.extension && this.state.extension.connectionTipIconURL}
                 extensionId={this.props.extensionId}
                 name={this.state.extension && this.state.extension.name}
@@ -188,6 +217,10 @@ const mapDispatchToProps = dispatch => ({
         dispatch(closeConnectionModal());
     }
 });
+
+export {
+    getConnectionTransportIconKind
+};
 
 export default connect(
     mapStateToProps,

@@ -26,6 +26,11 @@ jest.mock('../../../src/lib/libraries/extensions/index.jsx', () => ([
         extensionId: 'testSerialDesktop',
         useAutoScan: true,
         connectionTransport: 'serial'
+    },
+    {
+        extensionId: 'testBluetooth',
+        useAutoScan: false,
+        connectionTransport: 'bluetooth'
     }
 ]));
 
@@ -34,7 +39,9 @@ import configureStore from 'redux-mock-store';
 import VM from '@scratch/scratch-vm';
 import {render} from '@testing-library/react';
 
-import ConnectionModal from '../../../src/containers/connection-modal.jsx';
+import ConnectionModal, {
+    getConnectionTransportIconKind
+} from '../../../src/containers/connection-modal.jsx';
 import ConnectionModalComponent from '../../../src/components/connection-modal/connection-modal.jsx';
 import {PLATFORM} from '../../../src/lib/platform';
 
@@ -71,4 +78,28 @@ describe('ConnectionModal container', () => {
         const props = renderConnectionModal('testSerialDesktop', PLATFORM.DESKTOP);
         expect(props.useAutoScan).toEqual(false);
     });
+    test.each([
+        [
+            'serial',
+            'usb'
+        ],
+        [
+            'bluetooth',
+            'bluetooth'
+        ]
+    ])(
+        'uses %s connection transport indicator',
+        (
+            connectionTransport,
+            expectedIconKind
+        ) => {
+            expect(
+                getConnectionTransportIconKind(
+                    connectionTransport
+                )
+            ).toEqual(
+                expectedIconKind
+            );
+        }
+    );
 });

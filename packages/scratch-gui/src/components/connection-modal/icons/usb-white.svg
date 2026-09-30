@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg
+    width="20px"
+    height="20px"
+    viewBox="0 0 20 20"
+    version="1.1"
+    xmlns="http://www.w3.org/2000/svg"
+>
+    <title>usb-white</title>
+    <g
+        fill="none"
+        fill-rule="evenodd"
+        stroke="none"
+    >
+        <path
+            d="M10 4.75V16.5"
+            stroke="#FFFFFF"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.6"
+        />
+        <path
+            d="M10 9L6 6.5H4.5"
+            stroke="#FFFFFF"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.6"
+        />
+        <path
+            d="M10 12L14 9.5H16"
+            stroke="#FFFFFF"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.6"
+        />
+        <path
+            d="M10 1.5L6.75 5.25H13.25L10 1.5Z"
+            fill="#FFFFFF"
+        />
+        <rect
+            x="2.5"
+            y="5"
+            width="3"
+            height="3"
+            rx=".4"
+            fill="#FFFFFF"
+        />
+        <circle
+            cx="17.25"
+            cy="9.5"
+            r="1.5"
+            fill="#FFFFFF"
+        />
+        <circle
+            cx="10"
+            cy="17.25"
+            r="1.5"
+            fill="#FFFFFF"
+        />
+    </g>
+</svg>
