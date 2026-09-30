@@ -1,0 +1,15 @@
+{
+    "name": "@easymaker/easyblox-pictoblox-analyzer",
+    "version": "0.1.0",
+    "private": true,
+    "description": "PictoBlox project compatibility analysis core for EasyBlox.",
+    "license": "AGPL-3.0-only",
+    "main": "src/index.js",
+    "scripts": {
+      "build": "node --check src/index.js && node --check src/project-inventory.js && node --check src/project-reader.js && node --check src/compatibility-classifier.js && node --check src/easyblox-support-catalog.js && node --check src/pictoblox-mapping-catalog.js && node --check src/pictoblox-unsupported-catalog.js && node --check src/mapping-value-transforms.js && node --check src/corpus-aggregator.js && node --check src/corpus-scanner.js",
+      "test": "node --test test/*.test.js"
+    },
+    "dependencies": {
+      "jszip": "3.10.1"
+    }
+  }
