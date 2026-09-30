@@ -12,6 +12,168 @@ const {
 } = require('..');
 
 test(
+    'conversion runner migrates a PictoBlox Arduino program into the canonical EasyBlox Upload backing store',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    isStage:
+                        true,
+
+                    blocks: {
+                        flag: {
+                            opcode:
+                                'event_whenflagclicked',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        uploadHat: {
+                            opcode:
+                                'arduinoUno_arduinoUnoStartUp',
+                            next:
+                                'servo',
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        servo: {
+                            opcode:
+                                'actuators_setServo',
+                            next:
+                                null,
+                            parent:
+                                'uploadHat',
+                            inputs: {
+                                ANGLE: [
+                                    1,
+                                    [
+                                        4,
+                                        '90'
+                                    ]
+                                ]
+                            },
+                            fields: {
+                                SERVO_CHANNEL: [
+                                    '9',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        }
+                    }
+                }
+            ]
+        };
+
+        const result =
+            convertExternalSb3Project(
+                project
+            );
+
+        assert.equal(
+            result.canConvert,
+            true
+        );
+
+        assert.ok(
+            result.project
+                .targets[0]
+                .blocks
+                .flag
+        );
+
+        assert.equal(
+            result.project
+                .targets[0]
+                .blocks
+                .uploadHat,
+            undefined
+        );
+
+        const uploadBlocks =
+            result.project
+                .easybloxUploadPrograms[
+                    'arduino-uno'
+                ]
+                .blocks;
+
+        assert.equal(
+            uploadBlocks
+                .uploadHat
+                .opcode,
+            'arduinoUno_whenArduinoUnoStart'
+        );
+
+        assert.equal(
+            uploadBlocks
+                .servo
+                .opcode,
+            'actuators_servoWrite'
+        );
+
+        assert.deepEqual(
+            result.project
+                .easybloxProject,
+            {
+                schemaVersion:
+                    1,
+                selectedBoardId:
+                    'arduino-uno',
+                programMode:
+                    'upload',
+                qrCodes:
+                    [],
+                qrOverlayPosition:
+                    'topRight'
+            }
+        );
+
+        assert.equal(
+            result.report
+                .projectStructure
+                .migratedBlockCount,
+            2
+        );
+
+        assert.equal(
+            result.report
+                .deferredProjectStructureCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .requiresStructuralConversion,
+            false
+        );
+    }
+);
+
+test(
     'conversion runner identifies PictoBlox from board metadata and applies simple mappings',
     () => {
         const project = {

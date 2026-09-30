@@ -14,6 +14,10 @@ const {
     convertPictoBloxProjectStructural
 } = require('./structural-project-converter');
 
+const {
+    migratePictoBloxProjectStructure
+} = require('./upload-program-migrator');
+
 const PROJECT_ORIGINS =
     Object.freeze({
         EASYBLOX:
@@ -165,6 +169,14 @@ const convertExternalSb3Project =
         const structuralReport =
             conversion.report;
 
+        const projectStructure =
+            migratePictoBloxProjectStructure(
+                conversion.project
+            );
+
+        const projectStructureReport =
+            projectStructure.report;
+
         const simpleReport =
             structuralReport
                 .simpleMappings;
@@ -195,7 +207,7 @@ const convertExternalSb3Project =
                 true,
 
             project:
-                conversion.project,
+                projectStructure.project,
 
             report: {
                 processedBlockCount:
@@ -214,16 +226,29 @@ const convertExternalSb3Project =
                     structuralReport
                         .structuralDeferredBlockCount,
 
+                deferredProjectStructureCount:
+                    projectStructureReport
+                        .deferred
+                        .length,
+
                 reviewBlockCount,
 
                 requiresStructuralConversion:
                     structuralReport
                         .structuralDeferredBlockCount >
-                    0,
+                        0 ||
+                    projectStructureReport
+                        .deferred
+                        .length >
+                        0,
 
                 requiresReview:
                     reviewBlockCount >
-                    0,
+                        0 ||
+                    projectStructureReport
+                        .deferred
+                        .length >
+                        0,
 
                 plan:
                     analysis.plan,
@@ -247,7 +272,10 @@ const convertExternalSb3Project =
                     deferred:
                         structuralReport
                             .deferred
-                }
+                },
+
+                projectStructure:
+                    projectStructureReport
             }
         };
     };

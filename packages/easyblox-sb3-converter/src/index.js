@@ -12,6 +12,10 @@ const {
 } = require('./structural-project-converter');
 
 const {
+    migratePictoBloxProjectStructure
+} = require('./upload-program-migrator');
+
+const {
     PROJECT_ORIGINS,
     detectSb3ProjectOrigin,
     analyzeExternalSb3Project,
@@ -23,6 +27,7 @@ module.exports = {
     createPictoBloxConversionPlan,
     convertPictoBloxProjectSimple,
     convertPictoBloxProjectStructural,
+    migratePictoBloxProjectStructure,
     PROJECT_ORIGINS,
     detectSb3ProjectOrigin,
     analyzeExternalSb3Project,
