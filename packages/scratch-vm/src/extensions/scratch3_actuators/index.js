@@ -430,7 +430,7 @@ class Scratch3ActuatorsBlocks {
                     hideFromPalette:
                         !useEasyMakerSurface,
                     text:
-                        'definir LED RGB [PORT] cor [COLOR] como [STATE]',
+                        'definir LED RGB na porta [PORT] cor [COLOR] como [STATE]',
                     arguments: {
                         PORT: {
                             type: ArgumentType.IMAGE,
@@ -462,7 +462,7 @@ class Scratch3ActuatorsBlocks {
                     hideFromPalette:
                         !useEasyMakerSurface,
                     text:
-                        'definir LED RGB [PORT] cor [COLOR] intensidade [VALUE]',
+                        'definir LED RGB na porta [PORT] cor [COLOR] intensidade [VALUE]',
                     arguments: {
                         PORT: {
                             type: ArgumentType.IMAGE,

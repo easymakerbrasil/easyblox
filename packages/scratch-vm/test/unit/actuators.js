@@ -617,12 +617,12 @@ test('Actuators expose EasyMaker RGB LED digital and PWM surfaces', t => {
 
     t.equal(
         digitalBlock.text,
-        'definir LED RGB [PORT] cor [COLOR] como [STATE]'
+        'definir LED RGB na porta [PORT] cor [COLOR] como [STATE]'
     );
 
     t.equal(
         pwmBlock.text,
-        'definir LED RGB [PORT] cor [COLOR] intensidade [VALUE]'
+        'definir LED RGB na porta [PORT] cor [COLOR] intensidade [VALUE]'
     );
 
     t.equal(
