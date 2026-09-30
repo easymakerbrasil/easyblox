@@ -229,6 +229,18 @@ describe('generateArduinoUnoUploadPreview', () => {
 
     test.each([
         [
+            'Display GPIO pins cannot be shared',
+            'Há um conflito entre os displays: ' +
+                'eles estão usando a mesma conexão da placa. ' +
+                'Escolha outra porta para um dos displays.'
+        ],
+        [
+            'Display GPIO and I2C cannot use the same pin',
+            'Há um conflito entre os displays: ' +
+                'eles estão usando a mesma conexão da placa. ' +
+                'Escolha outra porta para um dos displays.'
+        ],
+        [
             'RGB LED and Traffic Light cannot use the same physical connector',
             'Há um conflito entre o LED RGB e o semáforo: ' +
                 'os dois estão usando a mesma porta física. ' +
@@ -304,6 +316,18 @@ describe('generateArduinoUnoUploadPreview', () => {
     );
 
     test.each([
+        [
+            'Display GPIO pins cannot be shared',
+            'Há um conflito entre os displays: ' +
+                'eles estão usando o mesmo pino. ' +
+                'Escolha outros pinos para que os displays não compartilhem a mesma conexão.'
+        ],
+        [
+            'Display GPIO and I2C cannot use the same pin',
+            'Há um conflito entre os displays: ' +
+                'eles estão usando o mesmo pino. ' +
+                'Escolha outros pinos para que os displays não compartilhem a mesma conexão.'
+        ],
         [
             'Servo and Tone cannot use the same pin',
             'Há um conflito entre o servo e o buzzer: ' +

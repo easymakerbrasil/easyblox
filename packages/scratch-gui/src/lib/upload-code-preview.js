@@ -99,6 +99,27 @@ const getHardwareConflictMessage = (
         );
     }
 
+    if (
+        message ===
+            'Display GPIO pins cannot be shared' ||
+        message ===
+            'Display GPIO and I2C cannot use the same pin'
+    ) {
+        if (useEasyMakerSurface) {
+            return (
+                'Há um conflito entre os displays: ' +
+                'eles estão usando a mesma conexão da placa. ' +
+                'Escolha outra porta para um dos displays.'
+            );
+        }
+
+        return (
+            'Há um conflito entre os displays: ' +
+            'eles estão usando o mesmo pino. ' +
+            'Escolha outros pinos para que os displays não compartilhem a mesma conexão.'
+        );
+    }
+
     const samePinMatch =
         message.match(
             /^(.+) and (.+) cannot use the same pin$/
