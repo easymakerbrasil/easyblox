@@ -1012,6 +1012,37 @@ class UploadTypeValidator {
 
         case 'AnalogReadExpression':
             return VALUE_TYPES.INTEGER;
+        case 'NumberConversionExpression': {
+            const operandType =
+                this._inferExpressionType(
+                    expression.operand
+                );
+
+            if (
+                !this._isNumericType(
+                    operandType
+                )
+            ) {
+                throw new Error(
+                    'Number conversion operand must be numeric'
+                );
+            }
+
+            if (
+                expression.targetType !==
+                    VALUE_TYPES.INTEGER &&
+                expression.targetType !==
+                    VALUE_TYPES.DECIMAL
+            ) {
+                throw new Error(
+                    `Unsupported numeric conversion target type: ${
+                        expression.targetType
+                    }`
+                );
+            }
+
+            return expression.targetType;
+        }
 
         case 'MapExpression': {
             const operands = [

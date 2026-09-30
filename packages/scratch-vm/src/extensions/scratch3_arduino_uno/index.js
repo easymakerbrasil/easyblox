@@ -179,6 +179,22 @@ class Scratch3ArduinoUnoBlocks {
                     }
                 },
                 {
+                    opcode: 'convertNumber',
+                    blockType: BlockType.REPORTER,
+                    text: 'converter [VALUE] para [TYPE]',
+                    arguments: {
+                        VALUE: {
+                            type: ArgumentType.NUMBER,
+                            defaultValue: 3.9
+                        },
+                        TYPE: {
+                            type: ArgumentType.STRING,
+                            menu: 'numberConversionTypes',
+                            defaultValue: 'INTEGER'
+                        }
+                    }
+                },
+                {
                     opcode: 'pwmWrite',
                     blockType: BlockType.COMMAND,
                     hideFromPalette:
@@ -404,6 +420,19 @@ class Scratch3ArduinoUnoBlocks {
                         {text: 'um oitavo', value: '125'}
                     ]
                 },
+                numberConversionTypes: {
+                    acceptReporters: false,
+                    items: [
+                        {
+                            text: 'número inteiro',
+                            value: 'INTEGER'
+                        },
+                        {
+                            text: 'decimal',
+                            value: 'DECIMAL'
+                        }
+                    ]
+                },
                 pwmPins: {
                     acceptReporters: true,
                     items: [
@@ -599,6 +628,30 @@ class Scratch3ArduinoUnoBlocks {
             ) /
             (fromHigh - fromLow)
         );
+    }
+
+    /**
+     * Convert one numeric value to the selected pedagogical numeric type.
+     * INTEGER follows Scratch rounding semantics. DECIMAL preserves a
+     * visible decimal representation in Stage mode.
+     * @param {object} args Scratch block arguments.
+     * @returns {number|string} Converted numeric value.
+     */
+    convertNumber (args) {
+        const value =
+            Number(args.VALUE);
+
+        if (args.TYPE === 'INTEGER') {
+            return Math.round(value);
+        }
+
+        if (args.TYPE === 'DECIMAL') {
+            return Number.isInteger(value) ?
+                value.toFixed(1) :
+                String(value);
+        }
+
+        return value;
     }
 
     /**

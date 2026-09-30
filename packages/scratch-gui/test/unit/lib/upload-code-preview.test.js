@@ -80,20 +80,152 @@ describe('generateArduinoUnoUploadPreview', () => {
         });
     });
 
-    test('returns the validation error without generated code', () => {
+    test.each([
+        [
+            'Repeat count must be Número inteiro',
+            'Há algo para corrigir no bloco "repita": a quantidade de repetições precisa ser um número inteiro. ' +
+                'Use um valor inteiro ou converta o valor para "número inteiro".'
+        ],
+        [
+            'Wait duration must be numeric',
+            'Há algo para corrigir no bloco "espere": o tempo precisa ser um número.'
+        ],
+        [
+            'WaitUntil condition must be Boolean',
+            'Há algo para corrigir no bloco "espere até": use uma condição que resulte em verdadeiro ou falso.'
+        ],
+        [
+            'RepeatUntil condition must be Boolean',
+            'Há algo para corrigir no bloco "repita até": use uma condição que resulte em verdadeiro ou falso.'
+        ],
+        [
+            'If condition must be Boolean',
+            'Há algo para corrigir no bloco "se": use uma condição que resulte em verdadeiro ou falso.'
+        ],
+        [
+            'IfElse condition must be Boolean',
+            'Há algo para corrigir no bloco "se/senão": use uma condição que resulte em verdadeiro ou falso.'
+        ],
+        [
+            'Map operands must be numeric',
+            'Há algo para corrigir no bloco "mapear": todos os valores usados nele precisam ser números.'
+        ],
+        [
+            'Round operand must be numeric',
+            'Há algo para corrigir no bloco "arredondar": ele precisa receber um número.'
+        ],
+        [
+            'Number conversion operand must be numeric',
+            'Há algo para corrigir no bloco "converter": ele precisa receber um número antes de fazer a conversão.'
+        ]
+    ])(
+        'returns a pedagogical Upload message for %s',
+        (
+            technicalMessage,
+            pedagogicalMessage
+        ) => {
+            const vm = {
+                generateArduinoUnoUploadCode:
+                    jest.fn(() => {
+                        throw new Error(
+                            technicalMessage
+                        );
+                    })
+            };
+
+            const result =
+                generateArduinoUnoUploadPreview(
+                    vm
+                );
+
+            expect(result).toEqual({
+                code: '',
+                error:
+                    pedagogicalMessage
+            });
+
+            expect(result.error)
+                .not.toContain(
+                    technicalMessage
+                );
+        }
+    );
+
+    test('hides unknown technical Upload errors behind a pedagogical fallback', () => {
         const vm = {
-            generateArduinoUnoUploadCode: jest.fn(() => {
-                throw new Error('Upload validation failed');
-            })
+            generateArduinoUnoUploadCode:
+                jest.fn(() => {
+                    throw new Error(
+                        'Unexpected internal validation failure'
+                    );
+                })
         };
 
-        const result = generateArduinoUnoUploadPreview(vm);
+        const result =
+            generateArduinoUnoUploadPreview(
+                vm
+            );
 
         expect(result).toEqual({
             code: '',
-            error: 'Upload validation failed'
+            error:
+                'Há algo para corrigir no programa antes de carregar. ' +
+                'Revise os blocos usados e tente novamente.'
         });
+
+        expect(result.error)
+            .not.toContain(
+                'Unexpected internal validation failure'
+            );
     });
+
+    test.each([
+        [
+            'Add operands must be numeric',
+            'Há algo para corrigir em uma operação matemática: ' +
+                'os valores usados nela precisam ser números.'
+        ],
+        [
+            'And operands must be boolean',
+            'Há algo para corrigir em uma operação de condição: ' +
+                'use condições que resultem em verdadeiro ou falso.'
+        ],
+        [
+            'Variable counter expects INTEGER but received DECIMAL',
+            'Há tipos de valores incompatíveis no programa. ' +
+                'Revise o bloco que recebe esse valor e faça a conversão necessária.'
+        ],
+        [
+            'Unsupported numeric conversion target type: TEXT',
+            'Há algo para corrigir no bloco "converter": ' +
+                'selecione "número inteiro" ou "decimal".'
+        ]
+    ])(
+        'translates dynamic Upload validation message %s',
+        (
+            technicalMessage,
+            pedagogicalMessage
+        ) => {
+            const vm = {
+                generateArduinoUnoUploadCode:
+                    jest.fn(() => {
+                        throw new Error(
+                            technicalMessage
+                        );
+                    })
+            };
+
+            expect(
+                generateArduinoUnoUploadPreview(
+                    vm
+                )
+            ).toEqual({
+                code: '',
+                error:
+                    pedagogicalMessage
+            });
+        }
+    );
 
     test('updates the preview immediately and when the project changes', () => {
         const listeners = {};

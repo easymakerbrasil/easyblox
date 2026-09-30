@@ -2133,6 +2133,103 @@ tap.test('Arduino UNO map reporter preserves PictoBlox Stage decimal semantics',
     t.end();
 });
 
+tap.test('Arduino UNO exposes unified numeric conversion reporter and Stage semantics', t => {
+    const runtime =
+        new MockRuntime(null);
+
+    const extension =
+        new Scratch3ArduinoUnoBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const conversionBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'convertNumber'
+        );
+
+    t.ok(
+        conversionBlock,
+        'Arduino UNO exposes the unified numeric conversion reporter'
+    );
+
+    t.equal(
+        conversionBlock.blockType,
+        BlockType.REPORTER
+    );
+
+    t.equal(
+        conversionBlock.text,
+        'converter [VALUE] para [TYPE]'
+    );
+
+    t.equal(
+        conversionBlock.arguments.VALUE.type,
+        ArgumentType.NUMBER
+    );
+
+    t.equal(
+        conversionBlock.arguments.TYPE.menu,
+        'numberConversionTypes'
+    );
+
+    t.same(
+        info.menus.numberConversionTypes.items,
+        [
+            {
+                text: 'número inteiro',
+                value: 'INTEGER'
+            },
+            {
+                text: 'decimal',
+                value: 'DECIMAL'
+            }
+        ],
+        'numeric conversion uses one pedagogical target-type menu'
+    );
+
+    t.equal(
+        extension.convertNumber({
+            VALUE: 3.9,
+            TYPE: 'INTEGER'
+        }),
+        4,
+        'positive decimal rounds to the nearest integer'
+    );
+
+    t.equal(
+        extension.convertNumber({
+            VALUE: -3.9,
+            TYPE: 'INTEGER'
+        }),
+        -4,
+        'negative decimal rounds to the nearest integer'
+    );
+
+    t.equal(
+        extension.convertNumber({
+            VALUE: 3,
+            TYPE: 'DECIMAL'
+        }),
+        '3.0',
+        'whole decimal keeps one visible decimal place'
+    );
+
+    t.equal(
+        extension.convertNumber({
+            VALUE: 3.25,
+            TYPE: 'DECIMAL'
+        }),
+        '3.25',
+        'existing decimal precision is preserved'
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO exposes reordered blocks and timer blocks', t => {
     const runtime = new MockRuntime(null);
     const extension = new Scratch3ArduinoUnoBlocks(runtime);
@@ -2140,8 +2237,8 @@ tap.test('Arduino UNO exposes reordered blocks and timer blocks', t => {
 
     t.equal(
         info.blocks.length,
-        12,
-        'Arduino UNO exposes ten blocks and two visual separators'
+        13,
+        'Arduino UNO exposes eleven blocks and two visual separators'
     );
 
     t.equal(info.blocks[0].opcode, 'whenArduinoUnoStart');
@@ -2154,25 +2251,26 @@ tap.test('Arduino UNO exposes reordered blocks and timer blocks', t => {
     t.equal(info.blocks[2].opcode, 'digitalRead');
     t.equal(info.blocks[3].opcode, 'analogRead');
     t.equal(info.blocks[4].opcode, 'map');
-    t.equal(info.blocks[5].opcode, 'pwmWrite');
+    t.equal(info.blocks[5].opcode, 'convertNumber');
+    t.equal(info.blocks[6].opcode, 'pwmWrite');
 
     t.equal(
-        info.blocks[6],
+        info.blocks[7],
         '---',
         'entry/I/O and tone groups are visually separated'
     );
 
-    t.equal(info.blocks[7].opcode, 'toneStart');
-    t.equal(info.blocks[8].opcode, 'toneStop');
+    t.equal(info.blocks[8].opcode, 'toneStart');
+    t.equal(info.blocks[9].opcode, 'toneStop');
 
     t.equal(
-        info.blocks[9],
+        info.blocks[10],
         '---',
         'tone and timer groups are visually separated'
     );
 
-    const timerReadBlock = info.blocks[10];
-    const timerResetBlock = info.blocks[11];
+    const timerReadBlock = info.blocks[11];
+    const timerResetBlock = info.blocks[12];
 
     t.equal(
         timerReadBlock.opcode,
@@ -2277,6 +2375,12 @@ tap.test('Arduino UNO hides raw pin I/O on the EasyMaker surface', t => {
     );
 
     t.notOk(
+        blockByOpcode('convertNumber')
+            .hideFromPalette,
+        'EasyMaker keeps numeric conversion visible'
+    );
+
+    t.notOk(
         blockByOpcode('timerRead')
             .hideFromPalette,
         'EasyMaker keeps timer reporter visible'
@@ -2310,11 +2414,12 @@ tap.test('Arduino UNO hides raw pin I/O on the EasyMaker surface', t => {
         [
             'whenArduinoUnoStart',
             'map',
+            'convertNumber',
             '---',
             'timerRead',
             'timerReset'
         ],
-        'EasyMaker Arduino UNO palette exposes only entry, map and timer tools'
+        'EasyMaker Arduino UNO palette exposes entry, numeric tools and timer tools'
     );
 
     t.end();

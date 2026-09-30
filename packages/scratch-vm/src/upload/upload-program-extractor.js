@@ -18,6 +18,7 @@ const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
 const DIGITAL_READ_OPCODE = 'arduinoUno_digitalRead';
 const ANALOG_READ_OPCODE = 'arduinoUno_analogRead';
 const MAP_OPCODE = 'arduinoUno_map';
+const CONVERT_NUMBER_OPCODE = 'arduinoUno_convertNumber';
 const EASYMAKER_DIGITAL_SENSOR_READ_OPCODE =
     'sensors_digitalSensorRead';
 const EASYMAKER_ANALOG_SENSOR_READ_OPCODE =
@@ -2353,6 +2354,36 @@ class UploadProgramExtractor {
                     'RANGE22'
                 )
             };
+
+        case CONVERT_NUMBER_OPCODE: {
+            const targetType =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'TYPE'
+                );
+
+            if (
+                targetType !== 'INTEGER' &&
+                targetType !== 'DECIMAL'
+            ) {
+                throw new Error(
+                    `Unsupported numeric conversion type: ${targetType}`
+                );
+            }
+
+            return {
+                type:
+                    'NumberConversionExpression',
+                targetType,
+                operand:
+                    this._extractExpressionInput(
+                        blocks,
+                        block,
+                        'VALUE'
+                    )
+            };
+        }
 
         case ULTRASONIC_READ_OPCODE:
             return {

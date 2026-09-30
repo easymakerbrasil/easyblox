@@ -8501,6 +8501,285 @@ tap.test('Arduino UNO Upload extracts arduinoUno_map as MapExpression', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts unified numeric conversion', t => {
+    const runtime =
+        createRuntimeWithBlocks([
+            {
+                id: 'to_integer',
+                opcode:
+                    'arduinoUno_convertNumber',
+                next: null,
+                parent: null,
+                inputs: {
+                    VALUE: {
+                        name: 'VALUE',
+                        block:
+                            'integer_value',
+                        shadow:
+                            'integer_value'
+                    },
+                    TYPE: {
+                        name: 'TYPE',
+                        block:
+                            'integer_type',
+                        shadow:
+                            'integer_type'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createNumberShadow(
+                'integer_value',
+                'to_integer',
+                3.9
+            ),
+            createExtensionMenuShadow(
+                'integer_type',
+                'to_integer',
+                'arduinoUno_menu_numberConversionTypes',
+                'numberConversionTypes',
+                'INTEGER'
+            ),
+            {
+                id: 'to_decimal',
+                opcode:
+                    'arduinoUno_convertNumber',
+                next: null,
+                parent: null,
+                inputs: {
+                    VALUE: {
+                        name: 'VALUE',
+                        block:
+                            'decimal_value',
+                        shadow:
+                            'decimal_value'
+                    },
+                    TYPE: {
+                        name: 'TYPE',
+                        block:
+                            'decimal_type',
+                        shadow:
+                            'decimal_type'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createNumberShadow(
+                'decimal_value',
+                'to_decimal',
+                3
+            ),
+            createExtensionMenuShadow(
+                'decimal_type',
+                'to_decimal',
+                'arduinoUno_menu_numberConversionTypes',
+                'numberConversionTypes',
+                'DECIMAL'
+            )
+        ]);
+
+    const extractor =
+        new UploadProgramExtractor(
+            runtime
+        );
+
+    const blocks =
+        runtime.targets[0].blocks;
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'to_integer'
+        ),
+        {
+            type:
+                'NumberConversionExpression',
+            targetType:
+                'INTEGER',
+            operand: {
+                type:
+                    'DecimalLiteral',
+                value:
+                    3.9
+            }
+        }
+    );
+
+    t.same(
+        extractor._extractExpression(
+            blocks,
+            'to_decimal'
+        ),
+        {
+            type:
+                'NumberConversionExpression',
+            targetType:
+                'DECIMAL',
+            operand: {
+                type:
+                    'IntegerLiteral',
+                value:
+                    3
+            }
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload types unified numeric conversion', t => {
+    const validator =
+        new UploadTypeValidator();
+
+    t.equal(
+        validator._inferExpressionType({
+            type:
+                'NumberConversionExpression',
+            targetType:
+                'INTEGER',
+            operand: {
+                type:
+                    'DecimalLiteral',
+                value:
+                    3.9
+            }
+        }),
+        UploadTypeValidator
+            .VALUE_TYPES
+            .INTEGER
+    );
+
+    t.equal(
+        validator._inferExpressionType({
+            type:
+                'NumberConversionExpression',
+            targetType:
+                'DECIMAL',
+            operand: {
+                type:
+                    'IntegerLiteral',
+                value:
+                    3
+            }
+        }),
+        UploadTypeValidator
+            .VALUE_TYPES
+            .DECIMAL
+    );
+
+    t.throws(
+        () =>
+            validator._inferExpressionType({
+                type:
+                    'NumberConversionExpression',
+                targetType:
+                    'INTEGER',
+                operand: {
+                    type:
+                        'TextLiteral',
+                    value:
+                        '3.9'
+                }
+            }),
+        /Number conversion operand must be numeric/
+    );
+
+    t.throws(
+        () =>
+            validator._inferExpressionType({
+                type:
+                    'NumberConversionExpression',
+                targetType:
+                    'TEXT',
+                operand: {
+                    type:
+                        'IntegerLiteral',
+                    value:
+                        3
+                }
+            }),
+        /Unsupported numeric conversion target type/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO generator emits unified numeric conversions', t => {
+    const generator =
+        new ArduinoUnoGenerator();
+
+    t.equal(
+        generator._generateExpression({
+            type:
+                'NumberConversionExpression',
+            targetType:
+                'INTEGER',
+            operand: {
+                type:
+                    'DecimalLiteral',
+                value:
+                    3.9
+            }
+        }),
+        'floor(3.9 + 0.5)',
+        'integer conversion uses the canonical EasyBlox rounding semantics'
+    );
+
+    t.equal(
+        generator._generateExpression({
+            type:
+                'NumberConversionExpression',
+            targetType:
+                'DECIMAL',
+            operand: {
+                type:
+                    'IntegerLiteral',
+                value:
+                    3
+            }
+        }),
+        'static_cast<float>(3)',
+        'decimal conversion is explicit in Arduino C++'
+    );
+
+    const code =
+        generator.generate({
+            setup: [{
+                type: 'Repeat',
+                times: {
+                    type:
+                        'NumberConversionExpression',
+                    targetType:
+                        'INTEGER',
+                    operand: {
+                        type:
+                            'TimerReadExpression'
+                    }
+                },
+                body: []
+            }],
+            loop: []
+        });
+
+    t.match(
+        code,
+        /unsigned long easyblox_timer_reset_at = 0;/,
+        'conversion preserves nested timer dependency'
+    );
+
+    t.match(
+        code,
+        /floor\(\(\(millis\(\) - easyblox_timer_reset_at\) \/ 1000\.0\) \+ 0\.5\)/,
+        'nested timer conversion uses integer rounding'
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload treats MapExpression result as INTEGER', t => {
     const validator =
         new UploadTypeValidator();

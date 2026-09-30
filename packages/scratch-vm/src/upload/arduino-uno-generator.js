@@ -855,6 +855,7 @@ class ArduinoUnoGenerator {
             );
 
         case 'UnaryExpression':
+        case 'NumberConversionExpression':
             return this._expressionUsesTimer(expression.operand);
 
         case 'MapExpression':
@@ -4112,6 +4113,33 @@ class ArduinoUnoGenerator {
 
         case 'AnalogReadExpression':
             return `analogRead(${this._generateAnalogPin(expression.pin)})`;
+
+        case 'NumberConversionExpression': {
+            const operand =
+                this._generateExpression(
+                    expression.operand
+                );
+
+            if (
+                expression.targetType ===
+                    VALUE_TYPES.INTEGER
+            ) {
+                return `floor(${operand} + 0.5)`;
+            }
+
+            if (
+                expression.targetType ===
+                    VALUE_TYPES.DECIMAL
+            ) {
+                return `static_cast<float>(${operand})`;
+            }
+
+            throw new Error(
+                `Unsupported Arduino UNO numeric conversion target type: ${
+                    expression.targetType
+                }`
+            );
+        }
 
         case 'MapExpression':
             return `map(` +

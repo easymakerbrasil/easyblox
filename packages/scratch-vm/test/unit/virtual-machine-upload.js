@@ -3126,6 +3126,180 @@ test('VirtualMachine uses EasyMaker generic sensor physical ports in Upload', t 
     t.end();
 });
 
+test('VirtualMachine generates unified numeric conversions in EasyMaker Upload', t => {
+    const vm =
+        new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat(
+                'repeat_with_integer_conversion'
+            ),
+            {
+                id:
+                    'repeat_with_integer_conversion',
+                opcode:
+                    'control_repeat',
+                next:
+                    'wait_with_decimal_conversion',
+                parent:
+                    'upload_hat',
+                inputs: {
+                    TIMES: {
+                        name:
+                            'TIMES',
+                        block:
+                            'to_integer',
+                        shadow:
+                            null
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            {
+                id:
+                    'to_integer',
+                opcode:
+                    'arduinoUno_convertNumber',
+                next: null,
+                parent:
+                    'repeat_with_integer_conversion',
+                inputs: {
+                    VALUE: {
+                        name:
+                            'VALUE',
+                        block:
+                            'integer_source',
+                        shadow:
+                            'integer_source'
+                    },
+                    TYPE: {
+                        name:
+                            'TYPE',
+                        block:
+                            'integer_type',
+                        shadow:
+                            'integer_type'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createNumberShadow(
+                'integer_source',
+                'to_integer',
+                3.9
+            ),
+            createExtensionMenuShadow(
+                'integer_type',
+                'to_integer',
+                'arduinoUno_menu_numberConversionTypes',
+                'numberConversionTypes',
+                'INTEGER'
+            ),
+            {
+                id:
+                    'wait_with_decimal_conversion',
+                opcode:
+                    'control_wait',
+                next: null,
+                parent:
+                    'repeat_with_integer_conversion',
+                inputs: {
+                    DURATION: {
+                        name:
+                            'DURATION',
+                        block:
+                            'to_decimal',
+                        shadow:
+                            null
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            {
+                id:
+                    'to_decimal',
+                opcode:
+                    'arduinoUno_convertNumber',
+                next: null,
+                parent:
+                    'wait_with_decimal_conversion',
+                inputs: {
+                    VALUE: {
+                        name:
+                            'VALUE',
+                        block:
+                            'decimal_source',
+                        shadow:
+                            'decimal_source'
+                    },
+                    TYPE: {
+                        name:
+                            'TYPE',
+                        block:
+                            'decimal_type',
+                        shadow:
+                            'decimal_type'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createNumberShadow(
+                'decimal_source',
+                'to_decimal',
+                2
+            ),
+            createExtensionMenuShadow(
+                'decimal_type',
+                'to_decimal',
+                'arduinoUno_menu_numberConversionTypes',
+                'numberConversionTypes',
+                'DECIMAL'
+            )
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /floor\(3\.9 \+ 0\.5\)/,
+        'EasyMaker Upload rounds decimal to integer'
+    );
+
+    t.match(
+        code,
+        /static_cast<float>\(2\)/,
+        'EasyMaker Upload preserves explicit integer to decimal conversion'
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same unified numeric conversion semantics'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine uses EasyMaker Buzzer actuator surface in Upload', t => {
     const vm =
         new VirtualMachine();
