@@ -3,6 +3,7 @@
 @import "../../css/z-index.css";
 
 .blocks {
+    position: relative;
     height: 100%;
 }
 
@@ -69,6 +70,102 @@
 .blocks :global(.blocklyToolbox::-webkit-scrollbar),
 .blocks :global(.blocklyToolboxDiv::-webkit-scrollbar) {
     display: none;
+}
+
+/*
+    Blockly already determines when a dragged block is over a valid delete
+    area. EasyBlox adds a contextual visual warning without changing the
+    underlying drag or delete behaviour.
+*/
+.blocks:has(:global(.blocklyToolboxDelete)) :global(.blocklyToolbox),
+.blocks:has(:global(.blocklyToolboxDelete)) :global(.blocklyFlyout) {
+    filter: saturate(0.7) brightness(0.78);
+    transition: filter 0.12s ease;
+}
+
+.blocks:has(:global(.blocklyToolboxDelete))::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 18rem;
+    z-index: 800;
+    pointer-events: none;
+
+    background: linear-gradient(
+        90deg,
+        rgba(40, 40, 40, 0.38) 0%,
+        rgba(40, 40, 40, 0.2) 72%,
+        rgba(40, 40, 40, 0) 100%
+    );
+
+    animation: easyblox-delete-shade-enter 0.12s ease-out;
+}
+
+.blocks:has(:global(.blocklyToolboxDelete))::after {
+    content: 'Solte para apagar';
+    position: absolute;
+    top: 50%;
+    left: 9rem;
+    z-index: 900;
+    pointer-events: none;
+
+    width: 9rem;
+    min-height: 8.5rem;
+    box-sizing: border-box;
+
+    padding: 5.5rem 0.75rem 0.85rem;
+
+    transform: translate(-50%, -50%);
+
+    border: 3px solid #ffc800;
+    border-radius: 1rem;
+
+    background-color: rgba(40, 40, 40, 0.96);
+    background-image: url("../delete-button/icon--delete.svg");
+    background-repeat: no-repeat;
+    background-position: center 1.15rem;
+    background-size: 3.5rem;
+
+    box-shadow:
+        0 0 0 1px rgba(255, 200, 0, 0.22),
+        0 0 0 0.35rem rgba(255, 200, 0, 0.12),
+        0 0.5rem 1.5rem rgba(0, 0, 0, 0.32);
+
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+
+    animation: easyblox-delete-card-enter 0.14s ease-out;
+}
+
+@keyframes easyblox-delete-shade-enter {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes easyblox-delete-card-enter {
+    from {
+        opacity: 0;
+        transform:
+            translate(-50%, -50%)
+            scale(0.92);
+    }
+
+    to {
+        opacity: 1;
+        transform:
+            translate(-50%, -50%)
+            scale(1);
+    }
 }
 
 .blocks :global(.blocklyFlyout) {
