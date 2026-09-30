@@ -487,3 +487,400 @@ test(
         );
     }
 );
+
+test(
+    'project structure migrator removes comments owned by migrated Upload blocks while preserving Stage comments',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            monitors: [],
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    isStage:
+                        true,
+
+                    comments: {
+                        stageComment: {
+                            blockId:
+                                'flag',
+                            x:
+                                10,
+                            y:
+                                10,
+                            width:
+                                120,
+                            height:
+                                80,
+                            minimized:
+                                false,
+                            text:
+                                'Stage comment'
+                        },
+
+                        uploadComment: {
+                            blockId:
+                                'servo',
+                            x:
+                                20,
+                            y:
+                                20,
+                            width:
+                                120,
+                            height:
+                                80,
+                            minimized:
+                                false,
+                            text:
+                                'Upload comment'
+                        },
+
+                        hatComment: {
+                            blockId:
+                                'uploadHat',
+                            x:
+                                30,
+                            y:
+                                30,
+                            width:
+                                120,
+                            height:
+                                80,
+                            minimized:
+                                false,
+                            text:
+                                'Upload hat comment'
+                        }
+                    },
+
+                    blocks: {
+                        flag: {
+                            opcode:
+                                'event_whenflagclicked',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true,
+                            comment:
+                                'stageComment'
+                        },
+
+                        uploadHat: {
+                            opcode:
+                                'arduinoUno_whenArduinoUnoStart',
+                            next:
+                                'servo',
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        servo: {
+                            opcode:
+                                'actuators_servoWrite',
+                            next:
+                                null,
+                            parent:
+                                'uploadHat',
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                false,
+                            comment:
+                                'uploadComment'
+                        }
+                    }
+                }
+            ]
+        };
+
+        const original =
+            JSON.parse(
+                JSON.stringify(
+                    project
+                )
+            );
+
+        const result =
+            migratePictoBloxProjectStructure(
+                project
+            );
+
+        assert.deepEqual(
+            project,
+            original,
+            'source project remains untouched'
+        );
+
+        const stage =
+            result.project
+                .targets[0];
+
+        const uploadBlocks =
+            result.project
+                .easybloxUploadPrograms[
+                    'arduino-uno'
+                ]
+                .blocks;
+
+        assert.equal(
+            uploadBlocks
+                .servo
+                .comment,
+            undefined
+        );
+
+        assert.equal(
+            stage.comments
+                .uploadComment,
+            undefined
+        );
+
+        assert.equal(
+            stage.comments
+                .hatComment,
+            undefined
+        );
+
+        assert.ok(
+            stage.comments
+                .stageComment
+        );
+
+        assert.equal(
+            stage.blocks
+                .flag
+                .comment,
+            'stageComment'
+        );
+
+        assert.equal(
+            result.report
+                .metadataCleanup
+                .removedUploadCommentCount,
+            2
+        );
+
+        assert.deepEqual(
+            result.report
+                .metadataCleanup
+                .removedUploadComments
+                .map(
+                    record =>
+                        record.commentId
+                ),
+            [
+                'hatComment',
+                'uploadComment'
+            ]
+        );
+    }
+);
+
+test(
+    'project structure migrator removes unsupported monitors and rebuilds EasyBlox extension metadata',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            extensions: [
+                'arduinoUno',
+                'actuators',
+                'displayModule',
+                'qrCodeScanner'
+            ],
+
+            monitors: [
+                {
+                    id:
+                        'score',
+                    mode:
+                        'default',
+                    opcode:
+                        'data_variable',
+                    params: {
+                        VARIABLE:
+                            'score'
+                    },
+                    spriteName:
+                        null,
+                    value:
+                        0,
+                    width:
+                        0,
+                    height:
+                        0,
+                    x:
+                        10,
+                    y:
+                        10,
+                    visible:
+                        true,
+                    sliderMin:
+                        0,
+                    sliderMax:
+                        100,
+                    isDiscrete:
+                        true
+                },
+
+                {
+                    id:
+                        'pictoQrMonitor',
+                    mode:
+                        'default',
+                    opcode:
+                        'qrCodeScanner_getQRCodeData',
+                    params: {},
+                    spriteName:
+                        null,
+                    value:
+                        '',
+                    width:
+                        0,
+                    height:
+                        0,
+                    x:
+                        20,
+                    y:
+                        20,
+                    visible:
+                        true,
+                    sliderMin:
+                        0,
+                    sliderMax:
+                        100,
+                    isDiscrete:
+                        true
+                }
+            ],
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    isStage:
+                        true,
+
+                    blocks: {
+                        flag: {
+                            opcode:
+                                'event_whenflagclicked',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        uploadHat: {
+                            opcode:
+                                'arduinoUno_whenArduinoUnoStart',
+                            next:
+                                'servo',
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        servo: {
+                            opcode:
+                                'actuators_servoWrite',
+                            next:
+                                null,
+                            parent:
+                                'uploadHat',
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        }
+                    }
+                }
+            ]
+        };
+
+        const result =
+            migratePictoBloxProjectStructure(
+                project
+            );
+
+        assert.equal(
+            result.project
+                .monitors
+                .length,
+            1
+        );
+
+        assert.equal(
+            result.project
+                .monitors[0]
+                .opcode,
+            'data_variable'
+        );
+
+        assert.deepEqual(
+            result.project
+                .extensions,
+            [
+                'actuators',
+                'arduinoUno'
+            ]
+        );
+
+        assert.equal(
+            result.report
+                .metadataCleanup
+                .removedMonitorCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .metadataCleanup
+                .removedMonitors[0]
+                .monitor
+                .opcode,
+            'qrCodeScanner_getQRCodeData'
+        );
+
+        assert.equal(
+            result.report
+                .metadataCleanup
+                .removedUploadCommentCount,
+            0
+        );
+    }
+);

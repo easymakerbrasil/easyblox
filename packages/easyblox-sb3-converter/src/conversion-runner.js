@@ -177,6 +177,22 @@ const convertExternalSb3Project =
         const projectStructureReport =
             projectStructure.report;
 
+        const metadataCleanup =
+            projectStructureReport
+                .metadataCleanup ||
+            {
+                removedUploadCommentCount:
+                    0,
+                removedMonitorCount:
+                    0
+            };
+
+        const removedProjectMetadataCount =
+            metadataCleanup
+                .removedUploadCommentCount +
+            metadataCleanup
+                .removedMonitorCount;
+
         const simpleReport =
             structuralReport
                 .simpleMappings;
@@ -231,6 +247,8 @@ const convertExternalSb3Project =
                         .deferred
                         .length,
 
+                removedProjectMetadataCount,
+
                 reviewBlockCount,
 
                 requiresStructuralConversion:
@@ -248,6 +266,8 @@ const convertExternalSb3Project =
                     projectStructureReport
                         .deferred
                         .length >
+                        0 ||
+                    removedProjectMetadataCount >
                         0,
 
                 plan:

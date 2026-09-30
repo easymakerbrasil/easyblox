@@ -31,7 +31,37 @@ test(
                 'displayModule'
             ],
 
-            monitors: [],
+            monitors: [
+                {
+                    id:
+                        'pictoQrMonitor',
+                    mode:
+                        'default',
+                    opcode:
+                        'qrCodeScanner_getQRCodeData',
+                    params: {},
+                    spriteName:
+                        null,
+                    value:
+                        '',
+                    width:
+                        0,
+                    height:
+                        0,
+                    x:
+                        20,
+                    y:
+                        20,
+                    visible:
+                        true,
+                    sliderMin:
+                        0,
+                    sliderMax:
+                        100,
+                    isDiscrete:
+                        true
+                }
+            ],
 
             targets: [
                 {
@@ -173,6 +203,41 @@ test(
                 .easybloxUploadPrograms[
                     'arduino-uno'
                 ]
+        );
+
+        assert.deepEqual(
+            converted.project
+                .monitors,
+            []
+        );
+
+        assert.deepEqual(
+            converted.project
+                .extensions,
+            [
+                'actuators',
+                'arduinoUno'
+            ]
+        );
+
+        assert.equal(
+            converted.report
+                .removedProjectMetadataCount,
+            1
+        );
+
+        assert.equal(
+            converted.report
+                .projectStructure
+                .metadataCleanup
+                .removedMonitorCount,
+            1
+        );
+
+        assert.equal(
+            converted.report
+                .requiresReview,
+            true
         );
 
         const vm =
@@ -384,6 +449,13 @@ test(
                     ),
                 false,
                 'stale PictoBlox extension declaration is not reserialized'
+            );
+
+            assert.deepEqual(
+                reserialized
+                    .monitors,
+                [],
+                'unsupported PictoBlox monitors do not reach the canonical EasyBlox project'
             );
         } finally {
             vm.quit();
