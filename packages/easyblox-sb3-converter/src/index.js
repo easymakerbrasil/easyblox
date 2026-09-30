@@ -8,6 +8,10 @@ const {
 } = require('./simple-project-converter');
 
 const {
+    convertPictoBloxProjectStructural
+} = require('./structural-project-converter');
+
+const {
     PROJECT_ORIGINS,
     detectSb3ProjectOrigin,
     analyzeExternalSb3Project,
@@ -18,6 +22,7 @@ module.exports = {
     createPictoBloxConversionCatalog,
     createPictoBloxConversionPlan,
     convertPictoBloxProjectSimple,
+    convertPictoBloxProjectStructural,
     PROJECT_ORIGINS,
     detectSb3ProjectOrigin,
     analyzeExternalSb3Project,

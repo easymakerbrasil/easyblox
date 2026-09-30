@@ -11,8 +11,8 @@ const {
 } = require('./conversion-plan');
 
 const {
-    convertPictoBloxProjectSimple
-} = require('./simple-project-converter');
+    convertPictoBloxProjectStructural
+} = require('./structural-project-converter');
 
 const PROJECT_ORIGINS =
     Object.freeze({
@@ -158,12 +158,34 @@ const convertExternalSb3Project =
         }
 
         const conversion =
-            convertPictoBloxProjectSimple(
+            convertPictoBloxProjectStructural(
                 project
             );
 
-        const simpleReport =
+        const structuralReport =
             conversion.report;
+
+        const simpleReport =
+            structuralReport
+                .simpleMappings;
+
+        const nonStructuralDeferredCount =
+            simpleReport
+                .deferred
+                .filter(
+                    record =>
+                        record.reason !==
+                        'structural-shadow-transform'
+                )
+                .length;
+
+        const reviewBlockCount =
+            analysis
+                .plan
+                .reviewBlockCount +
+            nonStructuralDeferredCount +
+            structuralReport
+                .structuralDeferredBlockCount;
 
         return {
             origin:
@@ -184,32 +206,48 @@ const convertExternalSb3Project =
 
                 convertedBlockCount:
                     simpleReport
-                        .convertedBlockCount,
+                        .convertedBlockCount +
+                    structuralReport
+                        .structuralConvertedBlockCount,
 
                 deferredStructuralBlockCount:
-                    simpleReport
-                        .deferredBlockCount,
+                    structuralReport
+                        .structuralDeferredBlockCount,
 
-                reviewBlockCount:
-                    analysis
-                        .plan
-                        .reviewBlockCount,
+                reviewBlockCount,
 
                 requiresStructuralConversion:
-                    simpleReport
-                        .deferredBlockCount >
+                    structuralReport
+                        .structuralDeferredBlockCount >
                     0,
 
                 requiresReview:
-                    analysis
-                        .plan
-                        .requiresReview,
+                    reviewBlockCount >
+                    0,
 
                 plan:
                     analysis.plan,
 
                 simpleMappings:
-                    simpleReport
+                    simpleReport,
+
+                structuralMappings: {
+                    convertedBlockCount:
+                        structuralReport
+                            .structuralConvertedBlockCount,
+
+                    deferredBlockCount:
+                        structuralReport
+                            .structuralDeferredBlockCount,
+
+                    converted:
+                        structuralReport
+                            .converted,
+
+                    deferred:
+                        structuralReport
+                            .deferred
+                }
             }
         };
     };

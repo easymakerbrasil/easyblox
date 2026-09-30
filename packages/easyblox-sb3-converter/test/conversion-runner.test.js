@@ -161,7 +161,7 @@ test(
 );
 
 test(
-    'conversion runner reports structural mappings and review items without deleting them',
+    'conversion runner applies structural mappings while preserving review items',
     () => {
         const project = {
             boardSelected:
@@ -203,7 +203,7 @@ test(
                             inputs: {},
                             fields: {
                                 MATRIX: [
-                                    '0000000000000000000000000000000000000000000000000000000000000000',
+                                    '0000000011111111101010100101010110000001000000010001100001111110',
                                     null
                                 ]
                             },
@@ -263,13 +263,13 @@ test(
         assert.equal(
             result.report
                 .convertedBlockCount,
-            0
+            1
         );
 
         assert.equal(
             result.report
                 .deferredStructuralBlockCount,
-            1
+            0
         );
 
         assert.equal(
@@ -281,7 +281,7 @@ test(
         assert.equal(
             result.report
                 .requiresStructuralConversion,
-            true
+            false
         );
 
         assert.equal(
@@ -290,13 +290,32 @@ test(
             true
         );
 
-        assert.deepEqual(
+        assert.equal(
             result.project
                 .targets[0]
                 .blocks
-                .matrix,
-            original.targets[0]
-                .blocks.matrix
+                .matrix
+                .opcode,
+            'displays_matrixWrite'
+        );
+
+        assert.equal(
+            result.project
+                .targets[0]
+                .blocks
+                .matrixShadow
+                .opcode,
+            'easyblox_matrix_8x8'
+        );
+
+        assert.equal(
+            result.project
+                .targets[0]
+                .blocks
+                .matrixShadow
+                .fields
+                .MATRIX[0],
+            '00FFAA558101187E'
         );
 
         assert.deepEqual(
@@ -306,6 +325,20 @@ test(
                 .unsupported,
             original.targets[0]
                 .blocks.unsupported
+        );
+
+        assert.equal(
+            result.report
+                .structuralMappings
+                .convertedBlockCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .structuralMappings
+                .deferredBlockCount,
+            0
         );
     }
 );
