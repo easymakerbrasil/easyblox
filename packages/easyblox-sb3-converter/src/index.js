@@ -3,7 +3,12 @@ const {
     createPictoBloxConversionPlan
 } = require('./conversion-plan');
 
+const {
+    convertPictoBloxProjectSimple
+} = require('./simple-project-converter');
+
 module.exports = {
     createPictoBloxConversionCatalog,
-    createPictoBloxConversionPlan
+    createPictoBloxConversionPlan,
+    convertPictoBloxProjectSimple
 };

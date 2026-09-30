@@ -6,7 +6,7 @@
     "license": "AGPL-3.0-only",
     "main": "src/index.js",
     "scripts": {
-      "build": "node --check src/index.js && node --check src/conversion-plan.js",
+      "build": "node --check src/index.js && node --check src/conversion-plan.js && node --check src/simple-project-converter.js",
       "test": "node --test test/*.test.js"
     },
     "dependencies": {
