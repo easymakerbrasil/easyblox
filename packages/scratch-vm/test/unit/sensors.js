@@ -48,9 +48,15 @@ test('Sensors expose the ultrasonic block, colors and pins', t => {
     t.equal(info.color1, '#29B6F6');
     t.equal(info.color2, '#039BE5');
     t.equal(info.color3, '#0277BD');
-    t.equal(info.blocks.length, 9);
+    t.equal(info.blocks.length, 11);
 
-    const ultrasonicBlock = info.blocks[0];
+    const ultrasonicBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'ultrasonicRead'
+        );
 
     t.equal(
         ultrasonicBlock.hideFromPalette,
@@ -469,6 +475,478 @@ test('Sensors expose EasyMaker DHT physical port symbols', t => {
                 value: 'digital-d13'
             }
         ]
+    );
+
+    t.end();
+});
+
+test('Sensors expose EasyMaker generic digital and analog sensor surfaces', async t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        digitalRead: pin => {
+            calls.push({
+                type: 'digital',
+                pin
+            });
+
+            return Promise.resolve(
+                pin === 12 ?
+                    1 :
+                    0
+            );
+        },
+
+        analogRead: pin => {
+            calls.push({
+                type: 'analog',
+                pin
+            });
+
+            return Promise.resolve(
+                pin === 17 ?
+                    777 :
+                    999
+            );
+        }
+    };
+
+    const genericExtension =
+        new Scratch3SensorsBlocks({
+            getPeripheralExtension:
+                () => sharedPeripheral
+        });
+
+    const genericInfo =
+        genericExtension.getInfo();
+
+    const genericDigitalBlock =
+        genericInfo.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'digitalSensorRead'
+        );
+
+    const genericAnalogBlock =
+        genericInfo.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'analogSensorRead'
+        );
+
+    t.equal(
+        genericDigitalBlock.hideFromPalette,
+        true,
+        'generic Arduino hides EasyMaker digital sensor surface'
+    );
+
+    t.equal(
+        genericAnalogBlock.hideFromPalette,
+        true,
+        'generic Arduino hides EasyMaker analog sensor surface'
+    );
+
+    const extension =
+        new Scratch3SensorsBlocks({
+            getPeripheralExtension:
+                () => sharedPeripheral,
+
+            getEasyBloxSelectedBoardId:
+                () => 'easymaker'
+        });
+
+    const info =
+        extension.getInfo();
+
+    const digitalBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'digitalSensorRead'
+        );
+
+    const analogBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'analogSensorRead'
+        );
+
+    t.ok(
+        digitalBlock,
+        'EasyMaker exposes digital sensor block'
+    );
+
+    t.ok(
+        analogBlock,
+        'EasyMaker exposes analog sensor block'
+    );
+
+    t.equal(
+        digitalBlock.hideFromPalette,
+        false
+    );
+
+    t.equal(
+        analogBlock.hideFromPalette,
+        false
+    );
+
+    t.equal(
+        digitalBlock.blockType,
+        BlockType.BOOLEAN
+    );
+
+    t.equal(
+        analogBlock.blockType,
+        BlockType.REPORTER
+    );
+
+    t.equal(
+        digitalBlock.text,
+        'sensor digital [TYPE] na porta [PORT]'
+    );
+
+    t.equal(
+        analogBlock.text,
+        'sensor analógico [TYPE] na porta [PORT]'
+    );
+
+    t.equal(
+        digitalBlock.arguments.TYPE.menu,
+        'digitalSensorTypes'
+    );
+
+    t.equal(
+        digitalBlock.arguments.PORT.menu,
+        'easyMakerDigitalSensorPorts'
+    );
+
+    t.equal(
+        analogBlock.arguments.TYPE.menu,
+        'analogSensorTypes'
+    );
+
+    t.equal(
+        analogBlock.arguments.PORT.menu,
+        'easyMakerAnalogSensorPorts'
+    );
+
+    t.same(
+        info.menus
+            .digitalSensorTypes
+            .items,
+        [
+            {
+                text: 'PIR',
+                value: 'PIR'
+            },
+            {
+                text: 'Tilt',
+                value: 'TILT'
+            },
+            {
+                text: 'Reflexivo',
+                value: 'REFLECTIVE'
+            },
+            {
+                text: 'Chuva',
+                value: 'RAIN'
+            },
+            {
+                text: 'Botão',
+                value: 'BUTTON'
+            },
+            {
+                text: 'Som',
+                value: 'SOUND'
+            }
+        ]
+    );
+
+    t.same(
+        info.menus
+            .analogSensorTypes
+            .items,
+        [
+            {
+                text: 'Potenciômetro',
+                value: 'POTENTIOMETER'
+            },
+            {
+                text: 'Reflexivo',
+                value: 'REFLECTIVE'
+            },
+            {
+                text: 'LDR',
+                value: 'LDR'
+            },
+            {
+                text: 'Umidade do Solo',
+                value: 'SOIL_MOISTURE'
+            },
+            {
+                text: 'Som',
+                value: 'SOUND'
+            }
+        ]
+    );
+
+    t.same(
+        info.menus
+            .easyMakerDigitalSensorPorts
+            .items
+            .map(item => ({
+                alt: item.text.alt,
+                value: item.value
+            })),
+        [
+            {
+                alt: 'porta asterisco',
+                value: 'digital-d2-d3'
+            },
+            {
+                alt: 'porta interrogação',
+                value: 'digital-d12'
+            },
+            {
+                alt: 'porta menor e maior',
+                value: 'digital-d13'
+            }
+        ]
+    );
+
+    t.same(
+        info.menus
+            .easyMakerAnalogSensorPorts
+            .items
+            .map(item => ({
+                alt: item.text.alt,
+                value: item.value
+            })),
+        [
+            {
+                alt: 'porta quadrado',
+                value: 'analog-a0'
+            },
+            {
+                alt: 'porta círculo',
+                value: 'analog-a1'
+            },
+            {
+                alt: 'porta semicírculo',
+                value: 'analog-a2'
+            },
+            {
+                alt: 'porta triângulo',
+                value: 'analog-a2-a3'
+            },
+            {
+                alt: 'porta pentágono',
+                value: 'analog-a4-a5'
+            }
+        ]
+    );
+
+    t.ok(
+        info.menus
+            .easyMakerDigitalSensorPorts
+            .items
+            .every(
+                item =>
+                    /^data:image\/svg\+xml,/
+                        .test(item.text.src)
+            ),
+        'digital sensor ports use physical SVG symbols'
+    );
+
+    t.ok(
+        info.menus
+            .easyMakerAnalogSensorPorts
+            .items
+            .every(
+                item =>
+                    /^data:image\/svg\+xml,/
+                        .test(item.text.src)
+            ),
+        'analog sensor ports use physical SVG symbols'
+    );
+
+    t.equal(
+        await extension.digitalSensorRead({
+            TYPE: 'PIR',
+            PORT: 'digital-d12'
+        }),
+        true,
+        'digital sensor resolves question port to D12'
+    );
+
+    t.equal(
+        await extension.digitalSensorRead({
+            TYPE: 'TILT',
+            PORT: 'digital-d13'
+        }),
+        false,
+        'digital sensor resolves chevrons port to D13'
+    );
+
+    t.equal(
+        await extension.digitalSensorRead({
+            TYPE: 'RAIN',
+            PORT: 'digital-d2-d3'
+        }),
+        false,
+        'rain sensor resolves asterisk port to D3'
+    );
+
+    t.equal(
+        await extension.digitalSensorRead({
+            TYPE: 'BUTTON',
+            PORT: 'digital-d12'
+        }),
+        true,
+        'button resolves question port to D12'
+    );
+
+    t.equal(
+        await extension.digitalSensorRead({
+            TYPE: 'SOUND',
+            PORT: 'digital-d13'
+        }),
+        false,
+        'digital sound sensor resolves chevrons port to D13'
+    );
+
+    t.equal(
+        await extension.analogSensorRead({
+            TYPE: 'POTENTIOMETER',
+            PORT: 'analog-a2-a3'
+        }),
+        777,
+        'analog sensor resolves triangle port to A3'
+    );
+
+    t.equal(
+        await extension.analogSensorRead({
+            TYPE: 'REFLECTIVE',
+            PORT: 'analog-a4-a5'
+        }),
+        999,
+        'analog sensor resolves pentagon port to A5'
+    );
+
+    t.equal(
+        await extension.analogSensorRead({
+            TYPE: 'LDR',
+            PORT: 'analog-a0'
+        }),
+        999,
+        'LDR resolves square port to A0'
+    );
+
+    t.equal(
+        await extension.analogSensorRead({
+            TYPE: 'SOIL_MOISTURE',
+            PORT: 'analog-a1'
+        }),
+        999,
+        'soil moisture resolves circle port to A1'
+    );
+
+    t.equal(
+        await extension.analogSensorRead({
+            TYPE: 'SOUND',
+            PORT: 'analog-a2'
+        }),
+        999,
+        'analog sound sensor resolves semicircle port to A2'
+    );
+
+    t.equal(
+        extension.digitalSensorRead({
+            TYPE: 'UNKNOWN',
+            PORT: 'digital-d12'
+        }),
+        null,
+        'digital sensor rejects unknown types'
+    );
+
+    t.equal(
+        extension.digitalSensorRead({
+            TYPE: 'PIR',
+            PORT: 'invalid-port'
+        }),
+        null,
+        'digital sensor rejects unknown ports'
+    );
+
+    t.equal(
+        extension.analogSensorRead({
+            TYPE: 'UNKNOWN',
+            PORT: 'analog-a0'
+        }),
+        null,
+        'analog sensor rejects unknown types'
+    );
+
+    t.equal(
+        extension.analogSensorRead({
+            TYPE: 'POTENTIOMETER',
+            PORT: 'invalid-port'
+        }),
+        null,
+        'analog sensor rejects unknown ports'
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                type: 'digital',
+                pin: 12
+            },
+            {
+                type: 'digital',
+                pin: 13
+            },
+            {
+                type: 'digital',
+                pin: 3
+            },
+            {
+                type: 'digital',
+                pin: 12
+            },
+            {
+                type: 'digital',
+                pin: 13
+            },
+            {
+                type: 'analog',
+                pin: 17
+            },
+            {
+                type: 'analog',
+                pin: 19
+            },
+            {
+                type: 'analog',
+                pin: 14
+            },
+            {
+                type: 'analog',
+                pin: 15
+            },
+            {
+                type: 'analog',
+                pin: 16
+            }
+        ],
+        'Stage resolves EasyMaker physical ports before reading'
     );
 
     t.end();

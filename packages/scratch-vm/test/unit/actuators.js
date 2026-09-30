@@ -47,7 +47,7 @@ test('Actuators expose the servo block and supported servo pins', t => {
     t.equal(info.color1, '#2E7D32');
     t.equal(info.color2, '#1B5E20');
     t.equal(info.color3, '#124116');
-    t.equal(info.blocks.length, 12);
+    t.equal(info.blocks.length, 14);
 
     const servoBlock = info.blocks[5];
 
@@ -100,7 +100,14 @@ test('Actuators expose numbered EasyMaker servo ports', t => {
         );
 
     const info = extension.getInfo();
-    const servoBlock = info.blocks[5];
+
+    const servoBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'servoWrite'
+        );
 
     t.equal(
         servoBlock.opcode,
@@ -839,6 +846,327 @@ test('Actuators hide EasyMaker RGB LED surfaces on generic boards', t => {
     t.end();
 });
 
+test('Actuators expose EasyMaker Buzzer and pedagogical palette order', t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        toneStart: (
+            pin,
+            frequency,
+            duration
+        ) => {
+            calls.push({
+                type: 'start',
+                pin,
+                frequency,
+                duration
+            });
+
+            return 52;
+        },
+
+        toneStop: pin => {
+            calls.push({
+                type: 'stop',
+                pin
+            });
+
+            return 53;
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension:
+            () => sharedPeripheral,
+
+        getEasyBloxSelectedBoardId:
+            () => EasyMakerProductProfile.id
+    };
+
+    const extension =
+        new Scratch3ActuatorsBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const visiblePalette =
+        info.blocks
+            .filter(
+                block =>
+                    block === '---' ||
+                    (
+                        block &&
+                        !block.hideFromPalette
+                    )
+            )
+            .map(
+                block =>
+                    block === '---' ?
+                        '---' :
+                        block.opcode
+            );
+
+    t.same(
+        visiblePalette,
+        [
+            'ledWrite',
+            'rgbLedDigitalWrite',
+            'rgbLedPwmWrite',
+            'trafficLightWrite',
+
+            '---',
+
+            'toneStart',
+            'toneStop',
+
+            '---',
+
+            'motorInit',
+            'motorWrite',
+            'motorStop',
+
+            '---',
+
+            'servoWrite',
+
+            '---',
+
+            'relayWrite'
+        ],
+        'EasyMaker orders light, sound, movement and relay groups'
+    );
+
+    const toneStartBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'toneStart'
+        );
+
+    const toneStopBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'toneStop'
+        );
+
+    t.equal(
+        toneStartBlock.hideFromPalette,
+        false
+    );
+
+    t.equal(
+        toneStopBlock.hideFromPalette,
+        false
+    );
+
+    t.equal(
+        toneStartBlock.text,
+        'tocar nota [NOTE] na porta [PIN] por [DURATION]'
+    );
+
+    t.equal(
+        toneStopBlock.text,
+        'parar tom na porta [PIN]'
+    );
+
+    t.equal(
+        toneStartBlock
+            .arguments
+            .NOTE
+            .defaultValue,
+        65
+    );
+
+    t.equal(
+        toneStartBlock
+            .arguments
+            .PIN
+            .menu,
+        'easyMakerBuzzerPorts'
+    );
+
+    t.equal(
+        toneStartBlock
+            .arguments
+            .PIN
+            .defaultValue,
+        3
+    );
+
+    t.same(
+        info.menus
+            .easyMakerBuzzerPorts
+            .items
+            .map(item => ({
+                alt: item.text.alt,
+                value: item.value
+            })),
+        [
+            {
+                alt: 'porta asterisco',
+                value: '3'
+            },
+            {
+                alt: 'porta igual',
+                value: '8'
+            },
+            {
+                alt: 'porta exclamação',
+                value: '11'
+            },
+            {
+                alt: 'porta interrogação',
+                value: '12'
+            },
+            {
+                alt: 'porta menor e maior',
+                value: '13'
+            }
+        ]
+    );
+
+    t.same(
+        info.menus.toneNotes.items[0],
+        {
+            text: 'C2',
+            value: '65'
+        }
+    );
+
+    t.same(
+        info.menus.toneNotes.items[
+            info.menus.toneNotes.items.length - 1
+        ],
+        {
+            text: 'C8',
+            value: '4186'
+        }
+    );
+
+    t.ok(
+        info.menus.toneNotes.items.some(
+            item =>
+                item.text === 'A4' &&
+                item.value === '440'
+        )
+    );
+
+    t.same(
+        info.menus.toneDurations.items,
+        [
+            {
+                text: 'dobro',
+                value: '2000'
+            },
+            {
+                text: 'inteiro',
+                value: '1000'
+            },
+            {
+                text: 'metade',
+                value: '500'
+            },
+            {
+                text: 'um quarto',
+                value: '250'
+            },
+            {
+                text: 'um oitavo',
+                value: '125'
+            }
+        ]
+    );
+
+    t.equal(
+        extension.toneStart({
+            PIN: '3',
+            NOTE: '65',
+            DURATION: '500'
+        }),
+        52
+    );
+
+    t.equal(
+        extension.toneStop({
+            PIN: '13'
+        }),
+        53
+    );
+
+    t.equal(
+        extension.toneStart({
+            PIN: '6',
+            NOTE: '65',
+            DURATION: '500'
+        }),
+        null,
+        'EasyMaker Buzzer rejects ports outside its physical contract'
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                type: 'start',
+                pin: 3,
+                frequency: 65,
+                duration: 500
+            },
+            {
+                type: 'stop',
+                pin: 13
+            }
+        ]
+    );
+
+    const genericExtension =
+        new Scratch3ActuatorsBlocks({
+            getPeripheralExtension:
+                () => sharedPeripheral,
+
+            getEasyBloxSelectedBoardId:
+                () => null
+        });
+
+    const genericInfo =
+        genericExtension.getInfo();
+
+    t.equal(
+        genericInfo.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'toneStart'
+        ).hideFromPalette,
+        true,
+        'generic boards hide the EasyMaker Buzzer actuator surface'
+    );
+
+    t.equal(
+        genericInfo.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'toneStop'
+        ).hideFromPalette,
+        true
+    );
+
+    t.equal(
+        genericExtension.toneStart({
+            PIN: '3',
+            NOTE: '65',
+            DURATION: '500'
+        }),
+        null
+    );
+
+    t.end();
+});
+
 test('Actuators expose EasyMaker traffic light physical port surface', t => {
     const calls = [];
 
@@ -1180,7 +1508,14 @@ test('Actuators expose EasyMaker relay on simple digital ports', t => {
         );
 
     const info = extension.getInfo();
-    const relayBlock = info.blocks[7];
+
+    const relayBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'relayWrite'
+        );
 
     t.equal(
         relayBlock.opcode,
@@ -1455,10 +1790,20 @@ test('Actuators hide configuration and use fixed EasyMaker motor wiring', t => {
     const info = extension.getInfo();
 
     const motorInitBlock =
-        info.blocks[0];
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'motorInit'
+        );
 
     const motorConfigureBlock =
-        info.blocks[1];
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'motorConfigure'
+        );
 
     t.equal(
         motorInitBlock.opcode,

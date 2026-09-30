@@ -107,6 +107,8 @@ class Scratch3ArduinoUnoBlocks {
                 {
                     opcode: 'digitalWrite',
                     blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        useEasyMakerSurface,
                     text: 'definir pino [PIN] como [VALUE]',
                     arguments: {
                         PIN: {
@@ -124,6 +126,8 @@ class Scratch3ArduinoUnoBlocks {
                 {
                     opcode: 'digitalRead',
                     blockType: BlockType.BOOLEAN,
+                    hideFromPalette:
+                        useEasyMakerSurface,
                     text: 'ler pino digital [PIN]',
                     arguments: {
                         PIN: {
@@ -136,6 +140,8 @@ class Scratch3ArduinoUnoBlocks {
                 {
                     opcode: 'analogRead',
                     blockType: BlockType.REPORTER,
+                    hideFromPalette:
+                        useEasyMakerSurface,
                     text: 'ler pino analógico [PIN]',
                     arguments: {
                         PIN: {
@@ -175,6 +181,8 @@ class Scratch3ArduinoUnoBlocks {
                 {
                     opcode: 'pwmWrite',
                     blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        useEasyMakerSurface,
                     text: 'definir PWM no pino [PIN] como [VALUE]',
                     arguments: {
                         PIN: {
@@ -188,10 +196,14 @@ class Scratch3ArduinoUnoBlocks {
                         }
                     }
                 },
-                '---',
+                ...(useEasyMakerSurface ?
+                    [] :
+                    ['---']),
                 {
                     opcode: 'toneStart',
                     blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        useEasyMakerSurface,
                     text:
                         useEasyMakerSurface ?
                             'tocar nota [NOTE] na porta [PIN] por [DURATION]' :
@@ -226,6 +238,8 @@ class Scratch3ArduinoUnoBlocks {
                 {
                     opcode: 'toneStop',
                     blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        useEasyMakerSurface,
                     text:
                         useEasyMakerSurface ?
                             'parar tom na porta [PIN]' :

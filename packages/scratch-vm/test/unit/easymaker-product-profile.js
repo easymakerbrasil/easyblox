@@ -241,6 +241,66 @@ test('EasyMaker ProductProfile maps DHT11 physical ports to fixed signal pins', 
     t.end();
 });
 
+test('EasyMaker ProductProfile maps generic sensor physical ports to fixed signal pins', t => {
+    const digitalSensor =
+        EasyMakerProductProfile
+            .devices
+            .digitalSensor;
+
+    const analogSensor =
+        EasyMakerProductProfile
+            .devices
+            .analogSensor;
+
+    t.equal(
+        digitalSensor.id,
+        'digital-sensor'
+    );
+
+    t.same(
+        digitalSensor.ports,
+        {
+            'digital-d2-d3': {
+                pin: 3
+            },
+            'digital-d12': {
+                pin: 12
+            },
+            'digital-d13': {
+                pin: 13
+            }
+        }
+    );
+
+    t.equal(
+        analogSensor.id,
+        'analog-sensor'
+    );
+
+    t.same(
+        analogSensor.ports,
+        {
+            'analog-a0': {
+                pin: 14
+            },
+            'analog-a1': {
+                pin: 15
+            },
+            'analog-a2': {
+                pin: 16
+            },
+            'analog-a2-a3': {
+                pin: 17
+            },
+            'analog-a4-a5': {
+                pin: 19
+            }
+        }
+    );
+
+    t.end();
+});
+
 test('EasyMaker ProductProfile maps LED physical ports to fixed pins', t => {
     const led =
         EasyMakerProductProfile.devices.led;

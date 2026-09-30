@@ -2207,6 +2207,119 @@ tap.test('Arduino UNO exposes reordered blocks and timer blocks', t => {
     t.end();
 });
 
+tap.test('Arduino UNO hides raw pin I/O on the EasyMaker surface', t => {
+    const runtime =
+        new MockRuntime(null);
+
+    runtime.getEasyBloxSelectedBoardId =
+        () => 'easymaker';
+
+    const extension =
+        new Scratch3ArduinoUnoBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const blockByOpcode = opcode =>
+        info.blocks.find(
+            block =>
+                block &&
+                block !== '---' &&
+                block.opcode === opcode
+        );
+
+    t.equal(
+        blockByOpcode('digitalWrite')
+            .hideFromPalette,
+        true,
+        'EasyMaker hides raw digital output'
+    );
+
+    t.equal(
+        blockByOpcode('digitalRead')
+            .hideFromPalette,
+        true,
+        'EasyMaker hides raw digital input'
+    );
+
+    t.equal(
+        blockByOpcode('analogRead')
+            .hideFromPalette,
+        true,
+        'EasyMaker hides raw analog input'
+    );
+
+    t.equal(
+        blockByOpcode('pwmWrite')
+            .hideFromPalette,
+        true,
+        'EasyMaker hides raw PWM output'
+    );
+
+    t.equal(
+        blockByOpcode('toneStart')
+            .hideFromPalette,
+        true,
+        'EasyMaker keeps legacy Tone hidden in Arduino UNO'
+    );
+
+    t.equal(
+        blockByOpcode('toneStop')
+            .hideFromPalette,
+        true,
+        'EasyMaker keeps legacy Tone stop hidden in Arduino UNO'
+    );
+
+    t.notOk(
+        blockByOpcode('map')
+            .hideFromPalette,
+        'EasyMaker keeps map visible'
+    );
+
+    t.notOk(
+        blockByOpcode('timerRead')
+            .hideFromPalette,
+        'EasyMaker keeps timer reporter visible'
+    );
+
+    t.notOk(
+        blockByOpcode('timerReset')
+            .hideFromPalette,
+        'EasyMaker keeps timer reset visible'
+    );
+
+    const visiblePalette =
+        info.blocks
+            .filter(
+                block =>
+                    block === '---' ||
+                    (
+                        block &&
+                        !block.hideFromPalette
+                    )
+            )
+            .map(
+                block =>
+                    block === '---' ?
+                        '---' :
+                        block.opcode
+            );
+
+    t.same(
+        visiblePalette,
+        [
+            'whenArduinoUnoStart',
+            'map',
+            '---',
+            'timerRead',
+            'timerReset'
+        ],
+        'EasyMaker Arduino UNO palette exposes only entry, map and timer tools'
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO timer reporter converts milliseconds to seconds', async t => {
     const runtime = new MockRuntime(null);
     const extension = new Scratch3ArduinoUnoBlocks(runtime);
@@ -2843,6 +2956,18 @@ tap.test('Arduino UNO exposes musical Tone blocks and delegates note duration', 
     t.ok(toneStopBlock);
 
     t.equal(
+        toneStartBlock.hideFromPalette,
+        false,
+        'generic Arduino keeps Tone visible'
+    );
+
+    t.equal(
+        toneStopBlock.hideFromPalette,
+        false,
+        'generic Arduino keeps Tone stop visible'
+    );
+
+    t.equal(
         toneStartBlock.blockType,
         BlockType.COMMAND
     );
@@ -3029,7 +3154,7 @@ tap.test('Arduino UNO exposes musical Tone blocks and delegates note duration', 
     t.end();
 });
 
-tap.test('Arduino UNO exposes EasyMaker buzzer Tone surface on physical ports', t => {
+tap.test('Arduino UNO keeps legacy EasyMaker Buzzer Tone blocks hidden from the palette', t => {
     const runtime =
         new MockRuntime(null);
 
@@ -3055,6 +3180,18 @@ tap.test('Arduino UNO exposes EasyMaker buzzer Tone surface on physical ports', 
                 block.opcode ===
                     'toneStop'
         );
+
+    t.equal(
+        toneStartBlock.hideFromPalette,
+        true,
+        'EasyMaker no longer exposes Buzzer in Arduino UNO'
+    );
+
+    t.equal(
+        toneStopBlock.hideFromPalette,
+        true,
+        'EasyMaker no longer exposes Tone stop in Arduino UNO'
+    );
 
     t.equal(
         toneStartBlock.text,

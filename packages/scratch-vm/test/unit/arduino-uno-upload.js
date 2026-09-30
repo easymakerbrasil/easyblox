@@ -2105,6 +2105,124 @@ tap.test('Arduino UNO Upload resource validator accepts supported DigitalWrite p
     t.end();
 });
 
+tap.test('Arduino UNO Upload rejects digital sensor read and Tone on the same EasyMaker signal', t => {
+    const validator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const ir = {
+        setup: [
+            {
+                type: 'ToneStart',
+                pin: 3,
+                frequency: 440,
+                duration: 500
+            },
+            {
+                type: 'If',
+                condition: {
+                    type:
+                        'DigitalReadExpression',
+                    pin: 3
+                },
+                body: []
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /DigitalRead and Tone cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects analog sensor read and Joystick on the same EasyMaker signal', t => {
+    const validator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const ir = {
+        setup: [
+            {
+                type: 'JoystickInit',
+                xPin: 18,
+                yPin: 19,
+                clickPin: 13
+            },
+            {
+                type: 'Wait',
+                duration: {
+                    type:
+                        'AnalogReadExpression',
+                    pin: 19
+                }
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /AnalogRead and Joystick cannot use the same pin/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects analog sensor read and Ultrasonic on the same EasyMaker signal', t => {
+    const validator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const ir = {
+        setup: [
+            {
+                type: 'Wait',
+                duration: {
+                    type:
+                        'AnalogReadExpression',
+                    pin: 17
+                }
+            },
+            {
+                type: 'If',
+                condition: {
+                    type:
+                        'BinaryExpression',
+                    operator:
+                        'GreaterThan',
+                    left: {
+                        type:
+                            'UltrasonicReadExpression',
+                        trigPin: 16,
+                        echoPin: 17
+                    },
+                    right: {
+                        type:
+                            'IntegerLiteral',
+                        value: 20
+                    }
+                },
+                body: []
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /AnalogRead and Ultrasonic cannot use the same pin/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload resource validator rejects unsupported DigitalRead pin', t => {
     const validator = new UploadResourceValidator(
         ArduinoUnoBoardProfile
@@ -12407,6 +12525,374 @@ tap.test('Arduino UNO Upload matches Stage MotorWrite speed normalization', t =>
         ).length,
         1,
         'evaluates runtime MotorWrite speed expression once'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload accepts every EasyMaker generic sensor type', t => {
+    const extractSensorCondition = ({
+        opcode,
+        typeMenu,
+        typeValue,
+        portMenu,
+        portValue
+    }) => {
+        const runtime =
+            createRuntimeWithBlocks([
+                createUploadHat(
+                    'if_sensor'
+                ),
+                {
+                    id: 'if_sensor',
+                    opcode: 'control_if',
+                    next: null,
+                    parent: 'upload_hat',
+                    inputs: {
+                        CONDITION: {
+                            name: 'CONDITION',
+                            block: 'sensor',
+                            shadow: null
+                        }
+                    },
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                {
+                    id: 'sensor',
+                    opcode,
+                    next: null,
+                    parent: 'if_sensor',
+                    inputs: {
+                        TYPE: {
+                            name: 'TYPE',
+                            block:
+                                'sensor_type',
+                            shadow:
+                                'sensor_type'
+                        },
+                        PORT: {
+                            name: 'PORT',
+                            block:
+                                'sensor_port',
+                            shadow:
+                                'sensor_port'
+                        }
+                    },
+                    fields: {},
+                    topLevel: false,
+                    shadow: false
+                },
+                createExtensionMenuShadow(
+                    'sensor_type',
+                    'sensor',
+                    `sensors_menu_${typeMenu}`,
+                    typeMenu,
+                    typeValue
+                ),
+                createExtensionMenuShadow(
+                    'sensor_port',
+                    'sensor',
+                    `sensors_menu_${portMenu}`,
+                    portMenu,
+                    portValue
+                )
+            ]);
+
+        const extractor =
+            new UploadProgramExtractor(runtime);
+
+        return extractor
+            .extract()
+            .setup[0]
+            .condition;
+    };
+
+    const digitalTypes = [
+        'PIR',
+        'TILT',
+        'REFLECTIVE',
+        'RAIN',
+        'BUTTON',
+        'SOUND'
+    ];
+
+    for (const type of digitalTypes) {
+        t.same(
+            extractSensorCondition({
+                opcode:
+                    'sensors_digitalSensorRead',
+                typeMenu:
+                    'digitalSensorTypes',
+                typeValue: type,
+                portMenu:
+                    'easyMakerDigitalSensorPorts',
+                portValue:
+                    'digital-d2-d3'
+            }),
+            {
+                type:
+                    'DigitalReadExpression',
+                pin: 3
+            },
+            `accepts EasyMaker digital sensor type ${type}`
+        );
+    }
+
+    const analogTypes = [
+        'POTENTIOMETER',
+        'REFLECTIVE',
+        'LDR',
+        'SOIL_MOISTURE',
+        'SOUND'
+    ];
+
+    for (const type of analogTypes) {
+        t.same(
+            extractSensorCondition({
+                opcode:
+                    'sensors_analogSensorRead',
+                typeMenu:
+                    'analogSensorTypes',
+                typeValue: type,
+                portMenu:
+                    'easyMakerAnalogSensorPorts',
+                portValue:
+                    'analog-a4-a5'
+            }),
+            {
+                type:
+                    'AnalogReadExpression',
+                pin: 19
+            },
+            `accepts EasyMaker analog sensor type ${type}`
+        );
+    }
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload extracts EasyMaker generic digital and analog sensors into canonical expressions', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('if_digital'),
+        {
+            id: 'if_digital',
+            opcode: 'control_if',
+            next: 'if_analog',
+            parent: 'upload_hat',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'digital_sensor',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'digital_sensor',
+            opcode:
+                'sensors_digitalSensorRead',
+            next: null,
+            parent: 'if_digital',
+            inputs: {
+                TYPE: {
+                    name: 'TYPE',
+                    block:
+                        'digital_sensor_type',
+                    shadow:
+                        'digital_sensor_type'
+                },
+                PORT: {
+                    name: 'PORT',
+                    block:
+                        'digital_sensor_port',
+                    shadow:
+                        'digital_sensor_port'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'digital_sensor_type',
+            'digital_sensor',
+            'sensors_menu_digitalSensorTypes',
+            'digitalSensorTypes',
+            'PIR'
+        ),
+        createExtensionMenuShadow(
+            'digital_sensor_port',
+            'digital_sensor',
+            'sensors_menu_easyMakerDigitalSensorPorts',
+            'easyMakerDigitalSensorPorts',
+            'digital-d12'
+        ),
+        {
+            id: 'if_analog',
+            opcode: 'control_if',
+            next: null,
+            parent: 'if_digital',
+            inputs: {
+                CONDITION: {
+                    name: 'CONDITION',
+                    block: 'greater_than',
+                    shadow: null
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'greater_than',
+            opcode: 'operator_gt',
+            next: null,
+            parent: 'if_analog',
+            inputs: {
+                OPERAND1: {
+                    name: 'OPERAND1',
+                    block: 'analog_sensor',
+                    shadow: null
+                },
+                OPERAND2: {
+                    name: 'OPERAND2',
+                    block: 'threshold',
+                    shadow: 'threshold'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        {
+            id: 'analog_sensor',
+            opcode:
+                'sensors_analogSensorRead',
+            next: null,
+            parent: 'greater_than',
+            inputs: {
+                TYPE: {
+                    name: 'TYPE',
+                    block:
+                        'analog_sensor_type',
+                    shadow:
+                        'analog_sensor_type'
+                },
+                PORT: {
+                    name: 'PORT',
+                    block:
+                        'analog_sensor_port',
+                    shadow:
+                        'analog_sensor_port'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'analog_sensor_type',
+            'analog_sensor',
+            'sensors_menu_analogSensorTypes',
+            'analogSensorTypes',
+            'POTENTIOMETER'
+        ),
+        createExtensionMenuShadow(
+            'analog_sensor_port',
+            'analog_sensor',
+            'sensors_menu_easyMakerAnalogSensorPorts',
+            'easyMakerAnalogSensorPorts',
+            'analog-a4-a5'
+        ),
+        createNumberShadow(
+            'threshold',
+            'greater_than',
+            500
+        )
+    ]);
+
+    const extractor =
+        new UploadProgramExtractor(runtime);
+
+    const validator =
+        new UploadTypeValidator();
+
+    const resourceValidator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const generator =
+        new ArduinoUnoGenerator();
+
+    const ir =
+        extractor.extract();
+
+    t.same(
+        ir,
+        {
+            setup: [
+                {
+                    type: 'If',
+                    condition: {
+                        type:
+                            'DigitalReadExpression',
+                        pin: 12
+                    },
+                    body: []
+                },
+                {
+                    type: 'If',
+                    condition: {
+                        type:
+                            'BinaryExpression',
+                        operator:
+                            'GreaterThan',
+                        left: {
+                            type:
+                                'AnalogReadExpression',
+                            pin: 19
+                        },
+                        right: {
+                            type:
+                                'IntegerLiteral',
+                            value: 500
+                        }
+                    },
+                    body: []
+                }
+            ],
+            loop: []
+        }
+    );
+
+    validator.validate(ir);
+    resourceValidator.validate(ir);
+
+    const code =
+        generator.generate(ir);
+
+    t.match(
+        code,
+        /pinMode\(12, INPUT\);/,
+        'digital sensor configures D12 as input'
+    );
+
+    t.match(
+        code,
+        /digitalRead\(12\) == HIGH/,
+        'digital sensor uses canonical digitalRead'
+    );
+
+    t.match(
+        code,
+        /analogRead\(A5\) > 500/,
+        'analog sensor uses canonical analogRead on A5'
     );
 
     t.end();

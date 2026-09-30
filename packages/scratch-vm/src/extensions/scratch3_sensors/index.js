@@ -23,6 +23,21 @@ const EASYMAKER_DHT_PORT_ALT_LABELS =
         chevrons: 'porta menor e maior'
     });
 
+const EASYMAKER_DIGITAL_SENSOR_PORT_ALT_LABELS =
+    Object.freeze({
+        asterisk: 'porta asterisco',
+        question: 'porta interrogação',
+        chevrons: 'porta menor e maior'
+    });
+
+const EASYMAKER_ANALOG_SENSOR_PORT_ALT_LABELS =
+    Object.freeze({
+        square: 'porta quadrado',
+        circle: 'porta círculo',
+        semicircle: 'porta semicírculo',
+        triangle: 'porta triângulo',
+        pentagon: 'porta pentágono'
+    });
 /**
  * Hardware sensor blocks for supported EasyBlox boards.
  */
@@ -62,10 +77,96 @@ class Scratch3SensorsBlocks {
             selectedBoardId ===
                 EasyMakerProductProfile.id;
 
+        const useEasyMakerGenericSensorSurface =
+            selectedBoardId ===
+                EasyMakerProductProfile.id;
+
         const easyMakerPhysicalPorts =
             Object.values(
                 EasyMakerProductProfile.physicalPorts
             );
+
+        const easyMakerDigitalSensorPortMenuItems =
+            Object.keys(
+                EasyMakerProductProfile
+                    .devices
+                    .digitalSensor
+                    .ports
+            ).map(portId => {
+                const physicalPort =
+                    easyMakerPhysicalPorts.find(
+                        port =>
+                            port.id === portId
+                    );
+
+                const symbol =
+                    physicalPort ?
+                        EasyMakerPortSymbols[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                const alt =
+                    physicalPort ?
+                        EASYMAKER_DIGITAL_SENSOR_PORT_ALT_LABELS[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                return {
+                    text:
+                        symbol && alt ?
+                            {
+                                src: symbol.dataURI,
+                                alt,
+                                width: symbol.width,
+                                height: symbol.height
+                            } :
+                            physicalPort.fallbackLabel,
+                    value: portId
+                };
+            });
+
+        const easyMakerAnalogSensorPortMenuItems =
+            Object.keys(
+                EasyMakerProductProfile
+                    .devices
+                    .analogSensor
+                    .ports
+            ).map(portId => {
+                const physicalPort =
+                    easyMakerPhysicalPorts.find(
+                        port =>
+                            port.id === portId
+                    );
+
+                const symbol =
+                    physicalPort ?
+                        EasyMakerPortSymbols[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                const alt =
+                    physicalPort ?
+                        EASYMAKER_ANALOG_SENSOR_PORT_ALT_LABELS[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                return {
+                    text:
+                        symbol && alt ?
+                            {
+                                src: symbol.dataURI,
+                                alt,
+                                width: symbol.width,
+                                height: symbol.height
+                            } :
+                            physicalPort.fallbackLabel,
+                    value: portId
+                };
+            });
 
         const easyMakerUltrasonicPortMenuItems =
             Object.keys(
@@ -148,6 +249,46 @@ class Scratch3SensorsBlocks {
                     value: portId
                 };
             });
+
+        const easyMakerDigitalSensorBlock = {
+            opcode: 'digitalSensorRead',
+            blockType: BlockType.BOOLEAN,
+            text: 'sensor digital [TYPE] na porta [PORT]',
+            hideFromPalette:
+                !useEasyMakerGenericSensorSurface,
+            arguments: {
+                TYPE: {
+                    type: ArgumentType.STRING,
+                    menu: 'digitalSensorTypes',
+                    defaultValue: 'PIR'
+                },
+                PORT: {
+                    type: ArgumentType.STRING,
+                    menu: 'easyMakerDigitalSensorPorts',
+                    defaultValue: 'digital-d2-d3'
+                }
+            }
+        };
+
+        const easyMakerAnalogSensorBlock = {
+            opcode: 'analogSensorRead',
+            blockType: BlockType.REPORTER,
+            text: 'sensor analógico [TYPE] na porta [PORT]',
+            hideFromPalette:
+                !useEasyMakerGenericSensorSurface,
+            arguments: {
+                TYPE: {
+                    type: ArgumentType.STRING,
+                    menu: 'analogSensorTypes',
+                    defaultValue: 'POTENTIOMETER'
+                },
+                PORT: {
+                    type: ArgumentType.STRING,
+                    menu: 'easyMakerAnalogSensorPorts',
+                    defaultValue: 'analog-a0'
+                }
+            }
+        };
 
         const legacyUltrasonicBlock = {
             opcode: 'ultrasonicRead',
@@ -238,6 +379,8 @@ class Scratch3SensorsBlocks {
             color2: '#039BE5',
             color3: '#0277BD',
             blocks: [
+                easyMakerDigitalSensorBlock,
+                easyMakerAnalogSensorBlock,
                 legacyUltrasonicBlock,
                 easyMakerUltrasonicBlock,
                 legacyDhtBlock,
@@ -293,6 +436,74 @@ class Scratch3SensorsBlocks {
                 }
             ],
             menus: {
+                easyMakerDigitalSensorPorts: {
+                    acceptReporters: false,
+                    items:
+                        easyMakerDigitalSensorPortMenuItems
+                },
+
+                easyMakerAnalogSensorPorts: {
+                    acceptReporters: false,
+                    items:
+                        easyMakerAnalogSensorPortMenuItems
+                },
+
+                digitalSensorTypes: {
+                    acceptReporters: false,
+                    items: [
+                        {
+                            text: 'PIR',
+                            value: 'PIR'
+                        },
+                        {
+                            text: 'Tilt',
+                            value: 'TILT'
+                        },
+                        {
+                            text: 'Reflexivo',
+                            value: 'REFLECTIVE'
+                        },
+                        {
+                            text: 'Chuva',
+                            value: 'RAIN'
+                        },
+                        {
+                            text: 'Botão',
+                            value: 'BUTTON'
+                        },
+                        {
+                            text: 'Som',
+                            value: 'SOUND'
+                        }
+                    ]
+                },
+
+                analogSensorTypes: {
+                    acceptReporters: false,
+                    items: [
+                        {
+                            text: 'Potenciômetro',
+                            value: 'POTENTIOMETER'
+                        },
+                        {
+                            text: 'Reflexivo',
+                            value: 'REFLECTIVE'
+                        },
+                        {
+                            text: 'LDR',
+                            value: 'LDR'
+                        },
+                        {
+                            text: 'Umidade do Solo',
+                            value: 'SOIL_MOISTURE'
+                        },
+                        {
+                            text: 'Som',
+                            value: 'SOUND'
+                        }
+                    ]
+                },
+
                 easyMakerUltrasonicPorts: {
                     acceptReporters: false,
                     items:
@@ -392,6 +603,84 @@ class Scratch3SensorsBlocks {
                 }
             }
         };
+    }
+
+    /**
+     * Read one generic EasyMaker digital sensor.
+     * @param {object} args Scratch block arguments.
+     * @returns {?Promise<boolean>} Digital sensor state.
+     */
+    digitalSensorRead (args) {
+        const type =
+            String(args.TYPE).toUpperCase();
+
+        if (
+            type !== 'PIR' &&
+            type !== 'TILT' &&
+            type !== 'REFLECTIVE' &&
+            type !== 'RAIN' &&
+            type !== 'BUTTON' &&
+            type !== 'SOUND'
+        ) {
+            return null;
+        }
+
+        const port =
+            EasyMakerProductProfile
+                .devices
+                .digitalSensor
+                .ports[String(args.PORT)];
+
+        if (!port) {
+            return null;
+        }
+
+        const result =
+            this._peripheral.digitalRead(
+                port.pin
+            );
+
+        if (!result) {
+            return result;
+        }
+
+        return result.then(
+            value => value === 1
+        );
+    }
+
+    /**
+     * Read one generic EasyMaker analog sensor.
+     * @param {object} args Scratch block arguments.
+     * @returns {?Promise<number>} Analog value from 0 to 1023.
+     */
+    analogSensorRead (args) {
+        const type =
+            String(args.TYPE).toUpperCase();
+
+        if (
+            type !== 'POTENTIOMETER' &&
+            type !== 'REFLECTIVE' &&
+            type !== 'LDR' &&
+            type !== 'SOIL_MOISTURE' &&
+            type !== 'SOUND'
+        ) {
+            return null;
+        }
+
+        const port =
+            EasyMakerProductProfile
+                .devices
+                .analogSensor
+                .ports[String(args.PORT)];
+
+        if (!port) {
+            return null;
+        }
+
+        return this._peripheral.analogRead(
+            port.pin
+        );
     }
 
     /**

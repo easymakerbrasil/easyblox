@@ -2928,7 +2928,205 @@ test('VirtualMachine uses EasyMaker fixed motor wiring in Upload', t => {
     t.end();
 });
 
-test('VirtualMachine uses EasyMaker Buzzer physical ports in Upload', t => {
+test('VirtualMachine uses EasyMaker generic sensor physical ports in Upload', t => {
+    const vm =
+        new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat(
+                'if_digital'
+            ),
+            {
+                id: 'if_digital',
+                opcode: 'control_if',
+                next: 'if_analog',
+                parent: 'upload_hat',
+                inputs: {
+                    CONDITION: {
+                        name: 'CONDITION',
+                        block:
+                            'digital_sensor',
+                        shadow: null
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            {
+                id: 'digital_sensor',
+                opcode:
+                    'sensors_digitalSensorRead',
+                next: null,
+                parent:
+                    'if_digital',
+                inputs: {
+                    TYPE: {
+                        name: 'TYPE',
+                        block:
+                            'digital_type',
+                        shadow:
+                            'digital_type'
+                    },
+                    PORT: {
+                        name: 'PORT',
+                        block:
+                            'digital_port',
+                        shadow:
+                            'digital_port'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'digital_type',
+                'digital_sensor',
+                'sensors_menu_digitalSensorTypes',
+                'digitalSensorTypes',
+                'PIR'
+            ),
+            createExtensionMenuShadow(
+                'digital_port',
+                'digital_sensor',
+                'sensors_menu_easyMakerDigitalSensorPorts',
+                'easyMakerDigitalSensorPorts',
+                'digital-d12'
+            ),
+            {
+                id: 'if_analog',
+                opcode: 'control_if',
+                next: null,
+                parent:
+                    'if_digital',
+                inputs: {
+                    CONDITION: {
+                        name: 'CONDITION',
+                        block:
+                            'greater_than',
+                        shadow: null
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            {
+                id: 'greater_than',
+                opcode: 'operator_gt',
+                next: null,
+                parent:
+                    'if_analog',
+                inputs: {
+                    OPERAND1: {
+                        name: 'OPERAND1',
+                        block:
+                            'analog_sensor',
+                        shadow: null
+                    },
+                    OPERAND2: {
+                        name: 'OPERAND2',
+                        block:
+                            'threshold',
+                        shadow:
+                            'threshold'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            {
+                id: 'analog_sensor',
+                opcode:
+                    'sensors_analogSensorRead',
+                next: null,
+                parent:
+                    'greater_than',
+                inputs: {
+                    TYPE: {
+                        name: 'TYPE',
+                        block:
+                            'analog_type',
+                        shadow:
+                            'analog_type'
+                    },
+                    PORT: {
+                        name: 'PORT',
+                        block:
+                            'analog_port',
+                        shadow:
+                            'analog_port'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'analog_type',
+                'analog_sensor',
+                'sensors_menu_analogSensorTypes',
+                'analogSensorTypes',
+                'POTENTIOMETER'
+            ),
+            createExtensionMenuShadow(
+                'analog_port',
+                'analog_sensor',
+                'sensors_menu_easyMakerAnalogSensorPorts',
+                'easyMakerAnalogSensorPorts',
+                'analog-a4-a5'
+            ),
+            createNumberShadow(
+                'threshold',
+                'greater_than',
+                500
+            )
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /pinMode\(12, INPUT\);/,
+        'EasyMaker question digital sensor resolves to D12'
+    );
+
+    t.match(
+        code,
+        /digitalRead\(12\) == HIGH/,
+        'digital sensor uses canonical Arduino digitalRead'
+    );
+
+    t.match(
+        code,
+        /analogRead\(A5\) > 500/,
+        'EasyMaker pentagon analog sensor resolves to A5'
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same EasyMaker generic sensor wiring'
+    );
+
+    t.end();
+});
+
+test('VirtualMachine uses EasyMaker Buzzer actuator surface in Upload', t => {
     const vm =
         new VirtualMachine();
 
@@ -2941,16 +3139,17 @@ test('VirtualMachine uses EasyMaker Buzzer physical ports in Upload', t => {
             {
                 id: 'buzzer_start',
                 opcode:
-                    'arduinoUno_toneStart',
-                next: null,
+                    'actuators_toneStart',
+                next:
+                    'buzzer_stop',
                 parent: 'upload_hat',
                 inputs: {
                     PIN: {
                         name: 'PIN',
                         block:
-                            'buzzer_port',
+                            'buzzer_start_port',
                         shadow:
-                            'buzzer_port'
+                            'buzzer_start_port'
                     }
                 },
                 fields: {
@@ -2967,9 +3166,36 @@ test('VirtualMachine uses EasyMaker Buzzer physical ports in Upload', t => {
                 shadow: false
             },
             createExtensionMenuShadow(
-                'buzzer_port',
+                'buzzer_start_port',
                 'buzzer_start',
-                'arduinoUno_menu_easyMakerBuzzerPorts',
+                'actuators_menu_easyMakerBuzzerPorts',
+                'easyMakerBuzzerPorts',
+                3
+            ),
+            {
+                id: 'buzzer_stop',
+                opcode:
+                    'actuators_toneStop',
+                next: null,
+                parent:
+                    'buzzer_start',
+                inputs: {
+                    PIN: {
+                        name: 'PIN',
+                        block:
+                            'buzzer_stop_port',
+                        shadow:
+                            'buzzer_stop_port'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'buzzer_stop_port',
+                'buzzer_stop',
+                'actuators_menu_easyMakerBuzzerPorts',
                 'easyMakerBuzzerPorts',
                 3
             )
@@ -2985,7 +3211,13 @@ test('VirtualMachine uses EasyMaker Buzzer physical ports in Upload', t => {
     t.match(
         code,
         /tone\(3, 65, 500\);/,
-        'EasyMaker Buzzer asterisk port resolves to D3'
+        'EasyMaker Buzzer actuator surface resolves asterisk to D3'
+    );
+
+    t.match(
+        code,
+        /noTone\(3\);/,
+        'EasyMaker Buzzer actuator surface generates canonical noTone'
     );
 
     const bundle =
@@ -2996,7 +3228,7 @@ test('VirtualMachine uses EasyMaker Buzzer physical ports in Upload', t => {
     t.equal(
         bundle.code,
         code,
-        'preview and physical build use the same EasyMaker Buzzer wiring'
+        'preview and physical build use the same EasyMaker Buzzer actuator surface'
     );
 
     t.end();

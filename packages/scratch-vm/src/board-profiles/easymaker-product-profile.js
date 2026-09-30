@@ -160,6 +160,50 @@ const EasyMakerProductProfile = Object.freeze({
             })
         }),
 
+        digitalSensor: Object.freeze({
+            id: 'digital-sensor',
+
+            ports: Object.freeze({
+                'digital-d2-d3': Object.freeze({
+                    pin: 3
+                }),
+
+                'digital-d12': Object.freeze({
+                    pin: 12
+                }),
+
+                'digital-d13': Object.freeze({
+                    pin: 13
+                })
+            })
+        }),
+
+        analogSensor: Object.freeze({
+            id: 'analog-sensor',
+
+            ports: Object.freeze({
+                'analog-a0': Object.freeze({
+                    pin: 14
+                }),
+
+                'analog-a1': Object.freeze({
+                    pin: 15
+                }),
+
+                'analog-a2': Object.freeze({
+                    pin: 16
+                }),
+
+                'analog-a2-a3': Object.freeze({
+                    pin: 17
+                }),
+
+                'analog-a4-a5': Object.freeze({
+                    pin: 19
+                })
+            })
+        }),
+
         led: Object.freeze({
             id: 'led',
 

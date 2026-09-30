@@ -18,6 +18,10 @@ const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
 const DIGITAL_READ_OPCODE = 'arduinoUno_digitalRead';
 const ANALOG_READ_OPCODE = 'arduinoUno_analogRead';
 const MAP_OPCODE = 'arduinoUno_map';
+const EASYMAKER_DIGITAL_SENSOR_READ_OPCODE =
+    'sensors_digitalSensorRead';
+const EASYMAKER_ANALOG_SENSOR_READ_OPCODE =
+    'sensors_analogSensorRead';
 const ULTRASONIC_READ_OPCODE = 'sensors_ultrasonicRead';
 const EASYMAKER_ULTRASONIC_READ_OPCODE =
     'sensors_ultrasonicReadPort';
@@ -45,6 +49,10 @@ const TM1637_CLEAR_OPCODE = 'displays_tm1637Clear';
 const PWM_WRITE_OPCODE = 'arduinoUno_pwmWrite';
 const TONE_START_OPCODE = 'arduinoUno_toneStart';
 const TONE_STOP_OPCODE = 'arduinoUno_toneStop';
+const EASYMAKER_TONE_START_OPCODE =
+    'actuators_toneStart';
+const EASYMAKER_TONE_STOP_OPCODE =
+    'actuators_toneStop';
 const TIMER_READ_OPCODE = 'arduinoUno_timerRead';
 const TIMER_RESET_OPCODE = 'arduinoUno_timerReset';
 const EASYMAKER_MOTOR_INIT_OPCODE = 'actuators_motorInit';
@@ -964,7 +972,22 @@ class UploadProgramExtractor {
             };
         }
 
-        case TONE_START_OPCODE: {
+        case TONE_START_OPCODE:
+        case EASYMAKER_TONE_START_OPCODE: {
+            if (
+                block.opcode ===
+                    EASYMAKER_TONE_START_OPCODE &&
+                (
+                    !this.program ||
+                    this.program.boardId !==
+                        EasyMakerProductProfile.id
+                )
+            ) {
+                throw new Error(
+                    'EasyMaker Buzzer actuator surface requires EasyMaker board'
+                );
+            }
+
             const fields = blocks.getFields(block);
             const noteField = fields && fields.NOTE;
             const durationField = fields && fields.DURATION;
@@ -1031,7 +1054,22 @@ class UploadProgramExtractor {
             };
         }
 
-        case TONE_STOP_OPCODE: {
+        case TONE_STOP_OPCODE:
+        case EASYMAKER_TONE_STOP_OPCODE: {
+            if (
+                block.opcode ===
+                    EASYMAKER_TONE_STOP_OPCODE &&
+                (
+                    !this.program ||
+                    this.program.boardId !==
+                        EasyMakerProductProfile.id
+                )
+            ) {
+                throw new Error(
+                    'EasyMaker Buzzer actuator surface requires EasyMaker board'
+                );
+            }
+
             const pin =
                 this._readNumberInput(
                     blocks,
@@ -2175,6 +2213,96 @@ class UploadProgramExtractor {
                     'NUM2'
                 )
             };
+        case EASYMAKER_DIGITAL_SENSOR_READ_OPCODE: {
+            const type =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'TYPE'
+                ).toUpperCase();
+
+            if (
+                type !== 'PIR' &&
+                type !== 'TILT' &&
+                type !== 'REFLECTIVE' &&
+                type !== 'RAIN' &&
+                type !== 'BUTTON' &&
+                type !== 'SOUND'
+            ) {
+                throw new Error(
+                    `Unsupported EasyMaker digital sensor type: ${type}`
+                );
+            }
+
+            const portId =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'PORT'
+                );
+
+            const port =
+                EasyMakerProductProfile
+                    .devices
+                    .digitalSensor
+                    .ports[portId];
+
+            if (!port) {
+                throw new Error(
+                    `Unsupported EasyMaker digital sensor port: ${portId}`
+                );
+            }
+
+            return {
+                type: 'DigitalReadExpression',
+                pin: port.pin
+            };
+        }
+
+        case EASYMAKER_ANALOG_SENSOR_READ_OPCODE: {
+            const type =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'TYPE'
+                ).toUpperCase();
+
+            if (
+                type !== 'POTENTIOMETER' &&
+                type !== 'REFLECTIVE' &&
+                type !== 'LDR' &&
+                type !== 'SOIL_MOISTURE' &&
+                type !== 'SOUND'
+            ) {
+                throw new Error(
+                    `Unsupported EasyMaker analog sensor type: ${type}`
+                );
+            }
+
+            const portId =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'PORT'
+                );
+
+            const port =
+                EasyMakerProductProfile
+                    .devices
+                    .analogSensor
+                    .ports[portId];
+
+            if (!port) {
+                throw new Error(
+                    `Unsupported EasyMaker analog sensor port: ${portId}`
+                );
+            }
+
+            return {
+                type: 'AnalogReadExpression',
+                pin: port.pin
+            };
+        }
 
         case DIGITAL_READ_OPCODE:
             return {

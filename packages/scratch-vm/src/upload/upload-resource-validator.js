@@ -199,6 +199,7 @@ class UploadResourceValidator {
         const trafficLightPortIds = new Set();
 
         const digitalReadPins = new Set();
+        const analogReadPins = new Set();
         const ultrasonicPins = new Set();
         const dhtPins = new Set();
 
@@ -539,6 +540,7 @@ class UploadResourceValidator {
         this._validateStatementExpressions(
             analysisStatements,
             digitalReadPins,
+            analogReadPins,
             ultrasonicPins,
             dhtPins
         );
@@ -551,6 +553,7 @@ class UploadResourceValidator {
             pwmWritePins,
             digitalWritePins,
             digitalReadPins,
+            analogReadPins,
             ultrasonicPins,
             dhtPins,
             displayGpioPins,
@@ -592,6 +595,7 @@ class UploadResourceValidator {
             pwmWritePins,
             digitalWritePins,
             digitalReadPins,
+            analogReadPins,
             ultrasonicPins,
             dhtPins
         ];
@@ -702,6 +706,80 @@ class UploadResourceValidator {
                 throw new Error(
                     'DigitalRead and Servo cannot use the same pin'
                 );
+            }
+
+            if (motorPins.has(pin)) {
+                throw new Error(
+                    'DigitalRead and Motor cannot use the same pin'
+                );
+            }
+
+            if (tonePins.has(pin)) {
+                throw new Error(
+                    'DigitalRead and Tone cannot use the same pin'
+                );
+            }
+
+            if (relayPins.has(pin)) {
+                throw new Error(
+                    'DigitalRead and Relay cannot use the same pin'
+                );
+            }
+
+            if (pwmWritePins.has(pin)) {
+                throw new Error(
+                    'DigitalRead and PWM cannot use the same pin'
+                );
+            }
+
+            if (digitalWritePins.has(pin)) {
+                throw new Error(
+                    'DigitalRead and DigitalWrite cannot use the same pin'
+                );
+            }
+
+            if (ultrasonicPins.has(pin)) {
+                throw new Error(
+                    'DigitalRead and Ultrasonic cannot use the same pin'
+                );
+            }
+
+            if (dhtPins.has(pin)) {
+                throw new Error(
+                    'DigitalRead and DHT cannot use the same pin'
+                );
+            }
+        }
+
+        for (const pin of analogReadPins) {
+            if (ultrasonicPins.has(pin)) {
+                throw new Error(
+                    'AnalogRead and Ultrasonic cannot use the same pin'
+                );
+            }
+        }
+
+        if (joystickInitialization) {
+            const joystickPins = new Set([
+                joystickInitialization.xPin,
+                joystickInitialization.yPin,
+                joystickInitialization.clickPin
+            ]);
+
+            for (const pin of digitalReadPins) {
+                if (joystickPins.has(pin)) {
+                    throw new Error(
+                        'DigitalRead and Joystick cannot use the same pin'
+                    );
+                }
+            }
+
+            for (const pin of analogReadPins) {
+                if (joystickPins.has(pin)) {
+                    throw new Error(
+                        'AnalogRead and Joystick cannot use the same pin'
+                    );
+                }
             }
         }
 
@@ -830,6 +908,7 @@ class UploadResourceValidator {
     _validateStatementExpressions (
         statements,
         digitalReadPins,
+        analogReadPins,
         ultrasonicPins,
         dhtPins
     ) {
@@ -837,6 +916,7 @@ class UploadResourceValidator {
             this._validateExpression(
                 statement,
                 digitalReadPins,
+                analogReadPins,
                 ultrasonicPins,
                 dhtPins
             );
@@ -852,6 +932,7 @@ class UploadResourceValidator {
     _validateExpression (
         expression,
         digitalReadPins,
+        analogReadPins,
         ultrasonicPins,
         dhtPins
     ) {
@@ -875,6 +956,8 @@ class UploadResourceValidator {
         }
 
         if (expression.type === 'AnalogReadExpression') {
+            analogReadPins.add(expression.pin);
+
             const supportedAnalogPins =
                 Array.isArray(this.boardProfile.analogPins) ?
                     this.boardProfile.analogPins :
@@ -920,6 +1003,7 @@ class UploadResourceValidator {
                     this._validateExpression(
                         item,
                         digitalReadPins,
+                        analogReadPins,
                         ultrasonicPins,
                         dhtPins
                     );
@@ -928,6 +1012,7 @@ class UploadResourceValidator {
                 this._validateExpression(
                     value,
                     digitalReadPins,
+                    analogReadPins,
                     ultrasonicPins,
                     dhtPins
                 );
