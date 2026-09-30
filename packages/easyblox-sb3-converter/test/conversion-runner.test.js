@@ -323,7 +323,7 @@ test(
 );
 
 test(
-    'conversion runner applies structural mappings while preserving review items',
+    'conversion runner applies structural mappings while quarantining review items safely',
     () => {
         const project = {
             boardSelected:
@@ -480,13 +480,45 @@ test(
             '00FFAA558101187E'
         );
 
-        assert.deepEqual(
+        assert.equal(
             result.project
                 .targets[0]
                 .blocks
                 .unsupported,
+            undefined,
+            'unsupported PictoBlox block is removed from the active workspace'
+        );
+
+        assert.equal(
+            result.report
+                .isLoadSafe,
+            true
+        );
+
+        assert.equal(
+            result.report
+                .safeLoad
+                .quarantinedScriptCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .safeLoad
+                .quarantinedReviewBlockCount,
+            1
+        );
+
+        assert.deepEqual(
+            result.project
+                .easybloxProject
+                .conversionReview
+                .quarantinedScripts[0]
+                .blocks
+                .unsupported,
             original.targets[0]
-                .blocks.unsupported
+                .blocks.unsupported,
+            'unsupported block is preserved intact in conversion review metadata'
         );
 
         assert.equal(

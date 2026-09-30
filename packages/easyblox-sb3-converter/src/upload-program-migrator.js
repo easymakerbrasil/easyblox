@@ -1132,5 +1132,6 @@ const migratePictoBloxProjectStructure =
     };
 
 module.exports = {
-    migratePictoBloxProjectStructure
+    migratePictoBloxProjectStructure,
+    normalizeProjectExtensions
 };

@@ -393,6 +393,7 @@ class VirtualMachine extends EventEmitter {
         this._easybloxProgramMode = 'stage';
         this._easybloxActiveBoardId = null;
         this._easybloxSelectedBoardId = null;
+        this._easybloxConversionReview = null;
         this.runtime.restoreEasyBloxQrCodes([]);
         this.runtime.restoreEasyBloxQrOverlayPosition(
             null
@@ -847,6 +848,20 @@ class VirtualMachine extends EventEmitter {
                 qrOverlayPosition:
                     this.getEasyBloxQrOverlayPosition()
             };
+
+            if (
+                this._easybloxConversionReview
+            ) {
+                serializedProject
+                    .easybloxProject
+                    .conversionReview =
+                        JSON.parse(
+                            JSON.stringify(
+                                this
+                                    ._easybloxConversionReview
+                            )
+                        );
+            }
         }
 
         return StringUtil.stringify(serializedProject);
@@ -906,6 +921,24 @@ class VirtualMachine extends EventEmitter {
                 selectedBoardId ?
                     'upload' :
                     'stage';
+
+            const conversionReview =
+                serializedEasyBloxProject
+                    .conversionReview;
+
+            this._easybloxConversionReview =
+                conversionReview &&
+                typeof conversionReview ===
+                    'object' &&
+                !Array.isArray(
+                    conversionReview
+                ) ?
+                    JSON.parse(
+                        JSON.stringify(
+                            conversionReview
+                        )
+                    ) :
+                    null;
 
             this.runtime.restoreEasyBloxQrCodes(
                 serializedEasyBloxProject.qrCodes
@@ -2120,6 +2153,24 @@ class VirtualMachine extends EventEmitter {
                     'upload' :
                     'stage'
         };
+    }
+
+    /**
+     * Return conversion review metadata preserved from an imported project.
+     * @returns {?object} Defensive copy of conversion review metadata.
+     */
+    getEasyBloxConversionReview () {
+        if (
+            !this._easybloxConversionReview
+        ) {
+            return null;
+        }
+
+        return JSON.parse(
+            JSON.stringify(
+                this._easybloxConversionReview
+            )
+        );
     }
 
     /**

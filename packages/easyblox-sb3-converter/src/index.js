@@ -16,6 +16,10 @@ const {
 } = require('./upload-program-migrator');
 
 const {
+    quarantineUnsafeReviewContent
+} = require('./review-quarantine');
+
+const {
     PROJECT_ORIGINS,
     detectSb3ProjectOrigin,
     analyzeExternalSb3Project,
@@ -28,6 +32,7 @@ module.exports = {
     convertPictoBloxProjectSimple,
     convertPictoBloxProjectStructural,
     migratePictoBloxProjectStructure,
+    quarantineUnsafeReviewContent,
     PROJECT_ORIGINS,
     detectSb3ProjectOrigin,
     analyzeExternalSb3Project,

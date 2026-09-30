@@ -94,7 +94,24 @@ test(
                             y:
                                 40
                         },
-
+                        legacyDisplay: {
+                            opcode:
+                                'displayModule_write',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true,
+                            x:
+                                140,
+                            y:
+                                40
+                        },
                         uploadHat: {
                             opcode:
                                 'arduinoUno_arduinoUnoStartUp',
@@ -196,6 +213,31 @@ test(
                 .easybloxProject
                 .programMode,
             'upload'
+        );
+
+        assert.equal(
+            converted.report
+                .isLoadSafe,
+            true
+        );
+
+        assert.equal(
+            converted.project
+                .targets[0]
+                .blocks
+                .legacyDisplay,
+            undefined
+        );
+
+        assert.equal(
+            converted.project
+                .easybloxProject
+                .conversionReview
+                .quarantinedScripts[0]
+                .blocks
+                .legacyDisplay
+                .opcode,
+            'displayModule_write'
         );
 
         assert.ok(
@@ -375,9 +417,15 @@ test(
                     vm.toJSON()
                 );
 
-            assert.deepEqual(
+            const {
+                conversionReview,
+                ...reserializedProjectContext
+            } =
                 reserialized
-                    .easybloxProject,
+                    .easybloxProject;
+
+            assert.deepEqual(
+                reserializedProjectContext,
                 {
                     schemaVersion:
                         1,
@@ -390,6 +438,25 @@ test(
                     qrOverlayPosition:
                         'topRight'
                 }
+            );
+
+            assert.ok(
+                conversionReview,
+                'conversion review metadata survives the real VM round-trip'
+            );
+
+            assert.equal(
+                conversionReview
+                    .quarantinedScripts[0]
+                    .blocks
+                    .legacyDisplay
+                    .opcode,
+                'displayModule_write'
+            );
+
+            assert.deepEqual(
+                vm.getEasyBloxConversionReview(),
+                conversionReview
             );
 
             assert.ok(

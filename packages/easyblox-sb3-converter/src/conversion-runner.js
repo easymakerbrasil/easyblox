@@ -18,6 +18,10 @@ const {
     migratePictoBloxProjectStructure
 } = require('./upload-program-migrator');
 
+const {
+    quarantineUnsafeReviewContent
+} = require('./review-quarantine');
+
 const PROJECT_ORIGINS =
     Object.freeze({
         EASYBLOX:
@@ -177,6 +181,48 @@ const convertExternalSb3Project =
         const projectStructureReport =
             projectStructure.report;
 
+        const safeLoad =
+            projectStructureReport
+                .deferred
+                .length ===
+                0 ?
+                quarantineUnsafeReviewContent(
+                    projectStructure.project
+                ) :
+                {
+                    project:
+                        projectStructure.project,
+
+                    report: {
+                        isLoadSafe:
+                            false,
+
+                        skippedReason:
+                            'project-structure-deferred',
+
+                        quarantinedScriptCount:
+                            0,
+
+                        quarantinedUploadProgramCount:
+                            0,
+
+                        quarantinedBlockCount:
+                            0,
+
+                        quarantinedReviewBlockCount:
+                            0,
+
+                        remainingUnsafeBlockCount:
+                            0,
+
+                        remainingUnsafeBlocks:
+                            []
+                    }
+                };
+
+        const safeLoadReport =
+            safeLoad.report;
+
         const metadataCleanup =
             projectStructureReport
                 .metadataCleanup ||
@@ -223,9 +269,12 @@ const convertExternalSb3Project =
                 true,
 
             project:
-                projectStructure.project,
+                safeLoad.project,
 
             report: {
+                isLoadSafe:
+                safeLoadReport
+                    .isLoadSafe,
                 processedBlockCount:
                     analysis
                         .plan
@@ -268,6 +317,9 @@ const convertExternalSb3Project =
                         .length >
                         0 ||
                     removedProjectMetadataCount >
+                        0 ||
+                    safeLoadReport
+                        .quarantinedReviewBlockCount >
                         0,
 
                 plan:
@@ -295,7 +347,10 @@ const convertExternalSb3Project =
                 },
 
                 projectStructure:
-                    projectStructureReport
+                    projectStructureReport,
+
+                safeLoad:
+                    safeLoadReport
             }
         };
     };
