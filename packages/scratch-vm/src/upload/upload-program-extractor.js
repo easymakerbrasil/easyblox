@@ -58,6 +58,8 @@ const EASYMAKER_RGB_LED_DIGITAL_WRITE_OPCODE =
     'actuators_rgbLedDigitalWrite';
 const EASYMAKER_RGB_LED_PWM_WRITE_OPCODE =
     'actuators_rgbLedPwmWrite';
+const EASYMAKER_TRAFFIC_LIGHT_WRITE_OPCODE =
+    'actuators_trafficLightWrite';
 const SERIAL_BEGIN_OPCODE = 'serial_serialBegin';
 const SERIAL_WRITE_OPCODE = 'serial_serialWrite';
 const SERIAL_WRITE_LINE_OPCODE = 'serial_serialWriteLine';
@@ -891,6 +893,69 @@ class UploadProgramExtractor {
                         block,
                         'VALUE'
                     ) :
+                    this._readDigitalValue(
+                        blocks,
+                        block,
+                        'STATE'
+                    )
+            };
+        }
+
+        case EASYMAKER_TRAFFIC_LIGHT_WRITE_OPCODE: {
+            const portId =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'PORT'
+                );
+
+            const port =
+                EasyMakerProductProfile
+                    .devices
+                    .trafficLight
+                    .ports[portId];
+
+            if (!port) {
+                throw new Error(
+                    `Traffic light port is not supported by EasyMaker: ${portId}`
+                );
+            }
+
+            const color =
+                this._readMenuValue(
+                    blocks,
+                    block,
+                    'COLOR'
+                ).toUpperCase();
+
+            const pinsByColor = {
+                GREEN: port.greenPin,
+                YELLOW: port.yellowPin,
+                RED: port.redPin
+            };
+
+            const pin =
+                pinsByColor[color];
+
+            if (!Number.isInteger(pin)) {
+                throw new Error(
+                    `Traffic light color is not supported by EasyMaker: ${color}`
+                );
+            }
+
+            const reservedPins = [
+                port.greenPin,
+                port.yellowPin,
+                port.redPin
+            ];
+
+            return {
+                type: 'TrafficLightWrite',
+                portId,
+                color,
+                pin,
+                reservedPins,
+                state:
                     this._readDigitalValue(
                         blocks,
                         block,

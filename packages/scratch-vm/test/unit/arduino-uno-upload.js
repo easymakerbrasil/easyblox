@@ -5313,6 +5313,356 @@ tap.test('Arduino UNO Upload generates EasyMaker RGB LED C++', t => {
     t.end();
 });
 
+tap.test('Arduino UNO Upload extracts EasyMaker traffic light into semantic IR', t => {
+    const runtime = createRuntimeWithBlocks([
+        createUploadHat('traffic_equal'),
+        {
+            id: 'traffic_equal',
+            opcode:
+                'actuators_trafficLightWrite',
+            next: 'traffic_exclamation',
+            parent: 'upload_hat',
+            inputs: {
+                PORT: {
+                    name: 'PORT',
+                    block:
+                        'traffic_equal_port',
+                    shadow:
+                        'traffic_equal_port'
+                },
+                COLOR: {
+                    name: 'COLOR',
+                    block:
+                        'traffic_equal_color',
+                    shadow:
+                        'traffic_equal_color'
+                },
+                STATE: {
+                    name: 'STATE',
+                    block:
+                        'traffic_equal_state',
+                    shadow:
+                        'traffic_equal_state'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'traffic_equal_port',
+            'traffic_equal',
+            'actuators_menu_easyMakerTrafficLightPorts',
+            'easyMakerTrafficLightPorts',
+            'digital-d4-d7-d8'
+        ),
+        createExtensionMenuShadow(
+            'traffic_equal_color',
+            'traffic_equal',
+            'actuators_menu_trafficLightColors',
+            'trafficLightColors',
+            'RED'
+        ),
+        createExtensionMenuShadow(
+            'traffic_equal_state',
+            'traffic_equal',
+            'actuators_menu_ledStates',
+            'ledStates',
+            1
+        ),
+        {
+            id: 'traffic_exclamation',
+            opcode:
+                'actuators_trafficLightWrite',
+            next: null,
+            parent: 'traffic_equal',
+            inputs: {
+                PORT: {
+                    name: 'PORT',
+                    block:
+                        'traffic_exclamation_port',
+                    shadow:
+                        'traffic_exclamation_port'
+                },
+                COLOR: {
+                    name: 'COLOR',
+                    block:
+                        'traffic_exclamation_color',
+                    shadow:
+                        'traffic_exclamation_color'
+                },
+                STATE: {
+                    name: 'STATE',
+                    block:
+                        'traffic_exclamation_state',
+                    shadow:
+                        'traffic_exclamation_state'
+                }
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        },
+        createExtensionMenuShadow(
+            'traffic_exclamation_port',
+            'traffic_exclamation',
+            'actuators_menu_easyMakerTrafficLightPorts',
+            'easyMakerTrafficLightPorts',
+            'digital-d9-d10-d11'
+        ),
+        createExtensionMenuShadow(
+            'traffic_exclamation_color',
+            'traffic_exclamation',
+            'actuators_menu_trafficLightColors',
+            'trafficLightColors',
+            'YELLOW'
+        ),
+        createExtensionMenuShadow(
+            'traffic_exclamation_state',
+            'traffic_exclamation',
+            'actuators_menu_ledStates',
+            'ledStates',
+            0
+        )
+    ]);
+
+    const extractor =
+        new UploadProgramExtractor(runtime);
+
+    t.same(
+        extractor.extract(),
+        {
+            setup: [
+                {
+                    type:
+                        'TrafficLightWrite',
+                    portId:
+                        'digital-d4-d7-d8',
+                    color: 'RED',
+                    pin: 8,
+                    reservedPins:
+                        [4, 7, 8],
+                    state: true
+                },
+                {
+                    type:
+                        'TrafficLightWrite',
+                    portId:
+                        'digital-d9-d10-d11',
+                    color: 'YELLOW',
+                    pin: 10,
+                    reservedPins:
+                        [9, 10, 11],
+                    state: false
+                }
+            ],
+            loop: []
+        }
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload type validator accepts EasyMaker traffic light semantic IR', t => {
+    const validator =
+        new UploadTypeValidator();
+
+    const ir = {
+        setup: [
+            {
+                type: 'TrafficLightWrite',
+                portId:
+                    'digital-d4-d7-d8',
+                color: 'GREEN',
+                pin: 4,
+                reservedPins: [4, 7, 8],
+                state: true
+            },
+            {
+                type: 'TrafficLightWrite',
+                portId:
+                    'digital-d9-d10-d11',
+                color: 'RED',
+                pin: 11,
+                reservedPins:
+                    [9, 10, 11],
+                state: false
+            }
+        ],
+        loop: []
+    };
+
+    t.equal(
+        validator.validate(ir),
+        ir
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload reserves the whole EasyMaker traffic light exclamation connector against Servo', t => {
+    const validator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const ir = {
+        setup: [
+            {
+                type: 'TrafficLightWrite',
+                portId:
+                    'digital-d9-d10-d11',
+                color: 'GREEN',
+                pin: 9,
+                reservedPins:
+                    [9, 10, 11],
+                state: true
+            },
+            {
+                type: 'ServoWrite',
+                pin: 11,
+                angle: 90
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /DigitalWrite and Servo cannot use the same pin/,
+        'Servo D11 conflicts although traffic light actively writes only D9'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload reserves the whole EasyMaker traffic light equals connector against Motor 2', t => {
+    const validator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const ir = {
+        setup: [
+            {
+                type: 'TrafficLightWrite',
+                portId:
+                    'digital-d4-d7-d8',
+                color: 'GREEN',
+                pin: 4,
+                reservedPins: [4, 7, 8],
+                state: true
+            },
+            {
+                type: 'MotorWrite',
+                motor: 2,
+                direction: 0,
+                speedPercent: 100
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /Motor and DigitalWrite cannot use the same pin/,
+        'Motor 2 conflicts through reserved traffic-light D7/D8'
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload rejects RGB LED and traffic light on the same EasyMaker connector', t => {
+    const validator =
+        new UploadResourceValidator(
+            ArduinoUnoBoardProfile
+        );
+
+    const ir = {
+        setup: [
+            {
+                type: 'RgbLedWrite',
+                portId:
+                    'digital-d4-d7-d8',
+                mode: 'digital',
+                color: 'R',
+                pin: 4,
+                reservedPins: [4, 7, 8],
+                value: true
+            },
+            {
+                type: 'TrafficLightWrite',
+                portId:
+                    'digital-d4-d7-d8',
+                color: 'RED',
+                pin: 8,
+                reservedPins: [4, 7, 8],
+                state: true
+            }
+        ],
+        loop: []
+    };
+
+    t.throws(
+        () => validator.validate(ir),
+        /RGB LED and Traffic Light cannot use the same physical connector/
+    );
+
+    t.end();
+});
+
+tap.test('Arduino UNO Upload generates EasyMaker traffic light C++', t => {
+    const generator =
+        new ArduinoUnoGenerator();
+
+    const code = generator.generate({
+        setup: [
+            {
+                type: 'TrafficLightWrite',
+                portId:
+                    'digital-d4-d7-d8',
+                color: 'RED',
+                pin: 8,
+                reservedPins: [4, 7, 8],
+                state: true
+            },
+            {
+                type: 'TrafficLightWrite',
+                portId:
+                    'digital-d9-d10-d11',
+                color: 'YELLOW',
+                pin: 10,
+                reservedPins:
+                    [9, 10, 11],
+                state: false
+            }
+        ],
+        loop: []
+    });
+
+    t.match(
+        code,
+        /pinMode\(8, OUTPUT\);/
+    );
+
+    t.match(
+        code,
+        /digitalWrite\(8, HIGH\);/
+    );
+
+    t.match(
+        code,
+        /pinMode\(10, OUTPUT\);/
+    );
+
+    t.match(
+        code,
+        /digitalWrite\(10, LOW\);/
+    );
+
+    t.end();
+});
+
 tap.test('Arduino UNO Upload extracts RelayWrite into semantic IR', t => {
     const runtime = createRuntimeWithBlocks([
         createUploadHat('relay_write'),

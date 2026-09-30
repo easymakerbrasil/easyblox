@@ -47,7 +47,7 @@ test('Actuators expose the servo block and supported servo pins', t => {
     t.equal(info.color1, '#2E7D32');
     t.equal(info.color2, '#1B5E20');
     t.equal(info.color3, '#124116');
-    t.equal(info.blocks.length, 11);
+    t.equal(info.blocks.length, 12);
 
     const servoBlock = info.blocks[5];
 
@@ -832,6 +832,274 @@ test('Actuators hide EasyMaker RGB LED surfaces on generic boards', t => {
         extension.rgbLedPwmWrite({
             COLOR: 'R',
             VALUE: '128'
+        }),
+        null
+    );
+
+    t.end();
+});
+
+test('Actuators expose EasyMaker traffic light physical port surface', t => {
+    const calls = [];
+
+    const sharedPeripheral = {
+        digitalWrite: (pin, state) => {
+            calls.push({
+                pin,
+                state
+            });
+
+            return 49;
+        }
+    };
+
+    const runtime = {
+        getPeripheralExtension:
+            () => sharedPeripheral,
+
+        getEasyBloxSelectedBoardId:
+            () => EasyMakerProductProfile.id
+    };
+
+    const extension =
+        new Scratch3ActuatorsBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const trafficLightBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'trafficLightWrite'
+        );
+
+    t.ok(
+        trafficLightBlock,
+        'EasyMaker exposes the traffic light block'
+    );
+
+    t.equal(
+        trafficLightBlock.hideFromPalette,
+        false,
+        'traffic light block is visible for EasyMaker'
+    );
+
+    t.equal(
+        trafficLightBlock.text,
+        'definir semáforo na porta [PORT] [COLOR] como [STATE]'
+    );
+
+    t.equal(
+        trafficLightBlock.arguments.PORT.menu,
+        'easyMakerTrafficLightPorts'
+    );
+
+    t.equal(
+        trafficLightBlock.arguments.COLOR.menu,
+        'trafficLightColors'
+    );
+
+    t.equal(
+        trafficLightBlock.arguments.STATE.menu,
+        'ledStates'
+    );
+
+    t.same(
+        info.menus
+            .easyMakerTrafficLightPorts
+            .items
+            .map(item => ({
+                alt: item.text.alt,
+                value: item.value
+            })),
+        [
+            {
+                alt: 'porta igual',
+                value:
+                    'digital-d4-d7-d8'
+            },
+            {
+                alt: 'porta exclamação',
+                value:
+                    'digital-d9-d10-d11'
+            }
+        ]
+    );
+
+    t.ok(
+        info.menus
+            .easyMakerTrafficLightPorts
+            .items
+            .every(
+                item =>
+                    /^data:image\/svg\+xml,/
+                        .test(item.text.src)
+            ),
+        'traffic light ports use the physical SVG symbols'
+    );
+
+    t.same(
+        info.menus
+            .trafficLightColors
+            .items,
+        [
+            {
+                text: 'verde',
+                value: 'GREEN'
+            },
+            {
+                text: 'amarelo',
+                value: 'YELLOW'
+            },
+            {
+                text: 'vermelho',
+                value: 'RED'
+            }
+        ]
+    );
+
+    t.equal(
+        extension.trafficLightWrite({
+            PORT:
+                'digital-d4-d7-d8',
+            COLOR: 'GREEN',
+            STATE: '1'
+        }),
+        49
+    );
+
+    t.equal(
+        extension.trafficLightWrite({
+            PORT:
+                'digital-d4-d7-d8',
+            COLOR: 'RED',
+            STATE: '0'
+        }),
+        49
+    );
+
+    t.equal(
+        extension.trafficLightWrite({
+            PORT:
+                'digital-d9-d10-d11',
+            COLOR: 'YELLOW',
+            STATE: '1'
+        }),
+        49
+    );
+
+    t.equal(
+        extension.trafficLightWrite({
+            PORT:
+                'digital-d9-d10-d11',
+            COLOR: 'RED',
+            STATE: '0'
+        }),
+        49
+    );
+
+    t.equal(
+        extension.trafficLightWrite({
+            PORT: 'invalid-port',
+            COLOR: 'GREEN',
+            STATE: '1'
+        }),
+        null,
+        'traffic light rejects unknown physical ports'
+    );
+
+    t.equal(
+        extension.trafficLightWrite({
+            PORT:
+                'digital-d4-d7-d8',
+            COLOR: 'BLUE',
+            STATE: '1'
+        }),
+        null,
+        'traffic light rejects unknown colors'
+    );
+
+    t.equal(
+        extension.trafficLightWrite({
+            PORT:
+                'digital-d4-d7-d8',
+            COLOR: 'GREEN',
+            STATE: '2'
+        }),
+        null,
+        'traffic light rejects invalid digital states'
+    );
+
+    t.same(
+        calls,
+        [
+            {
+                pin: 4,
+                state: 1
+            },
+            {
+                pin: 8,
+                state: 0
+            },
+            {
+                pin: 10,
+                state: 1
+            },
+            {
+                pin: 11,
+                state: 0
+            }
+        ],
+        'traffic light resolves both EasyMaker physical connectors'
+    );
+
+    t.end();
+});
+
+test('Actuators hide EasyMaker traffic light surface on generic boards', t => {
+    const runtime = {
+        getPeripheralExtension:
+            () => ({
+                digitalWrite: () => 1
+            }),
+
+        getEasyBloxSelectedBoardId:
+            () => null
+    };
+
+    const extension =
+        new Scratch3ActuatorsBlocks(runtime);
+
+    const info =
+        extension.getInfo();
+
+    const trafficLightBlock =
+        info.blocks.find(
+            block =>
+                block &&
+                block.opcode ===
+                    'trafficLightWrite'
+        );
+
+    t.ok(
+        trafficLightBlock,
+        'traffic light metadata remains registered'
+    );
+
+    t.equal(
+        trafficLightBlock.hideFromPalette,
+        true,
+        'traffic light surface is hidden on generic boards'
+    );
+
+    t.equal(
+        extension.trafficLightWrite({
+            PORT:
+                'digital-d4-d7-d8',
+            COLOR: 'GREEN',
+            STATE: '1'
         }),
         null
     );

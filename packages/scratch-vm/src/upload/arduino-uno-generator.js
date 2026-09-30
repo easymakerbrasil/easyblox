@@ -1941,7 +1941,8 @@ class ArduinoUnoGenerator {
                 statement.type === 'DigitalWrite' ||
                 statement.type === 'PwmWrite' ||
                 statement.type === 'RelayWrite' ||
-                statement.type === 'RgbLedWrite'
+                statement.type === 'RgbLedWrite' ||
+                statement.type === 'TrafficLightWrite'
             ) {
                 pins.add(statement.pin);
             } else if (
@@ -3076,6 +3077,16 @@ class ArduinoUnoGenerator {
 
                 break;
             }
+
+            case 'TrafficLightWrite':
+                lines.push(
+                    `${indent}digitalWrite(${statement.pin}, ${
+                        statement.state ?
+                            'HIGH' :
+                            'LOW'
+                    });`
+                );
+                break;
 
             case 'ToneStart':
                 lines.push(

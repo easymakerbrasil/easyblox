@@ -3128,6 +3128,173 @@ test('VirtualMachine uses EasyMaker RGB LED physical ports in Upload', t => {
     t.end();
 });
 
+test('VirtualMachine uses EasyMaker traffic light physical ports in Upload', t => {
+    const vm = new VirtualMachine();
+
+    loadCanonicalArduinoUnoUploadProgram(
+        vm,
+        [
+            createUploadHat(
+                'traffic_equal'
+            ),
+            {
+                id: 'traffic_equal',
+                opcode:
+                    'actuators_trafficLightWrite',
+                next:
+                    'traffic_exclamation',
+                parent: 'upload_hat',
+                inputs: {
+                    PORT: {
+                        name: 'PORT',
+                        block:
+                            'traffic_equal_port',
+                        shadow:
+                            'traffic_equal_port'
+                    },
+                    COLOR: {
+                        name: 'COLOR',
+                        block:
+                            'traffic_equal_color',
+                        shadow:
+                            'traffic_equal_color'
+                    },
+                    STATE: {
+                        name: 'STATE',
+                        block:
+                            'traffic_equal_state',
+                        shadow:
+                            'traffic_equal_state'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'traffic_equal_port',
+                'traffic_equal',
+                'actuators_menu_easyMakerTrafficLightPorts',
+                'easyMakerTrafficLightPorts',
+                'digital-d4-d7-d8'
+            ),
+            createExtensionMenuShadow(
+                'traffic_equal_color',
+                'traffic_equal',
+                'actuators_menu_trafficLightColors',
+                'trafficLightColors',
+                'RED'
+            ),
+            createExtensionMenuShadow(
+                'traffic_equal_state',
+                'traffic_equal',
+                'actuators_menu_ledStates',
+                'ledStates',
+                1
+            ),
+            {
+                id:
+                    'traffic_exclamation',
+                opcode:
+                    'actuators_trafficLightWrite',
+                next: null,
+                parent:
+                    'traffic_equal',
+                inputs: {
+                    PORT: {
+                        name: 'PORT',
+                        block:
+                            'traffic_exclamation_port',
+                        shadow:
+                            'traffic_exclamation_port'
+                    },
+                    COLOR: {
+                        name: 'COLOR',
+                        block:
+                            'traffic_exclamation_color',
+                        shadow:
+                            'traffic_exclamation_color'
+                    },
+                    STATE: {
+                        name: 'STATE',
+                        block:
+                            'traffic_exclamation_state',
+                        shadow:
+                            'traffic_exclamation_state'
+                    }
+                },
+                fields: {},
+                topLevel: false,
+                shadow: false
+            },
+            createExtensionMenuShadow(
+                'traffic_exclamation_port',
+                'traffic_exclamation',
+                'actuators_menu_easyMakerTrafficLightPorts',
+                'easyMakerTrafficLightPorts',
+                'digital-d9-d10-d11'
+            ),
+            createExtensionMenuShadow(
+                'traffic_exclamation_color',
+                'traffic_exclamation',
+                'actuators_menu_trafficLightColors',
+                'trafficLightColors',
+                'YELLOW'
+            ),
+            createExtensionMenuShadow(
+                'traffic_exclamation_state',
+                'traffic_exclamation',
+                'actuators_menu_ledStates',
+                'ledStates',
+                0
+            )
+        ],
+        'easymaker'
+    );
+
+    const code =
+        vm.generateArduinoUnoUploadCode(
+            'easymaker'
+        );
+
+    t.match(
+        code,
+        /pinMode\(8, OUTPUT\);/,
+        'EasyMaker configures equals red traffic-light signal'
+    );
+
+    t.match(
+        code,
+        /digitalWrite\(8, HIGH\);/,
+        'EasyMaker equals red resolves to D8'
+    );
+
+    t.match(
+        code,
+        /pinMode\(10, OUTPUT\);/,
+        'EasyMaker configures exclamation yellow traffic-light signal'
+    );
+
+    t.match(
+        code,
+        /digitalWrite\(10, LOW\);/,
+        'EasyMaker exclamation yellow resolves to D10'
+    );
+
+    const bundle =
+        vm.generateArduinoUnoUploadBuildBundle(
+            'easymaker'
+        );
+
+    t.equal(
+        bundle.code,
+        code,
+        'preview and physical build use the same EasyMaker traffic-light wiring'
+    );
+
+    t.end();
+});
+
 test('VirtualMachine uses EasyMaker simple digital relay ports in Upload', t => {
     const vm = new VirtualMachine();
 

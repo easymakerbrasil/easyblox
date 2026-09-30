@@ -517,6 +517,68 @@ class UploadTypeValidator {
                 break;
             }
 
+            case 'TrafficLightWrite': {
+                if (
+                    statement.portId !==
+                        'digital-d4-d7-d8' &&
+                    statement.portId !==
+                        'digital-d9-d10-d11'
+                ) {
+                    throw new Error(
+                        'Traffic light port must be a supported EasyMaker physical connector'
+                    );
+                }
+
+                if (
+                    statement.color !== 'GREEN' &&
+                    statement.color !== 'YELLOW' &&
+                    statement.color !== 'RED'
+                ) {
+                    throw new Error(
+                        'Traffic light color must be GREEN, YELLOW or RED'
+                    );
+                }
+
+                if (!Number.isInteger(statement.pin)) {
+                    throw new Error(
+                        'Traffic light pin must be an integer'
+                    );
+                }
+
+                if (
+                    !Array.isArray(
+                        statement.reservedPins
+                    ) ||
+                    statement.reservedPins.length !==
+                        3 ||
+                    statement.reservedPins.some(
+                        pin =>
+                            !Number.isInteger(pin)
+                    ) ||
+                    new Set(
+                        statement.reservedPins
+                    ).size !== 3 ||
+                    !statement.reservedPins.includes(
+                        statement.pin
+                    )
+                ) {
+                    throw new Error(
+                        'Traffic light reserved pins must contain three unique integer pins including the active pin'
+                    );
+                }
+
+                if (
+                    typeof statement.state !==
+                    'boolean'
+                ) {
+                    throw new Error(
+                        'Traffic light state must be boolean'
+                    );
+                }
+
+                break;
+            }
+
             case 'ServoWrite':
                 this._validateRuntimeNumericValue(
                     statement.angle,

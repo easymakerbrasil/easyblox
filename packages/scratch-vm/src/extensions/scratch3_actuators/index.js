@@ -155,6 +155,48 @@ class Scratch3ActuatorsBlocks {
                 };
             });
 
+            const easyMakerTrafficLightPortMenuItems =
+            Object.keys(
+                EasyMakerProductProfile
+                    .devices
+                    .trafficLight
+                    .ports
+            ).map(physicalPortId => {
+                const physicalPort =
+                    easyMakerPhysicalPorts.find(
+                        candidate =>
+                            candidate.id ===
+                            physicalPortId
+                    );
+
+                const symbol =
+                    physicalPort ?
+                        EasyMakerPortSymbols[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                const alt =
+                    physicalPort ?
+                        EASYMAKER_SIMPLE_DIGITAL_PORT_ALT_LABELS[
+                            physicalPort.symbolId
+                        ] :
+                        null;
+
+                return {
+                    text:
+                        symbol && alt ?
+                            {
+                                src: symbol.dataURI,
+                                width: symbol.width,
+                                height: symbol.height,
+                                alt
+                            } :
+                            physicalPortId,
+                    value: physicalPortId
+                };
+            });
+
         const easyMakerRgbDigitalPort =
             easyMakerPhysicalPorts.find(
                 candidate =>
@@ -403,6 +445,33 @@ class Scratch3ActuatorsBlocks {
                         }
                     }
                 },
+                {
+                    opcode: 'trafficLightWrite',
+                    blockType: BlockType.COMMAND,
+                    hideFromPalette:
+                        !useEasyMakerSurface,
+                    text:
+                        'definir semáforo na porta [PORT] [COLOR] como [STATE]',
+                    arguments: {
+                        PORT: {
+                            type: ArgumentType.STRING,
+                            menu:
+                                'easyMakerTrafficLightPorts',
+                            defaultValue:
+                                'digital-d4-d7-d8'
+                        },
+                        COLOR: {
+                            type: ArgumentType.STRING,
+                            menu: 'trafficLightColors',
+                            defaultValue: 'GREEN'
+                        },
+                        STATE: {
+                            type: ArgumentType.STRING,
+                            menu: 'ledStates',
+                            defaultValue: '1'
+                        }
+                    }
+                },
             ],
             menus: {
                 servoPins: {
@@ -517,6 +586,30 @@ class Scratch3ActuatorsBlocks {
                         {text: 'R', value: 'R'},
                         {text: 'G', value: 'G'},
                         {text: 'B', value: 'B'}
+                    ]
+                },
+
+                easyMakerTrafficLightPorts: {
+                    acceptReporters: true,
+                    items:
+                        easyMakerTrafficLightPortMenuItems
+                },
+
+                trafficLightColors: {
+                    acceptReporters: true,
+                    items: [
+                        {
+                            text: 'verde',
+                            value: 'GREEN'
+                        },
+                        {
+                            text: 'amarelo',
+                            value: 'YELLOW'
+                        },
+                        {
+                            text: 'vermelho',
+                            value: 'RED'
+                        }
                     ]
                 },
 
@@ -903,6 +996,58 @@ class Scratch3ActuatorsBlocks {
         return this._peripheral.pwmWrite(
             pin,
             value
+        );
+    }
+
+    /**
+     * Set one EasyMaker traffic-light signal HIGH or LOW.
+     * The selected physical connector determines the fixed signal pins.
+     * @param {object} args Scratch block arguments.
+     * @returns {?number} Command sequence number or null when unavailable.
+     */
+    trafficLightWrite (args) {
+        if (!this._isEasyMakerSelected()) {
+            return null;
+        }
+
+        const portId =
+            String(args.PORT);
+
+        const color =
+            String(args.COLOR).toUpperCase();
+
+        const state =
+            Number(args.STATE);
+
+        const port =
+            EasyMakerProductProfile
+                .devices
+                .trafficLight
+                .ports[portId];
+
+        if (!port) {
+            return null;
+        }
+
+        const pinsByColor = {
+            GREEN: port.greenPin,
+            YELLOW: port.yellowPin,
+            RED: port.redPin
+        };
+
+        const pin =
+            pinsByColor[color];
+
+        if (
+            !Number.isInteger(pin) ||
+            (state !== 0 && state !== 1)
+        ) {
+            return null;
+        }
+
+        return this._peripheral.digitalWrite(
+            pin,
+            state
         );
     }
 }

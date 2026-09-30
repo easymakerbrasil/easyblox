@@ -194,6 +194,10 @@ class UploadResourceValidator {
         const relayPins = new Set();
         const pwmWritePins = new Set();
         const digitalWritePins = new Set();
+
+        const rgbLedPortIds = new Set();
+        const trafficLightPortIds = new Set();
+
         const digitalReadPins = new Set();
         const ultrasonicPins = new Set();
         const dhtPins = new Set();
@@ -296,6 +300,20 @@ class UploadResourceValidator {
             analysisStatements,
             digitalWritePins
         );
+
+        this._collectEasyMakerExclusiveOutputPorts(
+            analysisStatements,
+            rgbLedPortIds,
+            trafficLightPortIds
+        );
+
+        for (const portId of trafficLightPortIds) {
+            if (rgbLedPortIds.has(portId)) {
+                throw new Error(
+                    'RGB LED and Traffic Light cannot use the same physical connector'
+                );
+            }
+        }
 
         const supportedDigitalWritePins =
             Array.isArray(
@@ -992,6 +1010,88 @@ class UploadResourceValidator {
     }
 
     /**
+     * Collect EasyMaker output devices which exclusively own one
+     * physical connector.
+     * @param {Array<object>} statements EasyBlox Upload IR statements.
+     * @param {Set<string>} rgbLedPortIds RGB LED physical connectors.
+     * @param {Set<string>} trafficLightPortIds Traffic-light connectors.
+     * @returns {void}
+     * @private
+     */
+    _collectEasyMakerExclusiveOutputPorts (
+        statements,
+        rgbLedPortIds,
+        trafficLightPortIds
+    ) {
+        for (const statement of statements) {
+            if (
+                statement.type ===
+                    'RgbLedWrite' &&
+                typeof statement.portId ===
+                    'string'
+            ) {
+                rgbLedPortIds.add(
+                    statement.portId
+                );
+            }
+
+            if (
+                statement.type ===
+                    'TrafficLightWrite' &&
+                typeof statement.portId ===
+                    'string'
+            ) {
+                trafficLightPortIds.add(
+                    statement.portId
+                );
+            }
+
+            if (
+                (
+                    statement.type === 'Repeat' ||
+                    statement.type === 'If'
+                ) &&
+                Array.isArray(statement.body)
+            ) {
+                this
+                    ._collectEasyMakerExclusiveOutputPorts(
+                        statement.body,
+                        rgbLedPortIds,
+                        trafficLightPortIds
+                    );
+            }
+
+            if (statement.type === 'IfElse') {
+                if (
+                    Array.isArray(
+                        statement.thenBody
+                    )
+                ) {
+                    this
+                        ._collectEasyMakerExclusiveOutputPorts(
+                            statement.thenBody,
+                            rgbLedPortIds,
+                            trafficLightPortIds
+                        );
+                }
+
+                if (
+                    Array.isArray(
+                        statement.elseBody
+                    )
+                ) {
+                    this
+                        ._collectEasyMakerExclusiveOutputPorts(
+                            statement.elseBody,
+                            rgbLedPortIds,
+                            trafficLightPortIds
+                        );
+                }
+            }
+        }
+    }
+
+    /**
      * Collect pins used by DigitalWrite statements.
      * @param {Array<object>} statements EasyBlox Upload IR statements.
      * @param {Set<number>} digitalWritePins DigitalWrite pins used by the program.
@@ -1005,9 +1105,19 @@ class UploadResourceValidator {
             }
 
             if (
-                statement.type === 'RgbLedWrite' &&
-                statement.mode === 'digital' &&
-                Array.isArray(statement.reservedPins)
+                (
+                    (
+                        statement.type ===
+                            'RgbLedWrite' &&
+                        statement.mode ===
+                            'digital'
+                    ) ||
+                    statement.type ===
+                        'TrafficLightWrite'
+                ) &&
+                Array.isArray(
+                    statement.reservedPins
+                )
             ) {
                 for (
                     const pin of
