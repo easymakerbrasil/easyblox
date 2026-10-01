@@ -103,7 +103,17 @@ const RAW_MAPPING_ENTRIES = [
                     source:
                         'input',
                     sourceName:
-                        'SPEED'
+                        'SPEED',
+                    shadowTransform: {
+                        sourceOpcode:
+                            'math_slider_0_100',
+                        targetOpcode:
+                            'easyblox_motor_speed',
+                        sourceField:
+                            'NUM',
+                        targetField:
+                            'NUM'
+                    }
                 }
             ])
     },
@@ -213,7 +223,17 @@ const RAW_MAPPING_ENTRIES = [
                     source:
                         'input',
                     sourceName:
-                        'ANGLE'
+                        'ANGLE',
+                    shadowTransform: {
+                        sourceOpcode:
+                            'math_slider_0_180',
+                        targetOpcode:
+                            'easyblox_servo_angle',
+                        sourceField:
+                            'NUM',
+                        targetField:
+                            'NUM'
+                    }
                 }
             ])
     },
@@ -727,7 +747,17 @@ const RAW_MAPPING_ENTRIES = [
                     source:
                         'input',
                     sourceName:
-                        'VALUE'
+                        'VALUE',
+                    shadowTransform: {
+                        sourceOpcode:
+                            'math_slider_0_255',
+                        targetOpcode:
+                            'easyblox_pwm_value',
+                        sourceField:
+                            'NUM',
+                        targetField:
+                            'NUM'
+                    }
                 }
             ])
     },

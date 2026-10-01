@@ -501,3 +501,435 @@ test(
         );
     }
 );
+
+test(
+    'structural converter maps typed numeric shadows and repairs uniquely referenced stale PictoBlox parent metadata',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    blocks: {
+                        servo: {
+                            opcode:
+                                'actuators_setServo',
+                            next:
+                                'pwm',
+                            parent:
+                                null,
+                            inputs: {
+                                ANGLE: [
+                                    3,
+                                    [
+                                        12,
+                                        'ANGLE',
+                                        'angleVariable'
+                                    ],
+                                    'servoShadow'
+                                ]
+                            },
+                            fields: {
+                                SERVO_CHANNEL: [
+                                    '9',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        servoShadow: {
+                            opcode:
+                                'math_slider_0_180',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {
+                                NUM: [
+                                    '90',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                true,
+                            topLevel:
+                                true,
+                            x:
+                                10,
+                            y:
+                                20
+                        },
+
+                        pwm: {
+                            opcode:
+                                'arduinoUno_setPWM',
+                            next:
+                                'motor',
+                            parent:
+                                'servo',
+                            inputs: {
+                                VALUE: [
+                                    1,
+                                    'pwmShadow'
+                                ]
+                            },
+                            fields: {
+                                PIN: [
+                                    '3',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        },
+
+                        pwmShadow: {
+                            opcode:
+                                'math_slider_0_255',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {
+                                NUM: [
+                                    '255',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                true,
+                            topLevel:
+                                true
+                        },
+
+                        motor: {
+                            opcode:
+                                'actuators_runMotor',
+                            next:
+                                null,
+                            parent:
+                                'pwm',
+                            inputs: {
+                                SPEED: [
+                                    1,
+                                    'motorShadow'
+                                ]
+                            },
+                            fields: {
+                                MOTOR: [
+                                    '1',
+                                    null
+                                ],
+                                DIRECTION: [
+                                    '1',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        },
+
+                        motorShadow: {
+                            opcode:
+                                'math_slider_0_100',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {
+                                NUM: [
+                                    '100',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                true,
+                            topLevel:
+                                true
+                        }
+                    }
+                }
+            ]
+        };
+
+        const original =
+            JSON.parse(
+                JSON.stringify(
+                    project
+                )
+            );
+
+        const result =
+            convertPictoBloxProjectStructural(
+                project
+            );
+
+        assert.deepEqual(
+            project,
+            original,
+            'source project remains untouched'
+        );
+
+        const blocks =
+            result.project
+                .targets[0]
+                .blocks;
+
+        assert.equal(
+            blocks.servo.opcode,
+            'actuators_servoWrite'
+        );
+
+        assert.deepEqual(
+            blocks.servo.fields,
+            {
+                PIN: [
+                    '9',
+                    null
+                ]
+            }
+        );
+
+        assert.equal(
+            blocks.servoShadow.opcode,
+            'easyblox_servo_angle'
+        );
+
+        assert.deepEqual(
+            blocks.servoShadow.fields,
+            {
+                NUM: [
+                    '90',
+                    null
+                ]
+            }
+        );
+
+        assert.equal(
+            blocks.pwm.opcode,
+            'arduinoUno_pwmWrite'
+        );
+
+        assert.equal(
+            blocks.pwmShadow.opcode,
+            'easyblox_pwm_value'
+        );
+
+        assert.equal(
+            blocks.motor.opcode,
+            'actuators_motorWrite'
+        );
+
+        assert.deepEqual(
+            blocks.motor.fields,
+            {
+                MOTOR: [
+                    '1',
+                    null
+                ],
+                DIRECTION: [
+                    '0',
+                    null
+                ]
+            }
+        );
+
+        assert.equal(
+            blocks.motorShadow.opcode,
+            'easyblox_motor_speed'
+        );
+
+        [
+            'servoShadow',
+            'pwmShadow',
+            'motorShadow'
+        ].forEach(
+            shadowId => {
+                assert.equal(
+                    blocks[shadowId]
+                        .shadow,
+                    true
+                );
+
+                assert.equal(
+                    blocks[shadowId]
+                        .topLevel,
+                    false
+                );
+            }
+        );
+
+        assert.equal(
+            blocks.servoShadow.parent,
+            'servo'
+        );
+
+        assert.equal(
+            blocks.pwmShadow.parent,
+            'pwm'
+        );
+
+        assert.equal(
+            blocks.motorShadow.parent,
+            'motor'
+        );
+
+        assert.equal(
+            blocks.servoShadow.x,
+            undefined
+        );
+
+        assert.equal(
+            blocks.servoShadow.y,
+            undefined
+        );
+
+        assert.equal(
+            result.report
+                .structuralConvertedBlockCount,
+            3
+        );
+
+        assert.equal(
+            result.report
+                .structuralDeferredBlockCount,
+            0
+        );
+    }
+);
+
+test(
+    'structural converter refuses to repair stale shadow metadata when the shadow has multiple reverse references',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    blocks: {
+                        servo: {
+                            opcode:
+                                'actuators_setServo',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {
+                                ANGLE: [
+                                    1,
+                                    'sharedShadow'
+                                ]
+                            },
+                            fields: {
+                                SERVO_CHANNEL: [
+                                    '9',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        other: {
+                            opcode:
+                                'looks_say',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {
+                                MESSAGE: [
+                                    1,
+                                    'sharedShadow'
+                                ]
+                            },
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        sharedShadow: {
+                            opcode:
+                                'math_slider_0_180',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {
+                                NUM: [
+                                    '90',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                true,
+                            topLevel:
+                                true
+                        }
+                    }
+                }
+            ]
+        };
+
+        const original =
+            JSON.parse(
+                JSON.stringify(
+                    project
+                )
+            );
+
+        const result =
+            convertPictoBloxProjectStructural(
+                project
+            );
+
+        assert.deepEqual(
+            result.project,
+            original,
+            'ambiguous stale shadow remains untouched'
+        );
+
+        assert.equal(
+            result.report
+                .structuralConvertedBlockCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .structuralDeferredBlockCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .deferred[0]
+                .reason,
+            'shadow-parent-mismatch'
+        );
+    }
+);

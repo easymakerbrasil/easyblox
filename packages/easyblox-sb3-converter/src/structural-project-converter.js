@@ -75,6 +75,69 @@ const getSerializedShadowId =
         };
     };
 
+const getBlockInputReferences =
+    (
+        blocks,
+        referencedBlockId
+    ) => {
+        const references = [];
+
+        Object.entries(
+            blocks
+        ).forEach(
+            ([
+                blockId,
+                block
+            ]) => {
+                if (
+                    !block ||
+                    typeof block !==
+                        'object' ||
+                    Array.isArray(
+                        block
+                    ) ||
+                    !block.inputs ||
+                    typeof block.inputs !==
+                        'object' ||
+                    Array.isArray(
+                        block.inputs
+                    )
+                ) {
+                    return;
+                }
+
+                Object.entries(
+                    block.inputs
+                ).forEach(
+                    ([
+                        inputName,
+                        input
+                    ]) => {
+                        if (
+                            !Array.isArray(
+                                input
+                            ) ||
+                            !input
+                                .slice(1)
+                                .includes(
+                                    referencedBlockId
+                                )
+                        ) {
+                            return;
+                        }
+
+                        references.push({
+                            blockId,
+                            inputName
+                        });
+                    }
+                );
+            }
+        );
+
+        return references;
+    };
+
 const convertShadowBlock =
     (
         blocks,
@@ -151,9 +214,30 @@ const convertShadowBlock =
             };
         }
 
+        const inputReferences =
+            getBlockInputReferences(
+                blocks,
+                shadowId
+            );
+
+        const hasCanonicalParent =
+            shadowBlock.parent ===
+                parentBlockId;
+
+        const hasRepairableStaleParent =
+            shadowBlock.parent ===
+                null &&
+            shadowBlock.topLevel ===
+                true &&
+            inputReferences.length ===
+                1 &&
+            inputReferences[0]
+                .blockId ===
+                parentBlockId;
+
         if (
-            shadowBlock.parent !==
-            parentBlockId
+            !hasCanonicalParent &&
+            !hasRepairableStaleParent
         ) {
             return {
                 ok: false,
@@ -198,21 +282,27 @@ const convertShadowBlock =
             };
         }
 
-        let transformedValue;
+        let transformedValue =
+            sourceField[0];
 
-        try {
-            transformedValue =
-                applyMappingValueTransform(
-                    shadowTransform
-                        .valueTransform,
-                    sourceField[0]
-                );
-        } catch (error) {
-            return {
-                ok: false,
-                reason:
-                    'invalid-shadow-value'
-            };
+        if (
+            shadowTransform
+                .valueTransform
+        ) {
+            try {
+                transformedValue =
+                    applyMappingValueTransform(
+                        shadowTransform
+                            .valueTransform,
+                        sourceField[0]
+                    );
+            } catch (error) {
+                return {
+                    ok: false,
+                    reason:
+                        'invalid-shadow-value'
+                };
+            }
         }
 
         const targetField = [
@@ -239,6 +329,15 @@ const convertShadowBlock =
                 targetField
         };
 
+        convertedShadow.parent =
+            parentBlockId;
+
+        convertedShadow.topLevel =
+            false;
+
+        delete convertedShadow.x;
+        delete convertedShadow.y;
+
         return {
             ok: true,
             shadowId,
@@ -247,13 +346,14 @@ const convertShadowBlock =
         };
     };
 
-const convertStructuralBlock =
+    const convertStructuralBlock =
     (
         blocks,
         blockId,
         block,
         entry
     ) => {
+        const targetFields = {};
         const targetInputs = {};
         const shadowUpdates = {};
 
@@ -262,9 +362,84 @@ const convertStructuralBlock =
                 entry.transform.arguments
         ) {
             if (
+                argument.source ===
+                    'field'
+            ) {
+                if (
+                    !block.fields ||
+                    !Object.prototype
+                        .hasOwnProperty.call(
+                            block.fields,
+                            argument.sourceName
+                        )
+                ) {
+                    return {
+                        converted: false,
+                        reason:
+                            'missing-source-field'
+                    };
+                }
+
+                const sourceField =
+                    block.fields[
+                        argument.sourceName
+                    ];
+
+                if (
+                    !Array.isArray(
+                        sourceField
+                    ) ||
+                    sourceField.length ===
+                        0
+                ) {
+                    return {
+                        converted: false,
+                        reason:
+                            'invalid-source-field'
+                    };
+                }
+
+                const targetField = [
+                    ...sourceField
+                ];
+
+                if (argument.valueMap) {
+                    const sourceValue =
+                        String(
+                            sourceField[0]
+                        );
+
+                    if (
+                        !Object.prototype
+                            .hasOwnProperty.call(
+                                argument.valueMap,
+                                sourceValue
+                            )
+                    ) {
+                        return {
+                            converted: false,
+                            reason:
+                                'unmapped-field-value'
+                        };
+                    }
+
+                    targetField[0] =
+                        argument.valueMap[
+                            sourceValue
+                        ];
+                }
+
+                targetFields[
+                    argument.target
+                ] =
+                    targetField;
+
+                continue;
+            }
+
+            if (
                 argument.source !==
-                    'input' ||
-                !argument.shadowTransform
+                    'input'
             ) {
                 return {
                     converted: false,
@@ -293,6 +468,19 @@ const convertStructuralBlock =
                     argument.sourceName
                 ];
 
+            targetInputs[
+                argument.target
+            ] =
+                cloneJson(
+                    sourceInput
+                );
+
+            if (
+                !argument.shadowTransform
+            ) {
+                continue;
+            }
+
             const shadowResult =
                 convertShadowBlock(
                     blocks,
@@ -310,13 +498,6 @@ const convertStructuralBlock =
                 };
             }
 
-            targetInputs[
-                argument.target
-            ] =
-                cloneJson(
-                    sourceInput
-                );
-
             shadowUpdates[
                 shadowResult.shadowId
             ] =
@@ -331,7 +512,8 @@ const convertStructuralBlock =
         convertedBlock.opcode =
             entry.targetOpcode;
 
-        convertedBlock.fields = {};
+        convertedBlock.fields =
+            targetFields;
 
         convertedBlock.inputs =
             targetInputs;

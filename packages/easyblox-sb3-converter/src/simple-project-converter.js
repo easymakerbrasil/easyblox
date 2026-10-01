@@ -96,12 +96,61 @@ const mappingAppliesToBlock =
     };
 
 const requiresStructuralTransform =
-    entry =>
+    (
+        entry,
+        block
+    ) =>
         entry.transform.arguments.some(
-            argument =>
-                Boolean(
-                    argument.shadowTransform
-                )
+            argument => {
+                if (
+                    argument.source !==
+                        'input' ||
+                    !argument.shadowTransform ||
+                    !block.inputs ||
+                    !Object.prototype
+                        .hasOwnProperty.call(
+                            block.inputs,
+                            argument.sourceName
+                        )
+                ) {
+                    return false;
+                }
+
+                const input =
+                    block.inputs[
+                        argument.sourceName
+                    ];
+
+                if (
+                    !Array.isArray(
+                        input
+                    )
+                ) {
+                    return false;
+                }
+
+                if (
+                    input[0] ===
+                        1
+                ) {
+                    return (
+                        typeof input[1] ===
+                            'string'
+                    );
+                }
+
+                if (
+                    input[0] ===
+                        3
+                ) {
+                    return (
+                        typeof input[2] ===
+                            'string'
+                    );
+                }
+
+                return false;
+            }
         );
 
 const mapFieldArgument =
@@ -358,7 +407,8 @@ const convertPictoBloxProjectSimple =
 
                         if (
                             requiresStructuralTransform(
-                                entry
+                                entry,
+                                block
                             )
                         ) {
                             deferred.push({

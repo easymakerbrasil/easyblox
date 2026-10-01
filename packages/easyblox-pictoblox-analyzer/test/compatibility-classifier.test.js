@@ -698,6 +698,65 @@ test(
 );
 
 test(
+    'compatibility catalog accepts shadow transforms with optional value transformation',
+    () => {
+        const catalog =
+            createCompatibilityCatalog([
+                {
+                    opcode:
+                        'picto_slider',
+                    status:
+                        COMPATIBILITY_STATUSES
+                            .MAPPABLE,
+                    targetOpcode:
+                        'easyblox_slider',
+                    transform: {
+                        kind:
+                            'block',
+                        arguments: [
+                            {
+                                target:
+                                    'VALUE',
+                                source:
+                                    'input',
+                                sourceName:
+                                    'VALUE',
+                                shadowTransform: {
+                                    sourceOpcode:
+                                        'math_slider_0_180',
+                                    targetOpcode:
+                                        'easyblox_servo_angle',
+                                    sourceField:
+                                        'NUM',
+                                    targetField:
+                                        'NUM'
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]);
+
+        assert.deepEqual(
+            catalog.get(
+                'picto_slider'
+            ).transform.arguments[0]
+                .shadowTransform,
+            {
+                sourceOpcode:
+                    'math_slider_0_180',
+                targetOpcode:
+                    'easyblox_servo_angle',
+                sourceField:
+                    'NUM',
+                targetField:
+                    'NUM'
+            }
+        );
+    }
+);
+
+test(
     'compatibility catalog rejects duplicate opcodes',
     () => {
         assert.throws(

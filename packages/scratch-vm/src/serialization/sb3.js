@@ -47,6 +47,7 @@ const CORE_EXTENSIONS = [
     'colour',
     'control',
     'data',
+    'easyblox',
     'event',
     'looks',
     'math',

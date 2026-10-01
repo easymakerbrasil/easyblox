@@ -399,32 +399,50 @@ const normalizeShadowTransform =
                 `Compatibility catalog entry ${opcode} transform argument ${target} shadowTransform requires a targetField`
             );
 
-        const valueTransform =
-            requireNonEmptyString(
-                typeof value.valueTransform ===
-                    'string' ?
-                    value.valueTransform.trim() :
-                    value.valueTransform,
-                `Compatibility catalog entry ${opcode} transform argument ${target} shadowTransform requires a valueTransform`
-            );
+        let valueTransform;
 
         if (
-            !isMappingValueTransformSupported(
-                valueTransform
-            )
+            typeof value.valueTransform !==
+                'undefined'
         ) {
-            throw new RangeError(
-                `Unsupported compatibility shadow value transform: ${valueTransform}`
-            );
+            valueTransform =
+                requireNonEmptyString(
+                    typeof value.valueTransform ===
+                        'string' ?
+                        value.valueTransform.trim() :
+                        value.valueTransform,
+                    `Compatibility catalog entry ${opcode} transform argument ${target} has an invalid valueTransform`
+                );
+
+            if (
+                !isMappingValueTransformSupported(
+                    valueTransform
+                )
+            ) {
+                throw new RangeError(
+                    `Unsupported compatibility shadow value transform: ${valueTransform}`
+                );
+            }
         }
 
-        return Object.freeze({
+        const normalized = {
             sourceOpcode,
             targetOpcode,
             sourceField,
-            targetField,
-            valueTransform
-        });
+            targetField
+        };
+
+        if (
+            typeof valueTransform !==
+                'undefined'
+        ) {
+            normalized.valueTransform =
+                valueTransform;
+        }
+
+        return Object.freeze(
+            normalized
+        );
     };
 
 const normalizeTransform =

@@ -142,7 +142,17 @@ test(
                             source:
                                 'input',
                             sourceName:
-                                'SPEED'
+                                'SPEED',
+                            shadowTransform: {
+                                sourceOpcode:
+                                    'math_slider_0_100',
+                                targetOpcode:
+                                    'easyblox_motor_speed',
+                                sourceField:
+                                    'NUM',
+                                targetField:
+                                    'NUM'
+                            }
                         }
                     ]
                 }
@@ -314,7 +324,55 @@ test(
                         source:
                             'input',
                         sourceName:
-                            'ANGLE'
+                            'ANGLE',
+                        shadowTransform: {
+                            sourceOpcode:
+                                'math_slider_0_180',
+                            targetOpcode:
+                                'easyblox_servo_angle',
+                            sourceField:
+                                'NUM',
+                            targetField:
+                                'NUM'
+                        }
+                    }
+                ]
+            }
+        );
+
+        assert.deepEqual(
+            entriesByOpcode.get(
+                'arduinoUno_setPWM'
+            ).transform,
+            {
+                kind:
+                    'block',
+                arguments: [
+                    {
+                        target:
+                            'PIN',
+                        source:
+                            'field',
+                        sourceName:
+                            'PIN'
+                    },
+                    {
+                        target:
+                            'VALUE',
+                        source:
+                            'input',
+                        sourceName:
+                            'VALUE',
+                        shadowTransform: {
+                            sourceOpcode:
+                                'math_slider_0_255',
+                            targetOpcode:
+                                'easyblox_pwm_value',
+                            sourceField:
+                                'NUM',
+                            targetField:
+                                'NUM'
+                        }
                     }
                 ]
             }
@@ -1671,7 +1729,17 @@ test(
                         source:
                             'input',
                         sourceName:
-                            'ANGLE'
+                            'ANGLE',
+                        shadowTransform: {
+                            sourceOpcode:
+                                'math_slider_0_180',
+                            targetOpcode:
+                                'easyblox_servo_angle',
+                            sourceField:
+                                'NUM',
+                            targetField:
+                                'NUM'
+                        }
                     }
                 ]
             }

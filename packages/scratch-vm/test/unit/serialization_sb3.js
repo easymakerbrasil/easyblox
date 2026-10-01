@@ -603,6 +603,17 @@ test('getExtensionIdForOpcode', t => {
     // does not consider CORE to be extensions
     t.notOk(sb3.getExtensionIdForOpcode('control_loopy'));
 
+    // EasyBlox typed argument shadows are serialized auxiliaries, not extensions
+    t.notOk(sb3.getExtensionIdForOpcode('easyblox_servo_angle'));
+    t.notOk(sb3.getExtensionIdForOpcode('easyblox_pwm_value'));
+    t.notOk(sb3.getExtensionIdForOpcode('easyblox_motor_speed'));
+    t.notOk(sb3.getExtensionIdForOpcode('easyblox_percentage'));
+    t.notOk(sb3.getExtensionIdForOpcode('easyblox_matrix_8x8'));
+
+    // EasyBlox product extensions keep their own extension namespaces
+    t.equal(sb3.getExtensionIdForOpcode('easybloxBt_sendText'), 'easybloxBt');
+    t.equal(sb3.getExtensionIdForOpcode('easybloxQr_generate'), 'easybloxQr');
+
     // only considers things before the first underscore
     t.equal(sb3.getExtensionIdForOpcode('hello_there_loopy'), 'hello');
 
