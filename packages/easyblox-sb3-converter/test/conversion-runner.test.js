@@ -721,6 +721,301 @@ test(
 );
 
 test(
+    'conversion runner resolves a canonical PictoBlox QR reader loop before quarantine',
+    () => {
+        const project = {
+            boardSelected:
+                'None',
+
+            extensions: [
+                'qrCodeScanner'
+            ],
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    isStage:
+                        true,
+
+                    comments: {},
+
+                    blocks: {
+                        flag: {
+                            opcode:
+                                'event_whenflagclicked',
+                            next:
+                                'video',
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true,
+                            x:
+                                20,
+                            y:
+                                30
+                        },
+
+                        video: {
+                            opcode:
+                                'qrCodeScanner_toggleStageVideoFeed',
+                            next:
+                                'forever',
+                            parent:
+                                'flag',
+                            inputs: {},
+                            fields: {
+                                VIDEO_STATE: [
+                                    'onFlipped',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        },
+
+                        forever: {
+                            opcode:
+                                'control_forever',
+                            next:
+                                null,
+                            parent:
+                                'video',
+                            inputs: {
+                                SUBSTACK: [
+                                    2,
+                                    'analyse'
+                                ]
+                            },
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        },
+
+                        analyse: {
+                            opcode:
+                                'qrCodeScanner_analyseImage',
+                            next:
+                                'boundingBox',
+                            parent:
+                                'forever',
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        },
+
+                        boundingBox: {
+                            opcode:
+                                'qrCodeScanner_drawBoundingBox',
+                            next:
+                                'after',
+                            parent:
+                                'analyse',
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        },
+
+                        after: {
+                            opcode:
+                                'looks_show',
+                            next:
+                                null,
+                            parent:
+                                'boundingBox',
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        }
+                    }
+                }
+            ]
+        };
+
+        const result =
+            convertExternalSb3Project(
+                project
+            );
+
+        assert.equal(
+            result.canConvert,
+            true
+        );
+
+        assert.equal(
+            result.report
+                .plan
+                .reviewBlockCount,
+            3,
+            'source plan still records all three unsupported PictoBlox QR commands'
+        );
+
+        assert.equal(
+            result.report
+                .qrReaderMigration
+                .migratedReaderCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .qrReaderMigration
+                .resolvedReviewBlockCount,
+            3
+        );
+
+        assert.equal(
+            result.report
+                .qrReaderMigration
+                .remainingVisualToggleCount,
+            0
+        );
+
+        assert.deepEqual(
+            result.report
+                .qrReaderMigration
+                .deferred,
+            []
+        );
+
+        assert.equal(
+            result.report
+                .reviewBlockCount,
+            0,
+            'successfully migrated QR source blocks no longer count as unresolved review'
+        );
+
+        assert.equal(
+            result.report
+                .requiresReview,
+            false
+        );
+
+        assert.equal(
+            result.report
+                .safeLoad
+                .quarantinedReviewBlockCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .safeLoad
+                .remainingUnsafeBlockCount,
+            0
+        );
+
+        const blocks =
+            result
+                .project
+                .targets[0]
+                .blocks;
+
+        assert.equal(
+            blocks.video.opcode,
+            'easybloxQr_startReader'
+        );
+
+        assert.deepEqual(
+            blocks.video.fields,
+            {
+                SOURCE: [
+                    'cameraMirrored',
+                    null
+                ]
+            }
+        );
+
+        const boundaryBlockId =
+            blocks.video.next;
+
+        assert.equal(
+            blocks[
+                boundaryBlockId
+            ].opcode,
+            'easybloxQr_setBoundary'
+        );
+
+        assert.deepEqual(
+            blocks[
+                boundaryBlockId
+            ].fields,
+            {
+                STATE: [
+                    'on',
+                    null
+                ]
+            }
+        );
+
+        assert.equal(
+            blocks[
+                boundaryBlockId
+            ].next,
+            'forever'
+        );
+
+        assert.equal(
+            blocks.forever.parent,
+            boundaryBlockId
+        );
+
+        assert.deepEqual(
+            blocks.forever.inputs.SUBSTACK,
+            [
+                2,
+                'after'
+            ]
+        );
+
+        assert.equal(
+            blocks.after.parent,
+            'forever'
+        );
+
+        assert.equal(
+            blocks.analyse,
+            undefined
+        );
+
+        assert.equal(
+            blocks.boundingBox,
+            undefined
+        );
+
+        assert.equal(
+            result.report
+                .convertedBlockCount,
+            3
+        );
+
+        assert.equal(
+            result.report
+                .isLoadSafe,
+            true
+        );
+    }
+);
+
+test(
     'conversion runner canonicalizes PictoBlox one-item variable descriptors before EasyBlox loading',
     () => {
         const project = {

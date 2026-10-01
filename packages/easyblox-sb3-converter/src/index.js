@@ -12,6 +12,10 @@ const {
 } = require('./structural-project-converter');
 
 const {
+    migratePictoBloxQrReaderPatterns
+} = require('./qr-reader-migrator');
+
+const {
     migratePictoBloxProjectStructure
 } = require('./upload-program-migrator');
 
@@ -35,6 +39,7 @@ module.exports = {
     createPictoBloxConversionPlan,
     convertPictoBloxProjectSimple,
     convertPictoBloxProjectStructural,
+    migratePictoBloxQrReaderPatterns,
     migratePictoBloxProjectStructure,
     quarantineUnsafeReviewContent,
     PROJECT_ORIGINS,

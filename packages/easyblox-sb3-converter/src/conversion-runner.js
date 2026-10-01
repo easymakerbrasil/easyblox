@@ -15,6 +15,10 @@ const {
 } = require('./structural-project-converter');
 
 const {
+    migratePictoBloxQrReaderPatterns
+} = require('./qr-reader-migrator');
+
+const {
     normalizePictoBloxProjectData
 } = require('./project-data-normalizer');
 
@@ -177,9 +181,17 @@ const convertExternalSb3Project =
         const structuralReport =
             conversion.report;
 
+        const qrReaderMigration =
+            migratePictoBloxQrReaderPatterns(
+                conversion.project
+            );
+
+        const qrReaderMigrationReport =
+            qrReaderMigration.report;
+
         const projectData =
             normalizePictoBloxProjectData(
-                conversion.project
+                qrReaderMigration.project
             );
 
         const projectDataReport =
@@ -274,10 +286,18 @@ const convertExternalSb3Project =
                 )
                 .length;
 
+        const unresolvedPlannedReviewBlockCount =
+            Math.max(
+                0,
+                analysis
+                    .plan
+                    .reviewBlockCount -
+                qrReaderMigrationReport
+                    .resolvedReviewBlockCount
+            );
+
         const reviewBlockCount =
-            analysis
-                .plan
-                .reviewBlockCount +
+            unresolvedPlannedReviewBlockCount +
             nonStructuralDeferredCount +
             structuralReport
                 .structuralDeferredBlockCount;
@@ -306,7 +326,9 @@ const convertExternalSb3Project =
                     simpleReport
                         .convertedBlockCount +
                     structuralReport
-                        .structuralConvertedBlockCount,
+                        .structuralConvertedBlockCount +
+                    qrReaderMigrationReport
+                        .resolvedReviewBlockCount,
 
                 deferredStructuralBlockCount:
                     structuralReport
@@ -333,6 +355,10 @@ const convertExternalSb3Project =
                 requiresStructuralConversion:
                     structuralReport
                         .structuralDeferredBlockCount >
+                        0 ||
+                    qrReaderMigrationReport
+                        .deferred
+                        .length >
                         0 ||
                     projectStructureReport
                         .deferred
@@ -379,6 +405,9 @@ const convertExternalSb3Project =
                         structuralReport
                             .deferred
                 },
+
+                qrReaderMigration:
+                    qrReaderMigrationReport,
 
                 projectData:
                     projectDataReport,
