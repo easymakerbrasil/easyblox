@@ -26,6 +26,10 @@ const {
     convertExternalSb3Project
 } = require('./conversion-runner');
 
+const {
+    convertExternalSb3Archive
+} = require('./sb3-archive-converter');
+
 module.exports = {
     createPictoBloxConversionCatalog,
     createPictoBloxConversionPlan,
@@ -36,5 +40,6 @@ module.exports = {
     PROJECT_ORIGINS,
     detectSb3ProjectOrigin,
     analyzeExternalSb3Project,
-    convertExternalSb3Project
+    convertExternalSb3Project,
+    convertExternalSb3Archive
 };

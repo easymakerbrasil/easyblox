@@ -15,6 +15,10 @@ const {
 } = require('./structural-project-converter');
 
 const {
+    normalizePictoBloxProjectData
+} = require('./project-data-normalizer');
+
+const {
     migratePictoBloxProjectStructure
 } = require('./upload-program-migrator');
 
@@ -173,15 +177,27 @@ const convertExternalSb3Project =
         const structuralReport =
             conversion.report;
 
+        const projectData =
+            normalizePictoBloxProjectData(
+                conversion.project
+            );
+
+        const projectDataReport =
+            projectData.report;
+
         const projectStructure =
             migratePictoBloxProjectStructure(
-                conversion.project
+                projectData.project
             );
 
         const projectStructureReport =
             projectStructure.report;
 
         const safeLoad =
+            projectDataReport
+                .deferred
+                .length ===
+                0 &&
             projectStructureReport
                 .deferred
                 .length ===
@@ -198,7 +214,12 @@ const convertExternalSb3Project =
                             false,
 
                         skippedReason:
-                            'project-structure-deferred',
+                            projectDataReport
+                                .deferred
+                                .length >
+                                0 ?
+                                'project-data-deferred' :
+                                'project-structure-deferred',
 
                         quarantinedScriptCount:
                             0,
@@ -291,6 +312,15 @@ const convertExternalSb3Project =
                     structuralReport
                         .structuralDeferredBlockCount,
 
+                normalizedProjectVariableCount:
+                    projectDataReport
+                        .normalizedVariableCount,
+
+                deferredProjectDataCount:
+                    projectDataReport
+                        .deferred
+                        .length,
+
                 deferredProjectStructureCount:
                     projectStructureReport
                         .deferred
@@ -311,6 +341,10 @@ const convertExternalSb3Project =
 
                 requiresReview:
                     reviewBlockCount >
+                        0 ||
+                    projectDataReport
+                        .deferred
+                        .length >
                         0 ||
                     projectStructureReport
                         .deferred
@@ -345,6 +379,9 @@ const convertExternalSb3Project =
                         structuralReport
                             .deferred
                 },
+
+                projectData:
+                    projectDataReport,
 
                 projectStructure:
                     projectStructureReport,

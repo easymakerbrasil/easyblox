@@ -721,6 +721,242 @@ test(
 );
 
 test(
+    'conversion runner canonicalizes PictoBlox one-item variable descriptors before EasyBlox loading',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    isStage:
+                        true,
+
+                    variables: {
+                        color: [
+                            'COR'
+                        ]
+                    },
+
+                    blocks: {
+                        flag: {
+                            opcode:
+                                'event_whenflagclicked',
+
+                            next:
+                                'setColor',
+
+                            parent:
+                                null,
+
+                            inputs: {},
+
+                            fields: {},
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                true
+                        },
+
+                        setColor: {
+                            opcode:
+                                'data_setvariableto',
+
+                            next:
+                                null,
+
+                            parent:
+                                'flag',
+
+                            inputs: {
+                                VALUE: [
+                                    1,
+                                    [
+                                        10,
+                                        'VERDE'
+                                    ]
+                                ]
+                            },
+
+                            fields: {
+                                VARIABLE: [
+                                    'COR',
+                                    'color'
+                                ]
+                            },
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                false
+                        }
+                    }
+                }
+            ]
+        };
+
+        const original =
+            JSON.parse(
+                JSON.stringify(
+                    project
+                )
+            );
+
+        const result =
+            convertExternalSb3Project(
+                project
+            );
+
+        assert.deepEqual(
+            project,
+            original,
+            'runner preserves the original PictoBlox project'
+        );
+
+        assert.equal(
+            result.canConvert,
+            true
+        );
+
+        assert.deepEqual(
+            result.project
+                .targets[0]
+                .variables
+                .color,
+            [
+                'COR',
+                0
+            ]
+        );
+
+        assert.equal(
+            result.report
+                .normalizedProjectVariableCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .deferredProjectDataCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .projectData
+                .normalizedVariableCount,
+            1
+        );
+
+        assert.deepEqual(
+            result.report
+                .projectData
+                .deferred,
+            []
+        );
+
+        assert.equal(
+            result.report
+                .isLoadSafe,
+            true
+        );
+
+        assert.equal(
+            result.report
+                .requiresReview,
+            false
+        );
+    }
+);
+
+test(
+    'conversion runner refuses load-safe status when project data has an unknown non-canonical shape',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    isStage:
+                        true,
+
+                    variables: {
+                        invalid: [
+                            'OBJETO',
+                            {
+                                x:
+                                    1
+                            }
+                        ]
+                    },
+
+                    blocks: {}
+                }
+            ]
+        };
+
+        const result =
+            convertExternalSb3Project(
+                project
+            );
+
+        assert.equal(
+            result.canConvert,
+            true
+        );
+
+        assert.equal(
+            result.report
+                .normalizedProjectVariableCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .deferredProjectDataCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .projectData
+                .deferred[0]
+                .reason,
+            'unsupported-variable-descriptor'
+        );
+
+        assert.equal(
+            result.report
+                .safeLoad
+                .skippedReason,
+            'project-data-deferred'
+        );
+
+        assert.equal(
+            result.report
+                .isLoadSafe,
+            false
+        );
+
+        assert.equal(
+            result.report
+                .requiresReview,
+            true
+        );
+    }
+);
+
+test(
     'conversion runner recognizes board-neutral PictoBlox mappings without board metadata',
     () => {
         const project = {
