@@ -10,6 +10,12 @@ const path =
 const JSZip =
     require('jszip');
 
+const {
+    discoverSb3Files
+} = require(
+    '@easymaker/easyblox-pictoblox-analyzer'
+);
+
 const VirtualMachine =
     require(
         '../../scratch-vm/src/virtual-machine'
@@ -205,7 +211,40 @@ const validateProject =
                         .isLoadSafe :
                     false,
 
-            initialReviewBlockCount:
+            requiresReview:
+                converted.report ?
+                    converted.report
+                        .requiresReview :
+                    false,
+
+            normalizedProjectVariableCount:
+                converted.report ?
+                    converted.report
+                        .normalizedProjectVariableCount :
+                    null,
+
+            deferredProjectDataCount:
+                converted.report ?
+                    converted.report
+                        .deferredProjectDataCount :
+                    null,
+
+            deferredProjectStructureCount:
+                converted.report ?
+                    converted.report
+                        .deferredProjectStructureCount :
+                    null,
+
+            safeLoadSkippedReason:
+                converted.report &&
+                converted.report.safeLoad ?
+                    converted.report
+                        .safeLoad
+                        .skippedReason ||
+                    null :
+                    null,
+
+            functionalReviewBlockCount:
                 converted.report ?
                     converted.report
                         .reviewBlockCount :
@@ -239,12 +278,73 @@ const validateProject =
             failures: []
         };
 
+        result.reviewSources =
+            [];
+
+        if (converted.report) {
+            if (
+                converted.report
+                    .reviewBlockCount >
+                0
+            ) {
+                result.reviewSources.push(
+                    'functional-blocks'
+                );
+            }
+
+            if (
+                converted.report
+                    .safeLoad &&
+                converted.report
+                    .safeLoad
+                    .quarantinedReviewBlockCount >
+                0
+            ) {
+                result.reviewSources.push(
+                    'quarantine'
+                );
+            }
+
+            if (
+                converted.report
+                    .removedProjectMetadataCount >
+                0
+            ) {
+                result.reviewSources.push(
+                    'metadata-cleanup'
+                );
+            }
+
+            if (
+                converted.report
+                    .deferredProjectDataCount >
+                0
+            ) {
+                result.reviewSources.push(
+                    'project-data-deferred'
+                );
+            }
+
+            if (
+                converted.report
+                    .deferredProjectStructureCount >
+                0
+            ) {
+                result.reviewSources.push(
+                    'project-structure-deferred'
+                );
+            }
+        }
+
         if (
-            !converted.canConvert ||
-            !converted.sb3
+            !converted.canConvert
         ) {
+            return result;
+        }
+
+        if (!converted.sb3) {
             result.failures.push(
-                'project-not-convertible'
+                'converted-archive-missing'
             );
 
             return result;
@@ -445,23 +545,125 @@ const validateProject =
         return result;
     };
 
+const classifyResult =
+    result => {
+        if (
+            !result.canConvert
+        ) {
+            if (
+                result.origin ===
+                    'unknown'
+            ) {
+                return 'SKIPPED_UNKNOWN';
+            }
+
+            if (
+                result.origin ===
+                    'easyblox'
+            ) {
+                return 'SKIPPED_EASYBLOX';
+            }
+
+            return 'SKIPPED_OTHER';
+        }
+
+        if (
+            !result.conversionLoadSafe
+        ) {
+            return 'DEFERRED';
+        }
+
+        if (
+            result.failures.length >
+            0
+        ) {
+            return 'FAILED';
+        }
+
+        if (
+            result.requiresReview
+        ) {
+            return 'SAFE_WITH_REVIEW';
+        }
+
+        return 'PASS';
+    };
+
 const main =
     async () => {
         const [
             corpusRoot,
-            ...relativePaths
+            ...argumentsList
         ] =
             process.argv.slice(
                 2
             );
 
+        if (!corpusRoot) {
+            console.error(
+                'Usage: node scripts/validate-r33a-corpus.js <corpus-root> --all'
+            );
+
+            console.error(
+                '   or: node scripts/validate-r33a-corpus.js <corpus-root> <relative-path> [...]'
+            );
+
+            process.exitCode =
+                1;
+
+            return;
+        }
+
+        const allMode =
+            argumentsList.length ===
+                1 &&
+            argumentsList[0] ===
+                '--all';
+
         if (
-            !corpusRoot ||
+            argumentsList.includes(
+                '--all'
+            ) &&
+            !allMode
+        ) {
+            console.error(
+                '--all cannot be combined with explicit project paths'
+            );
+
+            process.exitCode =
+                1;
+
+            return;
+        }
+
+        let relativePaths =
+            argumentsList;
+
+        if (allMode) {
+            const discovery =
+                await discoverSb3Files(
+                    corpusRoot
+                );
+
+            relativePaths =
+                discovery.files.map(
+                    file =>
+                        file.id
+                );
+
+            console.log(
+                `R3.3B_DISCOVERED_SB3=${
+                    relativePaths.length
+                }`
+            );
+        }
+
+        if (
             relativePaths.length ===
                 0
         ) {
             console.error(
-                'Usage: node scripts/validate-r33a-corpus.js <corpus-root> <relative-path> [...]'
+                'No SB3 projects selected for validation'
             );
 
             process.exitCode =
@@ -476,52 +678,201 @@ const main =
             const relativePath
             of relativePaths
         ) {
-            results.push(
+            const result =
                 await validateProject(
                     corpusRoot,
                     relativePath
-                )
-            );
-        }
-
-        results.forEach(
-            result => {
-                console.log('');
-                console.log(
-                    `--- ${
-                        result.project
-                    } ---`
                 );
 
+            result.classification =
+                classifyResult(
+                    result
+                );
+
+            results.push(
+                result
+            );
+
+            if (allMode) {
                 console.log(
-                    JSON.stringify(
-                        result,
-                        null,
-                        2
+                    [
+                        `[${result.classification}]`,
+                        result.project,
+                        `origin=${
+                            result.origin
+                        }`,
+                        `functionalReview=${
+                            result.functionalReviewBlockCount
+                        }`,
+                        `quarantineReview=${
+                            result.quarantinedReviewBlockCount
+                        }`,
+                        `reviewSources=${
+                            result.reviewSources.length >
+                                0 ?
+                                result.reviewSources.join(
+                                    ','
+                                ) :
+                                'none'
+                        }`,
+                        `normalizedVars=${
+                            result.normalizedProjectVariableCount
+                        }`,
+                        `dataDeferred=${
+                            result.deferredProjectDataCount
+                        }`,
+                        `structureDeferred=${
+                            result.deferredProjectStructureCount
+                        }`,
+                        `failures=${
+                            result.failures.length
+                        }`
+                    ].join(
+                        ' '
                     )
                 );
             }
+        }
+
+        if (!allMode) {
+            results.forEach(
+                result => {
+                    console.log('');
+                    console.log(
+                        `--- ${
+                            result.project
+                        } ---`
+                    );
+
+                    console.log(
+                        JSON.stringify(
+                            result,
+                            null,
+                            2
+                        )
+                    );
+                }
+            );
+        }
+
+        const classificationCounts =
+            Object.create(
+                null
+            );
+
+        results.forEach(
+            result => {
+                classificationCounts[
+                    result.classification
+                ] =
+                    (
+                        classificationCounts[
+                            result.classification
+                        ] ||
+                        0
+                    ) +
+                    1;
+            }
         );
 
-        const passed =
-            results.filter(
-                result =>
-                    result.failures.length ===
-                    0
-            ).length;
+        const passCount =
+            classificationCounts.PASS ||
+            0;
+
+        const reviewCount =
+            classificationCounts
+                .SAFE_WITH_REVIEW ||
+            0;
+
+        const deferredCount =
+            classificationCounts.DEFERRED ||
+            0;
+
+        const failedCount =
+            classificationCounts.FAILED ||
+            0;
+
+        const skippedUnknownCount =
+            classificationCounts
+                .SKIPPED_UNKNOWN ||
+            0;
+
+        const skippedEasyBloxCount =
+            classificationCounts
+                .SKIPPED_EASYBLOX ||
+            0;
+
+        const skippedOtherCount =
+            classificationCounts
+                .SKIPPED_OTHER ||
+            0;
 
         console.log('');
         console.log(
-            `=== R3.3A.3 SUMMARY: ${
-                passed
-            }/${
-                results.length
-            } PASS ===`
+            allMode ?
+                '=== R3.3B CORPUS SUMMARY ===' :
+                '=== R3.3A.3 SUMMARY ==='
+        );
+
+        console.log(
+            `TOTAL=${results.length}`
+        );
+
+        console.log(
+            `PASS=${passCount}`
+        );
+
+        console.log(
+            `SAFE_WITH_REVIEW=${reviewCount}`
+        );
+
+        console.log(
+            `DEFERRED=${deferredCount}`
+        );
+
+        console.log(
+            `FAILED=${failedCount}`
+        );
+
+        console.log(
+            `SKIPPED_UNKNOWN=${
+                skippedUnknownCount
+            }`
+        );
+
+        console.log(
+            `SKIPPED_EASYBLOX=${
+                skippedEasyBloxCount
+            }`
+        );
+
+        console.log(
+            `SKIPPED_OTHER=${
+                skippedOtherCount
+            }`
+        );
+
+        console.log(
+            `ROUNDTRIP_SAFE=${
+                passCount +
+                reviewCount
+            }`
         );
 
         if (
-            passed !==
-            results.length
+            !allMode &&
+            (
+                deferredCount >
+                    0 ||
+                failedCount >
+                    0 ||
+                skippedUnknownCount >
+                    0 ||
+                skippedEasyBloxCount >
+                    0 ||
+                skippedOtherCount >
+                    0
+            )
         ) {
             process.exitCode =
                 1;
