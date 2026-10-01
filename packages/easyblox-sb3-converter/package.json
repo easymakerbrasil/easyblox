@@ -6,7 +6,7 @@
     "license": "AGPL-3.0-only",
     "main": "src/index.js",
     "scripts": {
-        "build": "node --check src/index.js && node --check src/conversion-plan.js && node --check src/simple-project-converter.js && node --check src/structural-project-converter.js && node --check src/qr-reader-migrator.js && node --check src/upload-program-migrator.js && node --check src/review-quarantine.js && node --check src/project-data-normalizer.js && node --check src/conversion-runner.js && node --check src/sb3-archive-converter.js && node --check scripts/validate-r33a-corpus.js",
+        "build": "node --check src/index.js && node --check src/conversion-plan.js && node --check src/simple-project-converter.js && node --check src/structural-project-converter.js && node --check src/qr-reader-migrator.js && node --check src/upload-program-migrator.js && node --check src/review-quarantine.js && node --check src/project-data-normalizer.js && node --check src/same-opcode-schema-normalizer.js && node --check src/canonical-menu-shadow-normalizer.js && node --check src/conversion-runner.js && node --check src/sb3-archive-converter.js && node --check scripts/validate-r33a-corpus.js",
         "test": "node --test test/*.test.js"
     },
     "dependencies": {

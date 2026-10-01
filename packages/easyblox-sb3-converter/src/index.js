@@ -16,6 +16,12 @@ const {
 } = require('./qr-reader-migrator');
 
 const {
+    normalizeEasyBloxMenuShadows
+} = require(
+    './canonical-menu-shadow-normalizer'
+);
+
+const {
     migratePictoBloxProjectStructure
 } = require('./upload-program-migrator');
 
@@ -40,6 +46,7 @@ module.exports = {
     convertPictoBloxProjectSimple,
     convertPictoBloxProjectStructural,
     migratePictoBloxQrReaderPatterns,
+    normalizeEasyBloxMenuShadows,
     migratePictoBloxProjectStructure,
     quarantineUnsafeReviewContent,
     PROJECT_ORIGINS,

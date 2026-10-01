@@ -115,6 +115,114 @@ const createMetadataExtension =
         return extension;
     };
 
+const getExtensionMenuArgumentSchemas =
+    info =>
+        (info.blocks || [])
+            .filter(
+                block =>
+                    block &&
+                    typeof block ===
+                        'object' &&
+                    typeof block.opcode ===
+                        'string' &&
+                    block.opcode.length >
+                        0
+            )
+            .flatMap(
+                block => {
+                    const argumentsInfo =
+                        block.arguments &&
+                        typeof block.arguments ===
+                            'object' &&
+                        !Array.isArray(
+                            block.arguments
+                        ) ?
+                            block.arguments :
+                            {};
+
+                    return Object.entries(
+                        argumentsInfo
+                    ).flatMap(
+                        ([
+                            argumentName,
+                            argumentInfo
+                        ]) => {
+                            const menuName =
+                                argumentInfo &&
+                                typeof argumentInfo.menu ===
+                                    'string' &&
+                                argumentInfo.menu.length >
+                                    0 ?
+                                    argumentInfo.menu :
+                                    null;
+
+                            const menuInfo =
+                                menuName &&
+                                info.menus &&
+                                typeof info.menus ===
+                                    'object' ?
+                                    info.menus[
+                                        menuName
+                                    ] :
+                                    null;
+
+                            if (
+                                !menuName ||
+                                !menuInfo ||
+                                typeof menuInfo !==
+                                    'object' ||
+                                menuInfo.acceptReporters !==
+                                    true
+                            ) {
+                                return [];
+                            }
+
+                            return [
+                                {
+                                    opcode:
+                                        `${info.id}_${
+                                            block.opcode
+                                        }`,
+
+                                    argumentName,
+
+                                    menuName,
+
+                                    shadowOpcode:
+                                        `${info.id}_menu_${
+                                            menuName
+                                        }`,
+
+                                    fieldName:
+                                        menuName
+                                }
+                            ];
+                        }
+                    );
+                }
+            )
+            .sort(
+                (
+                    left,
+                    right
+                ) => {
+                    const opcodeOrder =
+                        left.opcode.localeCompare(
+                            right.opcode
+                        );
+
+                    if (opcodeOrder !== 0) {
+                        return opcodeOrder;
+                    }
+
+                    return left
+                        .argumentName
+                        .localeCompare(
+                            right.argumentName
+                        );
+                }
+            );
+
 const getExtensionOpcodeIds =
     (
         registeredExtensionId,
@@ -183,7 +291,10 @@ const getExtensionOpcodeIds =
                             menuName
                         }`
                 );
-
+        const menuArgumentSchemas =
+            getExtensionMenuArgumentSchemas(
+                info
+            );
         return {
             registeredExtensionId,
             extensionId:
@@ -200,7 +311,9 @@ const getExtensionOpcodeIds =
                     new Set(
                         serializedAuxiliaryOpcodes
                     )
-                ).sort()
+                ).sort(),
+
+            menuArgumentSchemas
         };
     };
 
@@ -353,6 +466,39 @@ const createEasyBloxSupportCatalog =
                 }
             );
 
+        const menuArgumentSchemas =
+            extensionSummaries
+                .flatMap(
+                    summary =>
+                        summary
+                            .menuArgumentSchemas
+                )
+                .sort(
+                    (
+                        left,
+                        right
+                    ) => {
+                        const opcodeOrder =
+                            left.opcode
+                                .localeCompare(
+                                    right.opcode
+                                );
+
+                        if (
+                            opcodeOrder !==
+                                0
+                        ) {
+                            return opcodeOrder;
+                        }
+
+                        return left
+                            .argumentName
+                            .localeCompare(
+                                right.argumentName
+                            );
+                    }
+                );
+
         const entries = [
             ...coreOpcodes.map(
                 opcode =>
@@ -502,6 +648,12 @@ const createEasyBloxSupportCatalog =
             serializedAuxiliaryOpcodeCount:
                 serializedAuxiliaryEntries
                     .length,
+
+            menuArgumentSchemas,
+
+            menuArgumentSchemaCount:
+                menuArgumentSchemas.length,
+
             extensionIds,
             extensionSummaries
         };

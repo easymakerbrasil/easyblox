@@ -477,6 +477,9 @@ class MenuBar extends React.Component {
                     </button>
                     {(this.props.canManageFiles) && (<FileMenu
                         onStartSelectingFileUpload={this.props.onStartSelectingFileUpload}
+                        onStartSelectingExternalProjectImport={
+                            this.props.onStartSelectingExternalProjectImport
+                        }
                         onClickNew={this.handleClickNew}
                         onClickRemix={this.props.onClickRemix}
                         onClickSave={this.handleSave}
@@ -695,7 +698,7 @@ MenuBar.propTypes = {
     onSetProjectTitle: PropTypes.func,
     onSetTimeTravelMode: PropTypes.func,
     onShare: PropTypes.func,
-    onStartSelectingFileUpload: PropTypes.func,
+    onStartSelectingExternalProjectImport: PropTypes.func,
     onToggleLoginOpen: PropTypes.func,
     easyBloxBtActive: PropTypes.bool,
     easyConectBoardCompatible: PropTypes.bool,

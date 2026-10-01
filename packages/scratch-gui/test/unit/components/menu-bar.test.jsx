@@ -57,6 +57,7 @@ describe('MenuBar Component', () => {
                     canCreateCopy={false}
                     canRemix={false}
                     onStartSelectingFileUpload={jest.fn()}
+                    onStartSelectingExternalProjectImport={jest.fn()}
                     {...props}
                 />
             </MenuRefProvider>
@@ -170,6 +171,42 @@ describe('MenuBar Component', () => {
 
             expect(
                 onStartSelectingFileUpload
+            ).toHaveBeenCalledTimes(
+                1
+            );
+        });
+
+        test('File menu Import delegates to the external project picker', () => {
+            const onStartSelectingExternalProjectImport =
+                jest.fn();
+
+            const {
+                getByRole,
+                getByText
+            } = renderWithIntl(
+                getComponent({
+                    onStartSelectingExternalProjectImport
+                })
+            );
+
+            fireEvent.click(
+                getByRole(
+                    'button',
+                    {
+                        name:
+                            'File menu'
+                    }
+                )
+            );
+
+            fireEvent.click(
+                getByText(
+                    'Importar...'
+                )
+            );
+
+            expect(
+                onStartSelectingExternalProjectImport
             ).toHaveBeenCalledTimes(
                 1
             );

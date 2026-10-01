@@ -100,7 +100,281 @@ const getReaderSource =
         return null;
     };
 
-const findReaderBootstrap =
+const getBroadcastReceiverIdentity =
+    (
+        blocks,
+        analyseBlockId
+    ) => {
+        const analyseBlock =
+            blocks[
+                analyseBlockId
+            ];
+
+        if (
+            !isBlockObject(
+                analyseBlock
+            )
+        ) {
+            return null;
+        }
+
+        let currentId =
+            analyseBlock.parent;
+
+        let passedForever =
+            false;
+
+        const visited =
+            new Set();
+
+        while (
+            typeof currentId ===
+                'string' &&
+            currentId.length >
+                0 &&
+            !visited.has(
+                currentId
+            )
+        ) {
+            visited.add(
+                currentId
+            );
+
+            const currentBlock =
+                blocks[
+                    currentId
+                ];
+
+            if (
+                !isBlockObject(
+                    currentBlock
+                )
+            ) {
+                return null;
+            }
+
+            if (
+                currentBlock.opcode ===
+                    'control_forever'
+            ) {
+                passedForever =
+                    true;
+            }
+
+            if (
+                passedForever &&
+                currentBlock.opcode ===
+                    'event_whenbroadcastreceived'
+            ) {
+                const field =
+                    currentBlock
+                        .fields &&
+                    currentBlock
+                        .fields
+                        .BROADCAST_OPTION;
+
+                if (
+                    !Array.isArray(
+                        field
+                    ) ||
+                    field.length ===
+                        0
+                ) {
+                    return null;
+                }
+
+                return {
+                    name:
+                        field[0],
+
+                    id:
+                        field.length >
+                            1 ?
+                            field[1] :
+                            null
+                };
+            }
+
+            currentId =
+                currentBlock.parent;
+        }
+
+        return null;
+    };
+
+const getBroadcastSenderIdentity =
+    block => {
+        if (
+            !isBlockObject(
+                block
+            ) ||
+            (
+                block.opcode !==
+                    'event_broadcast' &&
+                block.opcode !==
+                    'event_broadcastandwait'
+            ) ||
+            !block.inputs ||
+            !Array.isArray(
+                block.inputs
+                    .BROADCAST_INPUT
+            )
+        ) {
+            return null;
+        }
+
+        const input =
+            block.inputs
+                .BROADCAST_INPUT;
+
+        const primitive =
+            input[1];
+
+        if (
+            !Array.isArray(
+                primitive
+            ) ||
+            primitive[0] !==
+                11 ||
+            primitive.length <
+                2
+        ) {
+            return null;
+        }
+
+        return {
+            name:
+                primitive[1],
+
+            id:
+                primitive.length >
+                    2 ?
+                    primitive[2] :
+                    null
+        };
+    };
+
+const broadcastIdentitiesMatch =
+    (
+        receiver,
+        sender
+    ) => {
+        if (
+            !receiver ||
+            !sender
+        ) {
+            return false;
+        }
+
+        if (
+            typeof receiver.id ===
+                'string' &&
+            receiver.id.length >
+                0 &&
+            typeof sender.id ===
+                'string' &&
+            sender.id.length >
+                0
+        ) {
+            return (
+                receiver.id ===
+                sender.id
+            );
+        }
+
+        return (
+            typeof receiver.name ===
+                'string' &&
+            receiver.name.length >
+                0 &&
+            receiver.name ===
+                sender.name
+        );
+    };
+
+const findVideoBootstrapBeforeBlock =
+    (
+        blocks,
+        blockId
+    ) => {
+        const block =
+            blocks[
+                blockId
+            ];
+
+        if (
+            !isBlockObject(
+                block
+            )
+        ) {
+            return null;
+        }
+
+        let currentId =
+            block.parent;
+
+        const visited =
+            new Set();
+
+        while (
+            typeof currentId ===
+                'string' &&
+            currentId.length >
+                0 &&
+            !visited.has(
+                currentId
+            )
+        ) {
+            visited.add(
+                currentId
+            );
+
+            const currentBlock =
+                blocks[
+                    currentId
+                ];
+
+            if (
+                !isBlockObject(
+                    currentBlock
+                )
+            ) {
+                return null;
+            }
+
+            if (
+                currentBlock.opcode ===
+                    SOURCE_VIDEO_OPCODE
+            ) {
+                const videoState =
+                    getFieldValue(
+                        currentBlock,
+                        'VIDEO_STATE'
+                    );
+
+                const readerSource =
+                    getReaderSource(
+                        videoState
+                    );
+
+                if (readerSource) {
+                    return {
+                        blockId:
+                            currentId,
+
+                        readerSource
+                    };
+                }
+            }
+
+            currentId =
+                currentBlock.parent;
+        }
+
+        return null;
+    };
+
+const findInlineReaderBootstrap =
     (
         blocks,
         analyseBlockId
@@ -193,6 +467,86 @@ const findReaderBootstrap =
 
         return null;
     };
+
+const findBroadcastLinkedReaderBootstrap =
+    (
+        blocks,
+        analyseBlockId
+    ) => {
+        const receiver =
+            getBroadcastReceiverIdentity(
+                blocks,
+                analyseBlockId
+            );
+
+        if (!receiver) {
+            return null;
+        }
+
+        const candidates =
+            new Map();
+
+        Object.entries(
+            blocks
+        ).forEach(
+            ([
+                blockId,
+                block
+            ]) => {
+                const sender =
+                    getBroadcastSenderIdentity(
+                        block
+                    );
+
+                if (
+                    !broadcastIdentitiesMatch(
+                        receiver,
+                        sender
+                    )
+                ) {
+                    return;
+                }
+
+                const bootstrap =
+                    findVideoBootstrapBeforeBlock(
+                        blocks,
+                        blockId
+                    );
+
+                if (bootstrap) {
+                    candidates.set(
+                        bootstrap.blockId,
+                        bootstrap
+                    );
+                }
+            }
+        );
+
+        if (
+            candidates.size !==
+                1
+        ) {
+            return null;
+        }
+
+        return Array.from(
+            candidates.values()
+        )[0];
+    };
+
+const findReaderBootstrap =
+    (
+        blocks,
+        analyseBlockId
+    ) =>
+        findInlineReaderBootstrap(
+            blocks,
+            analyseBlockId
+        ) ||
+        findBroadcastLinkedReaderBootstrap(
+            blocks,
+            analyseBlockId
+        );
 
 const findAdjacentBoundingBox =
     (

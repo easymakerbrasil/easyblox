@@ -29,6 +29,7 @@ const FileMenu = ({
     onClickSaveAsCopy,
     onClickRemix,
     onStartSelectingFileUpload,
+    onStartSelectingExternalProjectImport,
     remixMessage,
     depth
 }) => {
@@ -123,6 +124,18 @@ const FileMenu = ({
                             id="gui.menuBar.openProject"
                         />
                     </MenuItem>
+
+                    <MenuItem
+                        onClick={onStartSelectingExternalProjectImport}
+                        isDataMenuItem
+                        onParentKeyDown={handleKeyDownOpenMenu}
+                    >
+                        <FormattedMessage
+                            defaultMessage="Importar..."
+                            description="Menu bar item for importing an external project"
+                            id="gui.menuBar.importProject"
+                        />
+                    </MenuItem>
                 </MenuSection>
                 <MenuSection>
                     <MenuItem
@@ -171,6 +184,7 @@ FileMenu.propTypes = {
     canCreateCopy: PropTypes.bool.isRequired,
     canRemix: PropTypes.bool.isRequired,
     onStartSelectingFileUpload: PropTypes.func.isRequired,
+    onStartSelectingExternalProjectImport: PropTypes.func.isRequired,
     onClickSave: PropTypes.func.isRequired,
     onClickSaveAs: PropTypes.func.isRequired,
     onClickSaveAsCopy: PropTypes.func,

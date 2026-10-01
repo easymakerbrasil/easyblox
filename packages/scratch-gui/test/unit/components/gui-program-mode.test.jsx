@@ -66,6 +66,7 @@ jest.mock('../../../src/components/menu-bar/menu-bar.jsx', () => (
         connectionState,
         onPrepareStageFirmware,
         onProgramModeChange,
+        onStartSelectingExternalProjectImport,
         stageFirmwareIssue
     }) => (
         <div
@@ -97,6 +98,13 @@ jest.mock('../../../src/components/menu-bar/menu-bar.jsx', () => (
                 onClick={onPrepareStageFirmware}
             >
                 Prepare Stage
+            </button>
+            <button
+                data-testid="import-external-project"
+                disabled={!onStartSelectingExternalProjectImport}
+                onClick={onStartSelectingExternalProjectImport}
+            >
+                Import Project
             </button>
         </div>
     )
@@ -135,6 +143,62 @@ jest.mock('../../../src/containers/watermark.jsx', () => () => null);
 jest.mock('../../../src/components/debug-modal/debug-modal.jsx', () => () => null);
 
 describe('GUI program mode propagation', () => {
+
+    test('forwards the external project import action to the menu bar', () => {
+        const onStartSelectingExternalProjectImport =
+            jest.fn();
+
+        const vm = {
+            generateArduinoUnoUploadCode:
+                jest.fn()
+                    .mockReturnValue(''),
+
+            getPeripheralIsConnected:
+                jest.fn()
+                    .mockReturnValue(false),
+
+            on:
+                jest.fn(),
+
+            removeListener:
+                jest.fn(),
+
+            setEasyBloxSelectedBoard:
+                jest.fn(),
+
+            setProgramContext:
+                jest.fn(),
+
+            refreshWorkspace:
+                jest.fn()
+        };
+
+        const {
+            getByTestId
+        } = renderWithIntl(
+            <GUIComponent
+                colorMode="default"
+                onStartSelectingExternalProjectImport={
+                    onStartSelectingExternalProjectImport
+                }
+                setTheme={jest.fn()}
+                theme="default"
+                vm={vm}
+            />
+        );
+
+        fireEvent.click(
+            getByTestId(
+                'import-external-project'
+            )
+        );
+
+        expect(
+            onStartSelectingExternalProjectImport
+        ).toHaveBeenCalledTimes(
+            1
+        );
+    });
 
     test('synchronizes Stage and Upload program contexts with the VM', () => {
         const contextAndRefreshCalls = [];

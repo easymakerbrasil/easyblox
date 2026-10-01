@@ -15,8 +15,18 @@ const {
 } = require('./structural-project-converter');
 
 const {
+    normalizePictoBloxSameOpcodeSchemas
+} = require('./same-opcode-schema-normalizer');
+
+const {
     migratePictoBloxQrReaderPatterns
 } = require('./qr-reader-migrator');
+
+const {
+    normalizeEasyBloxMenuShadows
+} = require(
+    './canonical-menu-shadow-normalizer'
+);
 
 const {
     normalizePictoBloxProjectData
@@ -173,9 +183,17 @@ const convertExternalSb3Project =
             };
         }
 
+        const compatibleOpcodeSchemas =
+            normalizePictoBloxSameOpcodeSchemas(
+                project
+            );
+
+        const compatibleOpcodeSchemaReport =
+            compatibleOpcodeSchemas.report;
+
         const conversion =
             convertPictoBloxProjectStructural(
-                project
+                compatibleOpcodeSchemas.project
             );
 
         const structuralReport =
@@ -189,9 +207,17 @@ const convertExternalSb3Project =
         const qrReaderMigrationReport =
             qrReaderMigration.report;
 
+        const canonicalMenuShadows =
+            normalizeEasyBloxMenuShadows(
+                qrReaderMigration.project
+            );
+
+        const canonicalMenuReport =
+            canonicalMenuShadows.report;
+
         const projectData =
             normalizePictoBloxProjectData(
-                qrReaderMigration.project
+                canonicalMenuShadows.project
             );
 
         const projectDataReport =
@@ -206,6 +232,10 @@ const convertExternalSb3Project =
             projectStructure.report;
 
         const safeLoad =
+            compatibleOpcodeSchemaReport
+                .deferred
+                .length ===
+                0 &&
             projectDataReport
                 .deferred
                 .length ===
@@ -226,12 +256,17 @@ const convertExternalSb3Project =
                             false,
 
                         skippedReason:
-                            projectDataReport
+                            compatibleOpcodeSchemaReport
                                 .deferred
                                 .length >
                                 0 ?
-                                'project-data-deferred' :
-                                'project-structure-deferred',
+                                'same-opcode-schema-deferred' :
+                                projectDataReport
+                                    .deferred
+                                    .length >
+                                    0 ?
+                                    'project-data-deferred' :
+                                    'project-structure-deferred',
 
                         quarantinedScriptCount:
                             0,
@@ -323,6 +358,8 @@ const convertExternalSb3Project =
                         .functionalBlocks,
 
                 convertedBlockCount:
+                    compatibleOpcodeSchemaReport
+                        .normalizedBlockCount +
                     simpleReport
                         .convertedBlockCount +
                     structuralReport
@@ -330,9 +367,26 @@ const convertExternalSb3Project =
                     qrReaderMigrationReport
                         .resolvedReviewBlockCount,
 
+                normalizedCompatibleOpcodeCount:
+                    compatibleOpcodeSchemaReport
+                        .normalizedBlockCount,
+
+                deferredCompatibleOpcodeSchemaCount:
+                    compatibleOpcodeSchemaReport
+                        .deferred
+                        .length,
+
                 deferredStructuralBlockCount:
                     structuralReport
                         .structuralDeferredBlockCount,
+
+                normalizedMenuBlockCount:
+                    canonicalMenuReport
+                        .normalizedBlockCount,
+
+                normalizedMenuArgumentCount:
+                    canonicalMenuReport
+                        .normalizedArgumentCount,
 
                 normalizedProjectVariableCount:
                     projectDataReport
@@ -368,6 +422,10 @@ const convertExternalSb3Project =
                 requiresReview:
                     reviewBlockCount >
                         0 ||
+                    compatibleOpcodeSchemaReport
+                        .deferred
+                        .length >
+                        0 ||
                     projectDataReport
                         .deferred
                         .length >
@@ -384,6 +442,9 @@ const convertExternalSb3Project =
 
                 plan:
                     analysis.plan,
+
+                compatibleOpcodeSchemas:
+                    compatibleOpcodeSchemaReport,
 
                 simpleMappings:
                     simpleReport,
@@ -408,6 +469,9 @@ const convertExternalSb3Project =
 
                 qrReaderMigration:
                     qrReaderMigrationReport,
+
+                canonicalMenuShadows:
+                    canonicalMenuReport,
 
                 projectData:
                     projectDataReport,

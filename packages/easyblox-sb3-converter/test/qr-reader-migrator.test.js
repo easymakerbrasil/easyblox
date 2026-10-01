@@ -341,6 +341,352 @@ test(
 );
 
 test(
+    'QR reader migrator links a video bootstrap to a reader loop through the same broadcast',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            targets: [
+                {
+                    name:
+                        'PORTA ABRINDO',
+
+                    blocks: {
+                        flag: {
+                            opcode:
+                                'event_whenflagclicked',
+
+                            next:
+                                'video',
+
+                            parent:
+                                null,
+
+                            inputs: {},
+
+                            fields: {},
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                true
+                        },
+
+                        video: {
+                            opcode:
+                                'qrCodeScanner_toggleStageVideoFeed',
+
+                            next:
+                                'visualSetup',
+
+                            parent:
+                                'flag',
+
+                            inputs: {},
+
+                            fields: {
+                                VIDEO_STATE: [
+                                    'onFlipped',
+                                    null
+                                ]
+                            },
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                false
+                        },
+
+                        visualSetup: {
+                            opcode:
+                                'looks_setsizeto',
+
+                            next:
+                                'broadcast',
+
+                            parent:
+                                'video',
+
+                            inputs: {
+                                SIZE: [
+                                    1,
+                                    [
+                                        4,
+                                        '150'
+                                    ]
+                                ]
+                            },
+
+                            fields: {},
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                false
+                        },
+
+                        broadcast: {
+                            opcode:
+                                'event_broadcast',
+
+                            next:
+                                null,
+
+                            parent:
+                                'visualSetup',
+
+                            inputs: {
+                                BROADCAST_INPUT: [
+                                    1,
+                                    [
+                                        11,
+                                        'QR CODE',
+                                        'qr-message-id'
+                                    ]
+                                ]
+                            },
+
+                            fields: {},
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                false
+                        },
+
+                        receiver: {
+                            opcode:
+                                'event_whenbroadcastreceived',
+
+                            next:
+                                'forever',
+
+                            parent:
+                                null,
+
+                            inputs: {},
+
+                            fields: {
+                                BROADCAST_OPTION: [
+                                    'QR CODE',
+                                    'qr-message-id'
+                                ]
+                            },
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                true
+                        },
+
+                        forever: {
+                            opcode:
+                                'control_forever',
+
+                            next:
+                                null,
+
+                            parent:
+                                'receiver',
+
+                            inputs: {
+                                SUBSTACK: [
+                                    2,
+                                    'analyse'
+                                ]
+                            },
+
+                            fields: {},
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                false
+                        },
+
+                        analyse: {
+                            opcode:
+                                'qrCodeScanner_analyseImage',
+
+                            next:
+                                'boundingBox',
+
+                            parent:
+                                'forever',
+
+                            inputs: {},
+
+                            fields: {},
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                false
+                        },
+
+                        boundingBox: {
+                            opcode:
+                                'qrCodeScanner_drawBoundingBox',
+
+                            next:
+                                'after',
+
+                            parent:
+                                'analyse',
+
+                            inputs: {},
+
+                            fields: {},
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                false
+                        },
+
+                        after: {
+                            opcode:
+                                'control_if',
+
+                            next:
+                                null,
+
+                            parent:
+                                'boundingBox',
+
+                            inputs: {},
+
+                            fields: {},
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                false
+                        }
+                    }
+                }
+            ]
+        };
+
+        const result =
+            migratePictoBloxQrReaderPatterns(
+                project
+            );
+
+        const blocks =
+            result.project
+                .targets[0]
+                .blocks;
+
+        assert.equal(
+            blocks.video.opcode,
+            'easybloxQr_startReader'
+        );
+
+        assert.deepEqual(
+            blocks.video.fields,
+            {
+                SOURCE: [
+                    'cameraMirrored',
+                    null
+                ]
+            }
+        );
+
+        const boundaryBlockId =
+            blocks.video.next;
+
+        assert.equal(
+            blocks[
+                boundaryBlockId
+            ].opcode,
+            'easybloxQr_setBoundary'
+        );
+
+        assert.deepEqual(
+            blocks[
+                boundaryBlockId
+            ].fields,
+            {
+                STATE: [
+                    'on',
+                    null
+                ]
+            }
+        );
+
+        assert.equal(
+            blocks[
+                boundaryBlockId
+            ].next,
+            'visualSetup'
+        );
+
+        assert.equal(
+            blocks.visualSetup.parent,
+            boundaryBlockId
+        );
+
+        assert.deepEqual(
+            blocks.forever.inputs.SUBSTACK,
+            [
+                2,
+                'after'
+            ]
+        );
+
+        assert.equal(
+            blocks.after.parent,
+            'forever'
+        );
+
+        assert.equal(
+            blocks.analyse,
+            undefined
+        );
+
+        assert.equal(
+            blocks.boundingBox,
+            undefined
+        );
+
+        assert.equal(
+            result.report
+                .migratedReaderCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .resolvedReviewBlockCount,
+            3
+        );
+
+        assert.equal(
+            result.report
+                .remainingVisualToggleCount,
+            0
+        );
+
+        assert.deepEqual(
+            result.report
+                .deferred,
+            []
+        );
+    }
+);
+
+test(
     'QR reader migrator leaves visual-only video controls untouched',
     () => {
         const project =

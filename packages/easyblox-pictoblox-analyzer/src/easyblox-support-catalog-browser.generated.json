@@ -1,0 +1,4171 @@
+{
+    "entries": [
+        {
+            "opcode": "actuators_ledWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_motorConfigure",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_motorInit",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_motorStop",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_motorWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_relayWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_rgbLedDigitalWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_rgbLedPwmWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_servoWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_toneStart",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_toneStop",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_trafficLightWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "arduinoUno_analogRead",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_convertNumber",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_digitalRead",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_digitalWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_map",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_pwmWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_timerRead",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_timerReset",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_toneStart",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_toneStop",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_whenArduinoUnoStart",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "argument_reporter_boolean",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "argument_reporter_string_number",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "boost_getMotorPosition",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_getTiltAngle",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_motorOff",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_motorOn",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_motorOnFor",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_motorOnForRotation",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_seeingColor",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_setLightHue",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_setMotorDirection",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_setMotorPower",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_whenColor",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_whenTilted",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "control_all_at_once",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_clear_counter",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_create_clone_of",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_delete_this_clone",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_for_each",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_forever",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_get_counter",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_if",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_if_else",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_incr_counter",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_repeat",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_repeat_until",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_start_as_clone",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_stop",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_wait",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_wait_until",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "control_while",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_addtolist",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_changevariableby",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_deletealloflist",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_deleteoflist",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_hidelist",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_hidevariable",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_insertatlist",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_itemnumoflist",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_itemoflist",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_lengthoflist",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_listcontainsitem",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_listcontents",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_replaceitemoflist",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_setvariableto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_showlist",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_showvariable",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "data_variable",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "displays_configureMatrix",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_lcdClear",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_lcdInit",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_lcdMode",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_lcdWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_matrixBrightness",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_matrixClear",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_matrixWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_tm1637Clear",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_tm1637Init",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_tm1637Show",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "easybloxBt_controlsJoystickPosition",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_controlsSliderValue",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_init",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_isControlsButtonPressed",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_isControlsSwitchOn",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_isGamepadButtonPressed",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_motorsServoMotorControl",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_motorsServoServoControl",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_outputsSetIndicator",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_receivedNumber",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_receivedText",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_sendNumber",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_sendText",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_waitNumber",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_waitText",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxQr_content",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxQr"
+        },
+        {
+            "opcode": "easybloxQr_hideQrCode",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxQr"
+        },
+        {
+            "opcode": "easybloxQr_isDetected",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxQr"
+        },
+        {
+            "opcode": "easybloxQr_setBoundary",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxQr"
+        },
+        {
+            "opcode": "easybloxQr_showQrCode",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxQr"
+        },
+        {
+            "opcode": "easybloxQr_startReader",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxQr"
+        },
+        {
+            "opcode": "easybloxQr_stopReader",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "easybloxQr"
+        },
+        {
+            "opcode": "ev3_beep",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_buttonPressed",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_getBrightness",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_getDistance",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_getMotorPosition",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_motorSetPower",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_motorTurnClockwise",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_motorTurnCounterClockwise",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_whenBrightnessLessThan",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_whenButtonPressed",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_whenDistanceLessThan",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "event_broadcast",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "event_broadcastandwait",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "event_whenbackdropswitchesto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "event_whenbroadcastreceived",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "event_whenflagclicked",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "event_whengreaterthan",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "event_whenkeypressed",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "event_whenstageclicked",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "event_whenthisspriteclicked",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "event_whentouchingobject",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "faceSensing_faceIsDetected",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "faceSensing"
+        },
+        {
+            "opcode": "faceSensing_faceSize",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "faceSensing"
+        },
+        {
+            "opcode": "faceSensing_faceTilt",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "faceSensing"
+        },
+        {
+            "opcode": "faceSensing_goToPart",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "faceSensing"
+        },
+        {
+            "opcode": "faceSensing_pointInFaceTiltDirection",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "faceSensing"
+        },
+        {
+            "opcode": "faceSensing_setSizeToFaceSize",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "faceSensing"
+        },
+        {
+            "opcode": "faceSensing_whenFaceDetected",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "faceSensing"
+        },
+        {
+            "opcode": "faceSensing_whenSpriteTouchesPart",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "faceSensing"
+        },
+        {
+            "opcode": "faceSensing_whenTilted",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "faceSensing"
+        },
+        {
+            "opcode": "gdxfor_getAcceleration",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_getForce",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_getSpinSpeed",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_getTilt",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_isFreeFalling",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_isTilted",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_whenForcePushedOrPulled",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_whenGesture",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_whenTilted",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "looks_backdropnumbername",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_changeeffectby",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_changesizeby",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_changestretchby",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_cleargraphiceffects",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_costumenumbername",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_goforwardbackwardlayers",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_gotofrontback",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_hide",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_hideallsprites",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_nextbackdrop",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_nextcostume",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_say",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_sayforsecs",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_seteffectto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_setsizeto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_setstretchto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_show",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_size",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_switchbackdropto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_switchbackdroptoandwait",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_switchcostumeto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_think",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "looks_thinkforsecs",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "makeymakey_whenCodePressed",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "makeymakey"
+        },
+        {
+            "opcode": "makeymakey_whenMakeyKeyPressed",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "makeymakey"
+        },
+        {
+            "opcode": "microbit_displayClear",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_displaySymbol",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_displayText",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_getTiltAngle",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_isButtonPressed",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_isTilted",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_whenButtonPressed",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_whenGesture",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_whenPinConnected",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_whenTilted",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "motion_align_scene",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_changexby",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_changeyby",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_direction",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_glidesecstoxy",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_glideto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_goto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_gotoxy",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_ifonedgebounce",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_movesteps",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_pointindirection",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_pointtowards",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_scroll_right",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_scroll_up",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_setrotationstyle",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_setx",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_sety",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_turnleft",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_turnright",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_xposition",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_xscroll",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_yposition",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "motion_yscroll",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "music_changeTempo",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "music_getTempo",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "music_midiPlayDrumForBeats",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "music_midiSetInstrument",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "music_playDrumForBeats",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "music_playNoteForBeats",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "music_restForBeats",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "music_setInstrument",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "music_setTempo",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "operator_add",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_and",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_contains",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_divide",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_equals",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_gt",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_join",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_length",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_letter_of",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_lt",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_mathop",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_mod",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_multiply",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_not",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_or",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_random",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_round",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "operator_subtract",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "pen_changePenColorParamBy",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_changePenHueBy",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_changePenShadeBy",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_changePenSizeBy",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_clear",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_penDown",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_penUp",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_setPenColorParamTo",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_setPenColorToColor",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_setPenHueToNumber",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_setPenShadeToNumber",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_setPenSizeTo",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "pen_stamp",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "procedures_call",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "procedures_definition",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_answer",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_askandwait",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_coloristouchingcolor",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_current",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_dayssince2000",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_distanceto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_keypressed",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_loud",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_loudness",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_mousedown",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_mousex",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_mousey",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_of",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_online",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_resettimer",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_setdragmode",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_timer",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_touchingcolor",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_touchingobject",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_userid",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensing_username",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sensors_analogSensorRead",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_dhtRead",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_dhtReadPort",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_digitalSensorRead",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_joystickClicked",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_joystickInit",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_joystickInitEasyMaker",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_joystickValue",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_ultrasonicRead",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_ultrasonicReadPort",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "serial_serialBegin",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "serial"
+        },
+        {
+            "opcode": "serial_serialWrite",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "serial"
+        },
+        {
+            "opcode": "serial_serialWriteLine",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "serial"
+        },
+        {
+            "opcode": "sound_beats_menu",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_changeeffectby",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_changevolumeby",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_cleareffects",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_effects_menu",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_play",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_playuntildone",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_seteffectto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_setvolumeto",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_sounds_menu",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_stopallsounds",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "sound_volume",
+            "status": "supported",
+            "source": "core"
+        },
+        {
+            "opcode": "text2speech_setLanguage",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "text2speech"
+        },
+        {
+            "opcode": "text2speech_setVoice",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "text2speech"
+        },
+        {
+            "opcode": "text2speech_speakAndWait",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "text2speech"
+        },
+        {
+            "opcode": "translate_getTranslate",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "translate"
+        },
+        {
+            "opcode": "translate_getViewerLanguage",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "translate"
+        },
+        {
+            "opcode": "videoSensing_setVideoTransparency",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "videoSensing"
+        },
+        {
+            "opcode": "videoSensing_videoOn",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "videoSensing"
+        },
+        {
+            "opcode": "videoSensing_videoToggle",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "videoSensing"
+        },
+        {
+            "opcode": "videoSensing_whenMotionGreaterThan",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "videoSensing"
+        },
+        {
+            "opcode": "wedo2_getDistance",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_getTiltAngle",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_isTilted",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_motorOff",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_motorOn",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_motorOnFor",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_playNoteFor",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_setLightHue",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_setMotorDirection",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_startMotorPower",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_whenDistance",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_whenTilted",
+            "status": "supported",
+            "source": "extension",
+            "extensionId": "wedo2"
+        }
+    ],
+    "serializedAuxiliaryEntries": [
+        {
+            "opcode": "actuators_menu_easyMakerBuzzerPorts",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_easyMakerDigitalPorts",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_easyMakerLedPorts",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_easyMakerServoPorts",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_easyMakerTrafficLightPorts",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_ledStates",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_motorDigitalPins",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_motorDirections",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_motorNumbers",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_motorPwmPins",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_relayPins",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_relayStates",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_rgbLedColors",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_servoPins",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "actuators_menu_trafficLightColors",
+            "source": "extension-menu",
+            "extensionId": "actuators"
+        },
+        {
+            "opcode": "arduinoUno_menu_analogPins",
+            "source": "extension-menu",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_menu_digitalPins",
+            "source": "extension-menu",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_menu_digitalValues",
+            "source": "extension-menu",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_menu_easyMakerBuzzerPorts",
+            "source": "extension-menu",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "arduinoUno_menu_pwmPins",
+            "source": "extension-menu",
+            "extensionId": "arduinoUno"
+        },
+        {
+            "opcode": "boost_menu_COLOR",
+            "source": "extension-menu",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_menu_MOTOR_DIRECTION",
+            "source": "extension-menu",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_menu_MOTOR_ID",
+            "source": "extension-menu",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_menu_MOTOR_REPORTER_ID",
+            "source": "extension-menu",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_menu_TILT_DIRECTION",
+            "source": "extension-menu",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "boost_menu_TILT_DIRECTION_ANY",
+            "source": "extension-menu",
+            "extensionId": "boost"
+        },
+        {
+            "opcode": "colour_picker",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "control_create_clone_of_menu",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "data_listcontents",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "data_variable",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "displays_menu_easyMakerTm1637Ports",
+            "source": "extension-menu",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_menu_lcdColumns",
+            "source": "extension-menu",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_menu_lcdModes",
+            "source": "extension-menu",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_menu_lcdRows",
+            "source": "extension-menu",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_menu_matrixPins",
+            "source": "extension-menu",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_menu_tm1637LeadingZeros",
+            "source": "extension-menu",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_menu_tm1637Lengths",
+            "source": "extension-menu",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_menu_tm1637Point",
+            "source": "extension-menu",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "displays_menu_tm1637Positions",
+            "source": "extension-menu",
+            "extensionId": "displays"
+        },
+        {
+            "opcode": "easyblox_matrix_8x8",
+            "source": "easyblox-shadow"
+        },
+        {
+            "opcode": "easyblox_motor_speed",
+            "source": "easyblox-shadow"
+        },
+        {
+            "opcode": "easyblox_percentage",
+            "source": "easyblox-shadow"
+        },
+        {
+            "opcode": "easyblox_pwm_value",
+            "source": "easyblox-shadow"
+        },
+        {
+            "opcode": "easyblox_servo_angle",
+            "source": "easyblox-shadow"
+        },
+        {
+            "opcode": "easybloxBt_menu_motorsServoDigitalPins",
+            "source": "extension-menu",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_menu_motorsServoPwmPins",
+            "source": "extension-menu",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "easybloxBt_menu_motorsServoServoPins",
+            "source": "extension-menu",
+            "extensionId": "easybloxBt"
+        },
+        {
+            "opcode": "ev3_menu_motorPorts",
+            "source": "extension-menu",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "ev3_menu_sensorPorts",
+            "source": "extension-menu",
+            "extensionId": "ev3"
+        },
+        {
+            "opcode": "event_broadcast_menu",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "gdxfor_menu_axisOptions",
+            "source": "extension-menu",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_menu_gestureOptions",
+            "source": "extension-menu",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_menu_pushPullOptions",
+            "source": "extension-menu",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_menu_tiltAnyOptions",
+            "source": "extension-menu",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "gdxfor_menu_tiltOptions",
+            "source": "extension-menu",
+            "extensionId": "gdxfor"
+        },
+        {
+            "opcode": "looks_backdrops",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "looks_costume",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "makeymakey_menu_KEY",
+            "source": "extension-menu",
+            "extensionId": "makeymakey"
+        },
+        {
+            "opcode": "makeymakey_menu_SEQUENCE",
+            "source": "extension-menu",
+            "extensionId": "makeymakey"
+        },
+        {
+            "opcode": "math_angle",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "math_integer",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "math_number",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "math_positive_number",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "math_whole_number",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "matrix",
+            "source": "easyblox-shadow"
+        },
+        {
+            "opcode": "microbit_menu_buttons",
+            "source": "extension-menu",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_menu_gestures",
+            "source": "extension-menu",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_menu_pinState",
+            "source": "extension-menu",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_menu_tiltDirection",
+            "source": "extension-menu",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_menu_tiltDirectionAny",
+            "source": "extension-menu",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "microbit_menu_touchPins",
+            "source": "extension-menu",
+            "extensionId": "microbit"
+        },
+        {
+            "opcode": "motion_glideto_menu",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "motion_goto_menu",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "motion_pointtowards_menu",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "music_menu_DRUM",
+            "source": "extension-menu",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "music_menu_INSTRUMENT",
+            "source": "extension-menu",
+            "extensionId": "music"
+        },
+        {
+            "opcode": "note",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "pen_menu_colorParam",
+            "source": "extension-menu",
+            "extensionId": "pen"
+        },
+        {
+            "opcode": "procedures_prototype",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "sensing_distancetomenu",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "sensing_keyoptions",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "sensing_of_object_menu",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "sensing_touchingobjectmenu",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "sensors_menu_dhtPins",
+            "source": "extension-menu",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_menu_dhtTypes",
+            "source": "extension-menu",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_menu_joystickAnalogPins",
+            "source": "extension-menu",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_menu_joystickAxes",
+            "source": "extension-menu",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_menu_joystickClickPins",
+            "source": "extension-menu",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sensors_menu_ultrasonicPins",
+            "source": "extension-menu",
+            "extensionId": "sensors"
+        },
+        {
+            "opcode": "sound_sounds_menu",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "text",
+            "source": "core-serialized"
+        },
+        {
+            "opcode": "text2speech_menu_languages",
+            "source": "extension-menu",
+            "extensionId": "text2speech"
+        },
+        {
+            "opcode": "text2speech_menu_voices",
+            "source": "extension-menu",
+            "extensionId": "text2speech"
+        },
+        {
+            "opcode": "translate_menu_languages",
+            "source": "extension-menu",
+            "extensionId": "translate"
+        },
+        {
+            "opcode": "videoSensing_menu_ATTRIBUTE",
+            "source": "extension-menu",
+            "extensionId": "videoSensing"
+        },
+        {
+            "opcode": "videoSensing_menu_SUBJECT",
+            "source": "extension-menu",
+            "extensionId": "videoSensing"
+        },
+        {
+            "opcode": "videoSensing_menu_VIDEO_STATE",
+            "source": "extension-menu",
+            "extensionId": "videoSensing"
+        },
+        {
+            "opcode": "wedo2_menu_MOTOR_DIRECTION",
+            "source": "extension-menu",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_menu_MOTOR_ID",
+            "source": "extension-menu",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_menu_OP",
+            "source": "extension-menu",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_menu_TILT_DIRECTION",
+            "source": "extension-menu",
+            "extensionId": "wedo2"
+        },
+        {
+            "opcode": "wedo2_menu_TILT_DIRECTION_ANY",
+            "source": "extension-menu",
+            "extensionId": "wedo2"
+        }
+    ],
+    "coreOpcodeCount": 146,
+    "extensionOpcodeCount": 165,
+    "totalOpcodeCount": 311,
+    "serializedAuxiliaryOpcodeCount": 102,
+    "menuArgumentSchemas": [
+        {
+            "opcode": "actuators_ledWrite",
+            "argumentName": "PORT",
+            "menuName": "easyMakerLedPorts",
+            "shadowOpcode": "actuators_menu_easyMakerLedPorts",
+            "fieldName": "easyMakerLedPorts"
+        },
+        {
+            "opcode": "actuators_ledWrite",
+            "argumentName": "STATE",
+            "menuName": "ledStates",
+            "shadowOpcode": "actuators_menu_ledStates",
+            "fieldName": "ledStates"
+        },
+        {
+            "opcode": "actuators_motorConfigure",
+            "argumentName": "IN1",
+            "menuName": "motorDigitalPins",
+            "shadowOpcode": "actuators_menu_motorDigitalPins",
+            "fieldName": "motorDigitalPins"
+        },
+        {
+            "opcode": "actuators_motorConfigure",
+            "argumentName": "IN2",
+            "menuName": "motorDigitalPins",
+            "shadowOpcode": "actuators_menu_motorDigitalPins",
+            "fieldName": "motorDigitalPins"
+        },
+        {
+            "opcode": "actuators_motorConfigure",
+            "argumentName": "MOTOR",
+            "menuName": "motorNumbers",
+            "shadowOpcode": "actuators_menu_motorNumbers",
+            "fieldName": "motorNumbers"
+        },
+        {
+            "opcode": "actuators_motorConfigure",
+            "argumentName": "PWM",
+            "menuName": "motorPwmPins",
+            "shadowOpcode": "actuators_menu_motorPwmPins",
+            "fieldName": "motorPwmPins"
+        },
+        {
+            "opcode": "actuators_motorInit",
+            "argumentName": "MOTOR",
+            "menuName": "motorNumbers",
+            "shadowOpcode": "actuators_menu_motorNumbers",
+            "fieldName": "motorNumbers"
+        },
+        {
+            "opcode": "actuators_motorStop",
+            "argumentName": "MOTOR",
+            "menuName": "motorNumbers",
+            "shadowOpcode": "actuators_menu_motorNumbers",
+            "fieldName": "motorNumbers"
+        },
+        {
+            "opcode": "actuators_motorWrite",
+            "argumentName": "DIRECTION",
+            "menuName": "motorDirections",
+            "shadowOpcode": "actuators_menu_motorDirections",
+            "fieldName": "motorDirections"
+        },
+        {
+            "opcode": "actuators_motorWrite",
+            "argumentName": "MOTOR",
+            "menuName": "motorNumbers",
+            "shadowOpcode": "actuators_menu_motorNumbers",
+            "fieldName": "motorNumbers"
+        },
+        {
+            "opcode": "actuators_relayWrite",
+            "argumentName": "PIN",
+            "menuName": "relayPins",
+            "shadowOpcode": "actuators_menu_relayPins",
+            "fieldName": "relayPins"
+        },
+        {
+            "opcode": "actuators_relayWrite",
+            "argumentName": "STATE",
+            "menuName": "relayStates",
+            "shadowOpcode": "actuators_menu_relayStates",
+            "fieldName": "relayStates"
+        },
+        {
+            "opcode": "actuators_rgbLedDigitalWrite",
+            "argumentName": "COLOR",
+            "menuName": "rgbLedColors",
+            "shadowOpcode": "actuators_menu_rgbLedColors",
+            "fieldName": "rgbLedColors"
+        },
+        {
+            "opcode": "actuators_rgbLedDigitalWrite",
+            "argumentName": "STATE",
+            "menuName": "ledStates",
+            "shadowOpcode": "actuators_menu_ledStates",
+            "fieldName": "ledStates"
+        },
+        {
+            "opcode": "actuators_rgbLedPwmWrite",
+            "argumentName": "COLOR",
+            "menuName": "rgbLedColors",
+            "shadowOpcode": "actuators_menu_rgbLedColors",
+            "fieldName": "rgbLedColors"
+        },
+        {
+            "opcode": "actuators_servoWrite",
+            "argumentName": "PIN",
+            "menuName": "servoPins",
+            "shadowOpcode": "actuators_menu_servoPins",
+            "fieldName": "servoPins"
+        },
+        {
+            "opcode": "actuators_toneStart",
+            "argumentName": "PIN",
+            "menuName": "easyMakerBuzzerPorts",
+            "shadowOpcode": "actuators_menu_easyMakerBuzzerPorts",
+            "fieldName": "easyMakerBuzzerPorts"
+        },
+        {
+            "opcode": "actuators_toneStop",
+            "argumentName": "PIN",
+            "menuName": "easyMakerBuzzerPorts",
+            "shadowOpcode": "actuators_menu_easyMakerBuzzerPorts",
+            "fieldName": "easyMakerBuzzerPorts"
+        },
+        {
+            "opcode": "actuators_trafficLightWrite",
+            "argumentName": "COLOR",
+            "menuName": "trafficLightColors",
+            "shadowOpcode": "actuators_menu_trafficLightColors",
+            "fieldName": "trafficLightColors"
+        },
+        {
+            "opcode": "actuators_trafficLightWrite",
+            "argumentName": "PORT",
+            "menuName": "easyMakerTrafficLightPorts",
+            "shadowOpcode": "actuators_menu_easyMakerTrafficLightPorts",
+            "fieldName": "easyMakerTrafficLightPorts"
+        },
+        {
+            "opcode": "actuators_trafficLightWrite",
+            "argumentName": "STATE",
+            "menuName": "ledStates",
+            "shadowOpcode": "actuators_menu_ledStates",
+            "fieldName": "ledStates"
+        },
+        {
+            "opcode": "arduinoUno_analogRead",
+            "argumentName": "PIN",
+            "menuName": "analogPins",
+            "shadowOpcode": "arduinoUno_menu_analogPins",
+            "fieldName": "analogPins"
+        },
+        {
+            "opcode": "arduinoUno_digitalRead",
+            "argumentName": "PIN",
+            "menuName": "digitalPins",
+            "shadowOpcode": "arduinoUno_menu_digitalPins",
+            "fieldName": "digitalPins"
+        },
+        {
+            "opcode": "arduinoUno_digitalWrite",
+            "argumentName": "PIN",
+            "menuName": "digitalPins",
+            "shadowOpcode": "arduinoUno_menu_digitalPins",
+            "fieldName": "digitalPins"
+        },
+        {
+            "opcode": "arduinoUno_digitalWrite",
+            "argumentName": "VALUE",
+            "menuName": "digitalValues",
+            "shadowOpcode": "arduinoUno_menu_digitalValues",
+            "fieldName": "digitalValues"
+        },
+        {
+            "opcode": "arduinoUno_pwmWrite",
+            "argumentName": "PIN",
+            "menuName": "pwmPins",
+            "shadowOpcode": "arduinoUno_menu_pwmPins",
+            "fieldName": "pwmPins"
+        },
+        {
+            "opcode": "arduinoUno_toneStart",
+            "argumentName": "PIN",
+            "menuName": "digitalPins",
+            "shadowOpcode": "arduinoUno_menu_digitalPins",
+            "fieldName": "digitalPins"
+        },
+        {
+            "opcode": "arduinoUno_toneStop",
+            "argumentName": "PIN",
+            "menuName": "digitalPins",
+            "shadowOpcode": "arduinoUno_menu_digitalPins",
+            "fieldName": "digitalPins"
+        },
+        {
+            "opcode": "boost_getMotorPosition",
+            "argumentName": "MOTOR_REPORTER_ID",
+            "menuName": "MOTOR_REPORTER_ID",
+            "shadowOpcode": "boost_menu_MOTOR_REPORTER_ID",
+            "fieldName": "MOTOR_REPORTER_ID"
+        },
+        {
+            "opcode": "boost_getTiltAngle",
+            "argumentName": "TILT_DIRECTION",
+            "menuName": "TILT_DIRECTION",
+            "shadowOpcode": "boost_menu_TILT_DIRECTION",
+            "fieldName": "TILT_DIRECTION"
+        },
+        {
+            "opcode": "boost_motorOff",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "boost_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "boost_motorOn",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "boost_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "boost_motorOnFor",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "boost_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "boost_motorOnForRotation",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "boost_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "boost_seeingColor",
+            "argumentName": "COLOR",
+            "menuName": "COLOR",
+            "shadowOpcode": "boost_menu_COLOR",
+            "fieldName": "COLOR"
+        },
+        {
+            "opcode": "boost_setMotorDirection",
+            "argumentName": "MOTOR_DIRECTION",
+            "menuName": "MOTOR_DIRECTION",
+            "shadowOpcode": "boost_menu_MOTOR_DIRECTION",
+            "fieldName": "MOTOR_DIRECTION"
+        },
+        {
+            "opcode": "boost_setMotorDirection",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "boost_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "boost_setMotorPower",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "boost_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "boost_whenColor",
+            "argumentName": "COLOR",
+            "menuName": "COLOR",
+            "shadowOpcode": "boost_menu_COLOR",
+            "fieldName": "COLOR"
+        },
+        {
+            "opcode": "boost_whenTilted",
+            "argumentName": "TILT_DIRECTION_ANY",
+            "menuName": "TILT_DIRECTION_ANY",
+            "shadowOpcode": "boost_menu_TILT_DIRECTION_ANY",
+            "fieldName": "TILT_DIRECTION_ANY"
+        },
+        {
+            "opcode": "displays_configureMatrix",
+            "argumentName": "CLK",
+            "menuName": "matrixPins",
+            "shadowOpcode": "displays_menu_matrixPins",
+            "fieldName": "matrixPins"
+        },
+        {
+            "opcode": "displays_configureMatrix",
+            "argumentName": "CS",
+            "menuName": "matrixPins",
+            "shadowOpcode": "displays_menu_matrixPins",
+            "fieldName": "matrixPins"
+        },
+        {
+            "opcode": "displays_configureMatrix",
+            "argumentName": "DIN",
+            "menuName": "matrixPins",
+            "shadowOpcode": "displays_menu_matrixPins",
+            "fieldName": "matrixPins"
+        },
+        {
+            "opcode": "displays_lcdMode",
+            "argumentName": "MODE",
+            "menuName": "lcdModes",
+            "shadowOpcode": "displays_menu_lcdModes",
+            "fieldName": "lcdModes"
+        },
+        {
+            "opcode": "displays_lcdWrite",
+            "argumentName": "COLUMN",
+            "menuName": "lcdColumns",
+            "shadowOpcode": "displays_menu_lcdColumns",
+            "fieldName": "lcdColumns"
+        },
+        {
+            "opcode": "displays_lcdWrite",
+            "argumentName": "ROW",
+            "menuName": "lcdRows",
+            "shadowOpcode": "displays_menu_lcdRows",
+            "fieldName": "lcdRows"
+        },
+        {
+            "opcode": "displays_tm1637Init",
+            "argumentName": "CLK",
+            "menuName": "matrixPins",
+            "shadowOpcode": "displays_menu_matrixPins",
+            "fieldName": "matrixPins"
+        },
+        {
+            "opcode": "displays_tm1637Init",
+            "argumentName": "DIO",
+            "menuName": "matrixPins",
+            "shadowOpcode": "displays_menu_matrixPins",
+            "fieldName": "matrixPins"
+        },
+        {
+            "opcode": "displays_tm1637Show",
+            "argumentName": "LEADING_ZEROS",
+            "menuName": "tm1637LeadingZeros",
+            "shadowOpcode": "displays_menu_tm1637LeadingZeros",
+            "fieldName": "tm1637LeadingZeros"
+        },
+        {
+            "opcode": "displays_tm1637Show",
+            "argumentName": "LENGTH",
+            "menuName": "tm1637Lengths",
+            "shadowOpcode": "displays_menu_tm1637Lengths",
+            "fieldName": "tm1637Lengths"
+        },
+        {
+            "opcode": "displays_tm1637Show",
+            "argumentName": "POINT",
+            "menuName": "tm1637Point",
+            "shadowOpcode": "displays_menu_tm1637Point",
+            "fieldName": "tm1637Point"
+        },
+        {
+            "opcode": "displays_tm1637Show",
+            "argumentName": "POSITION",
+            "menuName": "tm1637Positions",
+            "shadowOpcode": "displays_menu_tm1637Positions",
+            "fieldName": "tm1637Positions"
+        },
+        {
+            "opcode": "easybloxBt_motorsServoMotorControl",
+            "argumentName": "IN1",
+            "menuName": "motorsServoDigitalPins",
+            "shadowOpcode": "easybloxBt_menu_motorsServoDigitalPins",
+            "fieldName": "motorsServoDigitalPins"
+        },
+        {
+            "opcode": "easybloxBt_motorsServoMotorControl",
+            "argumentName": "IN2",
+            "menuName": "motorsServoDigitalPins",
+            "shadowOpcode": "easybloxBt_menu_motorsServoDigitalPins",
+            "fieldName": "motorsServoDigitalPins"
+        },
+        {
+            "opcode": "easybloxBt_motorsServoMotorControl",
+            "argumentName": "PWM",
+            "menuName": "motorsServoPwmPins",
+            "shadowOpcode": "easybloxBt_menu_motorsServoPwmPins",
+            "fieldName": "motorsServoPwmPins"
+        },
+        {
+            "opcode": "easybloxBt_motorsServoServoControl",
+            "argumentName": "PIN",
+            "menuName": "motorsServoServoPins",
+            "shadowOpcode": "easybloxBt_menu_motorsServoServoPins",
+            "fieldName": "motorsServoServoPins"
+        },
+        {
+            "opcode": "ev3_buttonPressed",
+            "argumentName": "PORT",
+            "menuName": "sensorPorts",
+            "shadowOpcode": "ev3_menu_sensorPorts",
+            "fieldName": "sensorPorts"
+        },
+        {
+            "opcode": "ev3_getMotorPosition",
+            "argumentName": "PORT",
+            "menuName": "motorPorts",
+            "shadowOpcode": "ev3_menu_motorPorts",
+            "fieldName": "motorPorts"
+        },
+        {
+            "opcode": "ev3_motorSetPower",
+            "argumentName": "PORT",
+            "menuName": "motorPorts",
+            "shadowOpcode": "ev3_menu_motorPorts",
+            "fieldName": "motorPorts"
+        },
+        {
+            "opcode": "ev3_motorTurnClockwise",
+            "argumentName": "PORT",
+            "menuName": "motorPorts",
+            "shadowOpcode": "ev3_menu_motorPorts",
+            "fieldName": "motorPorts"
+        },
+        {
+            "opcode": "ev3_motorTurnCounterClockwise",
+            "argumentName": "PORT",
+            "menuName": "motorPorts",
+            "shadowOpcode": "ev3_menu_motorPorts",
+            "fieldName": "motorPorts"
+        },
+        {
+            "opcode": "ev3_whenButtonPressed",
+            "argumentName": "PORT",
+            "menuName": "sensorPorts",
+            "shadowOpcode": "ev3_menu_sensorPorts",
+            "fieldName": "sensorPorts"
+        },
+        {
+            "opcode": "gdxfor_getAcceleration",
+            "argumentName": "DIRECTION",
+            "menuName": "axisOptions",
+            "shadowOpcode": "gdxfor_menu_axisOptions",
+            "fieldName": "axisOptions"
+        },
+        {
+            "opcode": "gdxfor_getSpinSpeed",
+            "argumentName": "DIRECTION",
+            "menuName": "axisOptions",
+            "shadowOpcode": "gdxfor_menu_axisOptions",
+            "fieldName": "axisOptions"
+        },
+        {
+            "opcode": "gdxfor_getTilt",
+            "argumentName": "TILT",
+            "menuName": "tiltOptions",
+            "shadowOpcode": "gdxfor_menu_tiltOptions",
+            "fieldName": "tiltOptions"
+        },
+        {
+            "opcode": "gdxfor_isTilted",
+            "argumentName": "TILT",
+            "menuName": "tiltAnyOptions",
+            "shadowOpcode": "gdxfor_menu_tiltAnyOptions",
+            "fieldName": "tiltAnyOptions"
+        },
+        {
+            "opcode": "gdxfor_whenForcePushedOrPulled",
+            "argumentName": "PUSH_PULL",
+            "menuName": "pushPullOptions",
+            "shadowOpcode": "gdxfor_menu_pushPullOptions",
+            "fieldName": "pushPullOptions"
+        },
+        {
+            "opcode": "gdxfor_whenGesture",
+            "argumentName": "GESTURE",
+            "menuName": "gestureOptions",
+            "shadowOpcode": "gdxfor_menu_gestureOptions",
+            "fieldName": "gestureOptions"
+        },
+        {
+            "opcode": "gdxfor_whenTilted",
+            "argumentName": "TILT",
+            "menuName": "tiltAnyOptions",
+            "shadowOpcode": "gdxfor_menu_tiltAnyOptions",
+            "fieldName": "tiltAnyOptions"
+        },
+        {
+            "opcode": "makeymakey_whenCodePressed",
+            "argumentName": "SEQUENCE",
+            "menuName": "SEQUENCE",
+            "shadowOpcode": "makeymakey_menu_SEQUENCE",
+            "fieldName": "SEQUENCE"
+        },
+        {
+            "opcode": "makeymakey_whenMakeyKeyPressed",
+            "argumentName": "KEY",
+            "menuName": "KEY",
+            "shadowOpcode": "makeymakey_menu_KEY",
+            "fieldName": "KEY"
+        },
+        {
+            "opcode": "microbit_getTiltAngle",
+            "argumentName": "DIRECTION",
+            "menuName": "tiltDirection",
+            "shadowOpcode": "microbit_menu_tiltDirection",
+            "fieldName": "tiltDirection"
+        },
+        {
+            "opcode": "microbit_isButtonPressed",
+            "argumentName": "BTN",
+            "menuName": "buttons",
+            "shadowOpcode": "microbit_menu_buttons",
+            "fieldName": "buttons"
+        },
+        {
+            "opcode": "microbit_isTilted",
+            "argumentName": "DIRECTION",
+            "menuName": "tiltDirectionAny",
+            "shadowOpcode": "microbit_menu_tiltDirectionAny",
+            "fieldName": "tiltDirectionAny"
+        },
+        {
+            "opcode": "microbit_whenButtonPressed",
+            "argumentName": "BTN",
+            "menuName": "buttons",
+            "shadowOpcode": "microbit_menu_buttons",
+            "fieldName": "buttons"
+        },
+        {
+            "opcode": "microbit_whenGesture",
+            "argumentName": "GESTURE",
+            "menuName": "gestures",
+            "shadowOpcode": "microbit_menu_gestures",
+            "fieldName": "gestures"
+        },
+        {
+            "opcode": "microbit_whenPinConnected",
+            "argumentName": "PIN",
+            "menuName": "touchPins",
+            "shadowOpcode": "microbit_menu_touchPins",
+            "fieldName": "touchPins"
+        },
+        {
+            "opcode": "microbit_whenTilted",
+            "argumentName": "DIRECTION",
+            "menuName": "tiltDirectionAny",
+            "shadowOpcode": "microbit_menu_tiltDirectionAny",
+            "fieldName": "tiltDirectionAny"
+        },
+        {
+            "opcode": "music_midiPlayDrumForBeats",
+            "argumentName": "DRUM",
+            "menuName": "DRUM",
+            "shadowOpcode": "music_menu_DRUM",
+            "fieldName": "DRUM"
+        },
+        {
+            "opcode": "music_playDrumForBeats",
+            "argumentName": "DRUM",
+            "menuName": "DRUM",
+            "shadowOpcode": "music_menu_DRUM",
+            "fieldName": "DRUM"
+        },
+        {
+            "opcode": "music_setInstrument",
+            "argumentName": "INSTRUMENT",
+            "menuName": "INSTRUMENT",
+            "shadowOpcode": "music_menu_INSTRUMENT",
+            "fieldName": "INSTRUMENT"
+        },
+        {
+            "opcode": "pen_changePenColorParamBy",
+            "argumentName": "COLOR_PARAM",
+            "menuName": "colorParam",
+            "shadowOpcode": "pen_menu_colorParam",
+            "fieldName": "colorParam"
+        },
+        {
+            "opcode": "pen_setPenColorParamTo",
+            "argumentName": "COLOR_PARAM",
+            "menuName": "colorParam",
+            "shadowOpcode": "pen_menu_colorParam",
+            "fieldName": "colorParam"
+        },
+        {
+            "opcode": "sensors_dhtRead",
+            "argumentName": "PIN",
+            "menuName": "dhtPins",
+            "shadowOpcode": "sensors_menu_dhtPins",
+            "fieldName": "dhtPins"
+        },
+        {
+            "opcode": "sensors_dhtRead",
+            "argumentName": "TYPE",
+            "menuName": "dhtTypes",
+            "shadowOpcode": "sensors_menu_dhtTypes",
+            "fieldName": "dhtTypes"
+        },
+        {
+            "opcode": "sensors_dhtReadPort",
+            "argumentName": "TYPE",
+            "menuName": "dhtTypes",
+            "shadowOpcode": "sensors_menu_dhtTypes",
+            "fieldName": "dhtTypes"
+        },
+        {
+            "opcode": "sensors_joystickInit",
+            "argumentName": "CLICK",
+            "menuName": "joystickClickPins",
+            "shadowOpcode": "sensors_menu_joystickClickPins",
+            "fieldName": "joystickClickPins"
+        },
+        {
+            "opcode": "sensors_joystickInit",
+            "argumentName": "X",
+            "menuName": "joystickAnalogPins",
+            "shadowOpcode": "sensors_menu_joystickAnalogPins",
+            "fieldName": "joystickAnalogPins"
+        },
+        {
+            "opcode": "sensors_joystickInit",
+            "argumentName": "Y",
+            "menuName": "joystickAnalogPins",
+            "shadowOpcode": "sensors_menu_joystickAnalogPins",
+            "fieldName": "joystickAnalogPins"
+        },
+        {
+            "opcode": "sensors_joystickValue",
+            "argumentName": "AXIS",
+            "menuName": "joystickAxes",
+            "shadowOpcode": "sensors_menu_joystickAxes",
+            "fieldName": "joystickAxes"
+        },
+        {
+            "opcode": "sensors_ultrasonicRead",
+            "argumentName": "ECHO",
+            "menuName": "ultrasonicPins",
+            "shadowOpcode": "sensors_menu_ultrasonicPins",
+            "fieldName": "ultrasonicPins"
+        },
+        {
+            "opcode": "sensors_ultrasonicRead",
+            "argumentName": "TRIG",
+            "menuName": "ultrasonicPins",
+            "shadowOpcode": "sensors_menu_ultrasonicPins",
+            "fieldName": "ultrasonicPins"
+        },
+        {
+            "opcode": "text2speech_setLanguage",
+            "argumentName": "LANGUAGE",
+            "menuName": "languages",
+            "shadowOpcode": "text2speech_menu_languages",
+            "fieldName": "languages"
+        },
+        {
+            "opcode": "text2speech_setVoice",
+            "argumentName": "VOICE",
+            "menuName": "voices",
+            "shadowOpcode": "text2speech_menu_voices",
+            "fieldName": "voices"
+        },
+        {
+            "opcode": "translate_getTranslate",
+            "argumentName": "LANGUAGE",
+            "menuName": "languages",
+            "shadowOpcode": "translate_menu_languages",
+            "fieldName": "languages"
+        },
+        {
+            "opcode": "videoSensing_videoOn",
+            "argumentName": "ATTRIBUTE",
+            "menuName": "ATTRIBUTE",
+            "shadowOpcode": "videoSensing_menu_ATTRIBUTE",
+            "fieldName": "ATTRIBUTE"
+        },
+        {
+            "opcode": "videoSensing_videoOn",
+            "argumentName": "SUBJECT",
+            "menuName": "SUBJECT",
+            "shadowOpcode": "videoSensing_menu_SUBJECT",
+            "fieldName": "SUBJECT"
+        },
+        {
+            "opcode": "videoSensing_videoToggle",
+            "argumentName": "VIDEO_STATE",
+            "menuName": "VIDEO_STATE",
+            "shadowOpcode": "videoSensing_menu_VIDEO_STATE",
+            "fieldName": "VIDEO_STATE"
+        },
+        {
+            "opcode": "wedo2_getTiltAngle",
+            "argumentName": "TILT_DIRECTION",
+            "menuName": "TILT_DIRECTION",
+            "shadowOpcode": "wedo2_menu_TILT_DIRECTION",
+            "fieldName": "TILT_DIRECTION"
+        },
+        {
+            "opcode": "wedo2_isTilted",
+            "argumentName": "TILT_DIRECTION_ANY",
+            "menuName": "TILT_DIRECTION_ANY",
+            "shadowOpcode": "wedo2_menu_TILT_DIRECTION_ANY",
+            "fieldName": "TILT_DIRECTION_ANY"
+        },
+        {
+            "opcode": "wedo2_motorOff",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "wedo2_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "wedo2_motorOn",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "wedo2_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "wedo2_motorOnFor",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "wedo2_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "wedo2_setMotorDirection",
+            "argumentName": "MOTOR_DIRECTION",
+            "menuName": "MOTOR_DIRECTION",
+            "shadowOpcode": "wedo2_menu_MOTOR_DIRECTION",
+            "fieldName": "MOTOR_DIRECTION"
+        },
+        {
+            "opcode": "wedo2_setMotorDirection",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "wedo2_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "wedo2_startMotorPower",
+            "argumentName": "MOTOR_ID",
+            "menuName": "MOTOR_ID",
+            "shadowOpcode": "wedo2_menu_MOTOR_ID",
+            "fieldName": "MOTOR_ID"
+        },
+        {
+            "opcode": "wedo2_whenDistance",
+            "argumentName": "OP",
+            "menuName": "OP",
+            "shadowOpcode": "wedo2_menu_OP",
+            "fieldName": "OP"
+        },
+        {
+            "opcode": "wedo2_whenTilted",
+            "argumentName": "TILT_DIRECTION_ANY",
+            "menuName": "TILT_DIRECTION_ANY",
+            "shadowOpcode": "wedo2_menu_TILT_DIRECTION_ANY",
+            "fieldName": "TILT_DIRECTION_ANY"
+        }
+    ],
+    "menuArgumentSchemaCount": 108,
+    "extensionIds": [
+        "actuators",
+        "arduinoUno",
+        "boost",
+        "displays",
+        "easybloxBt",
+        "easybloxQr",
+        "ev3",
+        "faceSensing",
+        "gdxfor",
+        "makeymakey",
+        "microbit",
+        "music",
+        "pen",
+        "sensors",
+        "serial",
+        "text2speech",
+        "translate",
+        "videoSensing",
+        "wedo2"
+    ],
+    "extensionSummaries": [
+        {
+            "registeredExtensionId": "actuators",
+            "extensionId": "actuators",
+            "opcodes": [
+                "actuators_ledWrite",
+                "actuators_motorConfigure",
+                "actuators_motorInit",
+                "actuators_motorStop",
+                "actuators_motorWrite",
+                "actuators_relayWrite",
+                "actuators_rgbLedDigitalWrite",
+                "actuators_rgbLedPwmWrite",
+                "actuators_servoWrite",
+                "actuators_toneStart",
+                "actuators_toneStop",
+                "actuators_trafficLightWrite"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "actuators_menu_easyMakerBuzzerPorts",
+                "actuators_menu_easyMakerDigitalPorts",
+                "actuators_menu_easyMakerLedPorts",
+                "actuators_menu_easyMakerServoPorts",
+                "actuators_menu_easyMakerTrafficLightPorts",
+                "actuators_menu_ledStates",
+                "actuators_menu_motorDigitalPins",
+                "actuators_menu_motorDirections",
+                "actuators_menu_motorNumbers",
+                "actuators_menu_motorPwmPins",
+                "actuators_menu_relayPins",
+                "actuators_menu_relayStates",
+                "actuators_menu_rgbLedColors",
+                "actuators_menu_servoPins",
+                "actuators_menu_trafficLightColors"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "actuators_ledWrite",
+                    "argumentName": "PORT",
+                    "menuName": "easyMakerLedPorts",
+                    "shadowOpcode": "actuators_menu_easyMakerLedPorts",
+                    "fieldName": "easyMakerLedPorts"
+                },
+                {
+                    "opcode": "actuators_ledWrite",
+                    "argumentName": "STATE",
+                    "menuName": "ledStates",
+                    "shadowOpcode": "actuators_menu_ledStates",
+                    "fieldName": "ledStates"
+                },
+                {
+                    "opcode": "actuators_motorConfigure",
+                    "argumentName": "IN1",
+                    "menuName": "motorDigitalPins",
+                    "shadowOpcode": "actuators_menu_motorDigitalPins",
+                    "fieldName": "motorDigitalPins"
+                },
+                {
+                    "opcode": "actuators_motorConfigure",
+                    "argumentName": "IN2",
+                    "menuName": "motorDigitalPins",
+                    "shadowOpcode": "actuators_menu_motorDigitalPins",
+                    "fieldName": "motorDigitalPins"
+                },
+                {
+                    "opcode": "actuators_motorConfigure",
+                    "argumentName": "MOTOR",
+                    "menuName": "motorNumbers",
+                    "shadowOpcode": "actuators_menu_motorNumbers",
+                    "fieldName": "motorNumbers"
+                },
+                {
+                    "opcode": "actuators_motorConfigure",
+                    "argumentName": "PWM",
+                    "menuName": "motorPwmPins",
+                    "shadowOpcode": "actuators_menu_motorPwmPins",
+                    "fieldName": "motorPwmPins"
+                },
+                {
+                    "opcode": "actuators_motorInit",
+                    "argumentName": "MOTOR",
+                    "menuName": "motorNumbers",
+                    "shadowOpcode": "actuators_menu_motorNumbers",
+                    "fieldName": "motorNumbers"
+                },
+                {
+                    "opcode": "actuators_motorStop",
+                    "argumentName": "MOTOR",
+                    "menuName": "motorNumbers",
+                    "shadowOpcode": "actuators_menu_motorNumbers",
+                    "fieldName": "motorNumbers"
+                },
+                {
+                    "opcode": "actuators_motorWrite",
+                    "argumentName": "DIRECTION",
+                    "menuName": "motorDirections",
+                    "shadowOpcode": "actuators_menu_motorDirections",
+                    "fieldName": "motorDirections"
+                },
+                {
+                    "opcode": "actuators_motorWrite",
+                    "argumentName": "MOTOR",
+                    "menuName": "motorNumbers",
+                    "shadowOpcode": "actuators_menu_motorNumbers",
+                    "fieldName": "motorNumbers"
+                },
+                {
+                    "opcode": "actuators_relayWrite",
+                    "argumentName": "PIN",
+                    "menuName": "relayPins",
+                    "shadowOpcode": "actuators_menu_relayPins",
+                    "fieldName": "relayPins"
+                },
+                {
+                    "opcode": "actuators_relayWrite",
+                    "argumentName": "STATE",
+                    "menuName": "relayStates",
+                    "shadowOpcode": "actuators_menu_relayStates",
+                    "fieldName": "relayStates"
+                },
+                {
+                    "opcode": "actuators_rgbLedDigitalWrite",
+                    "argumentName": "COLOR",
+                    "menuName": "rgbLedColors",
+                    "shadowOpcode": "actuators_menu_rgbLedColors",
+                    "fieldName": "rgbLedColors"
+                },
+                {
+                    "opcode": "actuators_rgbLedDigitalWrite",
+                    "argumentName": "STATE",
+                    "menuName": "ledStates",
+                    "shadowOpcode": "actuators_menu_ledStates",
+                    "fieldName": "ledStates"
+                },
+                {
+                    "opcode": "actuators_rgbLedPwmWrite",
+                    "argumentName": "COLOR",
+                    "menuName": "rgbLedColors",
+                    "shadowOpcode": "actuators_menu_rgbLedColors",
+                    "fieldName": "rgbLedColors"
+                },
+                {
+                    "opcode": "actuators_servoWrite",
+                    "argumentName": "PIN",
+                    "menuName": "servoPins",
+                    "shadowOpcode": "actuators_menu_servoPins",
+                    "fieldName": "servoPins"
+                },
+                {
+                    "opcode": "actuators_toneStart",
+                    "argumentName": "PIN",
+                    "menuName": "easyMakerBuzzerPorts",
+                    "shadowOpcode": "actuators_menu_easyMakerBuzzerPorts",
+                    "fieldName": "easyMakerBuzzerPorts"
+                },
+                {
+                    "opcode": "actuators_toneStop",
+                    "argumentName": "PIN",
+                    "menuName": "easyMakerBuzzerPorts",
+                    "shadowOpcode": "actuators_menu_easyMakerBuzzerPorts",
+                    "fieldName": "easyMakerBuzzerPorts"
+                },
+                {
+                    "opcode": "actuators_trafficLightWrite",
+                    "argumentName": "COLOR",
+                    "menuName": "trafficLightColors",
+                    "shadowOpcode": "actuators_menu_trafficLightColors",
+                    "fieldName": "trafficLightColors"
+                },
+                {
+                    "opcode": "actuators_trafficLightWrite",
+                    "argumentName": "PORT",
+                    "menuName": "easyMakerTrafficLightPorts",
+                    "shadowOpcode": "actuators_menu_easyMakerTrafficLightPorts",
+                    "fieldName": "easyMakerTrafficLightPorts"
+                },
+                {
+                    "opcode": "actuators_trafficLightWrite",
+                    "argumentName": "STATE",
+                    "menuName": "ledStates",
+                    "shadowOpcode": "actuators_menu_ledStates",
+                    "fieldName": "ledStates"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "arduinoUno",
+            "extensionId": "arduinoUno",
+            "opcodes": [
+                "arduinoUno_analogRead",
+                "arduinoUno_convertNumber",
+                "arduinoUno_digitalRead",
+                "arduinoUno_digitalWrite",
+                "arduinoUno_map",
+                "arduinoUno_pwmWrite",
+                "arduinoUno_timerRead",
+                "arduinoUno_timerReset",
+                "arduinoUno_toneStart",
+                "arduinoUno_toneStop",
+                "arduinoUno_whenArduinoUnoStart"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "arduinoUno_menu_analogPins",
+                "arduinoUno_menu_digitalPins",
+                "arduinoUno_menu_digitalValues",
+                "arduinoUno_menu_easyMakerBuzzerPorts",
+                "arduinoUno_menu_pwmPins"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "arduinoUno_analogRead",
+                    "argumentName": "PIN",
+                    "menuName": "analogPins",
+                    "shadowOpcode": "arduinoUno_menu_analogPins",
+                    "fieldName": "analogPins"
+                },
+                {
+                    "opcode": "arduinoUno_digitalRead",
+                    "argumentName": "PIN",
+                    "menuName": "digitalPins",
+                    "shadowOpcode": "arduinoUno_menu_digitalPins",
+                    "fieldName": "digitalPins"
+                },
+                {
+                    "opcode": "arduinoUno_digitalWrite",
+                    "argumentName": "PIN",
+                    "menuName": "digitalPins",
+                    "shadowOpcode": "arduinoUno_menu_digitalPins",
+                    "fieldName": "digitalPins"
+                },
+                {
+                    "opcode": "arduinoUno_digitalWrite",
+                    "argumentName": "VALUE",
+                    "menuName": "digitalValues",
+                    "shadowOpcode": "arduinoUno_menu_digitalValues",
+                    "fieldName": "digitalValues"
+                },
+                {
+                    "opcode": "arduinoUno_pwmWrite",
+                    "argumentName": "PIN",
+                    "menuName": "pwmPins",
+                    "shadowOpcode": "arduinoUno_menu_pwmPins",
+                    "fieldName": "pwmPins"
+                },
+                {
+                    "opcode": "arduinoUno_toneStart",
+                    "argumentName": "PIN",
+                    "menuName": "digitalPins",
+                    "shadowOpcode": "arduinoUno_menu_digitalPins",
+                    "fieldName": "digitalPins"
+                },
+                {
+                    "opcode": "arduinoUno_toneStop",
+                    "argumentName": "PIN",
+                    "menuName": "digitalPins",
+                    "shadowOpcode": "arduinoUno_menu_digitalPins",
+                    "fieldName": "digitalPins"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "boost",
+            "extensionId": "boost",
+            "opcodes": [
+                "boost_getMotorPosition",
+                "boost_getTiltAngle",
+                "boost_motorOff",
+                "boost_motorOn",
+                "boost_motorOnFor",
+                "boost_motorOnForRotation",
+                "boost_seeingColor",
+                "boost_setLightHue",
+                "boost_setMotorDirection",
+                "boost_setMotorPower",
+                "boost_whenColor",
+                "boost_whenTilted"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "boost_menu_COLOR",
+                "boost_menu_MOTOR_DIRECTION",
+                "boost_menu_MOTOR_ID",
+                "boost_menu_MOTOR_REPORTER_ID",
+                "boost_menu_TILT_DIRECTION",
+                "boost_menu_TILT_DIRECTION_ANY"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "boost_getMotorPosition",
+                    "argumentName": "MOTOR_REPORTER_ID",
+                    "menuName": "MOTOR_REPORTER_ID",
+                    "shadowOpcode": "boost_menu_MOTOR_REPORTER_ID",
+                    "fieldName": "MOTOR_REPORTER_ID"
+                },
+                {
+                    "opcode": "boost_getTiltAngle",
+                    "argumentName": "TILT_DIRECTION",
+                    "menuName": "TILT_DIRECTION",
+                    "shadowOpcode": "boost_menu_TILT_DIRECTION",
+                    "fieldName": "TILT_DIRECTION"
+                },
+                {
+                    "opcode": "boost_motorOff",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "boost_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "boost_motorOn",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "boost_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "boost_motorOnFor",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "boost_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "boost_motorOnForRotation",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "boost_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "boost_seeingColor",
+                    "argumentName": "COLOR",
+                    "menuName": "COLOR",
+                    "shadowOpcode": "boost_menu_COLOR",
+                    "fieldName": "COLOR"
+                },
+                {
+                    "opcode": "boost_setMotorDirection",
+                    "argumentName": "MOTOR_DIRECTION",
+                    "menuName": "MOTOR_DIRECTION",
+                    "shadowOpcode": "boost_menu_MOTOR_DIRECTION",
+                    "fieldName": "MOTOR_DIRECTION"
+                },
+                {
+                    "opcode": "boost_setMotorDirection",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "boost_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "boost_setMotorPower",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "boost_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "boost_whenColor",
+                    "argumentName": "COLOR",
+                    "menuName": "COLOR",
+                    "shadowOpcode": "boost_menu_COLOR",
+                    "fieldName": "COLOR"
+                },
+                {
+                    "opcode": "boost_whenTilted",
+                    "argumentName": "TILT_DIRECTION_ANY",
+                    "menuName": "TILT_DIRECTION_ANY",
+                    "shadowOpcode": "boost_menu_TILT_DIRECTION_ANY",
+                    "fieldName": "TILT_DIRECTION_ANY"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "displays",
+            "extensionId": "displays",
+            "opcodes": [
+                "displays_configureMatrix",
+                "displays_lcdClear",
+                "displays_lcdInit",
+                "displays_lcdMode",
+                "displays_lcdWrite",
+                "displays_matrixBrightness",
+                "displays_matrixClear",
+                "displays_matrixWrite",
+                "displays_tm1637Clear",
+                "displays_tm1637Init",
+                "displays_tm1637Show"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "displays_menu_easyMakerTm1637Ports",
+                "displays_menu_lcdColumns",
+                "displays_menu_lcdModes",
+                "displays_menu_lcdRows",
+                "displays_menu_matrixPins",
+                "displays_menu_tm1637LeadingZeros",
+                "displays_menu_tm1637Lengths",
+                "displays_menu_tm1637Point",
+                "displays_menu_tm1637Positions"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "displays_configureMatrix",
+                    "argumentName": "CLK",
+                    "menuName": "matrixPins",
+                    "shadowOpcode": "displays_menu_matrixPins",
+                    "fieldName": "matrixPins"
+                },
+                {
+                    "opcode": "displays_configureMatrix",
+                    "argumentName": "CS",
+                    "menuName": "matrixPins",
+                    "shadowOpcode": "displays_menu_matrixPins",
+                    "fieldName": "matrixPins"
+                },
+                {
+                    "opcode": "displays_configureMatrix",
+                    "argumentName": "DIN",
+                    "menuName": "matrixPins",
+                    "shadowOpcode": "displays_menu_matrixPins",
+                    "fieldName": "matrixPins"
+                },
+                {
+                    "opcode": "displays_lcdMode",
+                    "argumentName": "MODE",
+                    "menuName": "lcdModes",
+                    "shadowOpcode": "displays_menu_lcdModes",
+                    "fieldName": "lcdModes"
+                },
+                {
+                    "opcode": "displays_lcdWrite",
+                    "argumentName": "COLUMN",
+                    "menuName": "lcdColumns",
+                    "shadowOpcode": "displays_menu_lcdColumns",
+                    "fieldName": "lcdColumns"
+                },
+                {
+                    "opcode": "displays_lcdWrite",
+                    "argumentName": "ROW",
+                    "menuName": "lcdRows",
+                    "shadowOpcode": "displays_menu_lcdRows",
+                    "fieldName": "lcdRows"
+                },
+                {
+                    "opcode": "displays_tm1637Init",
+                    "argumentName": "CLK",
+                    "menuName": "matrixPins",
+                    "shadowOpcode": "displays_menu_matrixPins",
+                    "fieldName": "matrixPins"
+                },
+                {
+                    "opcode": "displays_tm1637Init",
+                    "argumentName": "DIO",
+                    "menuName": "matrixPins",
+                    "shadowOpcode": "displays_menu_matrixPins",
+                    "fieldName": "matrixPins"
+                },
+                {
+                    "opcode": "displays_tm1637Show",
+                    "argumentName": "LEADING_ZEROS",
+                    "menuName": "tm1637LeadingZeros",
+                    "shadowOpcode": "displays_menu_tm1637LeadingZeros",
+                    "fieldName": "tm1637LeadingZeros"
+                },
+                {
+                    "opcode": "displays_tm1637Show",
+                    "argumentName": "LENGTH",
+                    "menuName": "tm1637Lengths",
+                    "shadowOpcode": "displays_menu_tm1637Lengths",
+                    "fieldName": "tm1637Lengths"
+                },
+                {
+                    "opcode": "displays_tm1637Show",
+                    "argumentName": "POINT",
+                    "menuName": "tm1637Point",
+                    "shadowOpcode": "displays_menu_tm1637Point",
+                    "fieldName": "tm1637Point"
+                },
+                {
+                    "opcode": "displays_tm1637Show",
+                    "argumentName": "POSITION",
+                    "menuName": "tm1637Positions",
+                    "shadowOpcode": "displays_menu_tm1637Positions",
+                    "fieldName": "tm1637Positions"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "easybloxBt",
+            "extensionId": "easybloxBt",
+            "opcodes": [
+                "easybloxBt_controlsJoystickPosition",
+                "easybloxBt_controlsSliderValue",
+                "easybloxBt_init",
+                "easybloxBt_isControlsButtonPressed",
+                "easybloxBt_isControlsSwitchOn",
+                "easybloxBt_isGamepadButtonPressed",
+                "easybloxBt_motorsServoMotorControl",
+                "easybloxBt_motorsServoServoControl",
+                "easybloxBt_outputsSetIndicator",
+                "easybloxBt_receivedNumber",
+                "easybloxBt_receivedText",
+                "easybloxBt_sendNumber",
+                "easybloxBt_sendText",
+                "easybloxBt_waitNumber",
+                "easybloxBt_waitText"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "easybloxBt_menu_motorsServoDigitalPins",
+                "easybloxBt_menu_motorsServoPwmPins",
+                "easybloxBt_menu_motorsServoServoPins"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "easybloxBt_motorsServoMotorControl",
+                    "argumentName": "IN1",
+                    "menuName": "motorsServoDigitalPins",
+                    "shadowOpcode": "easybloxBt_menu_motorsServoDigitalPins",
+                    "fieldName": "motorsServoDigitalPins"
+                },
+                {
+                    "opcode": "easybloxBt_motorsServoMotorControl",
+                    "argumentName": "IN2",
+                    "menuName": "motorsServoDigitalPins",
+                    "shadowOpcode": "easybloxBt_menu_motorsServoDigitalPins",
+                    "fieldName": "motorsServoDigitalPins"
+                },
+                {
+                    "opcode": "easybloxBt_motorsServoMotorControl",
+                    "argumentName": "PWM",
+                    "menuName": "motorsServoPwmPins",
+                    "shadowOpcode": "easybloxBt_menu_motorsServoPwmPins",
+                    "fieldName": "motorsServoPwmPins"
+                },
+                {
+                    "opcode": "easybloxBt_motorsServoServoControl",
+                    "argumentName": "PIN",
+                    "menuName": "motorsServoServoPins",
+                    "shadowOpcode": "easybloxBt_menu_motorsServoServoPins",
+                    "fieldName": "motorsServoServoPins"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "easybloxQr",
+            "extensionId": "easybloxQr",
+            "opcodes": [
+                "easybloxQr_content",
+                "easybloxQr_hideQrCode",
+                "easybloxQr_isDetected",
+                "easybloxQr_setBoundary",
+                "easybloxQr_showQrCode",
+                "easybloxQr_startReader",
+                "easybloxQr_stopReader"
+            ],
+            "serializedAuxiliaryOpcodes": [],
+            "menuArgumentSchemas": []
+        },
+        {
+            "registeredExtensionId": "ev3",
+            "extensionId": "ev3",
+            "opcodes": [
+                "ev3_beep",
+                "ev3_buttonPressed",
+                "ev3_getBrightness",
+                "ev3_getDistance",
+                "ev3_getMotorPosition",
+                "ev3_motorSetPower",
+                "ev3_motorTurnClockwise",
+                "ev3_motorTurnCounterClockwise",
+                "ev3_whenBrightnessLessThan",
+                "ev3_whenButtonPressed",
+                "ev3_whenDistanceLessThan"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "ev3_menu_motorPorts",
+                "ev3_menu_sensorPorts"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "ev3_buttonPressed",
+                    "argumentName": "PORT",
+                    "menuName": "sensorPorts",
+                    "shadowOpcode": "ev3_menu_sensorPorts",
+                    "fieldName": "sensorPorts"
+                },
+                {
+                    "opcode": "ev3_getMotorPosition",
+                    "argumentName": "PORT",
+                    "menuName": "motorPorts",
+                    "shadowOpcode": "ev3_menu_motorPorts",
+                    "fieldName": "motorPorts"
+                },
+                {
+                    "opcode": "ev3_motorSetPower",
+                    "argumentName": "PORT",
+                    "menuName": "motorPorts",
+                    "shadowOpcode": "ev3_menu_motorPorts",
+                    "fieldName": "motorPorts"
+                },
+                {
+                    "opcode": "ev3_motorTurnClockwise",
+                    "argumentName": "PORT",
+                    "menuName": "motorPorts",
+                    "shadowOpcode": "ev3_menu_motorPorts",
+                    "fieldName": "motorPorts"
+                },
+                {
+                    "opcode": "ev3_motorTurnCounterClockwise",
+                    "argumentName": "PORT",
+                    "menuName": "motorPorts",
+                    "shadowOpcode": "ev3_menu_motorPorts",
+                    "fieldName": "motorPorts"
+                },
+                {
+                    "opcode": "ev3_whenButtonPressed",
+                    "argumentName": "PORT",
+                    "menuName": "sensorPorts",
+                    "shadowOpcode": "ev3_menu_sensorPorts",
+                    "fieldName": "sensorPorts"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "faceSensing",
+            "extensionId": "faceSensing",
+            "opcodes": [
+                "faceSensing_faceIsDetected",
+                "faceSensing_faceSize",
+                "faceSensing_faceTilt",
+                "faceSensing_goToPart",
+                "faceSensing_pointInFaceTiltDirection",
+                "faceSensing_setSizeToFaceSize",
+                "faceSensing_whenFaceDetected",
+                "faceSensing_whenSpriteTouchesPart",
+                "faceSensing_whenTilted"
+            ],
+            "serializedAuxiliaryOpcodes": [],
+            "menuArgumentSchemas": []
+        },
+        {
+            "registeredExtensionId": "gdxfor",
+            "extensionId": "gdxfor",
+            "opcodes": [
+                "gdxfor_getAcceleration",
+                "gdxfor_getForce",
+                "gdxfor_getSpinSpeed",
+                "gdxfor_getTilt",
+                "gdxfor_isFreeFalling",
+                "gdxfor_isTilted",
+                "gdxfor_whenForcePushedOrPulled",
+                "gdxfor_whenGesture",
+                "gdxfor_whenTilted"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "gdxfor_menu_axisOptions",
+                "gdxfor_menu_gestureOptions",
+                "gdxfor_menu_pushPullOptions",
+                "gdxfor_menu_tiltAnyOptions",
+                "gdxfor_menu_tiltOptions"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "gdxfor_getAcceleration",
+                    "argumentName": "DIRECTION",
+                    "menuName": "axisOptions",
+                    "shadowOpcode": "gdxfor_menu_axisOptions",
+                    "fieldName": "axisOptions"
+                },
+                {
+                    "opcode": "gdxfor_getSpinSpeed",
+                    "argumentName": "DIRECTION",
+                    "menuName": "axisOptions",
+                    "shadowOpcode": "gdxfor_menu_axisOptions",
+                    "fieldName": "axisOptions"
+                },
+                {
+                    "opcode": "gdxfor_getTilt",
+                    "argumentName": "TILT",
+                    "menuName": "tiltOptions",
+                    "shadowOpcode": "gdxfor_menu_tiltOptions",
+                    "fieldName": "tiltOptions"
+                },
+                {
+                    "opcode": "gdxfor_isTilted",
+                    "argumentName": "TILT",
+                    "menuName": "tiltAnyOptions",
+                    "shadowOpcode": "gdxfor_menu_tiltAnyOptions",
+                    "fieldName": "tiltAnyOptions"
+                },
+                {
+                    "opcode": "gdxfor_whenForcePushedOrPulled",
+                    "argumentName": "PUSH_PULL",
+                    "menuName": "pushPullOptions",
+                    "shadowOpcode": "gdxfor_menu_pushPullOptions",
+                    "fieldName": "pushPullOptions"
+                },
+                {
+                    "opcode": "gdxfor_whenGesture",
+                    "argumentName": "GESTURE",
+                    "menuName": "gestureOptions",
+                    "shadowOpcode": "gdxfor_menu_gestureOptions",
+                    "fieldName": "gestureOptions"
+                },
+                {
+                    "opcode": "gdxfor_whenTilted",
+                    "argumentName": "TILT",
+                    "menuName": "tiltAnyOptions",
+                    "shadowOpcode": "gdxfor_menu_tiltAnyOptions",
+                    "fieldName": "tiltAnyOptions"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "makeymakey",
+            "extensionId": "makeymakey",
+            "opcodes": [
+                "makeymakey_whenCodePressed",
+                "makeymakey_whenMakeyKeyPressed"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "makeymakey_menu_KEY",
+                "makeymakey_menu_SEQUENCE"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "makeymakey_whenCodePressed",
+                    "argumentName": "SEQUENCE",
+                    "menuName": "SEQUENCE",
+                    "shadowOpcode": "makeymakey_menu_SEQUENCE",
+                    "fieldName": "SEQUENCE"
+                },
+                {
+                    "opcode": "makeymakey_whenMakeyKeyPressed",
+                    "argumentName": "KEY",
+                    "menuName": "KEY",
+                    "shadowOpcode": "makeymakey_menu_KEY",
+                    "fieldName": "KEY"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "microbit",
+            "extensionId": "microbit",
+            "opcodes": [
+                "microbit_displayClear",
+                "microbit_displaySymbol",
+                "microbit_displayText",
+                "microbit_getTiltAngle",
+                "microbit_isButtonPressed",
+                "microbit_isTilted",
+                "microbit_whenButtonPressed",
+                "microbit_whenGesture",
+                "microbit_whenPinConnected",
+                "microbit_whenTilted"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "microbit_menu_buttons",
+                "microbit_menu_gestures",
+                "microbit_menu_pinState",
+                "microbit_menu_tiltDirection",
+                "microbit_menu_tiltDirectionAny",
+                "microbit_menu_touchPins"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "microbit_getTiltAngle",
+                    "argumentName": "DIRECTION",
+                    "menuName": "tiltDirection",
+                    "shadowOpcode": "microbit_menu_tiltDirection",
+                    "fieldName": "tiltDirection"
+                },
+                {
+                    "opcode": "microbit_isButtonPressed",
+                    "argumentName": "BTN",
+                    "menuName": "buttons",
+                    "shadowOpcode": "microbit_menu_buttons",
+                    "fieldName": "buttons"
+                },
+                {
+                    "opcode": "microbit_isTilted",
+                    "argumentName": "DIRECTION",
+                    "menuName": "tiltDirectionAny",
+                    "shadowOpcode": "microbit_menu_tiltDirectionAny",
+                    "fieldName": "tiltDirectionAny"
+                },
+                {
+                    "opcode": "microbit_whenButtonPressed",
+                    "argumentName": "BTN",
+                    "menuName": "buttons",
+                    "shadowOpcode": "microbit_menu_buttons",
+                    "fieldName": "buttons"
+                },
+                {
+                    "opcode": "microbit_whenGesture",
+                    "argumentName": "GESTURE",
+                    "menuName": "gestures",
+                    "shadowOpcode": "microbit_menu_gestures",
+                    "fieldName": "gestures"
+                },
+                {
+                    "opcode": "microbit_whenPinConnected",
+                    "argumentName": "PIN",
+                    "menuName": "touchPins",
+                    "shadowOpcode": "microbit_menu_touchPins",
+                    "fieldName": "touchPins"
+                },
+                {
+                    "opcode": "microbit_whenTilted",
+                    "argumentName": "DIRECTION",
+                    "menuName": "tiltDirectionAny",
+                    "shadowOpcode": "microbit_menu_tiltDirectionAny",
+                    "fieldName": "tiltDirectionAny"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "music",
+            "extensionId": "music",
+            "opcodes": [
+                "music_changeTempo",
+                "music_getTempo",
+                "music_midiPlayDrumForBeats",
+                "music_midiSetInstrument",
+                "music_playDrumForBeats",
+                "music_playNoteForBeats",
+                "music_restForBeats",
+                "music_setInstrument",
+                "music_setTempo"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "music_menu_DRUM",
+                "music_menu_INSTRUMENT"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "music_midiPlayDrumForBeats",
+                    "argumentName": "DRUM",
+                    "menuName": "DRUM",
+                    "shadowOpcode": "music_menu_DRUM",
+                    "fieldName": "DRUM"
+                },
+                {
+                    "opcode": "music_playDrumForBeats",
+                    "argumentName": "DRUM",
+                    "menuName": "DRUM",
+                    "shadowOpcode": "music_menu_DRUM",
+                    "fieldName": "DRUM"
+                },
+                {
+                    "opcode": "music_setInstrument",
+                    "argumentName": "INSTRUMENT",
+                    "menuName": "INSTRUMENT",
+                    "shadowOpcode": "music_menu_INSTRUMENT",
+                    "fieldName": "INSTRUMENT"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "pen",
+            "extensionId": "pen",
+            "opcodes": [
+                "pen_changePenColorParamBy",
+                "pen_changePenHueBy",
+                "pen_changePenShadeBy",
+                "pen_changePenSizeBy",
+                "pen_clear",
+                "pen_penDown",
+                "pen_penUp",
+                "pen_setPenColorParamTo",
+                "pen_setPenColorToColor",
+                "pen_setPenHueToNumber",
+                "pen_setPenShadeToNumber",
+                "pen_setPenSizeTo",
+                "pen_stamp"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "pen_menu_colorParam"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "pen_changePenColorParamBy",
+                    "argumentName": "COLOR_PARAM",
+                    "menuName": "colorParam",
+                    "shadowOpcode": "pen_menu_colorParam",
+                    "fieldName": "colorParam"
+                },
+                {
+                    "opcode": "pen_setPenColorParamTo",
+                    "argumentName": "COLOR_PARAM",
+                    "menuName": "colorParam",
+                    "shadowOpcode": "pen_menu_colorParam",
+                    "fieldName": "colorParam"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "sensors",
+            "extensionId": "sensors",
+            "opcodes": [
+                "sensors_analogSensorRead",
+                "sensors_dhtRead",
+                "sensors_dhtReadPort",
+                "sensors_digitalSensorRead",
+                "sensors_joystickClicked",
+                "sensors_joystickInit",
+                "sensors_joystickInitEasyMaker",
+                "sensors_joystickValue",
+                "sensors_ultrasonicRead",
+                "sensors_ultrasonicReadPort"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "sensors_menu_dhtPins",
+                "sensors_menu_dhtTypes",
+                "sensors_menu_joystickAnalogPins",
+                "sensors_menu_joystickAxes",
+                "sensors_menu_joystickClickPins",
+                "sensors_menu_ultrasonicPins"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "sensors_dhtRead",
+                    "argumentName": "PIN",
+                    "menuName": "dhtPins",
+                    "shadowOpcode": "sensors_menu_dhtPins",
+                    "fieldName": "dhtPins"
+                },
+                {
+                    "opcode": "sensors_dhtRead",
+                    "argumentName": "TYPE",
+                    "menuName": "dhtTypes",
+                    "shadowOpcode": "sensors_menu_dhtTypes",
+                    "fieldName": "dhtTypes"
+                },
+                {
+                    "opcode": "sensors_dhtReadPort",
+                    "argumentName": "TYPE",
+                    "menuName": "dhtTypes",
+                    "shadowOpcode": "sensors_menu_dhtTypes",
+                    "fieldName": "dhtTypes"
+                },
+                {
+                    "opcode": "sensors_joystickInit",
+                    "argumentName": "CLICK",
+                    "menuName": "joystickClickPins",
+                    "shadowOpcode": "sensors_menu_joystickClickPins",
+                    "fieldName": "joystickClickPins"
+                },
+                {
+                    "opcode": "sensors_joystickInit",
+                    "argumentName": "X",
+                    "menuName": "joystickAnalogPins",
+                    "shadowOpcode": "sensors_menu_joystickAnalogPins",
+                    "fieldName": "joystickAnalogPins"
+                },
+                {
+                    "opcode": "sensors_joystickInit",
+                    "argumentName": "Y",
+                    "menuName": "joystickAnalogPins",
+                    "shadowOpcode": "sensors_menu_joystickAnalogPins",
+                    "fieldName": "joystickAnalogPins"
+                },
+                {
+                    "opcode": "sensors_joystickValue",
+                    "argumentName": "AXIS",
+                    "menuName": "joystickAxes",
+                    "shadowOpcode": "sensors_menu_joystickAxes",
+                    "fieldName": "joystickAxes"
+                },
+                {
+                    "opcode": "sensors_ultrasonicRead",
+                    "argumentName": "ECHO",
+                    "menuName": "ultrasonicPins",
+                    "shadowOpcode": "sensors_menu_ultrasonicPins",
+                    "fieldName": "ultrasonicPins"
+                },
+                {
+                    "opcode": "sensors_ultrasonicRead",
+                    "argumentName": "TRIG",
+                    "menuName": "ultrasonicPins",
+                    "shadowOpcode": "sensors_menu_ultrasonicPins",
+                    "fieldName": "ultrasonicPins"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "serial",
+            "extensionId": "serial",
+            "opcodes": [
+                "serial_serialBegin",
+                "serial_serialWrite",
+                "serial_serialWriteLine"
+            ],
+            "serializedAuxiliaryOpcodes": [],
+            "menuArgumentSchemas": []
+        },
+        {
+            "registeredExtensionId": "text2speech",
+            "extensionId": "text2speech",
+            "opcodes": [
+                "text2speech_setLanguage",
+                "text2speech_setVoice",
+                "text2speech_speakAndWait"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "text2speech_menu_languages",
+                "text2speech_menu_voices"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "text2speech_setLanguage",
+                    "argumentName": "LANGUAGE",
+                    "menuName": "languages",
+                    "shadowOpcode": "text2speech_menu_languages",
+                    "fieldName": "languages"
+                },
+                {
+                    "opcode": "text2speech_setVoice",
+                    "argumentName": "VOICE",
+                    "menuName": "voices",
+                    "shadowOpcode": "text2speech_menu_voices",
+                    "fieldName": "voices"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "translate",
+            "extensionId": "translate",
+            "opcodes": [
+                "translate_getTranslate",
+                "translate_getViewerLanguage"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "translate_menu_languages"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "translate_getTranslate",
+                    "argumentName": "LANGUAGE",
+                    "menuName": "languages",
+                    "shadowOpcode": "translate_menu_languages",
+                    "fieldName": "languages"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "videoSensing",
+            "extensionId": "videoSensing",
+            "opcodes": [
+                "videoSensing_setVideoTransparency",
+                "videoSensing_videoOn",
+                "videoSensing_videoToggle",
+                "videoSensing_whenMotionGreaterThan"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "videoSensing_menu_ATTRIBUTE",
+                "videoSensing_menu_SUBJECT",
+                "videoSensing_menu_VIDEO_STATE"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "videoSensing_videoOn",
+                    "argumentName": "ATTRIBUTE",
+                    "menuName": "ATTRIBUTE",
+                    "shadowOpcode": "videoSensing_menu_ATTRIBUTE",
+                    "fieldName": "ATTRIBUTE"
+                },
+                {
+                    "opcode": "videoSensing_videoOn",
+                    "argumentName": "SUBJECT",
+                    "menuName": "SUBJECT",
+                    "shadowOpcode": "videoSensing_menu_SUBJECT",
+                    "fieldName": "SUBJECT"
+                },
+                {
+                    "opcode": "videoSensing_videoToggle",
+                    "argumentName": "VIDEO_STATE",
+                    "menuName": "VIDEO_STATE",
+                    "shadowOpcode": "videoSensing_menu_VIDEO_STATE",
+                    "fieldName": "VIDEO_STATE"
+                }
+            ]
+        },
+        {
+            "registeredExtensionId": "wedo2",
+            "extensionId": "wedo2",
+            "opcodes": [
+                "wedo2_getDistance",
+                "wedo2_getTiltAngle",
+                "wedo2_isTilted",
+                "wedo2_motorOff",
+                "wedo2_motorOn",
+                "wedo2_motorOnFor",
+                "wedo2_playNoteFor",
+                "wedo2_setLightHue",
+                "wedo2_setMotorDirection",
+                "wedo2_startMotorPower",
+                "wedo2_whenDistance",
+                "wedo2_whenTilted"
+            ],
+            "serializedAuxiliaryOpcodes": [
+                "wedo2_menu_MOTOR_DIRECTION",
+                "wedo2_menu_MOTOR_ID",
+                "wedo2_menu_OP",
+                "wedo2_menu_TILT_DIRECTION",
+                "wedo2_menu_TILT_DIRECTION_ANY"
+            ],
+            "menuArgumentSchemas": [
+                {
+                    "opcode": "wedo2_getTiltAngle",
+                    "argumentName": "TILT_DIRECTION",
+                    "menuName": "TILT_DIRECTION",
+                    "shadowOpcode": "wedo2_menu_TILT_DIRECTION",
+                    "fieldName": "TILT_DIRECTION"
+                },
+                {
+                    "opcode": "wedo2_isTilted",
+                    "argumentName": "TILT_DIRECTION_ANY",
+                    "menuName": "TILT_DIRECTION_ANY",
+                    "shadowOpcode": "wedo2_menu_TILT_DIRECTION_ANY",
+                    "fieldName": "TILT_DIRECTION_ANY"
+                },
+                {
+                    "opcode": "wedo2_motorOff",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "wedo2_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "wedo2_motorOn",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "wedo2_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "wedo2_motorOnFor",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "wedo2_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "wedo2_setMotorDirection",
+                    "argumentName": "MOTOR_DIRECTION",
+                    "menuName": "MOTOR_DIRECTION",
+                    "shadowOpcode": "wedo2_menu_MOTOR_DIRECTION",
+                    "fieldName": "MOTOR_DIRECTION"
+                },
+                {
+                    "opcode": "wedo2_setMotorDirection",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "wedo2_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "wedo2_startMotorPower",
+                    "argumentName": "MOTOR_ID",
+                    "menuName": "MOTOR_ID",
+                    "shadowOpcode": "wedo2_menu_MOTOR_ID",
+                    "fieldName": "MOTOR_ID"
+                },
+                {
+                    "opcode": "wedo2_whenDistance",
+                    "argumentName": "OP",
+                    "menuName": "OP",
+                    "shadowOpcode": "wedo2_menu_OP",
+                    "fieldName": "OP"
+                },
+                {
+                    "opcode": "wedo2_whenTilted",
+                    "argumentName": "TILT_DIRECTION_ANY",
+                    "menuName": "TILT_DIRECTION_ANY",
+                    "shadowOpcode": "wedo2_menu_TILT_DIRECTION_ANY",
+                    "fieldName": "TILT_DIRECTION_ANY"
+                }
+            ]
+        }
+    ]
+}

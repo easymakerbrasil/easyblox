@@ -136,6 +136,69 @@ test(
         );
 
         assert.deepEqual(
+            uploadBlocks
+                .servo
+                .inputs
+                .PIN,
+            [
+                1,
+                'servo__easybloxMenu_PIN'
+            ]
+        );
+
+        assert.deepEqual(
+            uploadBlocks
+                .servo
+                .inputs
+                .ANGLE,
+            [
+                1,
+                [
+                    4,
+                    '90'
+                ]
+            ]
+        );
+
+        assert.deepEqual(
+            uploadBlocks
+                .servo
+                .fields,
+            {}
+        );
+
+        assert.deepEqual(
+            uploadBlocks[
+                'servo__easybloxMenu_PIN'
+            ],
+            {
+                opcode:
+                    'actuators_menu_servoPins',
+
+                next:
+                    null,
+
+                parent:
+                    'servo',
+
+                inputs: {},
+
+                fields: {
+                    servoPins: [
+                        '9',
+                        null
+                    ]
+                },
+
+                shadow:
+                    true,
+
+                topLevel:
+                    false
+            }
+        );
+
+        assert.deepEqual(
             result.project
                 .easybloxProject,
             {
@@ -156,7 +219,7 @@ test(
             result.report
                 .projectStructure
                 .migratedBlockCount,
-            2
+            3
         );
 
         assert.equal(
@@ -169,6 +232,297 @@ test(
             result.report
                 .requiresStructuralConversion,
             false
+        );
+    }
+);
+
+test(
+    'conversion runner normalizes PictoBlox digitalWrite schema before migrating the Arduino Upload program',
+    () => {
+        const project = {
+            boardSelected:
+                'Arduino Uno',
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    isStage:
+                        true,
+
+                    blocks: {
+                        uploadHat: {
+                            opcode:
+                                'arduinoUno_arduinoUnoStartUp',
+
+                            next:
+                                'digitalLow',
+
+                            parent:
+                                null,
+
+                            inputs: {},
+
+                            fields: {},
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                true
+                        },
+
+                        digitalLow: {
+                            opcode:
+                                'arduinoUno_digitalWrite',
+
+                            next:
+                                'digitalHigh',
+
+                            parent:
+                                'uploadHat',
+
+                            inputs: {},
+
+                            fields: {
+                                PIN: [
+                                    '13',
+                                    null
+                                ],
+
+                                MODE: [
+                                    'false',
+                                    null
+                                ]
+                            },
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                false
+                        },
+
+                        digitalHigh: {
+                            opcode:
+                                'arduinoUno_digitalWrite',
+
+                            next:
+                                null,
+
+                            parent:
+                                'digitalLow',
+
+                            inputs: {},
+
+                            fields: {
+                                PIN: [
+                                    '13',
+                                    null
+                                ],
+
+                                MODE: [
+                                    'true',
+                                    null
+                                ]
+                            },
+
+                            shadow:
+                                false,
+
+                            topLevel:
+                                false
+                        }
+                    }
+                }
+            ]
+        };
+
+        const original =
+            JSON.parse(
+                JSON.stringify(
+                    project
+                )
+            );
+
+        const result =
+            convertExternalSb3Project(
+                project
+            );
+
+        assert.deepEqual(
+            project,
+            original,
+            'conversion runner does not mutate the PictoBlox source project'
+        );
+
+        assert.equal(
+            result.canConvert,
+            true
+        );
+
+        assert.equal(
+            result.report
+                .isLoadSafe,
+            true
+        );
+
+        assert.equal(
+            result.report
+                .normalizedCompatibleOpcodeCount,
+            2
+        );
+
+        assert.equal(
+            result.report
+                .deferredCompatibleOpcodeSchemaCount,
+            0
+        );
+
+        const uploadBlocks =
+            result.project
+                .easybloxUploadPrograms[
+                    'arduino-uno'
+                ]
+                .blocks;
+
+        assert.deepEqual(
+            uploadBlocks
+                .digitalLow
+                .fields,
+            {}
+        );
+
+        assert.deepEqual(
+            uploadBlocks
+                .digitalLow
+                .inputs,
+            {
+                PIN: [
+                    1,
+                    'digitalLow__easyblox_PIN'
+                ],
+
+                VALUE: [
+                    1,
+                    'digitalLow__easyblox_VALUE'
+                ]
+            }
+        );
+
+        assert.deepEqual(
+            uploadBlocks
+                .digitalLow__easyblox_PIN,
+            {
+                opcode:
+                    'arduinoUno_menu_digitalPins',
+
+                next:
+                    null,
+
+                parent:
+                    'digitalLow',
+
+                inputs: {},
+
+                fields: {
+                    digitalPins: [
+                        '13',
+                        null
+                    ]
+                },
+
+                shadow:
+                    true,
+
+                topLevel:
+                    false
+            }
+        );
+
+        assert.deepEqual(
+            uploadBlocks
+                .digitalLow__easyblox_VALUE,
+            {
+                opcode:
+                    'arduinoUno_menu_digitalValues',
+
+                next:
+                    null,
+
+                parent:
+                    'digitalLow',
+
+                inputs: {},
+
+                fields: {
+                    digitalValues: [
+                        '0',
+                        null
+                    ]
+                },
+
+                shadow:
+                    true,
+
+                topLevel:
+                    false
+            }
+        );
+
+        assert.deepEqual(
+            uploadBlocks
+                .digitalHigh
+                .fields,
+            {}
+        );
+
+        assert.deepEqual(
+            uploadBlocks
+                .digitalHigh
+                .inputs,
+            {
+                PIN: [
+                    1,
+                    'digitalHigh__easyblox_PIN'
+                ],
+
+                VALUE: [
+                    1,
+                    'digitalHigh__easyblox_VALUE'
+                ]
+            }
+        );
+
+        assert.equal(
+            uploadBlocks
+                .digitalHigh__easyblox_PIN
+                .fields
+                .digitalPins[0],
+            '13'
+        );
+
+        assert.equal(
+            uploadBlocks
+                .digitalHigh__easyblox_VALUE
+                .fields
+                .digitalValues[0],
+            '1'
+        );
+
+        assert.equal(
+            uploadBlocks
+                .digitalHigh__easyblox_PIN
+                .parent,
+            'digitalHigh'
+        );
+
+        assert.equal(
+            uploadBlocks
+                .digitalHigh__easyblox_VALUE
+                .parent,
+            'digitalHigh'
         );
     }
 );

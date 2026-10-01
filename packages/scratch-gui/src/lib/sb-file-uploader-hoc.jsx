@@ -21,11 +21,48 @@ import {
 } from '../reducers/modals';
 import {getProjectTitleFromFilename} from './sb-file-uploader-utils';
 
+import prepareEasyBloxExternalProjectImport, {
+    IMPORT_STATUSES
+} from './easyblox-external-project-import-service';
+
+const FILE_SELECTION_MODES =
+    Object.freeze({
+        OPEN:
+            'open',
+
+        IMPORT:
+            'import'
+    });
+
 const messages = defineMessages({
     loadError: {
         id: 'gui.projectLoader.loadError',
         defaultMessage: 'The project file that was selected failed to load.',
         description: 'An error that displays when a local project file fails to load.'
+    },
+
+    importAlreadyEasyBlox: {
+        id: 'gui.projectImporter.alreadyEasyBlox',
+        defaultMessage: 'Este já é um projeto EasyBlox. Use Abrir... para carregá-lo.',
+        description: 'Message shown when Import is used with an EasyBlox project.'
+    },
+
+    importUnsupported: {
+        id: 'gui.projectImporter.unsupported',
+        defaultMessage: 'O arquivo selecionado não foi reconhecido como um projeto PictoBlox compatível para importação.',
+        description: 'Message shown when an external SB3 cannot be imported.'
+    },
+
+    importUnsafe: {
+        id: 'gui.projectImporter.unsafe',
+        defaultMessage: 'Este projeto PictoBlox contém estruturas que ainda não podem ser importadas com segurança.',
+        description: 'Message shown when a PictoBlox conversion cannot be loaded safely.'
+    },
+
+    importReview: {
+        id: 'gui.projectImporter.review',
+        defaultMessage: 'Projeto importado. Alguns recursos do PictoBlox ainda não possuem equivalente no EasyBlox e foram preservados para revisão.',
+        description: 'Message shown after importing a PictoBlox project with quarantined unsupported content.'
     }
 });
 
@@ -46,6 +83,7 @@ const SBFileUploaderHOC = function (WrappedComponent) {
                 'createFileObjects',
                 'handleFinishedLoadingUpload',
                 'handleStartSelectingFileUpload',
+                'handleStartSelectingExternalProjectImport',
                 'handleChange',
                 'onload',
                 'removeFileObjects'
@@ -61,20 +99,40 @@ const SBFileUploaderHOC = function (WrappedComponent) {
         }
         // step 1: this is where the upload process begins
         handleStartSelectingFileUpload () {
-            this.createFileObjects(); // go to step 2
+            this.createFileObjects(
+                FILE_SELECTION_MODES.OPEN
+            ); // go to step 2
+        }
+
+        handleStartSelectingExternalProjectImport () {
+            this.createFileObjects(
+                FILE_SELECTION_MODES.IMPORT
+            ); // go to step 2
         }
         // step 2: create a FileReader and an <input> element, and issue a
         // pseudo-click to it. That will open the file chooser dialog.
-        createFileObjects () {
+        createFileObjects (
+            selectionMode =
+                FILE_SELECTION_MODES.OPEN
+        ) {
             // redo step 7, in case it got skipped last time and its objects are
             // still in memory
             this.removeFileObjects();
+
+            this.fileSelectionMode =
+                selectionMode;
+
             // create fileReader
             this.fileReader = new FileReader();
             this.fileReader.onload = this.onload;
             // create <input> element and add it to DOM
             this.inputElement = document.createElement('input');
-            this.inputElement.accept = '.sb,.sb2,.sb3';
+
+            this.inputElement.accept =
+                selectionMode ===
+                FILE_SELECTION_MODES.IMPORT ?
+                    '.sb3' :
+                    '.sb,.sb2,.sb3';
             this.inputElement.style = 'display: none;';
             this.inputElement.type = 'file';
             this.inputElement.onchange = this.handleChange; // connects to step 3
@@ -132,29 +190,122 @@ const SBFileUploaderHOC = function (WrappedComponent) {
         }
         // step 6: attached as a handler on our FileReader object; called when
         // file upload raw data is available in the reader
-        onload () {
-            if (this.fileReader) {
-                this.props.onLoadingStarted();
-                const filename = this.fileToUpload && this.fileToUpload.name;
-                let loadingSuccess = false;
-                this.props.vm.loadProject(this.fileReader.result)
-                    .then(() => {
-                        if (filename) {
-                            const uploadedProjectTitle = getProjectTitleFromFilename(filename);
-                            this.props.onSetProjectTitle(uploadedProjectTitle);
-                        }
-                        loadingSuccess = true;
-                    })
-                    .catch(error => {
-                        log.warn(error);
-                        alert(this.props.intl.formatMessage(messages.loadError)); // eslint-disable-line no-alert
-                    })
-                    .then(() => {
-                        this.props.onLoadingFinished(this.props.loadingState, loadingSuccess);
-                        // go back to step 7: whether project loading succeeded
-                        // or failed, reset file objects
-                        this.removeFileObjects();
-                    });
+        async onload () {
+            if (!this.fileReader) {
+                return;
+            }
+
+            this.props.onLoadingStarted();
+
+            const filename =
+                this.fileToUpload &&
+                this.fileToUpload.name;
+
+            let loadingSuccess =
+                false;
+
+            try {
+                let projectData =
+                    this.fileReader.result;
+
+                let importResult =
+                    null;
+
+                if (
+                    this.fileSelectionMode ===
+                    FILE_SELECTION_MODES.IMPORT
+                ) {
+                    importResult =
+                        await prepareEasyBloxExternalProjectImport(
+                            projectData
+                        );
+
+                    switch (
+                        importResult.status
+                    ) {
+                    case IMPORT_STATUSES.READY:
+                        projectData =
+                            importResult.sb3;
+                        break;
+
+                    case IMPORT_STATUSES.ALREADY_EASYBLOX:
+                        alert( // eslint-disable-line no-alert
+                            this.props.intl.formatMessage(
+                                messages.importAlreadyEasyBlox
+                            )
+                        );
+                        return;
+
+                    case IMPORT_STATUSES.UNSUPPORTED:
+                        alert( // eslint-disable-line no-alert
+                            this.props.intl.formatMessage(
+                                messages.importUnsupported
+                            )
+                        );
+                        return;
+
+                    case IMPORT_STATUSES.UNSAFE:
+                        alert( // eslint-disable-line no-alert
+                            this.props.intl.formatMessage(
+                                messages.importUnsafe
+                            )
+                        );
+                        return;
+
+                    default:
+                        throw new Error(
+                            `Unexpected external project import status: ${
+                                importResult.status
+                            }`
+                        );
+                    }
+                }
+
+                await this.props.vm.loadProject(
+                    projectData
+                );
+
+                if (filename) {
+                    const uploadedProjectTitle =
+                        getProjectTitleFromFilename(
+                            filename
+                        );
+
+                    this.props.onSetProjectTitle(
+                        uploadedProjectTitle
+                    );
+                }
+
+                loadingSuccess =
+                    true;
+
+                if (
+                    importResult &&
+                    importResult.requiresReview
+                ) {
+                    alert( // eslint-disable-line no-alert
+                        this.props.intl.formatMessage(
+                            messages.importReview
+                        )
+                    );
+                }
+            } catch (error) {
+                log.warn(error);
+
+                alert( // eslint-disable-line no-alert
+                    this.props.intl.formatMessage(
+                        messages.loadError
+                    )
+                );
+            } finally {
+                this.props.onLoadingFinished(
+                    this.props.loadingState,
+                    loadingSuccess
+                );
+
+                // go back to step 7: whether project loading succeeded
+                // or failed, reset file objects
+                this.removeFileObjects();
             }
         }
         // step 7: remove the <input> element from the DOM and clear reader and
@@ -167,6 +318,7 @@ const SBFileUploaderHOC = function (WrappedComponent) {
             this.inputElement = null;
             this.fileReader = null;
             this.fileToUpload = null;
+            this.fileSelectionMode = null;
         }
         render () {
             const {
@@ -191,6 +343,9 @@ const SBFileUploaderHOC = function (WrappedComponent) {
                 <React.Fragment>
                     <WrappedComponent
                         onStartSelectingFileUpload={this.handleStartSelectingFileUpload}
+                        onStartSelectingExternalProjectImport={
+                            this.handleStartSelectingExternalProjectImport
+                        }
                         {...componentProps}
                     />
                 </React.Fragment>

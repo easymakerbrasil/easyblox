@@ -16,7 +16,7 @@ const {
 
 const {
     createEasyBloxSupportCatalog
-} = require('./easyblox-support-catalog');
+} = require('./easyblox-support-catalog-browser');
 
 const {
     createPictoBloxMappingCatalog

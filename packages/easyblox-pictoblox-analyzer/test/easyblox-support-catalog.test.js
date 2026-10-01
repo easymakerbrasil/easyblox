@@ -203,6 +203,115 @@ test(
                 );
             }
         );
+        assert.equal(
+            catalog
+                .menuArgumentSchemaCount,
+            catalog
+                .menuArgumentSchemas
+                .length
+        );
+
+        const menuArguments =
+            new Map(
+                catalog
+                    .menuArgumentSchemas
+                    .map(
+                        schema => [
+                            `${schema.opcode}:${
+                                schema.argumentName
+                            }`,
+                            schema
+                        ]
+                    )
+            );
+
+        assert.deepEqual(
+            menuArguments.get(
+                'arduinoUno_digitalRead:PIN'
+            ),
+            {
+                opcode:
+                    'arduinoUno_digitalRead',
+
+                argumentName:
+                    'PIN',
+
+                menuName:
+                    'digitalPins',
+
+                shadowOpcode:
+                    'arduinoUno_menu_digitalPins',
+
+                fieldName:
+                    'digitalPins'
+            }
+        );
+
+        assert.deepEqual(
+            menuArguments.get(
+                'sensors_dhtRead:PIN'
+            ),
+            {
+                opcode:
+                    'sensors_dhtRead',
+
+                argumentName:
+                    'PIN',
+
+                menuName:
+                    'dhtPins',
+
+                shadowOpcode:
+                    'sensors_menu_dhtPins',
+
+                fieldName:
+                    'dhtPins'
+            }
+        );
+
+        assert.deepEqual(
+            menuArguments.get(
+                'actuators_servoWrite:PIN'
+            ),
+            {
+                opcode:
+                    'actuators_servoWrite',
+
+                argumentName:
+                    'PIN',
+
+                menuName:
+                    'servoPins',
+
+                shadowOpcode:
+                    'actuators_menu_servoPins',
+
+                fieldName:
+                    'servoPins'
+            }
+        );
+
+        assert.deepEqual(
+            menuArguments.get(
+                'actuators_motorConfigure:PWM'
+            ),
+            {
+                opcode:
+                    'actuators_motorConfigure',
+
+                argumentName:
+                    'PWM',
+
+                menuName:
+                    'motorPwmPins',
+
+                shadowOpcode:
+                    'actuators_menu_motorPwmPins',
+
+                fieldName:
+                    'motorPwmPins'
+            }
+        );
     }
 );
 
