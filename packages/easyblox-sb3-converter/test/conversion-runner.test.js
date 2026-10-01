@@ -538,6 +538,189 @@ test(
 );
 
 test(
+    'conversion runner preserves PictoBlox None as provenance while converting it to board-neutral EasyBlox Stage context',
+    () => {
+        const project = {
+            boardSelected:
+                'None',
+
+            extensions: [
+                'qrCodeScanner'
+            ],
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    isStage:
+                        true,
+
+                    comments: {},
+
+                    blocks: {
+                        qrDetected: {
+                            opcode:
+                                'qrCodeScanner_isDetected',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        legacyVideo: {
+                            opcode:
+                                'qrCodeScanner_toggleStageVideoFeed',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        }
+                    }
+                }
+            ]
+        };
+
+        assert.equal(
+            detectSb3ProjectOrigin(
+                project
+            ),
+            PROJECT_ORIGINS
+                .PICTOBLOX
+        );
+
+        const result =
+            convertExternalSb3Project(
+                project
+            );
+
+        assert.equal(
+            result.canConvert,
+            true
+        );
+
+        assert.equal(
+            result.report
+                .plan
+                .source
+                .boardSelected,
+            'None',
+            'Analyzer provenance preserves the PictoBlox sentinel'
+        );
+
+        assert.equal(
+            result.report
+                .projectStructure
+                .sourceBoard,
+            null,
+            'structural migration interprets None as no selected board'
+        );
+
+        assert.equal(
+            result.report
+                .deferredProjectStructureCount,
+            0
+        );
+
+        assert.deepEqual(
+            result.report
+                .projectStructure
+                .deferred,
+            []
+        );
+
+        assert.deepEqual(
+            result.project
+                .easybloxProject
+                .selectedBoardId,
+            null
+        );
+
+        assert.equal(
+            result.project
+                .easybloxProject
+                .programMode,
+            'stage'
+        );
+
+        assert.equal(
+            Object.prototype
+                .hasOwnProperty.call(
+                    result.project,
+                    'boardSelected'
+                ),
+            false
+        );
+
+        assert.equal(
+            result.project
+                .targets[0]
+                .blocks
+                .qrDetected
+                .opcode,
+            'easybloxQr_isDetected'
+        );
+
+        assert.equal(
+            result.project
+                .targets[0]
+                .blocks
+                .legacyVideo,
+            undefined
+        );
+
+        assert.equal(
+            result.report
+                .reviewBlockCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .safeLoad
+                .quarantinedReviewBlockCount,
+            1
+        );
+
+        assert.equal(
+            result.report
+                .safeLoad
+                .remainingUnsafeBlockCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .isLoadSafe,
+            true
+        );
+
+        assert.equal(
+            result.project
+                .easybloxProject
+                .conversionReview
+                .quarantinedScripts[0]
+                .blocks
+                .legacyVideo
+                .opcode,
+            'qrCodeScanner_toggleStageVideoFeed'
+        );
+    }
+);
+
+test(
     'conversion runner recognizes board-neutral PictoBlox mappings without board metadata',
     () => {
         const project = {

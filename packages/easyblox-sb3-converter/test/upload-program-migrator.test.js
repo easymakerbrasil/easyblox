@@ -305,6 +305,130 @@ test(
 );
 
 test(
+    'project structure migrator treats PictoBlox None board sentinel as no selected board',
+    () => {
+        const project = {
+            boardSelected:
+                'None',
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    isStage:
+                        true,
+
+                    blocks: {
+                        flag: {
+                            opcode:
+                                'event_whenflagclicked',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        }
+                    }
+                }
+            ]
+        };
+
+        const original =
+            JSON.parse(
+                JSON.stringify(
+                    project
+                )
+            );
+
+        const result =
+            migratePictoBloxProjectStructure(
+                project
+            );
+
+        assert.deepEqual(
+            project,
+            original,
+            'source project remains untouched'
+        );
+
+        assert.deepEqual(
+            result.project
+                .easybloxProject,
+            {
+                schemaVersion:
+                    1,
+                selectedBoardId:
+                    null,
+                programMode:
+                    'stage',
+                qrCodes:
+                    [],
+                qrOverlayPosition:
+                    'topRight'
+            }
+        );
+
+        assert.equal(
+            Object.prototype
+                .hasOwnProperty.call(
+                    result.project,
+                    'boardSelected'
+                ),
+            false
+        );
+
+        assert.ok(
+            result.project
+                .targets[0]
+                .blocks
+                .flag
+        );
+
+        assert.equal(
+            result.project
+                .easybloxUploadPrograms,
+            undefined
+        );
+
+        assert.equal(
+            result.report
+                .sourceBoard,
+            null
+        );
+
+        assert.equal(
+            result.report
+                .selectedBoardId,
+            null
+        );
+
+        assert.equal(
+            result.report
+                .programMode,
+            'stage'
+        );
+
+        assert.equal(
+            result.report
+                .uploadProgramCreated,
+            false
+        );
+
+        assert.deepEqual(
+            result.report
+                .deferred,
+            []
+        );
+    }
+);
+
+test(
     'project structure migrator defers multiple Upload entry points without moving blocks',
     () => {
         const project = {

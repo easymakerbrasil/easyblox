@@ -7,6 +7,9 @@ const {
 const SOURCE_BOARD_ARDUINO_UNO =
     'Arduino Uno';
 
+const SOURCE_BOARD_NONE =
+    'None';
+
 const TARGET_BOARD_ARDUINO_UNO =
     'arduino-uno';
 
@@ -20,6 +23,30 @@ const cloneJson =
                 value
             )
         );
+
+const normalizePictoBloxSourceBoard =
+    boardSelected => {
+        if (
+            typeof boardSelected !==
+                'string'
+        ) {
+            return null;
+        }
+
+        const normalized =
+            boardSelected.trim();
+
+        if (
+            normalized.length ===
+                0 ||
+            normalized ===
+                SOURCE_BOARD_NONE
+        ) {
+            return null;
+        }
+
+        return normalized;
+    };
 
 let easyBloxSupportMetadata =
     null;
@@ -764,13 +791,10 @@ const migratePictoBloxProjectStructure =
             );
 
         const sourceBoard =
-            typeof convertedProject
-                .boardSelected ===
-                'string' ?
+            normalizePictoBloxSourceBoard(
                 convertedProject
                     .boardSelected
-                    .trim() :
-                null;
+            );
 
         if (
             sourceBoard &&
