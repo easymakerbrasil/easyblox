@@ -140,6 +140,69 @@ test(
             ).extensionId,
             'text2speech'
         );
+
+        assert.equal(
+            catalog
+                .serializedAuxiliaryOpcodeCount,
+            catalog
+                .serializedAuxiliaryEntries
+                .length
+        );
+
+        const serializedAuxiliaryOpcodes =
+            new Set(
+                catalog
+                    .serializedAuxiliaryEntries
+                    .map(
+                        entry =>
+                            entry.opcode
+                    )
+            );
+
+        [
+            'control_create_clone_of_menu',
+            'looks_costume',
+            'procedures_prototype',
+            'easyblox_servo_angle',
+            'music_menu_INSTRUMENT',
+            'text2speech_menu_voices',
+            'videoSensing_menu_VIDEO_STATE'
+        ].forEach(
+            opcode => {
+                assert.equal(
+                    serializedAuxiliaryOpcodes
+                        .has(
+                            opcode
+                        ),
+                    true,
+                    `expected canonical serialized opcode: ${
+                        opcode
+                    }`
+                );
+            }
+        );
+
+        [
+            'math_slider_0_180',
+            'math_slider_0_100',
+            'math_slider_0_255',
+            'faceDetection_menu_faceNumber',
+            'posenet_menu_parts',
+            'matrixColour5x7Custom'
+        ].forEach(
+            opcode => {
+                assert.equal(
+                    serializedAuxiliaryOpcodes
+                        .has(
+                            opcode
+                        ),
+                    false,
+                    `PictoBlox-only serialized opcode must remain unsafe: ${
+                        opcode
+                    }`
+                );
+            }
+        );
     }
 );
 

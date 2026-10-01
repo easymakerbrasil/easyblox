@@ -17,27 +17,34 @@ const cloneJson =
             )
         );
 
-let supportedOpcodeSet =
+let safeSerializedOpcodeSet =
     null;
 
-const getSupportedOpcodeSet =
+const getSafeSerializedOpcodeSet =
     () => {
-        if (supportedOpcodeSet) {
-            return supportedOpcodeSet;
+        if (safeSerializedOpcodeSet) {
+            return safeSerializedOpcodeSet;
         }
 
         const supportCatalog =
             createEasyBloxSupportCatalog();
 
-        supportedOpcodeSet =
-            new Set(
-                supportCatalog
+        safeSerializedOpcodeSet =
+            new Set([
+                ...supportCatalog
                     .entries
                     .map(
                         entry =>
                             entry.opcode
+                    ),
+
+                ...supportCatalog
+                    .serializedAuxiliaryEntries
+                    .map(
+                        entry =>
+                            entry.opcode
                     )
-            );
+            ]);
 
         const mappingCatalog =
             createPictoBloxMappingCatalog();
@@ -74,7 +81,7 @@ const getSupportedOpcodeSet =
                                         .length >
                                         0
                                 ) {
-                                    supportedOpcodeSet
+                                    safeSerializedOpcodeSet
                                         .add(
                                             shadowTransform
                                                 .targetOpcode
@@ -85,7 +92,7 @@ const getSupportedOpcodeSet =
                 }
             );
 
-        return supportedOpcodeSet;
+        return safeSerializedOpcodeSet;
     };
 
 const isBlockObject =
@@ -207,8 +214,8 @@ const getUnsafeBlocks =
         blocks,
         blockIds
     ) => {
-        const supportedOpcodes =
-            getSupportedOpcodeSet();
+        const safeSerializedOpcodes =
+            getSafeSerializedOpcodeSet();
 
         return blockIds
             .filter(
@@ -224,7 +231,7 @@ const getUnsafeBlocks =
                         ) ||
                         typeof block.opcode !==
                             'string' ||
-                        !supportedOpcodes.has(
+                        !safeSerializedOpcodes.has(
                             block.opcode
                         )
                     );

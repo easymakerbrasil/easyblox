@@ -10,6 +10,43 @@ const INTERNAL_ONLY_EXTENSION_IDS =
         'coreExample'
     ]);
 
+const CORE_SERIALIZED_AUXILIARY_OPCODES =
+    Object.freeze([
+        'colour_picker',
+        'control_create_clone_of_menu',
+        'data_listcontents',
+        'data_variable',
+        'event_broadcast_menu',
+        'looks_backdrops',
+        'looks_costume',
+        'math_angle',
+        'math_integer',
+        'math_number',
+        'math_positive_number',
+        'math_whole_number',
+        'motion_glideto_menu',
+        'motion_goto_menu',
+        'motion_pointtowards_menu',
+        'note',
+        'procedures_prototype',
+        'sensing_distancetomenu',
+        'sensing_keyoptions',
+        'sensing_of_object_menu',
+        'sensing_touchingobjectmenu',
+        'sound_sounds_menu',
+        'text'
+    ]);
+
+const EASYBLOX_ARGUMENT_SHADOW_OPCODES =
+    Object.freeze([
+        'easyblox_matrix_8x8',
+        'easyblox_motor_speed',
+        'easyblox_percentage',
+        'easyblox_pwm_value',
+        'easyblox_servo_angle',
+        'matrix'
+    ]);
+
 const getDefaultScratchVmRoot =
     () =>
         path.resolve(
@@ -123,6 +160,30 @@ const getExtensionOpcodeIds =
                         }`
                 );
 
+        const serializedAuxiliaryOpcodes =
+            Object.entries(
+                info.menus || {}
+            )
+                .filter(
+                    ([
+                        ,
+                        menu
+                    ]) =>
+                        menu &&
+                        typeof menu ===
+                            'object' &&
+                        menu.acceptReporters ===
+                            true
+                )
+                .map(
+                    ([
+                        menuName
+                    ]) =>
+                        `${info.id}_menu_${
+                            menuName
+                        }`
+                );
+
         return {
             registeredExtensionId,
             extensionId:
@@ -131,6 +192,13 @@ const getExtensionOpcodeIds =
                 Array.from(
                     new Set(
                         opcodes
+                    )
+                ).sort(),
+
+            serializedAuxiliaryOpcodes:
+                Array.from(
+                    new Set(
+                        serializedAuxiliaryOpcodes
                     )
                 ).sort()
         };
@@ -147,6 +215,25 @@ const createSupportedEntry =
             status:
                 COMPATIBILITY_STATUSES
                     .SUPPORTED,
+            source
+        };
+
+        if (extensionId) {
+            entry.extensionId =
+                extensionId;
+        }
+
+        return entry;
+    };
+
+const createSerializedAuxiliaryEntry =
+    (
+        opcode,
+        source,
+        extensionId
+    ) => {
+        const entry = {
+            opcode,
             source
         };
 
@@ -298,6 +385,50 @@ const createEasyBloxSupportCatalog =
                 )
         );
 
+        const serializedAuxiliaryEntries = [
+            ...CORE_SERIALIZED_AUXILIARY_OPCODES
+                .map(
+                    opcode =>
+                        createSerializedAuxiliaryEntry(
+                            opcode,
+                            'core-serialized'
+                        )
+                ),
+
+            ...EASYBLOX_ARGUMENT_SHADOW_OPCODES
+                .map(
+                    opcode =>
+                        createSerializedAuxiliaryEntry(
+                            opcode,
+                            'easyblox-shadow'
+                        )
+                ),
+
+            ...extensionSummaries
+                .flatMap(
+                    summary =>
+                        summary
+                            .serializedAuxiliaryOpcodes
+                            .map(
+                                opcode =>
+                                    createSerializedAuxiliaryEntry(
+                                        opcode,
+                                        'extension-menu',
+                                        summary
+                                            .extensionId
+                                    )
+                            )
+                )
+        ].sort(
+            (
+                left,
+                right
+            ) =>
+                left.opcode.localeCompare(
+                    right.opcode
+                )
+        );
+
         const duplicateOpcodes =
             entries.filter(
                 (
@@ -323,6 +454,32 @@ const createEasyBloxSupportCatalog =
             );
         }
 
+        const duplicateSerializedAuxiliaryOpcodes =
+            serializedAuxiliaryEntries.filter(
+                (
+                    entry,
+                    index
+                ) =>
+                    index > 0 &&
+                    serializedAuxiliaryEntries[
+                        index - 1
+                    ].opcode ===
+                        entry.opcode
+            );
+
+        if (
+            duplicateSerializedAuxiliaryOpcodes
+                .length >
+                0
+        ) {
+            throw new Error(
+                `Duplicate EasyBlox serialized auxiliary opcode: ${
+                    duplicateSerializedAuxiliaryOpcodes[0]
+                        .opcode
+                }`
+            );
+        }
+
         const extensionOpcodeCount =
             extensionSummaries.reduce(
                 (
@@ -336,11 +493,15 @@ const createEasyBloxSupportCatalog =
 
         return {
             entries,
+            serializedAuxiliaryEntries,
             coreOpcodeCount:
                 coreOpcodes.length,
             extensionOpcodeCount,
             totalOpcodeCount:
                 entries.length,
+            serializedAuxiliaryOpcodeCount:
+                serializedAuxiliaryEntries
+                    .length,
             extensionIds,
             extensionSummaries
         };

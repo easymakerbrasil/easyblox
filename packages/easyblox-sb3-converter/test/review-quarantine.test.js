@@ -420,6 +420,225 @@ test(
 );
 
 test(
+    'review quarantine accepts canonical serialized auxiliary blocks without allowing PictoBlox-only shadows',
+    () => {
+        const project = {
+            extensions: [
+                'music'
+            ],
+
+            monitors: [],
+
+            easybloxProject: {
+                schemaVersion:
+                    1,
+                selectedBoardId:
+                    'arduino-uno',
+                programMode:
+                    'stage',
+                qrCodes: [],
+                qrOverlayPosition:
+                    'topRight'
+            },
+
+            targets: [
+                {
+                    name:
+                        'Stage',
+
+                    isStage:
+                        true,
+
+                    comments: {},
+
+                    blocks: {
+                        clone: {
+                            opcode:
+                                'control_create_clone_of',
+                            next:
+                                'instrument',
+                            parent:
+                                null,
+                            inputs: {
+                                CLONE_OPTION: [
+                                    1,
+                                    'cloneMenu'
+                                ]
+                            },
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                true
+                        },
+
+                        cloneMenu: {
+                            opcode:
+                                'control_create_clone_of_menu',
+                            next:
+                                null,
+                            parent:
+                                'clone',
+                            inputs: {},
+                            fields: {
+                                CLONE_OPTION: [
+                                    '_myself_',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                true,
+                            topLevel:
+                                false
+                        },
+
+                        instrument: {
+                            opcode:
+                                'music_setInstrument',
+                            next:
+                                null,
+                            parent:
+                                'clone',
+                            inputs: {
+                                INSTRUMENT: [
+                                    1,
+                                    'instrumentMenu'
+                                ]
+                            },
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        },
+
+                        instrumentMenu: {
+                            opcode:
+                                'music_menu_INSTRUMENT',
+                            next:
+                                null,
+                            parent:
+                                'instrument',
+                            inputs: {},
+                            fields: {
+                                INSTRUMENT: [
+                                    '1',
+                                    null
+                                ]
+                            },
+                            shadow:
+                                true,
+                            topLevel:
+                                false
+                        },
+
+                        prototype: {
+                            opcode:
+                                'procedures_prototype',
+                            next:
+                                null,
+                            parent:
+                                null,
+                            inputs: {},
+                            fields: {},
+                            shadow:
+                                false,
+                            topLevel:
+                                false
+                        }
+                    }
+                }
+            ]
+        };
+
+        const result =
+            quarantineUnsafeReviewContent(
+                project
+            );
+
+        assert.equal(
+            result.project
+                .easybloxProject
+                .conversionReview,
+            undefined
+        );
+
+        assert.equal(
+            result.report
+                .quarantinedReviewBlockCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .remainingUnsafeBlockCount,
+            0
+        );
+
+        assert.equal(
+            result.report
+                .isLoadSafe,
+            true
+        );
+
+        const unsafeProject =
+            JSON.parse(
+                JSON.stringify(
+                    project
+                )
+            );
+
+        unsafeProject
+            .targets[0]
+            .blocks
+            .instrumentMenu
+            .opcode =
+                'math_slider_0_180';
+
+        const unsafeResult =
+            quarantineUnsafeReviewContent(
+                unsafeProject
+            );
+
+        assert.equal(
+            unsafeResult.report
+                .quarantinedReviewBlockCount,
+            1
+        );
+
+        assert.equal(
+            unsafeResult.project
+                .targets[0]
+                .blocks
+                .clone,
+            undefined
+        );
+
+        assert.equal(
+            unsafeResult.project
+                .easybloxProject
+                .conversionReview
+                .quarantinedScripts[0]
+                .unsafeBlocks[0]
+                .opcode,
+            'math_slider_0_180'
+        );
+
+        assert.equal(
+            unsafeResult.report
+                .remainingUnsafeBlockCount,
+            0
+        );
+
+        assert.equal(
+            unsafeResult.report
+                .isLoadSafe,
+            true
+        );
+    }
+);
+
+test(
     'review quarantine accepts canonical EasyBlox shadow opcodes declared by mapping transforms',
     () => {
         const project = {
