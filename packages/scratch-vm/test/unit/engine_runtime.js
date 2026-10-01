@@ -4,6 +4,7 @@ const readFileToBuffer = require('../fixtures/readProjectFile').readFileToBuffer
 const VirtualMachine = require('../../src/virtual-machine');
 const Runtime = require('../../src/engine/runtime');
 const BlockExecutionMode = require('../../src/extension-support/block-execution-mode');
+const BlockType = require('../../src/extension-support/block-type');
 const MonitorRecord = require('../../src/engine/monitor-record');
 const {Map} = require('immutable');
 
@@ -22,6 +23,76 @@ test('spec', t => {
     t.type(r.removeCloudVariable, 'function');
 
     t.ok(r instanceof Runtime);
+
+    t.end();
+});
+
+test('extension hats inherit the default edge-activated runtime contract', t => {
+    const r = new Runtime();
+
+    r._registerExtensionPrimitives({
+        id:
+            'fakeHatExtension',
+
+        name:
+            'Fake Hat Extension',
+
+        blocks: [
+            {
+                opcode:
+                    'defaultHat',
+
+                blockType:
+                    BlockType.HAT,
+
+                text:
+                    'when default hat',
+
+                arguments: {},
+
+                func:
+                    () => true
+            },
+            {
+                opcode:
+                    'nonEdgeHat',
+
+                blockType:
+                    BlockType.HAT,
+
+                text:
+                    'when non-edge hat',
+
+                arguments: {},
+
+                isEdgeActivated:
+                    false,
+
+                func:
+                    () => true
+            }
+        ],
+
+        menus: {},
+
+        customFieldTypes: {}
+    });
+
+    t.equal(
+        r.getIsEdgeActivatedHat(
+            'fakeHatExtension_defaultHat'
+        ),
+        true,
+        'HAT without an explicit value defaults to edge activated'
+    );
+
+    t.equal(
+        r.getIsEdgeActivatedHat(
+            'fakeHatExtension_nonEdgeHat'
+        ),
+        false,
+        'explicit isEdgeActivated false remains false'
+    );
 
     t.end();
 });

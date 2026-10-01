@@ -1152,8 +1152,15 @@ class Runtime extends EventEmitter {
                     }
                     if (blockInfo.blockType === BlockType.EVENT || blockInfo.blockType === BlockType.HAT) {
                         this._hats[opcode] = {
-                            edgeActivated: blockInfo.isEdgeActivated,
-                            restartExistingThreads: blockInfo.shouldRestartExistingThreads
+                            edgeActivated:
+                                convertedBlock
+                                    .info
+                                    .isEdgeActivated,
+
+                            restartExistingThreads:
+                                convertedBlock
+                                    .info
+                                    .shouldRestartExistingThreads
                         };
                     }
                 }
