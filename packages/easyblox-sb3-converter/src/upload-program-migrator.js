@@ -1,7 +1,7 @@
 const {
     createEasyBloxSupportCatalog
 } = require(
-    '@easymaker/easyblox-pictoblox-analyzer'
+    '@easymaker/easyblox-pictoblox-analyzer/src/browser'
 );
 
 const SOURCE_BOARD_ARDUINO_UNO =

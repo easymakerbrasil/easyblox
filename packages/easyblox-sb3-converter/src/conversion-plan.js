@@ -6,7 +6,7 @@ const {
     createProjectInventory,
     classifyProjectInventory
 } = require(
-    '@easymaker/easyblox-pictoblox-analyzer'
+    '@easymaker/easyblox-pictoblox-analyzer/src/browser'
 );
 
 const createPictoBloxConversionCatalog =

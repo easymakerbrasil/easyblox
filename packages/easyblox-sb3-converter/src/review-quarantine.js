@@ -2,7 +2,7 @@ const {
     createEasyBloxSupportCatalog,
     createPictoBloxMappingCatalog
 } = require(
-    '@easymaker/easyblox-pictoblox-analyzer'
+    '@easymaker/easyblox-pictoblox-analyzer/src/browser'
 );
 
 const {

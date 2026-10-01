@@ -5,7 +5,7 @@ const {
     PROJECT_JSON_FILENAME,
     parseProjectJson
 } = require(
-    '@easymaker/easyblox-pictoblox-analyzer'
+    '@easymaker/easyblox-pictoblox-analyzer/src/browser'
 );
 
 const {
@@ -24,22 +24,10 @@ const isArrayBuffer =
 const normalizeBinarySource =
     source => {
         if (
-            Buffer.isBuffer(
-                source
-            )
-        ) {
-            return source;
-        }
-
-        if (
             source instanceof
                 Uint8Array
         ) {
-            return Buffer.from(
-                source.buffer,
-                source.byteOffset,
-                source.byteLength
-            );
+            return source;
         }
 
         if (
@@ -47,7 +35,7 @@ const normalizeBinarySource =
                 source
             )
         ) {
-            return Buffer.from(
+            return new Uint8Array(
                 source
             );
         }
@@ -147,7 +135,7 @@ const convertExternalSb3Archive =
         const sb3 =
             await archive.generateAsync({
                 type:
-                    'nodebuffer',
+                    'uint8array',
 
                 compression:
                     'DEFLATE',

@@ -390,6 +390,20 @@ test(
                 sourceSb3
             );
 
+        assert.ok(
+            converted.sb3 instanceof
+                Uint8Array,
+            'archive conversion returns browser-safe binary data'
+        );
+
+        assert.equal(
+            Buffer.isBuffer(
+                converted.sb3
+            ),
+            false,
+            'archive conversion does not require a Node Buffer result'
+        );
+
         assert.equal(
             converted.canConvert,
             true
