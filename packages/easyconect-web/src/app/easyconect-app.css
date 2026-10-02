@@ -1,0 +1,547 @@
+:root {
+    font-family:
+        Inter,
+        Arial,
+        sans-serif;
+
+    color: #282828;
+    background: #f3f3f3;
+
+    font-synthesis: none;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    min-width: 100%;
+    min-height: 100%;
+    margin: 0;
+}
+
+body {
+    min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.easyconect-app {
+    display: flex;
+    flex-direction: column;
+
+    min-height: 100vh;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff 0,
+            #f5f5f5 18rem,
+            #f3f3f3 100%
+        );
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+
+    min-height: 4.75rem;
+    padding: 0.75rem clamp(1rem, 4vw, 3rem);
+
+    border-bottom: 0.25rem solid #ffc800;
+
+    background: #282828;
+    color: #ffffff;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+
+    min-width: 0;
+}
+
+.brand-mark {
+    width: 0.7rem;
+    height: 2.4rem;
+
+    flex: 0 0 auto;
+
+    border-radius: 999px;
+
+    background: #ffc800;
+}
+
+.brand-copy {
+    min-width: 0;
+}
+
+.brand-title {
+    margin: 0;
+
+    font-size: 1.2rem;
+    font-weight: 750;
+    line-height: 1.1;
+}
+
+.brand-subtitle {
+    display: block;
+
+    margin-top: 0.2rem;
+
+    color: rgba(255, 255, 255, 0.62);
+
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+
+    flex: 0 0 auto;
+}
+
+.connection-dot,
+.connection-dot-busy,
+.connection-dot-connected,
+.connection-dot-error {
+    width: 0.58rem;
+    height: 0.58rem;
+
+    flex: 0 0 auto;
+
+    border-radius: 50%;
+}
+
+.connection-dot {
+    background: #9b9b9b;
+}
+
+.connection-dot-busy {
+    border: 2px solid rgba(255, 255, 255, 0.32);
+    border-top-color: #ffc800;
+
+    background: transparent;
+
+    animation:
+        easyconect-connection-spin
+        0.8s
+        linear
+        infinite;
+}
+
+.connection-dot-connected {
+    background: #43a047;
+}
+
+.connection-dot-error {
+    background: #d95c4f;
+}
+
+@keyframes easyconect-connection-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.connection-label {
+    font-size: 0.78rem;
+    font-weight: 650;
+}
+
+.connection-button {
+    min-height: 2.25rem;
+    padding: 0 0.9rem;
+
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.55rem;
+
+    background: #ffc800;
+    color: #282828;
+
+    cursor: pointer;
+
+    font-size: 0.76rem;
+    font-weight: 750;
+
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease,
+        opacity 0.15s ease;
+}
+
+.connection-button:hover:not(:disabled) {
+    background: #ffd230;
+}
+
+.connection-button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.connection-button:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+}
+
+.connection-button:disabled {
+    opacity: 0.55;
+
+    cursor: default;
+}
+
+.app-main {
+    width: min(100%, 72rem);
+    margin: 0 auto;
+
+    flex: 1;
+
+    padding:
+        clamp(2rem, 5vw, 4.5rem)
+        clamp(1rem, 4vw, 3rem)
+        3rem;
+}
+
+.android-guidance {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+
+    margin-bottom: 2rem;
+    padding: 1rem 1.1rem;
+
+    border: 1px solid rgba(255, 200, 0, 0.58);
+    border-radius: 0.85rem;
+
+    background: rgba(255, 200, 0, 0.11);
+
+    box-shadow:
+        0 0.15rem 0.45rem
+        rgba(0, 0, 0, 0.035);
+}
+
+.android-guidance-copy {
+    min-width: 0;
+}
+
+.android-guidance-title {
+    display: block;
+
+    color: #282828;
+
+    font-size: 0.88rem;
+    font-weight: 800;
+}
+
+.android-guidance-text {
+    max-width: 48rem;
+    margin: 0.35rem 0 0;
+
+    color: rgba(40, 40, 40, 0.7);
+
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
+
+.android-guidance-button {
+    min-height: 2.15rem;
+    padding: 0 0.85rem;
+
+    flex: 0 0 auto;
+
+    border: 1px solid rgba(40, 40, 40, 0.15);
+    border-radius: 0.5rem;
+
+    background: #ffffff;
+    color: #282828;
+
+    cursor: pointer;
+
+    font-size: 0.74rem;
+    font-weight: 750;
+
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease;
+}
+
+.android-guidance-button:hover {
+    border-color: #ffc800;
+    background: #fffaf0;
+}
+
+.android-guidance-button:focus-visible {
+    outline: 2px solid #282828;
+    outline-offset: 2px;
+}
+
+.hero {
+    max-width: 43rem;
+    margin-bottom: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+.eyebrow {
+    margin: 0 0 0.8rem;
+
+    color: rgba(40, 40, 40, 0.58);
+
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+}
+
+.hero-title {
+    max-width: 38rem;
+    margin: 0;
+
+    color: #282828;
+
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1.02;
+}
+
+.hero-description {
+    max-width: 35rem;
+    margin: 1rem 0 0;
+
+    color: rgba(40, 40, 40, 0.67);
+
+    font-size: clamp(0.95rem, 2vw, 1.08rem);
+    line-height: 1.55;
+}
+
+.modules {
+    width: 100%;
+}
+
+.section-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+
+    margin-bottom: 1.25rem;
+}
+
+.section-title {
+    margin: 0;
+
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.section-description {
+    margin: 0.3rem 0 0;
+
+    color: rgba(40, 40, 40, 0.6);
+
+    font-size: 0.85rem;
+}
+
+.module-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            3,
+            minmax(0, 1fr)
+        );
+    gap: 1rem;
+}
+
+.module-card {
+    position: relative;
+
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: space-between;
+
+    min-width: 0;
+    min-height: 10.5rem;
+    padding: 1.25rem;
+
+    overflow: hidden;
+
+    border: 1px solid rgba(40, 40, 40, 0.1);
+    border-radius: 1rem;
+
+    background: #ffffff;
+    color: #282828;
+
+    text-align: left;
+
+    box-shadow:
+        0 0.15rem 0.45rem
+        rgba(0, 0, 0, 0.045);
+}
+
+.module-card:disabled {
+    opacity: 1;
+
+    cursor: default;
+}
+
+.module-card-accent {
+    position: absolute;
+    top: 1.1rem;
+    right: 1.1rem;
+
+    width: 2rem;
+    height: 0.32rem;
+
+    border-radius: 999px;
+
+    background: #ffc800;
+}
+
+.module-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+
+    padding-top: 1.75rem;
+}
+
+.module-card-title {
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.module-card-description {
+    max-width: 16rem;
+
+    color: rgba(40, 40, 40, 0.62);
+
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+.module-card-state {
+    margin-top: 1.25rem;
+
+    color: rgba(40, 40, 40, 0.42);
+
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.app-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+
+    min-height: 3.5rem;
+    padding: 1rem;
+
+    color: rgba(40, 40, 40, 0.48);
+
+    font-size: 0.7rem;
+}
+
+@media (max-width: 760px) {
+    .app-header {
+        align-items: flex-start;
+
+        padding:
+            0.8rem
+            1rem;
+    }
+
+    .connection-label {
+        display: none;
+    }
+
+    .module-grid {
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(0, 1fr)
+            );
+    }
+}
+
+@media (max-width: 520px) {
+    .app-header {
+        min-height: 4.4rem;
+    }
+
+    .android-guidance {
+        align-items: stretch;
+
+        flex-direction: column;
+
+        gap: 0.85rem;
+
+        margin-bottom: 1.5rem;
+    }
+
+    .android-guidance-button {
+        align-self: flex-start;
+    }
+
+    .brand-mark {
+        height: 2rem;
+    }
+
+    .brand-title {
+        font-size: 1.05rem;
+    }
+
+    .connection-button {
+        min-height: 2.1rem;
+        padding: 0 0.7rem;
+    }
+
+    .app-main {
+        padding:
+            2.25rem
+            1rem
+            2rem;
+    }
+
+    .hero {
+        margin-bottom: 2.5rem;
+    }
+
+    .hero-title {
+        font-size: clamp(
+            2rem,
+            11vw,
+            2.7rem
+        );
+    }
+
+    .module-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .module-card {
+        min-height: 8.8rem;
+    }
+
+    .app-footer {
+        flex-wrap: wrap;
+    }
+}

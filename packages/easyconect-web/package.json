@@ -6,15 +6,23 @@
     "license": "AGPL-3.0-only",
     "main": "src/index.js",
     "scripts": {
-        "build": "node --check src/index.js && node --check src/easyconect-web-serial-transport.js && node --check src/easyconect-web-client.js && node --check src/easyconect-web-session.js && node --check src/poc/index.js && node --check webpack.poc.config.js",
+        "build": "node --check src/index.js && node --check src/easyconect-web-serial-transport.js && node --check src/easyconect-web-client.js && node --check src/easyconect-web-session.js && node --check src/app/android-first-use-guidance.js && node --check src/pwa/service-worker.js && node --check src/poc/index.js && node --check webpack.poc.config.js && node --check webpack.app.config.js",
         "build:poc": "webpack --config webpack.poc.config.js",
+        "build:app": "webpack --config webpack.app.config.js",
         "start:poc": "webpack serve --config webpack.poc.config.js",
+        "start:app": "webpack serve --config webpack.app.config.js",
         "test": "node --test test/*.test.js"
     },
     "dependencies": {
-        "@easymaker/easyconect-core": "0.1.0"
+        "@easymaker/easyconect-core": "0.1.0",
+        "react": "18.3.1",
+        "react-dom": "18.3.1"
     },
     "devDependencies": {
+        "@babel/core": "7.29.7",
+        "@babel/preset-env": "7.29.7",
+        "@babel/preset-react": "7.29.7",
+        "babel-loader": "9.2.1",
         "copy-webpack-plugin": "6.4.1",
         "webpack": "5.109.2",
         "webpack-cli": "5.1.4",

@@ -1,0 +1,22 @@
+{
+    "id": "/",
+    "name": "EasyConect",
+    "short_name": "EasyConect",
+    "description": "Controle EasyBlox para placas EasyMaker via Bluetooth.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#f5f5f5",
+    "theme_color": "#ffc800",
+    "lang": "pt-BR",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "/easyblox-icon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ]
+}
