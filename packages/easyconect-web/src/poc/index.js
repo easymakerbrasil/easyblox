@@ -234,4 +234,34 @@ window.addEventListener(
     }
 );
 
+const registerServiceWorker =
+    async () => {
+        if (
+            !(
+                'serviceWorker' in
+                navigator
+            )
+        ) {
+            return false;
+        }
+
+        try {
+            await navigator
+                .serviceWorker
+                .register(
+                    '/service-worker.js',
+                    {
+                        scope:
+                            '/'
+                    }
+                );
+
+            return true;
+        } catch (error) {
+            return false;
+        }
+    };
+
+registerServiceWorker();
+
 initialize();
