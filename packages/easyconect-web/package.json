@@ -1,0 +1,15 @@
+{
+    "name": "@easymaker/easyconect-web",
+    "version": "0.1.0",
+    "private": true,
+    "description": "Browser platform adapters for EasyConect.",
+    "license": "AGPL-3.0-only",
+    "main": "src/index.js",
+    "scripts": {
+        "build": "node --check src/index.js && node --check src/easyconect-web-serial-transport.js",
+        "test": "node --test test/*.test.js"
+    },
+    "dependencies": {
+        "@easymaker/easyconect-core": "0.1.0"
+    }
+}
