@@ -6,10 +6,17 @@
     "license": "AGPL-3.0-only",
     "main": "src/index.js",
     "scripts": {
-        "build": "node --check src/index.js && node --check src/easyconect-web-serial-transport.js && node --check src/easyconect-web-client.js && node --check src/easyconect-web-session.js",
+        "build": "node --check src/index.js && node --check src/easyconect-web-serial-transport.js && node --check src/easyconect-web-client.js && node --check src/easyconect-web-session.js && node --check src/poc/index.js && node --check webpack.poc.config.js",
+        "build:poc": "webpack --config webpack.poc.config.js",
+        "start:poc": "webpack serve --config webpack.poc.config.js",
         "test": "node --test test/*.test.js"
     },
     "dependencies": {
         "@easymaker/easyconect-core": "0.1.0"
+    },
+    "devDependencies": {
+        "webpack": "5.109.2",
+        "webpack-cli": "5.1.4",
+        "webpack-dev-server": "5.2.6"
     }
 }

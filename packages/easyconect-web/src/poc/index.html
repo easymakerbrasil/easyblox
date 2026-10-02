@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>EasyConect Web — POC</title>
+
+    <style>
+        :root {
+            font-family:
+                Inter,
+                Arial,
+                sans-serif;
+
+            color: #282828;
+            background: #f5f5f5;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 24px;
+        }
+
+        main {
+            width: min(100%, 480px);
+
+            padding: 28px;
+
+            border-radius: 16px;
+
+            background: #ffffff;
+
+            box-shadow:
+                0 8px 28px
+                rgba(0, 0, 0, 0.12);
+        }
+
+        h1 {
+            margin:
+                0 0 24px;
+
+            font-size: 1.5rem;
+        }
+
+        .info {
+            display: grid;
+            gap: 12px;
+
+            margin-bottom: 24px;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+
+            padding-bottom: 10px;
+
+            border-bottom:
+                1px solid #e5e5e5;
+        }
+
+        .label {
+            font-weight: 700;
+        }
+
+        button {
+            width: 100%;
+
+            padding: 14px 20px;
+
+            border: 0;
+            border-radius: 10px;
+
+            background: #ffc800;
+
+            color: #282828;
+
+            font: inherit;
+            font-weight: 700;
+
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.55;
+            cursor: default;
+        }
+
+        #message {
+            min-height: 44px;
+
+            margin:
+                20px 0 0;
+
+            padding: 12px;
+
+            border-radius: 8px;
+
+            background: #f5f5f5;
+
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <h1>EasyConect Web — POC</h1>
+
+        <div class="info">
+            <div class="row">
+                <span class="label">
+                    Contexto seguro
+                </span>
+
+                <span id="secure-context">
+                    Verificando...
+                </span>
+            </div>
+
+            <div class="row">
+                <span class="label">
+                    Web Serial
+                </span>
+
+                <span id="web-serial">
+                    Verificando...
+                </span>
+            </div>
+
+            <div class="row">
+                <span class="label">
+                    Estado
+                </span>
+
+                <span id="connection-state">
+                    Desconectado
+                </span>
+            </div>
+        </div>
+
+        <button
+            id="connection-button"
+            type="button"
+            disabled
+        >
+            Conectar
+        </button>
+
+        <p id="message">
+            Inicializando...
+        </p>
+    </main>
+
+    <script src="/easyconect-web-poc.js"></script>
+</body>
+</html>
