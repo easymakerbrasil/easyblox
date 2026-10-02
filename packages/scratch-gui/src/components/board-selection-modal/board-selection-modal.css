@@ -43,10 +43,14 @@
 }
 
 .board-card {
+    position: relative;
+
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+
+    overflow: hidden;
 
     width: 13rem;
     min-height: 11rem;
@@ -68,7 +72,7 @@
         transform 0.15s ease;
 }
 
-.board-card:hover {
+.board-card:not(:disabled):hover {
     border-color: #ffc800;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
     transform: translateY(-2px);
@@ -77,6 +81,37 @@
 .board-card:focus-visible {
     outline: 3px solid #ffc800;
     outline-offset: 2px;
+}
+
+.board-card:disabled {
+    opacity: 1;
+    cursor: default;
+}
+
+.board-card-coming-soon {
+    padding-top: 2.5rem;
+}
+
+.board-card-coming-soon .board-image,
+.board-card-coming-soon .board-name {
+    opacity: 0.72;
+}
+
+.coming-soon-ribbon {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+
+    padding: 0.35rem 0.5rem;
+
+    background: #ffc800;
+
+    color: #282828;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-align: center;
 }
 
 .board-image {

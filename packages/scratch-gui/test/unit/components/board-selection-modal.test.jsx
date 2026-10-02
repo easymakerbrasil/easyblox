@@ -63,6 +63,56 @@ describe('BoardSelectionModal', () => {
         ).not.toBeInTheDocument();
     });
 
+    test('keeps future boards visible but disabled with a BREVE indicator', () => {
+        render(
+            <BoardSelectionModal
+                onCancel={jest.fn()}
+                onConfirm={jest.fn()}
+            />
+        );
+
+        expect(
+            screen.getByRole(
+                'button',
+                {
+                    name:
+                        'Arduino UNO'
+                }
+            )
+        ).toBeEnabled();
+
+        expect(
+            screen.getByRole(
+                'button',
+                {
+                    name:
+                        'EasyMaker'
+                }
+            )
+        ).toBeEnabled();
+
+        [
+            'EasyMaker Connection',
+            'EasyDuino Proto',
+            'EasyDuino Jr'
+        ].forEach(name => {
+            expect(
+                screen.getByRole(
+                    'button',
+                    {
+                        name
+                    }
+                )
+            ).toBeDisabled();
+        });
+
+        expect(
+            screen.getAllByText(
+                'BREVE'
+            )
+        ).toHaveLength(3);
+    });
+
     test('uses direct board selection instead of a combobox', () => {
         render(
             <BoardSelectionModal
@@ -84,10 +134,7 @@ describe('BoardSelectionModal', () => {
 
     test.each([
         ['Arduino UNO', 'arduino-uno'],
-        ['EasyMaker', 'easymaker'],
-        ['EasyMaker Connection', 'easymaker-connection'],
-        ['EasyDuino Proto', 'easyduino-proto'],
-        ['EasyDuino Jr', 'easyduino-jr']
+        ['EasyMaker', 'easymaker']
     ])('selects %s directly from its card', (name, boardId) => {
         const onConfirm = jest.fn();
 
@@ -106,6 +153,35 @@ describe('BoardSelectionModal', () => {
 
         expect(onConfirm).toHaveBeenCalledTimes(1);
         expect(onConfirm).toHaveBeenCalledWith(boardId);
+    });
+
+    test.each([
+        'EasyMaker Connection',
+        'EasyDuino Proto',
+        'EasyDuino Jr'
+    ])('does not select future board %s', name => {
+        const onConfirm =
+            jest.fn();
+
+        render(
+            <BoardSelectionModal
+                onCancel={jest.fn()}
+                onConfirm={onConfirm}
+            />
+        );
+
+        fireEvent.click(
+            screen.getByRole(
+                'button',
+                {
+                    name
+                }
+            )
+        );
+
+        expect(
+            onConfirm
+        ).not.toHaveBeenCalled();
     });
 
     test('shows only boards compatible with the required mode', () => {

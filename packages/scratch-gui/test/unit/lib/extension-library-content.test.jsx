@@ -99,6 +99,53 @@ test('exposes EasyBlox product boards to the board selection flow', () => {
     ]);
 });
 
+test('marks launch-ready boards as available and future boards as coming soon', () => {
+    expect(
+        getBoardById(
+            'arduino-uno'
+        )
+    ).toMatchObject({
+        releaseState:
+            'available'
+    });
+
+    expect(
+        getBoardById(
+            'easymaker'
+        )
+    ).toMatchObject({
+        releaseState:
+            'available'
+    });
+
+    expect(
+        getBoardById(
+            'easymaker-connection'
+        )
+    ).toMatchObject({
+        releaseState:
+            'coming-soon'
+    });
+
+    expect(
+        getBoardById(
+            'easyduino-proto'
+        )
+    ).toMatchObject({
+        releaseState:
+            'coming-soon'
+    });
+
+    expect(
+        getBoardById(
+            'easyduino-jr'
+        )
+    ).toMatchObject({
+        releaseState:
+            'coming-soon'
+    });
+});
+
 test('resolves canonical board profiles regardless of surface visibility', () => {
     expect(getBoardById('arduino-uno')).toMatchObject({
         name: 'Arduino UNO',

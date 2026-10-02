@@ -223,7 +223,11 @@ export const GUIComponent = props => {
                 getBoardById(selectedBoard) :
                 null;
 
-            if (!board || !board.supportedModes.includes('upload')) {
+            if (
+                !board ||
+                board.releaseState !== 'available' ||
+                !board.supportedModes.includes('upload')
+            ) {
                 setBoardSelectionIntent('upload');
                 setBoardSelectionModalVisible(true);
                 return;
@@ -241,7 +245,10 @@ export const GUIComponent = props => {
     const handleBoardSelectionConfirm = useCallback(boardId => {
         const board = getBoardById(boardId);
 
-        if (!board) {
+        if (
+            !board ||
+            board.releaseState !== 'available'
+        ) {
             setBoardSelectionModalVisible(false);
             setBoardSelectionIntent(null);
             return;
@@ -408,12 +415,19 @@ export const GUIComponent = props => {
             const projectContext =
                 vm.getEasyBloxProjectContext();
 
-            const restoredBoard =
+            const restoredBoardCandidate =
                 projectContext &&
                 projectContext.selectedBoardId ?
                     getBoardById(
                         projectContext.selectedBoardId
                     ) :
+                    null;
+
+            const restoredBoard =
+                restoredBoardCandidate &&
+                restoredBoardCandidate.releaseState ===
+                    'available' ?
+                    restoredBoardCandidate :
                     null;
 
             const restoredBoardId =
@@ -838,7 +852,10 @@ export const GUIComponent = props => {
 
         const board = getBoardById(selectedBoard);
 
-        if (!board) {
+        if (
+            !board ||
+            board.releaseState !== 'available'
+        ) {
             return;
         }
 
@@ -889,7 +906,10 @@ export const GUIComponent = props => {
             getBoardById(selectedBoard) :
             null;
 
-        if (!board) {
+        if (
+            !board ||
+            board.releaseState !== 'available'
+        ) {
             return;
         }
 

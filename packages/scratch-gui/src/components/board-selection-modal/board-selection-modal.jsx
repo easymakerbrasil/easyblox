@@ -36,26 +36,47 @@ class BoardSelectionModal extends React.PureComponent {
                     </p>
 
                     <div className={styles.boardGrid}>
-                        {visibleBoards.map(board => (
-                            <button
-                                aria-label={board.name}
-                                className={styles.boardCard}
-                                data-board-id={board.boardId}
-                                key={board.boardId}
-                                type="button"
-                                onClick={this.handleBoardSelect}
-                            >
-                                <img
-                                    alt=""
-                                    className={styles.boardImage}
-                                    src={board.iconURL}
-                                />
+                        {visibleBoards.map(board => {
+                            const isComingSoon =
+                                board.releaseState ===
+                                'coming-soon';
 
-                                <span className={styles.boardName}>
-                                    {board.name}
-                                </span>
-                            </button>
-                        ))}
+                            return (
+                                <button
+                                    aria-label={board.name}
+                                    className={
+                                        isComingSoon ?
+                                            `${styles.boardCard} ${styles.boardCardComingSoon}` :
+                                            styles.boardCard
+                                    }
+                                    data-board-id={board.boardId}
+                                    disabled={isComingSoon}
+                                    key={board.boardId}
+                                    type="button"
+                                    onClick={this.handleBoardSelect}
+                                >
+                                    {isComingSoon ? (
+                                        <span
+                                            className={
+                                                styles.comingSoonRibbon
+                                            }
+                                        >
+                                            BREVE
+                                        </span>
+                                    ) : null}
+
+                                    <img
+                                        alt=""
+                                        className={styles.boardImage}
+                                        src={board.iconURL}
+                                    />
+
+                                    <span className={styles.boardName}>
+                                        {board.name}
+                                    </span>
+                                </button>
+                            );
+                        })}
                     </div>
                                         {this.props.selectedBoard ? (
                         <div className={styles.removeBoardSection}>

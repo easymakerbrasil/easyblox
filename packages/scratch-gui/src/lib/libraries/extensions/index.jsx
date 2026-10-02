@@ -529,6 +529,7 @@ const BOARD_PROFILES = [
         capabilities: [
             'bluetoothSerial'
         ],
+        releaseState: 'available',
         visible: true
     },
     {
@@ -545,6 +546,7 @@ const BOARD_PROFILES = [
         capabilities: [
             'bluetoothSerial'
         ],
+        releaseState: 'available',
         visible: true
     },
     {
@@ -562,6 +564,7 @@ const BOARD_PROFILES = [
             'bluetoothSerial',
             'wifi'
         ],
+        releaseState: 'coming-soon',
         visible: true
     },
     {
@@ -578,6 +581,7 @@ const BOARD_PROFILES = [
         capabilities: [
             'bluetoothSerial'
         ],
+        releaseState: 'coming-soon',
         visible: true
     },
     {
@@ -592,6 +596,7 @@ const BOARD_PROFILES = [
             'upload'
         ],
         capabilities: [],
+        releaseState: 'coming-soon',
         visible: true
     },
     {

@@ -26,6 +26,50 @@ describe('BoardSelector', () => {
         ).toBeInTheDocument();
     });
 
+    test('keeps future board options visible but disabled', () => {
+        render(
+            <BoardSelector
+                selectedBoard={null}
+                onBoardChange={jest.fn()}
+            />
+        );
+
+        expect(
+            screen.getByRole(
+                'option',
+                {
+                    name:
+                        'Arduino UNO'
+                }
+            )
+        ).toBeEnabled();
+
+        expect(
+            screen.getByRole(
+                'option',
+                {
+                    name:
+                        'EasyMaker'
+                }
+            )
+        ).toBeEnabled();
+
+        [
+            'EasyMaker Connection',
+            'EasyDuino Proto',
+            'EasyDuino Jr'
+        ].forEach(name => {
+            expect(
+                screen.getByRole(
+                    'option',
+                    {
+                        name
+                    }
+                )
+            ).toBeDisabled();
+        });
+    });
+
     test('shows the selected board', () => {
         render(
             <BoardSelector

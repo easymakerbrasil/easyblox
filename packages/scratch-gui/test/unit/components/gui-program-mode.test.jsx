@@ -112,12 +112,21 @@ jest.mock('../../../src/components/menu-bar/menu-bar.jsx', () => (
 
 jest.mock('../../../src/components/board-selection-modal/board-selection-modal.jsx', () => (
     ({onConfirm}) => (
-        <button
-            data-testid="confirm-arduino-uno"
-            onClick={() => onConfirm('arduino-uno')}
-        >
-            Arduino UNO
-        </button>
+        <div>
+            <button
+                data-testid="confirm-arduino-uno"
+                onClick={() => onConfirm('arduino-uno')}
+            >
+                Arduino UNO
+            </button>
+
+            <button
+                data-testid="confirm-easyduino-proto"
+                onClick={() => onConfirm('easyduino-proto')}
+            >
+                EasyDuino Proto
+            </button>
+        </div>
     )
 ));
 
@@ -197,6 +206,78 @@ describe('GUI program mode propagation', () => {
             onStartSelectingExternalProjectImport
         ).toHaveBeenCalledTimes(
             1
+        );
+    });
+
+    test('rejects a coming-soon board even if selection is requested programmatically', () => {
+        const vm = {
+            generateArduinoUnoUploadCode:
+                jest.fn()
+                    .mockReturnValue(''),
+
+            getPeripheralIsConnected:
+                jest.fn()
+                    .mockReturnValue(false),
+
+            on:
+                jest.fn(),
+
+            removeListener:
+                jest.fn(),
+
+            setEasyBloxSelectedBoard:
+                jest.fn(),
+
+            setProgramContext:
+                jest.fn(),
+
+            refreshWorkspace:
+                jest.fn()
+        };
+
+        const {
+            getByTestId
+        } = renderWithIntl(
+            <GUIComponent
+                colorMode="default"
+                setTheme={jest.fn()}
+                theme="default"
+                vm={vm}
+            />
+        );
+
+        fireEvent.click(
+            getByTestId(
+                'request-upload-mode'
+            )
+        );
+
+        fireEvent.click(
+            getByTestId(
+                'confirm-easyduino-proto'
+            )
+        );
+
+        expect(
+            getByTestId(
+                'blocks'
+            )
+        ).toHaveAttribute(
+            'data-program-mode',
+            'stage'
+        );
+
+        expect(
+            vm.setEasyBloxSelectedBoard
+        ).not.toHaveBeenCalledWith(
+            'easyduino-proto'
+        );
+
+        expect(
+            vm.setProgramContext
+        ).toHaveBeenLastCalledWith(
+            'stage',
+            null
         );
     });
 
@@ -518,6 +599,105 @@ describe('GUI program mode propagation', () => {
 
         expect(refreshWorkspace)
             .toHaveBeenCalled();
+    });
+
+    test('does not restore a coming-soon board from loaded project metadata', () => {
+        const setEasyBloxSelectedBoard =
+            jest.fn();
+
+        const setProgramContext =
+            jest.fn();
+
+        const refreshWorkspace =
+            jest.fn();
+
+        const getEasyBloxProjectContext =
+            jest.fn()
+                .mockReturnValue({
+                    selectedBoardId:
+                        'easyduino-proto',
+
+                    programMode:
+                        'upload'
+                });
+
+        const vm = {
+            generateArduinoUnoUploadCode:
+                jest.fn()
+                    .mockReturnValue(''),
+
+            getPeripheralIsConnected:
+                jest.fn()
+                    .mockReturnValue(false),
+
+            getEasyBloxProjectContext,
+
+            on:
+                jest.fn(
+                    (
+                        eventName,
+                        handler
+                    ) => {
+                        if (
+                            eventName ===
+                                'PROJECT_LOADED'
+                        ) {
+                            handler();
+                        }
+                    }
+                ),
+
+            removeListener:
+                jest.fn(),
+
+            setEasyBloxSelectedBoard,
+
+            setProgramContext,
+
+            refreshWorkspace
+        };
+
+        const {
+            getByTestId
+        } = renderWithIntl(
+            <GUIComponent
+                colorMode="default"
+                menuBarHidden
+                setTheme={jest.fn()}
+                theme="default"
+                vm={vm}
+            />
+        );
+
+        expect(
+            getEasyBloxProjectContext
+        ).toHaveBeenCalled();
+
+        expect(
+            setEasyBloxSelectedBoard
+        ).toHaveBeenLastCalledWith(
+            null
+        );
+
+        expect(
+            getByTestId(
+                'blocks'
+            )
+        ).toHaveAttribute(
+            'data-program-mode',
+            'stage'
+        );
+
+        expect(
+            setProgramContext
+        ).toHaveBeenLastCalledWith(
+            'stage',
+            null
+        );
+
+        expect(
+            refreshWorkspace
+        ).toHaveBeenCalled();
     });
 
     test.each([
