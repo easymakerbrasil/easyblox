@@ -16,6 +16,12 @@ const {
     './android-first-use-guidance'
 );
 
+const {
+    EasyConectGamepad
+} = require(
+    './easyconect-gamepad'
+);
+
 const EASYCONECT_MODULES = [
     {
         id:
@@ -23,7 +29,9 @@ const EASYCONECT_MODULES = [
         name:
             'Gamepad',
         description:
-            'Controle direcional e botões.'
+            'Controle direcional e botões.',
+        available:
+            true
     },
     {
         id:
@@ -31,7 +39,9 @@ const EASYCONECT_MODULES = [
         name:
             'Controles',
         description:
-            'Joystick, slider, botão e chave.'
+            'Joystick, slider, botão e chave.',
+        available:
+            false
     },
     {
         id:
@@ -39,7 +49,9 @@ const EASYCONECT_MODULES = [
         name:
             'Motores e Servos',
         description:
-            'Controle de movimento e posicionamento.'
+            'Controle de movimento e posicionamento.',
+        available:
+            false
     },
     {
         id:
@@ -47,7 +59,9 @@ const EASYCONECT_MODULES = [
         name:
             'Terminal',
         description:
-            'Envio e recebimento de dados.'
+            'Envio e recebimento de dados.',
+        available:
+            false
     },
     {
         id:
@@ -55,7 +69,9 @@ const EASYCONECT_MODULES = [
         name:
             'Saídas',
         description:
-            'Indicadores controlados pelo programa.'
+            'Indicadores controlados pelo programa.',
+        available:
+            false
     }
 ];
 
@@ -165,12 +181,22 @@ const getConnectionPresentation = (
 };
 
 const EasyConectModuleCard = ({
-    module
+    module,
+    onOpen
 }) => (
     <button
         className="module-card"
         type="button"
-        disabled
+        disabled={
+            !module.available
+        }
+        onClick={
+            () => {
+                onOpen(
+                    module.id
+                );
+            }
+        }
     >
         <span
             aria-hidden="true"
@@ -188,7 +214,11 @@ const EasyConectModuleCard = ({
         </span>
 
         <span className="module-card-state">
-            Em breve
+            {
+                module.available ?
+                    'Abrir' :
+                    'Em breve'
+            }
         </span>
     </button>
 );
@@ -220,6 +250,13 @@ const EasyConectApp = () => {
         setShowAndroidGuidance
     ] = React.useState(
         shouldShowAndroidNearbyDevicesGuidance
+    );
+
+    const [
+        activeModuleId,
+        setActiveModuleId
+    ] = React.useState(
+        null
     );
 
     React.useEffect(
@@ -308,6 +345,34 @@ const EasyConectApp = () => {
             },
             []
         );
+
+    const handleModuleOpen =
+        React.useCallback(
+            moduleId => {
+                setActiveModuleId(
+                    moduleId
+                );
+            },
+            []
+        );
+
+    const handleModuleBack =
+        React.useCallback(
+            () => {
+                setActiveModuleId(
+                    null
+                );
+            },
+            []
+        );
+
+    const gamepadSession =
+        connectionState.status ===
+            'connected' &&
+        sessionRef.current ?
+            sessionRef.current
+                .getGamepadSession() :
+            null;
 
     const connectionPresentation =
         getConnectionPresentation(
@@ -409,52 +474,110 @@ const EasyConectApp = () => {
                     </aside>
                 )}
 
-                <section className="hero">
-                    <p className="eyebrow">
-                        CONTROLE REMOTO
-                    </p>
+                {activeModuleId ===
+                    'gamepad' ? (
+                        <section
+                            aria-labelledby="gamepad-title"
+                            className="module-view"
+                        >
+                            <div className="module-view-header">
+                                <button
+                                    className="back-button"
+                                    type="button"
+                                    onClick={
+                                        handleModuleBack
+                                    }
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        className="back-arrow"
+                                    >
+                                        ←
+                                    </span>
 
-                    <h2 className="hero-title">
-                        Controle seus projetos EasyBlox
-                    </h2>
+                                    Voltar
+                                </button>
 
-                    <p className="hero-description">
-                        Conecte sua placa por Bluetooth e escolha
-                        uma das ferramentas do EasyConect.
-                    </p>
-                </section>
+                                <div className="module-view-heading">
+                                    <p className="eyebrow">
+                                        FERRAMENTA
+                                    </p>
 
-                <section
-                    aria-labelledby="modules-title"
-                    className="modules"
-                >
-                    <div className="section-heading">
-                        <div>
-                            <h2
-                                className="section-title"
-                                id="modules-title"
+                                    <h2
+                                        className="module-view-title"
+                                        id="gamepad-title"
+                                    >
+                                        Gamepad
+                                    </h2>
+
+                                    <p className="module-view-description">
+                                        Use o direcional e os botões
+                                        de ação para controlar seu
+                                        projeto EasyBlox.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <EasyConectGamepad
+                                gamepadSession={
+                                    gamepadSession
+                                }
+                            />
+                        </section>
+                    ) : (
+                        <>
+                            <section className="hero">
+                                <p className="eyebrow">
+                                    CONTROLE REMOTO
+                                </p>
+
+                                <h2 className="hero-title">
+                                    Controle seus projetos EasyBlox
+                                </h2>
+
+                                <p className="hero-description">
+                                    Conecte sua placa por Bluetooth
+                                    e escolha uma das ferramentas
+                                    do EasyConect.
+                                </p>
+                            </section>
+
+                            <section
+                                aria-labelledby="modules-title"
+                                className="modules"
                             >
-                                Ferramentas
-                            </h2>
+                                <div className="section-heading">
+                                    <div>
+                                        <h2
+                                            className="section-title"
+                                            id="modules-title"
+                                        >
+                                            Ferramentas
+                                        </h2>
 
-                            <p className="section-description">
-                                Escolha como deseja interagir com
-                                seu projeto.
-                            </p>
-                        </div>
-                    </div>
+                                        <p className="section-description">
+                                            Escolha como deseja
+                                            interagir com seu projeto.
+                                        </p>
+                                    </div>
+                                </div>
 
-                    <div className="module-grid">
-                        {EASYCONECT_MODULES.map(
-                            module => (
-                                <EasyConectModuleCard
-                                    key={module.id}
-                                    module={module}
-                                />
-                            )
-                        )}
-                    </div>
-                </section>
+                                <div className="module-grid">
+                                    {EASYCONECT_MODULES.map(
+                                        module => (
+                                            <EasyConectModuleCard
+                                                key={module.id}
+                                                module={module}
+                                                onOpen={
+                                                    handleModuleOpen
+                                                }
+                                            />
+                                        )
+                                    )}
+                                </div>
+                            </section>
+                        </>
+                    )}
             </main>
 
             <footer className="app-footer">
