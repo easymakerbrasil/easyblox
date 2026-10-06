@@ -2,7 +2,7 @@ const CACHE_PREFIX =
     'easyconect-web';
 
 const CACHE_VERSION =
-    'v2';
+    'v3';
 
 const CACHE_NAME =
     `${CACHE_PREFIX}-${CACHE_VERSION}`;
