@@ -1186,6 +1186,122 @@ button {
     cursor: not-allowed;
 }
 
+.outputs-workspace {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.25rem;
+
+    min-height: 20rem;
+    padding: clamp(1.25rem, 4vw, 2.5rem);
+
+    border: 1px solid rgba(40, 40, 40, 0.1);
+    border-radius: 1rem;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 0.15rem 0.45rem
+        rgba(0, 0, 0, 0.045);
+}
+
+.outputs-unavailable {
+    margin: 0;
+    padding: 0.7rem 0.85rem;
+
+    border: 1px solid rgba(255, 200, 0, 0.6);
+    border-radius: 0.65rem;
+
+    background: rgba(255, 200, 0, 0.12);
+    color: #282828;
+
+    font-size: 0.8rem;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.outputs-indicator-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.35rem;
+
+    width: 100%;
+    max-width: 30rem;
+    min-height: 12rem;
+    margin: 0 auto;
+    padding: 1.5rem;
+
+    border: 1px solid rgba(40, 40, 40, 0.12);
+    border-radius: 0.85rem;
+
+    background: #ffffff;
+}
+
+.outputs-indicator-light {
+    width: 5rem;
+    height: 5rem;
+
+    flex: 0 0 5rem;
+
+    border: 1px solid rgba(40, 40, 40, 0.14);
+    border-radius: 50%;
+
+    background: rgba(40, 40, 40, 0.1);
+
+    box-shadow:
+        inset 0 0.12rem 0.35rem
+        rgba(40, 40, 40, 0.12);
+
+    transition:
+        border-color 0.15s ease,
+        background 0.15s ease,
+        box-shadow 0.15s ease;
+}
+
+.outputs-indicator-light-on {
+    border-color: rgba(40, 40, 40, 0.18);
+
+    background: #ffc800;
+
+    box-shadow:
+        0 0 0 0.4rem
+        rgba(255, 200, 0, 0.16),
+        0 0.3rem 0.8rem
+        rgba(40, 40, 40, 0.16);
+}
+
+.outputs-indicator-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    min-width: 0;
+}
+
+.outputs-indicator-title {
+    color: #282828;
+
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.outputs-indicator-state {
+    color: rgba(40, 40, 40, 0.68);
+
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.outputs-indicator-description {
+    margin-top: 0.3rem;
+
+    color: rgba(40, 40, 40, 0.5);
+
+    font-size: 0.7rem;
+    line-height: 1.4;
+}
+
 .terminal-workspace {
     display: flex;
     flex-direction: column;
@@ -1601,6 +1717,25 @@ button {
     .motors-servo-workspace {
         min-height: 17rem;
         padding: 1rem 0.65rem;
+    }
+
+    .outputs-workspace {
+        min-height: 17rem;
+        padding: 1rem 0.65rem;
+    }
+
+    .outputs-indicator-card {
+        gap: 1rem;
+
+        min-height: 10rem;
+        padding: 1rem;
+    }
+
+    .outputs-indicator-light {
+        width: 4rem;
+        height: 4rem;
+
+        flex-basis: 4rem;
     }
 
     .motors-servo-layout {
