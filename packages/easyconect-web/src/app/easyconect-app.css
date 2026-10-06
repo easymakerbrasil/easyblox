@@ -1186,6 +1186,327 @@ button {
     cursor: not-allowed;
 }
 
+.terminal-workspace {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.25rem;
+
+    min-height: 20rem;
+    padding: clamp(1.25rem, 4vw, 2.5rem);
+
+    border: 1px solid rgba(40, 40, 40, 0.1);
+    border-radius: 1rem;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 0.15rem 0.45rem
+        rgba(0, 0, 0, 0.045);
+}
+
+.terminal-unavailable {
+    margin: 0;
+    padding: 0.7rem 0.85rem;
+
+    border: 1px solid rgba(255, 200, 0, 0.6);
+    border-radius: 0.65rem;
+
+    background: rgba(255, 200, 0, 0.12);
+    color: #282828;
+
+    font-size: 0.8rem;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.terminal-panel {
+    width: 100%;
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: 0.9rem;
+
+    border: 1px solid rgba(40, 40, 40, 0.12);
+    border-radius: 0.75rem;
+
+    background: #ffffff;
+}
+
+.terminal-toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+
+    margin-bottom: 0.85rem;
+}
+
+.terminal-history-title {
+    margin: 0;
+
+    color: #282828;
+
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+
+.terminal-history-description {
+    margin: 0.2rem 0 0;
+
+    color: rgba(40, 40, 40, 0.58);
+
+    font-size: 0.7rem;
+    line-height: 1.4;
+}
+
+.terminal-clear-button {
+    flex: 0 0 auto;
+
+    min-height: 2rem;
+    padding: 0 0.7rem;
+
+    border: 1px solid rgba(40, 40, 40, 0.18);
+    border-radius: 0.45rem;
+
+    background: #ffffff;
+    color: #282828;
+
+    cursor: pointer;
+
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.terminal-clear-button:not(:disabled):hover {
+    border-color: #ffc800;
+
+    background: rgba(255, 200, 0, 0.1);
+}
+
+.terminal-clear-button:disabled {
+    opacity: 0.38;
+
+    cursor: not-allowed;
+}
+
+.terminal-history {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+
+    min-height: 14rem;
+    max-height: 20rem;
+    padding: 0.85rem;
+
+    overflow-x: hidden;
+    overflow-y: auto;
+
+    border: 1px solid rgba(40, 40, 40, 0.1);
+    border-radius: 0.6rem;
+
+    background: rgba(40, 40, 40, 0.025);
+}
+
+.terminal-history-empty {
+    margin: auto;
+
+    color: rgba(40, 40, 40, 0.45);
+
+    font-size: 0.76rem;
+    text-align: center;
+}
+
+.terminal-history-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    max-width: 85%;
+}
+
+.terminal-history-entry-incoming {
+    align-self: flex-start;
+}
+
+.terminal-history-entry-outgoing {
+    align-self: flex-end;
+}
+
+.terminal-history-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.terminal-history-entry-outgoing .terminal-history-meta {
+    justify-content: flex-end;
+}
+
+.terminal-history-direction {
+    color: rgba(40, 40, 40, 0.55);
+
+    font-size: 0.62rem;
+    font-weight: 700;
+}
+
+.terminal-history-type {
+    padding: 0.12rem 0.35rem;
+
+    border-radius: 1rem;
+
+    background: rgba(40, 40, 40, 0.08);
+    color: rgba(40, 40, 40, 0.68);
+
+    font-size: 0.58rem;
+    font-weight: 750;
+    text-transform: uppercase;
+}
+
+.terminal-history-message {
+    padding: 0.55rem 0.7rem;
+
+    border-radius: 0.6rem;
+
+    overflow-wrap: anywhere;
+
+    font-size: 0.76rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+
+.terminal-history-entry-incoming .terminal-history-message {
+    background: #282828;
+    color: #ffffff;
+}
+
+.terminal-history-entry-outgoing .terminal-history-message {
+    background: #ffc800;
+    color: #282828;
+}
+
+.terminal-composer {
+    display: grid;
+    grid-template-columns:
+        auto
+        minmax(0, 1fr)
+        auto;
+    gap: 0.55rem;
+
+    margin-top: 0.85rem;
+}
+
+.terminal-type-selector {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(0, 1fr)
+        );
+
+    overflow: hidden;
+
+    border: 1px solid rgba(40, 40, 40, 0.18);
+    border-radius: 0.5rem;
+}
+
+.terminal-type-button {
+    min-width: 4.2rem;
+    padding: 0 0.55rem;
+
+    border: 0;
+
+    background: #ffffff;
+    color: rgba(40, 40, 40, 0.65);
+
+    cursor: pointer;
+
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.terminal-type-button + .terminal-type-button {
+    border-left: 1px solid rgba(40, 40, 40, 0.12);
+}
+
+.terminal-type-button-active {
+    background: #ffc800;
+    color: #282828;
+}
+
+.terminal-type-button:disabled {
+    opacity: 0.38;
+
+    cursor: not-allowed;
+}
+
+.terminal-input {
+    min-width: 0;
+    min-height: 2.5rem;
+    padding: 0 0.75rem;
+
+    border: 1px solid rgba(40, 40, 40, 0.18);
+    border-radius: 0.5rem;
+
+    background: #ffffff;
+    color: #282828;
+
+    font: inherit;
+    font-size: 0.76rem;
+}
+
+.terminal-input:focus {
+    border-color: #ffc800;
+    outline: 2px solid rgba(255, 200, 0, 0.18);
+}
+
+.terminal-input:disabled {
+    opacity: 0.45;
+
+    cursor: not-allowed;
+}
+
+.terminal-send-button {
+    min-height: 2.5rem;
+    padding: 0 1rem;
+
+    border: 1px solid #282828;
+    border-radius: 0.5rem;
+
+    background: #282828;
+    color: #ffffff;
+
+    cursor: pointer;
+
+    font-size: 0.72rem;
+    font-weight: 750;
+}
+
+.terminal-send-button:not(:disabled):hover {
+    border-color: #ffc800;
+
+    background: #ffc800;
+    color: #282828;
+}
+
+.terminal-send-button:disabled {
+    opacity: 0.38;
+
+    cursor: not-allowed;
+}
+
+.terminal-error {
+    grid-column:
+        1 /
+        -1;
+
+    margin: 0;
+
+    color: #9b2c2c;
+
+    font-size: 0.68rem;
+    line-height: 1.4;
+}
+
 .app-footer {
     display: flex;
     align-items: center;
@@ -1385,5 +1706,56 @@ button {
 
     .app-footer {
         flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 760px) {
+    .terminal-composer {
+        grid-template-columns:
+            minmax(0, 1fr)
+            auto;
+    }
+
+    .terminal-type-selector {
+        grid-column:
+            1 /
+            -1;
+    }
+}
+
+@media (max-width: 520px) {
+    .terminal-workspace {
+        min-height: 17rem;
+        padding: 1rem 0.65rem;
+    }
+
+    .terminal-panel {
+        padding: 0.75rem;
+    }
+
+    .terminal-history {
+        min-height: 12rem;
+        max-height: 17rem;
+        padding: 0.7rem;
+    }
+
+    .terminal-history-entry {
+        max-width: 95%;
+    }
+
+    .terminal-composer {
+        grid-template-columns: 1fr;
+    }
+
+    .terminal-type-selector,
+    .terminal-input,
+    .terminal-send-button {
+        grid-column:
+            1 /
+            -1;
+    }
+
+    .terminal-send-button {
+        width: 100%;
     }
 }

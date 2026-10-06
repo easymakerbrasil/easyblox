@@ -34,6 +34,12 @@ const {
     './easyconect-motors-servo'
 );
 
+const {
+    EasyConectTerminal
+} = require(
+    './easyconect-terminal'
+);
+
 const EASYCONECT_MODULES = [
     {
         id:
@@ -73,7 +79,7 @@ const EASYCONECT_MODULES = [
         description:
             'Envio e recebimento de dados.',
         available:
-            false
+            true
     },
     {
         id:
@@ -402,6 +408,14 @@ const EasyConectApp = () => {
                 .getMotorsServoSession() :
             null;
 
+    const terminalSession =
+        connectionState.status ===
+            'connected' &&
+        sessionRef.current ?
+            sessionRef.current
+                .getTerminalSession() :
+            null;
+
     const connectionPresentation =
         getConnectionPresentation(
             connectionState,
@@ -508,7 +522,9 @@ const EasyConectApp = () => {
                     activeModuleId ===
                         'controls' ||
                     activeModuleId ===
-                        'motors-servo'
+                        'motors-servo' ||
+                    activeModuleId ===
+                        'terminal'
                 ) ? (
                         <section
                             aria-labelledby="active-module-title"
@@ -548,7 +564,10 @@ const EasyConectApp = () => {
                                                 activeModuleId ===
                                                     'controls' ?
                                                     'Controles' :
-                                                    'Motores e Servos'
+                                                    activeModuleId ===
+                                                        'motors-servo' ?
+                                                        'Motores e Servos' :
+                                                        'Terminal'
                                         }
                                     </h2>
 
@@ -560,7 +579,10 @@ const EasyConectApp = () => {
                                                 activeModuleId ===
                                                     'controls' ?
                                                     'Use o joystick, slider, botão e chave para controlar seu projeto EasyBlox.' :
-                                                    'Controle motores e posicione servos do seu projeto EasyBlox.'
+                                                    activeModuleId ===
+                                                        'motors-servo' ?
+                                                        'Controle motores e posicione servos do seu projeto EasyBlox.' :
+                                                        'Envie e receba textos e números com seu projeto EasyBlox.'
                                         }
                                     </p>
                                 </div>
@@ -582,13 +604,21 @@ const EasyConectApp = () => {
                                                     controlsSession
                                                 }
                                             />
-                                        ) : (
-                                            <EasyConectMotorsServo
-                                                motorsServoSession={
-                                                    motorsServoSession
-                                                }
-                                            />
-                                        )
+                                        ) :
+                                        activeModuleId ===
+                                            'motors-servo' ? (
+                                                <EasyConectMotorsServo
+                                                    motorsServoSession={
+                                                        motorsServoSession
+                                                    }
+                                                />
+                                            ) : (
+                                                <EasyConectTerminal
+                                                    terminalSession={
+                                                        terminalSession
+                                                    }
+                                                />
+                                            )
                             }
                         </section>
                     ) : (
