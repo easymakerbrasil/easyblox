@@ -1,4 +1,5 @@
 import React from 'react';
+import * as ScratchBlocks from 'scratch-blocks';
 import styles from './menu-bar.css';
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
@@ -18,6 +19,8 @@ const editMenuAriaMessage = defineMessage({
     defaultMessage: 'Edit menu',
     description: 'accessibility label for edit menu'
 });
+
+const getWorkspace = () => ScratchBlocks.getMainWorkspace();
 
 const EditMenu = ({
     isRtl,
@@ -39,12 +42,74 @@ const EditMenu = ({
         isRtl
     });
 
+    const [historyState, setHistoryState] = React.useState({
+        canUndo: false,
+        canRedo: false
+    });
+
+    const refreshHistoryState = React.useCallback(() => {
+        const workspace = getWorkspace();
+
+        setHistoryState({
+            canUndo: Boolean(
+                workspace &&
+                workspace.getUndoStack().length > 0
+            ),
+            canRedo: Boolean(
+                workspace &&
+                workspace.getRedoStack().length > 0
+            )
+        });
+    }, []);
+
+    const handleEditMenuOpen = React.useCallback(() => {
+        refreshHistoryState();
+        handleOnOpen();
+    }, [
+        handleOnOpen,
+        refreshHistoryState
+    ]);
+
+    const handleUndo = React.useCallback(() => {
+        const workspace = getWorkspace();
+
+        if (
+            workspace &&
+            workspace.getUndoStack().length > 0
+        ) {
+            workspace.undo(false);
+        }
+
+        refreshHistoryState();
+        handleOnClose();
+    }, [
+        handleOnClose,
+        refreshHistoryState
+    ]);
+
+    const handleRedo = React.useCallback(() => {
+        const workspace = getWorkspace();
+
+        if (
+            workspace &&
+            workspace.getRedoStack().length > 0
+        ) {
+            workspace.undo(true);
+        }
+
+        refreshHistoryState();
+        handleOnClose();
+    }, [
+        handleOnClose,
+        refreshHistoryState
+    ]);
+
     return (
         <button
             className={classNames(styles.menuBarItem, styles.hoverable, {
                 [styles.active]: isExpanded()
             })}
-            onClick={handleOnOpen}
+            onClick={handleEditMenuOpen}
             aria-label={intl.formatMessage(editMenuAriaMessage)}
             aria-expanded={isExpanded()}
             onKeyDown={handleKeyDown}
@@ -65,6 +130,48 @@ const EditMenu = ({
                 place={isRtl ? 'left' : 'right'}
                 onRequestClose={handleOnClose}
             >
+                <MenuItem
+                    className={classNames({
+                        [styles.disabled]: !historyState.canUndo
+                    })}
+                    onClick={handleUndo}
+                    isDataMenuItem
+                    onParentKeyDown={handleKeyDownOpenMenu}
+                    isDisabled={!historyState.canUndo}
+                >
+                    <div className={styles.editMenuCommand}>
+                        <FormattedMessage
+                            defaultMessage="Desfazer"
+                            description="Menu bar item for undoing the last workspace action"
+                            id="gui.menuBar.undo"
+                        />
+                        <span className={styles.editMenuShortcut}>
+                            Ctrl+Z
+                        </span>
+                    </div>
+                </MenuItem>
+
+                <MenuItem
+                    className={classNames({
+                        [styles.disabled]: !historyState.canRedo
+                    })}
+                    onClick={handleRedo}
+                    isDataMenuItem
+                    onParentKeyDown={handleKeyDownOpenMenu}
+                    isDisabled={!historyState.canRedo}
+                >
+                    <div className={styles.editMenuCommand}>
+                        <FormattedMessage
+                            defaultMessage="Refazer"
+                            description="Menu bar item for redoing the last workspace action"
+                            id="gui.menuBar.redo"
+                        />
+                        <span className={styles.editMenuShortcut}>
+                            Ctrl+Shift+Z
+                        </span>
+                    </div>
+                </MenuItem>
+
                 <DeletionRestorer>{(handleRestore, {restorable, deletedItem}) => (
                     <MenuItem
                         className={classNames({[styles.disabled]: !restorable})}

@@ -225,6 +225,20 @@
     margin-right: .5rem;
 }
 
+.edit-menu-command {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    min-width: 12rem;
+}
+
+.edit-menu-shortcut {
+    margin-left: 1.5rem;
+    font-weight: normal;
+    opacity: 0.65;
+}
+
 .disabled {
     opacity: 0.5;
 }
