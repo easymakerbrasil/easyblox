@@ -17,6 +17,12 @@ const {
 );
 
 const {
+    EasyConectControls
+} = require(
+    './easyconect-controls'
+);
+
+const {
     EasyConectGamepad
 } = require(
     './easyconect-gamepad'
@@ -41,7 +47,7 @@ const EASYCONECT_MODULES = [
         description:
             'Joystick, slider, botão e chave.',
         available:
-            false
+            true
     },
     {
         id:
@@ -374,6 +380,14 @@ const EasyConectApp = () => {
                 .getGamepadSession() :
             null;
 
+    const controlsSession =
+        connectionState.status ===
+            'connected' &&
+        sessionRef.current ?
+            sessionRef.current
+                .getControlsSession() :
+            null;
+
     const connectionPresentation =
         getConnectionPresentation(
             connectionState,
@@ -474,10 +488,14 @@ const EasyConectApp = () => {
                     </aside>
                 )}
 
-                {activeModuleId ===
-                    'gamepad' ? (
+                {(
+                    activeModuleId ===
+                        'gamepad' ||
+                    activeModuleId ===
+                        'controls'
+                ) ? (
                         <section
-                            aria-labelledby="gamepad-title"
+                            aria-labelledby="active-module-title"
                             className="module-view"
                         >
                             <div className="module-view-header">
@@ -505,24 +523,43 @@ const EasyConectApp = () => {
 
                                     <h2
                                         className="module-view-title"
-                                        id="gamepad-title"
+                                        id="active-module-title"
                                     >
-                                        Gamepad
+                                        {
+                                            activeModuleId ===
+                                                'gamepad' ?
+                                                'Gamepad' :
+                                                'Controles'
+                                        }
                                     </h2>
 
                                     <p className="module-view-description">
-                                        Use o direcional e os botões
-                                        de ação para controlar seu
-                                        projeto EasyBlox.
+                                        {
+                                            activeModuleId ===
+                                                'gamepad' ?
+                                                'Use o direcional e os botões de ação para controlar seu projeto EasyBlox.' :
+                                                'Use o joystick, slider, botão e chave para controlar seu projeto EasyBlox.'
+                                        }
                                     </p>
                                 </div>
                             </div>
 
-                            <EasyConectGamepad
-                                gamepadSession={
-                                    gamepadSession
-                                }
-                            />
+                            {
+                                activeModuleId ===
+                                    'gamepad' ? (
+                                        <EasyConectGamepad
+                                            gamepadSession={
+                                                gamepadSession
+                                            }
+                                        />
+                                    ) : (
+                                        <EasyConectControls
+                                            controlsSession={
+                                                controlsSession
+                                            }
+                                        />
+                                    )
+                            }
                         </section>
                     ) : (
                         <>
