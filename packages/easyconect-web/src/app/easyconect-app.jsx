@@ -28,6 +28,12 @@ const {
     './easyconect-gamepad'
 );
 
+const {
+    EasyConectMotorsServo
+} = require(
+    './easyconect-motors-servo'
+);
+
 const EASYCONECT_MODULES = [
     {
         id:
@@ -57,7 +63,7 @@ const EASYCONECT_MODULES = [
         description:
             'Controle de movimento e posicionamento.',
         available:
-            false
+            true
     },
     {
         id:
@@ -388,6 +394,14 @@ const EasyConectApp = () => {
                 .getControlsSession() :
             null;
 
+    const motorsServoSession =
+        connectionState.status ===
+            'connected' &&
+        sessionRef.current ?
+            sessionRef.current
+                .getMotorsServoSession() :
+            null;
+
     const connectionPresentation =
         getConnectionPresentation(
             connectionState,
@@ -492,7 +506,9 @@ const EasyConectApp = () => {
                     activeModuleId ===
                         'gamepad' ||
                     activeModuleId ===
-                        'controls'
+                        'controls' ||
+                    activeModuleId ===
+                        'motors-servo'
                 ) ? (
                         <section
                             aria-labelledby="active-module-title"
@@ -529,7 +545,10 @@ const EasyConectApp = () => {
                                             activeModuleId ===
                                                 'gamepad' ?
                                                 'Gamepad' :
-                                                'Controles'
+                                                activeModuleId ===
+                                                    'controls' ?
+                                                    'Controles' :
+                                                    'Motores e Servos'
                                         }
                                     </h2>
 
@@ -538,7 +557,10 @@ const EasyConectApp = () => {
                                             activeModuleId ===
                                                 'gamepad' ?
                                                 'Use o direcional e os botões de ação para controlar seu projeto EasyBlox.' :
-                                                'Use o joystick, slider, botão e chave para controlar seu projeto EasyBlox.'
+                                                activeModuleId ===
+                                                    'controls' ?
+                                                    'Use o joystick, slider, botão e chave para controlar seu projeto EasyBlox.' :
+                                                    'Controle motores e posicione servos do seu projeto EasyBlox.'
                                         }
                                     </p>
                                 </div>
@@ -552,13 +574,21 @@ const EasyConectApp = () => {
                                                 gamepadSession
                                             }
                                         />
-                                    ) : (
-                                        <EasyConectControls
-                                            controlsSession={
-                                                controlsSession
-                                            }
-                                        />
-                                    )
+                                    ) :
+                                    activeModuleId ===
+                                        'controls' ? (
+                                            <EasyConectControls
+                                                controlsSession={
+                                                    controlsSession
+                                                }
+                                            />
+                                        ) : (
+                                            <EasyConectMotorsServo
+                                                motorsServoSession={
+                                                    motorsServoSession
+                                                }
+                                            />
+                                        )
                             }
                         </section>
                     ) : (

@@ -1001,6 +1001,191 @@ button {
     background: #282828;
 }
 
+.motors-servo-workspace {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.25rem;
+
+    min-height: 20rem;
+    padding: clamp(1.25rem, 4vw, 2.5rem);
+
+    border: 1px solid rgba(40, 40, 40, 0.1);
+    border-radius: 1rem;
+
+    background: #ffffff;
+
+    box-shadow:
+        0 0.15rem 0.45rem
+        rgba(0, 0, 0, 0.045);
+}
+
+.motors-servo-unavailable {
+    margin: 0;
+    padding: 0.7rem 0.85rem;
+
+    border: 1px solid rgba(255, 200, 0, 0.6);
+    border-radius: 0.65rem;
+
+    background: rgba(255, 200, 0, 0.12);
+    color: #282828;
+
+    font-size: 0.8rem;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.motors-servo-layout {
+    display: grid;
+    grid-template-columns:
+        minmax(10rem, 0.85fr)
+        minmax(18rem, 1.35fr);
+    align-items: stretch;
+    gap: 0.85rem;
+
+    width: 100%;
+    max-width: 42rem;
+    margin: 0 auto;
+}
+
+.motors-servo-group {
+    min-width: 0;
+    padding: 0.9rem;
+
+    border: 1px solid rgba(40, 40, 40, 0.12);
+    border-radius: 0.75rem;
+
+    background: #ffffff;
+}
+
+.motors-servo-group-title {
+    margin: 0 0 0.8rem;
+
+    color: #282828;
+
+    font-size: 0.85rem;
+    font-weight: 800;
+}
+
+.motors-servo-motor-list {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.motors-servo-servo-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(0, 1fr)
+        );
+    gap: 0.85rem;
+}
+
+.motors-servo-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+
+    min-width: 0;
+}
+
+.motors-servo-control-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.motors-servo-control-name {
+    min-width: 0;
+
+    color: #282828;
+
+    font-size: 0.76rem;
+    font-weight: 750;
+}
+
+.motors-servo-value {
+    flex: 0 0 auto;
+
+    min-width: 3rem;
+    padding: 0.22rem 0.5rem;
+
+    border-radius: 1rem;
+
+    background: #282828;
+    color: #ffffff;
+
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.motors-servo-range {
+    width: 100%;
+
+    accent-color: #ffc800;
+}
+
+.motors-servo-range:disabled {
+    opacity: 0.4;
+
+    cursor: not-allowed;
+}
+
+.motors-servo-motor-presets {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            3,
+            minmax(0, 1fr)
+        );
+    gap: 0.3rem;
+}
+
+.motors-servo-motor-preset {
+    min-width: 0;
+    padding: 0.35rem 0.2rem;
+
+    border: 1px solid rgba(40, 40, 40, 0.18);
+    border-radius: 0.42rem;
+
+    background: #ffffff;
+    color: rgba(40, 40, 40, 0.72);
+
+    cursor: pointer;
+
+    font-size: 0.63rem;
+    font-weight: 700;
+    line-height: 1;
+
+    transition:
+        border-color 80ms ease,
+        background 80ms ease,
+        color 80ms ease;
+}
+
+.motors-servo-motor-preset:not(:disabled):hover {
+    border-color: rgba(40, 40, 40, 0.34);
+
+    background: rgba(255, 200, 0, 0.12);
+    color: #282828;
+}
+
+.motors-servo-motor-preset-active {
+    border-color: #ffc800;
+
+    background: #ffc800;
+    color: #282828;
+}
+
+.motors-servo-motor-preset:disabled {
+    opacity: 0.4;
+
+    cursor: not-allowed;
+}
+
 .app-footer {
     display: flex;
     align-items: center;
@@ -1061,6 +1246,12 @@ button {
 
         min-height: 4.5rem;
     }
+
+    .motors-servo-layout {
+        grid-template-columns: 1fr;
+
+        max-width: 30rem;
+    }
 }
 
 @media (max-width: 520px) {
@@ -1084,6 +1275,23 @@ button {
     .controls-workspace {
         min-height: 17rem;
         padding: 1rem 0.65rem;
+    }
+
+    .motors-servo-workspace {
+        min-height: 17rem;
+        padding: 1rem 0.65rem;
+    }
+
+    .motors-servo-layout {
+        gap: 0.65rem;
+    }
+
+    .motors-servo-group {
+        padding: 0.75rem;
+    }
+
+    .motors-servo-servo-grid {
+        gap: 0.65rem;
     }
 
     .controls-layout {
