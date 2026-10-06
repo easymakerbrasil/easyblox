@@ -454,17 +454,30 @@ tap.test(
                     provider
         };
 
-        new Scratch3EasyBloxBtBlocks(
-            runtime
-        );
+        const extension =
+            new Scratch3EasyBloxBtBlocks(
+                runtime
+            );
 
         await Promise.resolve();
+
+        extension.isGamepadButtonPressed({
+            BUTTON:
+                EASYCONECT_GAMEPAD_SIGNAL_IDS
+                    .DPAD_UP
+        });
+
+        t.equal(
+            initCount,
+            1,
+            'automatic retry remains throttled while the retry delay is pending'
+        );
 
         await new Promise(
             resolve => {
                 setTimeout(
                     resolve,
-                    0
+                    300
                 );
             }
         );
@@ -475,6 +488,74 @@ tap.test(
             initCount,
             2,
             'automatic initialization retries after a missed Stage ACK'
+        );
+    }
+);
+
+tap.test(
+    'EasyBlox BT does not retry automatic Bluetooth initialization after Stage disconnects',
+    async t => {
+        let initCount =
+            0;
+
+        let stageConnected =
+            true;
+
+        const provider = {
+            onBluetoothSerialData:
+                () => {},
+
+            initBluetoothSerial:
+                () => {
+                    initCount++;
+
+                    return Promise.resolve(
+                        null
+                    );
+                },
+
+            writeBluetoothSerial:
+                () =>
+                    0x41,
+
+            isStageConnected:
+                () =>
+                    stageConnected
+        };
+
+        const runtime = {
+            on:
+                () => {},
+
+            getPeripheralExtensionByCapability:
+                () =>
+                    provider
+        };
+
+        new Scratch3EasyBloxBtBlocks(
+            runtime
+        );
+
+        await Promise.resolve();
+
+        stageConnected =
+            false;
+
+        await new Promise(
+            resolve => {
+                setTimeout(
+                    resolve,
+                    300
+                );
+            }
+        );
+
+        await Promise.resolve();
+
+        t.equal(
+            initCount,
+            1,
+            'automatic retry stops when Stage disconnects before the retry delay expires'
         );
     }
 );

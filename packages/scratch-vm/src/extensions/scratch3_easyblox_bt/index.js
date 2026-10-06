@@ -30,6 +30,9 @@ const BOOLEAN = EBCP_CONTRACT.messageTypes.BOOLEAN;
 const REQUIRED_BOARD_CAPABILITY =
     'bluetoothSerial';
 
+const EASYCONECT_STAGE_INITIALIZATION_RETRY_DELAY_MS =
+    250;
+
     const GAMEPAD_SIGNAL_IDS =
     new Set(
         Object.values(
@@ -1038,14 +1041,35 @@ class Scratch3EasyBloxBtBlocks {
                     return;
                 }
 
-                this._easyConectStageInitialization =
-                    null;
-
                 setTimeout(
                     () => {
+                        if (
+                            this._easyConectStageInitialization !==
+                                tracked
+                        ) {
+                            return;
+                        }
+
+                        this._easyConectStageInitialization =
+                            null;
+
+                        const stagePeripheral =
+                            this._getEasyConectActuatorPeripheral();
+
+                        if (
+                            !stagePeripheral ||
+                            typeof stagePeripheral
+                                .isStageConnected !==
+                                'function' ||
+                            !stagePeripheral
+                                .isStageConnected()
+                        ) {
+                            return;
+                        }
+
                         this._ensureEasyConectStageTransport();
                     },
-                    0
+                    EASYCONECT_STAGE_INITIALIZATION_RETRY_DELAY_MS
                 );
             },
             () => {
