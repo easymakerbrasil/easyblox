@@ -1028,15 +1028,36 @@ class Scratch3EasyBloxBtBlocks {
         this._easyConectStageInitialization =
             tracked;
 
-        tracked.catch(() => {
-            if (
-                this._easyConectStageInitialization ===
-                tracked
-            ) {
+        tracked.then(
+            result => {
+                if (
+                    result !== null ||
+                    this._easyConectStageInitialization !==
+                        tracked
+                ) {
+                    return;
+                }
+
                 this._easyConectStageInitialization =
                     null;
+
+                setTimeout(
+                    () => {
+                        this._ensureEasyConectStageTransport();
+                    },
+                    0
+                );
+            },
+            () => {
+                if (
+                    this._easyConectStageInitialization ===
+                        tracked
+                ) {
+                    this._easyConectStageInitialization =
+                        null;
+                }
             }
-        });
+        );
 
         return initialization;
     }

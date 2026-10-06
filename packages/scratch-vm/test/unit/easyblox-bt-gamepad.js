@@ -416,6 +416,70 @@ tap.test(
 );
 
 tap.test(
+    'EasyBlox BT retries automatic Bluetooth initialization when the first Stage ACK is missed',
+    async t => {
+        let initCount =
+            0;
+
+        const provider = {
+            onBluetoothSerialData:
+                () => {},
+
+            initBluetoothSerial:
+                () => {
+                    initCount++;
+
+                    return Promise.resolve(
+                        initCount === 1 ?
+                            null :
+                            0x40
+                    );
+                },
+
+            writeBluetoothSerial:
+                () =>
+                    0x41,
+
+            isStageConnected:
+                () =>
+                    true
+        };
+
+        const runtime = {
+            on:
+                () => {},
+
+            getPeripheralExtensionByCapability:
+                () =>
+                    provider
+        };
+
+        new Scratch3EasyBloxBtBlocks(
+            runtime
+        );
+
+        await Promise.resolve();
+
+        await new Promise(
+            resolve => {
+                setTimeout(
+                    resolve,
+                    0
+                );
+            }
+        );
+
+        await Promise.resolve();
+
+        t.equal(
+            initCount,
+            2,
+            'automatic initialization retries after a missed Stage ACK'
+        );
+    }
+);
+
+tap.test(
     'EasyBlox BT reinitializes Stage Bluetooth immediately when Arduino Stage becomes ready again',
     async t => {
         const runtimeHandlers =
