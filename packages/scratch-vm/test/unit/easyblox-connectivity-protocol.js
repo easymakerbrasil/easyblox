@@ -18,7 +18,9 @@ tap.test('EBCP v1 assigns the canonical control message opcodes', t => {
     t.same(EBCP_CONTROL_TYPES, {
         ACK: 0x80,
         HELLO: 0x81,
-        HELLO_ACK: 0x82
+        HELLO_ACK: 0x82,
+        PING: 0x83,
+        PONG: 0x84
     });
 
     t.end();
