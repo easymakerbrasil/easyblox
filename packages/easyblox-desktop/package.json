@@ -1,0 +1,21 @@
+{
+  "name": "@easymaker/easyblox-desktop",
+  "version": "0.4.0-rc.1",
+  "private": true,
+  "description": "Windows desktop host and distribution infrastructure for EasyBlox.",
+  "license": "AGPL-3.0-only",
+  "main": "src/main.js",
+  "scripts": {
+    "build": "node --check src/main.js",
+    "start": "electron .",
+    "rebuild:native": "electron-rebuild -f -w serialport"
+  },
+  "dependencies": {
+    "@easymaker/easyblox-hardware-service": "0.1.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "4.2.1",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  }
+}
