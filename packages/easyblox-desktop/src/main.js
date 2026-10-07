@@ -6,6 +6,12 @@ const {
     Menu
 } = require('electron');
 
+const {
+    HardwareHttpServer
+} = require(
+    '@easymaker/easyblox-hardware-service'
+);
+
 const GuiStaticServer =
     require('./gui-static-server');
 
@@ -21,6 +27,7 @@ const GUI_BUILD_PATH =
 const GUI_URL =
     'http://127.0.0.1:8601';
 
+let hardwareServer = null;
 let guiServer = null;
 let mainWindow = null;
 let shuttingDown = false;
@@ -73,17 +80,27 @@ const startDesktop =
             null
         );
 
+        hardwareServer =
+            new HardwareHttpServer();
+
+        const hardwareAddress =
+            await hardwareServer.listen();
+
+        console.log(
+            `EasyBlox Hardware Service listening on http://${hardwareAddress.host}:${hardwareAddress.port}`
+        );
+
         guiServer =
             new GuiStaticServer({
                 rootPath:
                     GUI_BUILD_PATH
             });
 
-        const address =
+        const guiAddress =
             await guiServer.listen();
 
         console.log(
-            `EasyBlox GUI listening on http://${address.host}:${address.port}`
+            `EasyBlox GUI listening on http://${guiAddress.host}:${guiAddress.port}`
         );
 
         await createMainWindow();
@@ -104,6 +121,11 @@ const shutdownDesktop =
         if (guiServer) {
             await guiServer.close();
             guiServer = null;
+        }
+
+        if (hardwareServer) {
+            await hardwareServer.close();
+            hardwareServer = null;
         }
 
         app.quit();
