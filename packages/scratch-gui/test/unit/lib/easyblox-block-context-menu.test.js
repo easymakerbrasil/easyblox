@@ -1,7 +1,20 @@
+import exportBlockAsPng from '../../../src/lib/easyblox-block-image-exporter';
+
 import {
     createSingleBlockCopyData,
     registerEasyBloxBlockContextMenu
 } from '../../../src/lib/easyblox-block-context-menu';
+
+jest.mock(
+    '../../../src/lib/easyblox-block-image-exporter',
+    () => ({
+        __esModule: true,
+        default:
+            jest.fn(() =>
+                Promise.resolve()
+            )
+    })
+);
 
 describe('EasyBlox block context menu', () => {
     const createScratchBlocks =
@@ -176,7 +189,7 @@ describe('EasyBlox block context menu', () => {
                 .registry
                 .register
         ).toHaveBeenCalledTimes(
-            1
+            2
         );
 
         const item =
@@ -284,6 +297,65 @@ describe('EasyBlox block context menu', () => {
                 .mock.calls[0][1]
         ).toBe(
             workspace
+        );
+    });
+
+    test('registers and runs the PNG export action for the selected block', async () => {
+        const ScratchBlocks =
+            createScratchBlocks();
+
+        registerEasyBloxBlockContextMenu(
+            ScratchBlocks
+        );
+
+        const registeredItems =
+            ScratchBlocks
+                .ContextMenuRegistry
+                .registry
+                .register
+                .mock
+                .calls
+                .map(call =>
+                    call[0]
+                );
+
+        const exportItem =
+            registeredItems.find(
+                item =>
+                    item.id ===
+                    'easybloxExportBlockPng'
+            );
+
+        expect(
+            exportItem
+        ).toBeDefined();
+
+        expect(
+            exportItem.displayText()
+        ).toBe(
+            'Exportar como imagem (PNG)'
+        );
+
+        expect(
+            exportItem.preconditionFn({
+                block: {
+                    id: 'block-1'
+                }
+            })
+        ).toBe(
+            'enabled'
+        );
+
+        await exportItem.callback({
+            block: {
+                id: 'block-1'
+            }
+        });
+
+        expect(
+            exportBlockAsPng
+        ).toHaveBeenCalledWith(
+            'block-1'
         );
     });
 });

@@ -1,5 +1,10 @@
+import exportBlockAsPng from './easyblox-block-image-exporter';
+
 const DUPLICATE_SINGLE_BLOCK_MENU_ID =
     'easybloxDuplicateSingleBlock';
+
+const EXPORT_BLOCK_PNG_MENU_ID =
+    'easybloxExportBlockPng';
 
 const countSerializedBlocks = state => {
     const counts = {};
@@ -127,14 +132,6 @@ const registerEasyBloxBlockContextMenu =
                 .ContextMenuRegistry
                 .registry;
 
-        if (
-            registry.getItem(
-                DUPLICATE_SINGLE_BLOCK_MENU_ID
-            )
-        ) {
-            return;
-        }
-
         const duplicateOption =
             registry.getItem(
                 'blockDuplicate'
@@ -149,63 +146,110 @@ const registerEasyBloxBlockContextMenu =
             return;
         }
 
-        registry.register({
-            displayText:
-                () =>
-                    'Duplicar apenas este bloco',
+        if (
+            !registry.getItem(
+                DUPLICATE_SINGLE_BLOCK_MENU_ID
+            )
+        ) {
+            registry.register({
+                displayText:
+                    () =>
+                        'Duplicar apenas este bloco',
 
-            preconditionFn: scope => {
-                if (
-                    scope.block &&
-                    scope.block.type ===
-                        'procedures_definition'
-                ) {
+                preconditionFn: scope => {
+                    if (
+                        scope.block &&
+                        scope.block.type ===
+                            'procedures_definition'
+                    ) {
+                        return 'hidden';
+                    }
+
+                    return duplicateOption
+                        .preconditionFn(
+                            scope
+                        );
+                },
+
+                callback: scope => {
+                    if (!scope.block) {
+                        return;
+                    }
+
+                    const copyData =
+                        createSingleBlockCopyData(
+                            ScratchBlocks,
+                            scope.block
+                        );
+
+                    if (!copyData) {
+                        return;
+                    }
+
+                    ScratchBlocks
+                        .clipboard
+                        .paste(
+                            copyData,
+                            scope.block.workspace
+                        );
+                },
+
+                scopeType:
+                    duplicateOption.scopeType,
+
+                id:
+                    DUPLICATE_SINGLE_BLOCK_MENU_ID,
+
+                weight:
+                    duplicateOption.weight +
+                    0.5
+            });
+        }
+
+        if (
+            !registry.getItem(
+                EXPORT_BLOCK_PNG_MENU_ID
+            )
+        ) {
+            registry.register({
+                displayText:
+                    () =>
+                        'Exportar como imagem (PNG)',
+
+                preconditionFn: scope => {
+                    if (scope.block) {
+                        return 'enabled';
+                    }
+
                     return 'hidden';
-                }
+                },
 
-                return duplicateOption
-                    .preconditionFn(
-                        scope
+                callback: scope => {
+                    if (!scope.block) {
+                        return;
+                    }
+
+                    return exportBlockAsPng(
+                        scope.block.id
                     );
-            },
+                },
 
-            callback: scope => {
-                if (!scope.block) {
-                    return;
-                }
+                scopeType:
+                    duplicateOption.scopeType,
 
-                const copyData =
-                    createSingleBlockCopyData(
-                        ScratchBlocks,
-                        scope.block
-                    );
+                id:
+                    EXPORT_BLOCK_PNG_MENU_ID,
 
-                if (!copyData) {
-                    return;
-                }
-
-                ScratchBlocks
-                    .clipboard
-                    .paste(
-                        copyData,
-                        scope.block.workspace
-                    );
-            },
-
-            scopeType:
-                duplicateOption.scopeType,
-
-            id:
-                DUPLICATE_SINGLE_BLOCK_MENU_ID,
-
-            weight:
-                duplicateOption.weight +
-                0.5
-        });
+                weight:
+                    duplicateOption.weight +
+                    1
+            });
+        }
     };
 
 export {
     DUPLICATE_SINGLE_BLOCK_MENU_ID,
+    EXPORT_BLOCK_PNG_MENU_ID,
     countSerializedBlocks,
     createSingleBlockCopyData,
     registerEasyBloxBlockContextMenu
