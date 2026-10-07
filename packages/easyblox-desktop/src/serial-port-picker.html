@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta
+        http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:"
+    >
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+    <title>Selecionar porta serial</title>
+    <link
+        rel="stylesheet"
+        href="./serial-port-picker.css"
+    >
+</head>
+<body>
+    <section class="picker">
+        <header class="picker-header">
+            <div class="brand">
+                EASYBLOX
+            </div>
+
+            <button
+                id="closeButton"
+                class="close-button"
+                type="button"
+                aria-label="Fechar"
+            >
+                ×
+            </button>
+
+            <h1>
+                Selecionar porta serial
+            </h1>
+
+            <p>
+                Escolha a porta USB da placa que deseja conectar.
+            </p>
+        </header>
+
+        <main class="picker-content">
+            <div
+                id="portList"
+                class="port-list"
+            ></div>
+        </main>
+
+        <footer class="picker-footer">
+            <button
+                id="cancelButton"
+                class="secondary-button"
+                type="button"
+            >
+                Cancelar
+            </button>
+
+            <button
+                id="connectButton"
+                class="primary-button"
+                type="button"
+                disabled
+            >
+                Conectar
+            </button>
+        </footer>
+    </section>
+
+    <script src="./serial-port-picker-renderer.js"></script>
+</body>
+</html>

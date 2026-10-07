@@ -15,6 +15,10 @@ const {
 const GuiStaticServer =
     require('./gui-static-server');
 
+const {
+    showSerialPortPicker
+} = require('./serial-port-picker');
+
 const GUI_BUILD_PATH =
     path.resolve(
         __dirname,
@@ -31,6 +35,55 @@ let hardwareServer = null;
 let guiServer = null;
 let mainWindow = null;
 let shuttingDown = false;
+
+const configureSerialPortSelection =
+    window => {
+        const serialSession =
+            window.webContents.session;
+
+        serialSession.on(
+            'select-serial-port',
+            (
+                event,
+                portList,
+                webContents,
+                callback
+            ) => {
+                event.preventDefault();
+
+                if (
+                    webContents !==
+                    window.webContents
+                ) {
+                    callback('');
+                    return;
+                }
+
+                showSerialPortPicker({
+                    parent:
+                        window,
+                    ports:
+                        portList
+                })
+                    .then(
+                        portId => {
+                            callback(
+                                portId
+                            );
+                        }
+                    )
+                    .catch(
+                        error => {
+                            console.error(
+                                `EasyBlox serial port selection failed: ${error.message}`
+                            );
+
+                            callback('');
+                        }
+                    );
+            }
+        );
+    };
 
 const createMainWindow =
     async () => {
@@ -52,6 +105,10 @@ const createMainWindow =
                     sandbox: true
                 }
             });
+
+        configureSerialPortSelection(
+            mainWindow
+        );
 
         mainWindow.once(
             'ready-to-show',
