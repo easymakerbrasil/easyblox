@@ -7,10 +7,19 @@ const {
 } = require('electron');
 
 const {
-    HardwareHttpServer
+    BuildService,
+    HardwareHttpServer,
+    StageFirmwareManager,
+    StageFirmwareProvider,
+    ToolchainProvider,
+    UploadService
 } = require(
     '@easymaker/easyblox-hardware-service'
 );
+
+const {
+    prepareArduinoRuntime
+} = require('./arduino-runtime');
 
 const GuiStaticServer =
     require('./gui-static-server');
@@ -137,8 +146,68 @@ const startDesktop =
             null
         );
 
-        hardwareServer =
-            new HardwareHttpServer();
+        const arduinoRuntime =
+            await prepareArduinoRuntime({
+                isPackaged:
+                    app.isPackaged,
+                resourcesPath:
+                    process.resourcesPath,
+                userDataPath:
+                    app.getPath(
+                        'userData'
+                    ),
+                env:
+                    process.env
+            });
+
+        if (arduinoRuntime) {
+            const toolchainProvider =
+                new ToolchainProvider({
+                    cliPath:
+                        arduinoRuntime.cliPath,
+                    configPath:
+                        arduinoRuntime.configPath
+                });
+
+            const buildService =
+                new BuildService({
+                    toolchainProvider
+                });
+
+            const uploadService =
+                new UploadService({
+                    toolchainProvider
+                });
+
+            const stageFirmwareProvider =
+                new StageFirmwareProvider({
+                    arduinoUnoStagePath:
+                        arduinoRuntime
+                            .stageFirmwarePath
+                });
+
+            const stageFirmwareManager =
+                new StageFirmwareManager({
+                    provider:
+                        stageFirmwareProvider,
+                    buildService,
+                    uploadService
+                });
+
+            hardwareServer =
+                new HardwareHttpServer({
+                    buildService,
+                    uploadService,
+                    stageFirmwareManager
+                });
+
+            console.log(
+                `EasyBlox Arduino runtime: ${arduinoRuntime.runtimeRoot}`
+            );
+        } else {
+            hardwareServer =
+                new HardwareHttpServer();
+        }
 
         const hardwareAddress =
             await hardwareServer.listen();
