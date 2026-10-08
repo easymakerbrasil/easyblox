@@ -17,6 +17,9 @@ const {
 const FAKE_CLI =
     'C:\\tools\\arduino-cli.exe';
 
+const FAKE_CONFIG =
+    'C:\\tools\\arduino-cli.yaml';
+
 const GENERATED_CODE = [
     '#include <Arduino.h>',
     '',
@@ -31,12 +34,13 @@ const GENERATED_CODE = [
 ].join('\n');
 
 const createResolvedToolchainProvider =
-    () => ({
+    (configPath = null) => ({
         resolve: boardId => ({
             boardId,
             fqbn: 'arduino:avr:uno',
             coreId: 'arduino:avr',
-            cliPath: FAKE_CLI
+            cliPath: FAKE_CLI,
+            configPath
         })
     });
 
@@ -62,7 +66,40 @@ test(
                 boardId: 'arduino-uno',
                 fqbn: 'arduino:avr:uno',
                 coreId: 'arduino:avr',
-                cliPath: FAKE_CLI
+                cliPath: FAKE_CLI,
+                configPath: null
+            }
+        );
+    }
+);
+
+test(
+    'ToolchainProvider resolves an explicit Arduino CLI configuration',
+    () => {
+        const provider =
+            new ToolchainProvider({
+                cliPath: FAKE_CLI,
+                configPath: FAKE_CONFIG,
+                env: {},
+                platform: 'win32',
+                existsSync:
+                    candidate =>
+                        candidate ===
+                            FAKE_CLI ||
+                        candidate ===
+                            FAKE_CONFIG
+            });
+
+        assert.deepEqual(
+            provider.resolve(
+                'arduino-uno'
+            ),
+            {
+                boardId: 'arduino-uno',
+                fqbn: 'arduino:avr:uno',
+                coreId: 'arduino:avr',
+                cliPath: FAKE_CLI,
+                configPath: FAKE_CONFIG
             }
         );
     }
@@ -123,6 +160,47 @@ test(
                 assert.equal(
                     error.code,
                     'TOOLCHAIN_NOT_FOUND'
+                );
+
+                return true;
+            }
+        );
+    }
+);
+
+test(
+    'ToolchainProvider rejects a configured Arduino CLI file that is missing',
+    () => {
+        const provider =
+            new ToolchainProvider({
+                cliPath: FAKE_CLI,
+                configPath: FAKE_CONFIG,
+                env: {},
+                platform: 'win32',
+                existsSync:
+                    candidate =>
+                        candidate ===
+                        FAKE_CLI
+            });
+
+        assert.throws(
+            () => provider.resolve(
+                'arduino-uno'
+            ),
+            error => {
+                assert.ok(
+                    error instanceof
+                    HardwareServiceError
+                );
+
+                assert.equal(
+                    error.code,
+                    'TOOLCHAIN_NOT_FOUND'
+                );
+
+                assert.equal(
+                    error.message,
+                    'Arduino CLI configuration was not found'
                 );
 
                 return true;
@@ -270,6 +348,64 @@ test(
                 artifact
             ),
             false
+        );
+    }
+);
+
+test(
+    'BuildService passes explicit Arduino CLI configuration to compile',
+    async () => {
+        const calls = [];
+
+        const service =
+            new BuildService({
+                toolchainProvider:
+                    createResolvedToolchainProvider(
+                        FAKE_CONFIG
+                    ),
+                processRunner:
+                    async (
+                        file,
+                        args
+                    ) => {
+                        calls.push({
+                            file,
+                            args
+                        });
+
+                        return {
+                            exitCode: 0,
+                            stdout: 'compiled',
+                            stderr: ''
+                        };
+                    }
+            });
+
+        const artifact =
+            await service.compile({
+                boardId: 'arduino-uno',
+                code: GENERATED_CODE
+            });
+
+        assert.equal(
+            calls[0].file,
+            FAKE_CLI
+        );
+
+        assert.deepEqual(
+            calls[0].args.slice(
+                0,
+                3
+            ),
+            [
+                '--config-file',
+                FAKE_CONFIG,
+                'compile'
+            ]
+        );
+
+        await service.cleanup(
+            artifact
         );
     }
 );

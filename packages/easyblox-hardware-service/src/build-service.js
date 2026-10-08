@@ -119,16 +119,27 @@ class BuildService {
                 );
             }
 
+            const compileArgs = [];
+
+            if (toolchain.configPath) {
+                compileArgs.push(
+                    '--config-file',
+                    toolchain.configPath
+                );
+            }
+
+            compileArgs.push(
+                'compile',
+                '--fqbn',
+                toolchain.fqbn,
+                '--output-dir',
+                buildPath,
+                sketchDirectory
+            );
+
             await this._processRunner(
                 toolchain.cliPath,
-                [
-                    'compile',
-                    '--fqbn',
-                    toolchain.fqbn,
-                    '--output-dir',
-                    buildPath,
-                    sketchDirectory
-                ]
+                compileArgs
             );
 
             return Object.freeze({

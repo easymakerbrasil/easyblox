@@ -34,19 +34,33 @@ class PortDiscovery {
             runProcess;
     }
 
-    async list (cliPath) {
+    async list (
+        cliPath,
+        configPath = null
+    ) {
         let result;
+
+        const args = [];
+
+        if (configPath) {
+            args.push(
+                '--config-file',
+                configPath
+            );
+        }
+
+        args.push(
+            'board',
+            'list',
+            '--format',
+            'json'
+        );
 
         try {
             result =
                 await this._processRunner(
                     cliPath,
-                    [
-                        'board',
-                        'list',
-                        '--format',
-                        'json'
-                    ]
+                    args
                 );
         } catch (error) {
             throw new HardwareServiceError(
@@ -125,6 +139,7 @@ class PortDiscovery {
 
     async resolve ({
         cliPath,
+        configPath = null,
         hint
     }) {
         if (!hint || typeof hint !== 'object') {
@@ -135,7 +150,10 @@ class PortDiscovery {
         }
 
         const ports =
-            await this.list(cliPath);
+            await this.list(
+                cliPath,
+                configPath
+            );
 
         if (
             typeof hint.address ===

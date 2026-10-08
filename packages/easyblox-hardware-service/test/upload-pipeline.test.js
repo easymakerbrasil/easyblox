@@ -12,6 +12,9 @@ const {
 const FAKE_CLI =
     'C:\\tools\\arduino-cli.exe';
 
+const FAKE_CONFIG =
+    'C:\\tools\\arduino-cli.yaml';
+
 const ARTIFACT = Object.freeze({
     boardId: 'arduino-uno',
     fqbn: 'arduino:avr:uno',
@@ -52,14 +55,62 @@ const COM11 = {
 };
 
 const createToolchainProvider =
-    () => ({
+    (configPath = null) => ({
         resolve: boardId => ({
             boardId,
             fqbn: 'arduino:avr:uno',
             coreId: 'arduino:avr',
-            cliPath: FAKE_CLI
+            cliPath: FAKE_CLI,
+            configPath
         })
     });
+
+test(
+    'PortDiscovery passes explicit Arduino CLI configuration to board list',
+    async () => {
+        const calls = [];
+
+        const discovery =
+            new PortDiscovery({
+                processRunner:
+                    async (
+                        file,
+                        args
+                    ) => {
+                        calls.push({
+                            file,
+                            args
+                        });
+
+                        return createBoardListResult(
+                            [COM11]
+                        );
+                    }
+            });
+
+        await discovery.list(
+            FAKE_CLI,
+            FAKE_CONFIG
+        );
+
+        assert.equal(
+            calls[0].file,
+            FAKE_CLI
+        );
+
+        assert.deepEqual(
+            calls[0].args,
+            [
+                '--config-file',
+                FAKE_CONFIG,
+                'board',
+                'list',
+                '--format',
+                'json'
+            ]
+        );
+    }
+);
 
 test(
     'PortDiscovery resolves an explicit port address',
@@ -210,12 +261,26 @@ test(
         const uploadService =
             new UploadService({
                 toolchainProvider:
-                    createToolchainProvider(),
+                    createToolchainProvider(
+                        FAKE_CONFIG
+                    ),
                 portDiscovery: {
                     resolve:
-                        async () => ({
-                            ...COM11
-                        })
+                        async options => {
+                            assert.equal(
+                                options.cliPath,
+                                FAKE_CLI
+                            );
+
+                            assert.equal(
+                                options.configPath,
+                                FAKE_CONFIG
+                            );
+
+                            return {
+                                ...COM11
+                            };
+                        }
                 },
                 processRunner:
                     async (
@@ -259,6 +324,8 @@ test(
         assert.deepEqual(
             calls[0].args,
             [
+                '--config-file',
+                FAKE_CONFIG,
                 'upload',
                 '--fqbn',
                 'arduino:avr:uno',

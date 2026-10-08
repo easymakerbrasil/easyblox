@@ -17,6 +17,8 @@ const WINDOWS_ARDUINO_IDE_CLI =
 class ToolchainProvider {
     constructor (options = {}) {
         this._cliPath = options.cliPath || null;
+        this._configPath =
+            options.configPath || null;
         this._env = options.env || process.env;
         this._platform =
             options.platform || process.platform;
@@ -44,11 +46,15 @@ class ToolchainProvider {
             );
         }
 
+        const configPath =
+            this._resolveConfigPath();
+
         return {
             boardId: boardToolchain.boardId,
             fqbn: boardToolchain.fqbn,
             coreId: boardToolchain.coreId,
-            cliPath
+            cliPath,
+            configPath
         };
     }
 
@@ -74,6 +80,30 @@ class ToolchainProvider {
         }
 
         return null;
+    }
+
+    _resolveConfigPath () {
+        const configuredPath =
+            this._configPath ||
+            this._env.EASYBLOX_ARDUINO_CONFIG ||
+            null;
+
+        if (!configuredPath) {
+            return null;
+        }
+
+        if (
+            this._existsSync(
+                configuredPath
+            )
+        ) {
+            return configuredPath;
+        }
+
+        throw new HardwareServiceError(
+            'TOOLCHAIN_NOT_FOUND',
+            'Arduino CLI configuration was not found'
+        );
     }
 }
 

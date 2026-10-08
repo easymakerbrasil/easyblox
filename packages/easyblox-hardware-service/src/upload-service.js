@@ -54,6 +54,8 @@ class UploadService {
             await this._portDiscovery.resolve({
                 cliPath:
                     toolchain.cliPath,
+                configPath:
+                    toolchain.configPath,
                 hint:
                     portHint
             });
@@ -61,21 +63,32 @@ class UploadService {
         const protocol =
             port.protocol || 'serial';
 
+        const uploadArgs = [];
+
+        if (toolchain.configPath) {
+            uploadArgs.push(
+                '--config-file',
+                toolchain.configPath
+            );
+        }
+
+        uploadArgs.push(
+            'upload',
+            '--fqbn',
+            toolchain.fqbn,
+            '--port',
+            port.address,
+            '--protocol',
+            protocol,
+            '--input-dir',
+            artifact.buildPath,
+            artifact.sketchDirectory
+        );
+
         try {
             await this._processRunner(
                 toolchain.cliPath,
-                [
-                    'upload',
-                    '--fqbn',
-                    toolchain.fqbn,
-                    '--port',
-                    port.address,
-                    '--protocol',
-                    protocol,
-                    '--input-dir',
-                    artifact.buildPath,
-                    artifact.sketchDirectory
-                ]
+                uploadArgs
             );
         } catch (error) {
             throw this._translateUploadError(
