@@ -3,7 +3,9 @@ const path = require('node:path');
 const {
     app,
     BrowserWindow,
-    Menu
+    dialog,
+    Menu,
+    shell
 } = require('electron');
 
 const {
@@ -28,6 +30,11 @@ const {
     showSerialPortPicker
 } = require('./serial-port-picker');
 
+const {
+    DEFAULT_UPDATE_MANIFEST_URL,
+    UpdateService
+} = require('./update-service');
+
 const GUI_BUILD_PATH =
     path.resolve(
         __dirname,
@@ -39,6 +46,16 @@ const GUI_BUILD_PATH =
 
 const GUI_URL =
     'http://127.0.0.1:8601';
+
+const UPDATE_MANIFEST_URL =
+    (
+        !app.isPackaged &&
+        process.env
+            .EASYBLOX_UPDATE_MANIFEST_URL
+    ) ?
+        process.env
+            .EASYBLOX_UPDATE_MANIFEST_URL :
+        DEFAULT_UPDATE_MANIFEST_URL;
 
 const WINDOWS_APP_USER_MODEL_ID =
     'br.com.easyblox.desktop';
@@ -170,6 +187,107 @@ const configureSerialPortSelection =
         );
     };
 
+const showUpdateAvailableDialog =
+    async updateResult => {
+        if (
+            !mainWindow ||
+            mainWindow.isDestroyed()
+        ) {
+            return;
+        }
+
+        const {
+            response
+        } =
+            await dialog.showMessageBox(
+                mainWindow,
+                {
+                    type:
+                        'info',
+                    title:
+                        'Atualização disponível',
+                    message:
+                        'Uma nova versão do EasyBlox está disponível.',
+                    detail:
+                        `Versão instalada: ${updateResult.currentVersion}\n` +
+                        `Nova versão: ${updateResult.manifest.version}\n\n` +
+                        'Deseja baixar a atualização agora?',
+                    buttons: [
+                        'Baixar atualização',
+                        'Agora não'
+                    ],
+                    defaultId:
+                        0,
+                    cancelId:
+                        1,
+                    noLink:
+                        true
+                }
+            );
+
+        if (
+            response !==
+            0
+        ) {
+            return;
+        }
+
+        try {
+            await shell.openExternal(
+                updateResult
+                    .manifest
+                    .downloadUrl
+            );
+        } catch (error) {
+            console.error(
+                `EasyBlox failed to open update download: ${error.message}`
+            );
+        }
+    };
+
+const checkForUpdates =
+    async () => {
+        if (
+            !app.isPackaged &&
+            !process.env
+                .EASYBLOX_UPDATE_MANIFEST_URL
+        ) {
+            return;
+        }
+
+        const updateService =
+            new UpdateService({
+                fetchImpl:
+                    globalThis.fetch,
+                manifestUrl:
+                    UPDATE_MANIFEST_URL
+            });
+
+        let updateResult;
+
+        try {
+            updateResult =
+                await updateService.check(
+                    app.getVersion()
+                );
+        } catch (error) {
+            console.warn(
+                `EasyBlox update check skipped: ${error.message}`
+            );
+            return;
+        }
+
+        if (
+            !updateResult.available
+        ) {
+            return;
+        }
+
+        await showUpdateAvailableDialog(
+            updateResult
+        );
+    };
+
 const createMainWindow =
     async () => {
         mainWindow =
@@ -210,6 +328,15 @@ const createMainWindow =
 
                 if (mainWindow) {
                     mainWindow.show();
+
+                    checkForUpdates()
+                        .catch(
+                            error => {
+                                console.error(
+                                    `EasyBlox update notification failed: ${error.message}`
+                                );
+                            }
+                        );
                 }
             }
         );
