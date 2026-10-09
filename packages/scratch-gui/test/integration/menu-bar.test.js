@@ -54,11 +54,16 @@ describe('Menu bar settings', () => {
         await findByXpath('//div[button[div[span[text()="Share"]]] and @data-tip="tooltip"]');
     });
 
-    test('Logo should be clickable', async () => {
+    test('Logo should not navigate', async () => {
         await loadUri(uri);
-        await clickXpath('//img[@alt="Scratch"]');
+
+        const initialUrl = await driver.getCurrentUrl();
+
+        await clickXpath('//img[@alt="EasyBlox"]');
+
         const currentUrl = await driver.getCurrentUrl();
-        await expect(currentUrl).toEqual('https://scratch.mit.edu/');
+
+        await expect(currentUrl).toEqual(initialUrl);
     });
 
     test('(GH#4064) Project name should be editable', async () => {
