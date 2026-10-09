@@ -56,10 +56,70 @@ const WINDOW_ICON_PATH =
             'icon.ico'
         );
 
+const SPLASH_HTML_PATH =
+    app.isPackaged ?
+        path.join(
+            process.resourcesPath,
+            'splash.html'
+        ) :
+        path.resolve(
+            __dirname,
+            '..',
+            'build',
+            'splash.html'
+        );
+
 let hardwareServer = null;
 let guiServer = null;
 let mainWindow = null;
+let splashWindow = null;
 let shuttingDown = false;
+
+const createSplashWindow =
+    async () => {
+        splashWindow =
+            new BrowserWindow({
+                width: 560,
+                height: 340,
+                resizable: false,
+                minimizable: false,
+                maximizable: false,
+                fullscreenable: false,
+                frame: false,
+                show: false,
+                skipTaskbar: true,
+                backgroundColor:
+                    '#282828',
+                icon:
+                    WINDOW_ICON_PATH,
+                webPreferences: {
+                    contextIsolation: true,
+                    nodeIntegration: false,
+                    sandbox: true,
+                    javascript: false
+                }
+            });
+
+        splashWindow.center();
+
+        splashWindow.on(
+            'closed',
+            () => {
+                splashWindow = null;
+            }
+        );
+
+        await splashWindow.loadFile(
+            SPLASH_HTML_PATH
+        );
+
+        if (
+            splashWindow &&
+            !splashWindow.isDestroyed()
+        ) {
+            splashWindow.show();
+        }
+    };
 
 const configureSerialPortSelection =
     window => {
@@ -140,6 +200,14 @@ const createMainWindow =
         mainWindow.once(
             'ready-to-show',
             () => {
+                if (
+                    splashWindow &&
+                    !splashWindow.isDestroyed()
+                ) {
+                    splashWindow.close();
+                    splashWindow = null;
+                }
+
                 if (mainWindow) {
                     mainWindow.show();
                 }
@@ -163,6 +231,8 @@ const startDesktop =
         Menu.setApplicationMenu(
             null
         );
+
+        await createSplashWindow();
 
         const arduinoRuntime =
             await prepareArduinoRuntime({

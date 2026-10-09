@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+    <title>EasyBlox</title>
+
+    <style>
+        :root {
+            color-scheme: dark;
+            font-family:
+                "Segoe UI",
+                Arial,
+                sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #282828;
+        }
+
+        body {
+            display: flex;
+            align-items: stretch;
+            justify-content: stretch;
+            user-select: none;
+        }
+
+        .splash {
+            position: relative;
+            display: flex;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #3b3b3b;
+            background:
+                radial-gradient(
+                    circle at 50% 28%,
+                    #333333 0%,
+                    #282828 58%,
+                    #232323 100%
+                );
+        }
+
+        .accent {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: #ffc800;
+        }
+
+        .icon {
+            width: 108px;
+            height: 108px;
+            margin-bottom: 15px;
+            object-fit: contain;
+        }
+
+        .title {
+            margin: 0;
+            color: #ffffff;
+            font-size: 40px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            line-height: 1;
+        }
+
+        .tagline {
+            margin: 12px 0 0;
+            color: #cfcfcf;
+            font-size: 14px;
+            font-weight: 400;
+            letter-spacing: 0.1px;
+        }
+
+        .loading {
+            width: 238px;
+            margin-top: 34px;
+        }
+
+        .loading-track {
+            position: relative;
+            width: 100%;
+            height: 3px;
+            overflow: hidden;
+            border-radius: 3px;
+            background: #444444;
+        }
+
+        .loading-track::after {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 38%;
+            height: 100%;
+            border-radius: inherit;
+            background: #ffc800;
+            content: "";
+            animation:
+                loading 1.25s
+                ease-in-out
+                infinite;
+        }
+
+        .loading-label {
+            margin-top: 11px;
+            color: #9f9f9f;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        @keyframes loading {
+            from {
+                transform:
+                    translateX(-105%);
+            }
+
+            to {
+                transform:
+                    translateX(365%);
+            }
+        }
+
+        @media (
+            prefers-reduced-motion:
+                reduce
+        ) {
+            .loading-track::after {
+                width: 100%;
+                animation: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="splash">
+        <div class="accent"></div>
+
+        <img
+            class="icon"
+            src="icon.png"
+            alt=""
+            draggable="false"
+        >
+
+        <h1 class="title">
+            EasyBlox
+        </h1>
+
+        <p class="tagline">
+            Mais que Robótica. Transformação Educacional.
+        </p>
+
+        <div
+            class="loading"
+            aria-label="Iniciando EasyBlox"
+        >
+            <div class="loading-track"></div>
+
+            <div class="loading-label">
+                Preparando seu ambiente...
+            </div>
+        </div>
+    </main>
+</body>
+</html>
