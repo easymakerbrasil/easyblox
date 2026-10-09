@@ -1,8 +1,9 @@
 {
   "name": "@easymaker/easyblox-desktop",
-  "version": "0.4.0-rc.1",
+  "version": "0.4.0",
   "private": true,
   "description": "Windows desktop host and distribution infrastructure for EasyBlox.",
+  "author": "EasyMaker Robótica Educacional",
   "license": "AGPL-3.0-only",
   "main": "src/main.js",
   "scripts": {
