@@ -29,6 +29,7 @@
     "directories": {
       "buildResources": "build"
     },
+    "npmRebuild": false,
     "extraResources": [
       {
         "from": "build/icon.ico",
