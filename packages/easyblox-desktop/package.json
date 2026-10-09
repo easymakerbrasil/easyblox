@@ -45,6 +45,14 @@
       {
         "from": "runtime/staged/easyblox-arduino-runtime",
         "to": "easyblox-arduino-runtime"
+      },
+      {
+        "from": "../scratch-gui/build",
+        "to": "scratch-gui/build",
+        "filter": [
+          "**/*",
+          "!**/*.map"
+        ]
       }
     ],
     "win": {
