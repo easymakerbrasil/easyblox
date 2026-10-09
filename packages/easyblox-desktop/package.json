@@ -8,6 +8,7 @@
   "scripts": {
     "build": "node --check src/main.js && node --check src/arduino-runtime.js && node --check src/gui-static-server.js && node --check src/serial-port-picker.js && node --check src/serial-port-picker-preload.js && node --check src/serial-port-picker-renderer.js && node --check src/update-service.js",
     "icons:build": "node scripts/build-icons.mjs",
+    "runtime:stage": "node scripts/stage-arduino-runtime.mjs",
     "test": "node --test test/*.test.js",
     "start": "electron .",
     "rebuild:native": "electron-rebuild -f -w serialport"
@@ -40,6 +41,10 @@
       {
         "from": "build/splash.html",
         "to": "splash.html"
+      },
+      {
+        "from": "runtime/staged/easyblox-arduino-runtime",
+        "to": "easyblox-arduino-runtime"
       }
     ],
     "win": {

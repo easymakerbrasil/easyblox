@@ -132,3 +132,6 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# EasyBlox Desktop generated Arduino runtime staging
+/packages/easyblox-desktop/runtime/staged/
