@@ -40,6 +40,22 @@ const GUI_BUILD_PATH =
 const GUI_URL =
     'http://127.0.0.1:8601';
 
+const WINDOWS_APP_USER_MODEL_ID =
+    'br.com.easyblox.desktop';
+
+const WINDOW_ICON_PATH =
+    app.isPackaged ?
+        path.join(
+            process.resourcesPath,
+            'icon.ico'
+        ) :
+        path.resolve(
+            __dirname,
+            '..',
+            'build',
+            'icon.ico'
+        );
+
 let hardwareServer = null;
 let guiServer = null;
 let mainWindow = null;
@@ -108,6 +124,8 @@ const createMainWindow =
                     '#282828',
                 title:
                     'EasyBlox',
+                icon:
+                    WINDOW_ICON_PATH,
                 webPreferences: {
                     contextIsolation: true,
                     nodeIntegration: false,
@@ -256,6 +274,15 @@ const shutdownDesktop =
 
         app.quit();
     };
+
+if (
+    process.platform ===
+        'win32'
+) {
+    app.setAppUserModelId(
+        WINDOWS_APP_USER_MODEL_ID
+    );
+}
 
 app.whenReady()
     .then(
