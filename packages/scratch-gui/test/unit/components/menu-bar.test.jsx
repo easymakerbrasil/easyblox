@@ -260,6 +260,61 @@ describe('MenuBar Component', () => {
             );
         });
 
+        test.each([
+            [false, false, true, false],
+            [true, false, true, false],
+            [true, true, true, true],
+            [false, true, true, false],
+            [true, false, false, false]
+        ])('New preserves needSave with canSave=%s canCreateNew=%s changed=%s',
+            (canSave, canCreateNew, projectChanged, needSave) => {
+                const {getByRole} = renderWithIntl(getComponent({canSave, canCreateNew, projectChanged}));
+                fireEvent.keyDown(document, {key: 'n', ctrlKey: true});
+                if (projectChanged && !canCreateNew) {
+                    expect(store.getActions()).not.toContainEqual(requestNewProject(needSave));
+                    fireEvent.click(getByRole('button', {name: 'Criar novo projeto'}));
+                }
+                expect(store.getActions().filter(({type}) => type === requestNewProject(needSave).type))
+                    .toHaveLength(1);
+                expect(store.getActions()).toContainEqual(requestNewProject(needSave));
+                expect(projectFileService.save).not.toHaveBeenCalled();
+                expect(projectFileService.saveAs).not.toHaveBeenCalled();
+            }
+        );
+
+        test('repeated project shortcuts cannot replace or duplicate the pending New operation', () => {
+            const onStartSelectingFileUpload = jest.fn();
+            const {getByRole, queryByRole} = renderWithIntl(getComponent({
+                projectChanged: true,
+                canCreateNew: false,
+                canSave: false,
+                onStartSelectingFileUpload
+            }));
+            fireEvent.keyDown(document, {key: 'n', ctrlKey: true});
+            fireEvent.keyDown(document, {key: 'n', ctrlKey: true});
+            fireEvent.keyDown(document, {key: 'o', ctrlKey: true});
+            expect(onStartSelectingFileUpload).not.toHaveBeenCalled();
+            expect(store.getActions()).not.toContainEqual(requestNewProject(false));
+            fireEvent.click(getByRole('button', {name: 'Criar novo projeto'}));
+            expect(queryByRole('dialog')).toBeNull();
+            expect(store.getActions().filter(({type}) => type === requestNewProject(false).type)).toHaveLength(1);
+        });
+
+        test('canceling New through the menu leaves the current project and local save untouched', () => {
+            const {getByRole, getByText} = renderWithIntl(getComponent({
+                projectChanged: true,
+                canCreateNew: false,
+                canSave: false
+            }));
+            fireEvent.click(getByRole('button', {name: 'File menu'}));
+            fireEvent.click(getByText('New'));
+            expect(store.getActions()).not.toContainEqual(requestNewProject(false));
+            fireEvent.click(getByRole('button', {name: 'Cancelar'}));
+            expect(store.getActions()).not.toContainEqual(requestNewProject(false));
+            expect(projectFileService.clearFileHandle).not.toHaveBeenCalled();
+            expect(projectFileService.save).not.toHaveBeenCalled();
+        });
+
         test('File menu Save delegates to the local Save operation', () => {
             const {
                 getByRole,

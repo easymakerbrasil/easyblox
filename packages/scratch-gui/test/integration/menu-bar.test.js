@@ -37,10 +37,10 @@ describe('Menu bar settings', () => {
         await findByXpath('//*[li[span[text()="New"]] and not(@data-tip="tooltip")]');
     });
 
-    test('File->Load should be enabled', async () => {
+    test('File->Open should be enabled', async () => {
         await loadUri(uri);
         await clickXpath(FILE_MENU_XPATH);
-        await findByXpath('//*[li[text()="Load from your computer"] and not(@data-tip="tooltip")]');
+        await findByText('Abrir...', scope.menuBar);
     });
 
     test('File->Save should be enabled', async () => {
@@ -77,7 +77,7 @@ describe('Menu bar settings', () => {
     test('User is not warned before uploading project file over a fresh project', async () => {
         await loadUri(uri);
         await clickXpath(FILE_MENU_XPATH);
-        await clickText('Load from your computer');
+        await clickText('Abrir...');
         const input = await findByXpath('//input[@accept=".sb,.sb2,.sb3"]');
         await input.sendKeys(path.resolve(__dirname, '../fixtures/project1.sb3'));
         // No replace alert since no changes were made
@@ -93,12 +93,27 @@ describe('Menu bar settings', () => {
         await clickText('yes', scope.modal);
 
         await clickXpath(FILE_MENU_XPATH);
-        await clickText('Load from your computer');
+        await clickText('Abrir...');
         const input = await findByXpath('//input[@accept=".sb,.sb2,.sb3"]');
         await input.sendKeys(path.resolve(__dirname, '../fixtures/project1.sb3'));
-        await driver.switchTo().alert()
-            .accept();
+        await findByText('Abrir outro projeto?', scope.modal);
+        await clickText('Abrir projeto', scope.modal);
         await findByText('project1-sprite');
+    });
+
+    test('Cancel preserves the edited project instead of loading the selected file', async () => {
+        await loadUri(uri);
+        await rightClickText('Sprite1', scope.spriteTile);
+        await clickText('delete', scope.contextMenu);
+        await clickText('yes', scope.modal);
+        await clickXpath(FILE_MENU_XPATH);
+        await clickText('Abrir...');
+        const input = await findByXpath('//input[@accept=".sb,.sb2,.sb3"]');
+        await input.sendKeys(path.resolve(__dirname, '../fixtures/project1.sb3'));
+        await findByText('Abrir outro projeto?', scope.modal);
+        await clickText('Cancelar', scope.modal);
+        const sprites = await driver.findElements({xpath: '//*[text()="project1-sprite" or text()="Sprite1"]'});
+        expect(sprites).toHaveLength(0);
     });
 
     test('Color mode picker shows color modes', async () => {

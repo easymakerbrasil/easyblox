@@ -2,23 +2,43 @@ import {connect} from 'react-redux';
 import PropTypes from 'prop-types';
 import bindAll from 'lodash.bindall';
 import React from 'react';
+import ProjectReplacementModal from '../components/project-replacement-modal/project-replacement-modal.jsx';
 
 const MenuBarHOC = function (WrappedComponent) {
     class MenuBarContainer extends React.PureComponent {
         constructor (props) {
             super(props);
+            this.state = {replacementOpen: false};
+            this.pendingNewProject = null;
 
             bindAll(this, [
-                'confirmReadyToReplaceProject',
+                'requestNewProjectConfirmation',
+                'handleReplacementConfirm',
+                'handleReplacementCancel',
                 'shouldSaveBeforeTransition'
             ]);
         }
-        confirmReadyToReplaceProject (message) {
-            let readyToReplaceProject = true;
+        componentWillUnmount () {
+            this.pendingNewProject = null;
+        }
+        requestNewProjectConfirmation (onConfirm) {
+            if (this.pendingNewProject) return;
             if (this.props.projectChanged && !this.props.canCreateNew) {
-                readyToReplaceProject = this.props.confirmWithMessage(message);
+                this.pendingNewProject = onConfirm;
+                this.setState({replacementOpen: true});
+                return;
             }
-            return readyToReplaceProject;
+            onConfirm();
+        }
+        handleReplacementConfirm () {
+            if (!this.pendingNewProject) return;
+            const onConfirm = this.pendingNewProject;
+            this.pendingNewProject = null;
+            this.setState({replacementOpen: false}, onConfirm);
+        }
+        handleReplacementCancel () {
+            this.pendingNewProject = null;
+            this.setState({replacementOpen: false});
         }
         shouldSaveBeforeTransition () {
             return (this.props.canSave && this.props.projectChanged);
@@ -30,23 +50,28 @@ const MenuBarHOC = function (WrappedComponent) {
                  
                 ...props
             } = this.props;
-            return (<WrappedComponent
-                confirmReadyToReplaceProject={this.confirmReadyToReplaceProject}
-                shouldSaveBeforeTransition={this.shouldSaveBeforeTransition}
-                {...props}
-            />);
+            return (
+                <React.Fragment>
+                    <WrappedComponent
+                        requestNewProjectConfirmation={this.requestNewProjectConfirmation}
+                        shouldSaveBeforeTransition={this.shouldSaveBeforeTransition}
+                        {...props}
+                    />
+                    <ProjectReplacementModal
+                        isOpen={this.state.replacementOpen}
+                        operation="new"
+                        onConfirm={this.handleReplacementConfirm}
+                        onCancel={this.handleReplacementCancel}
+                    />
+                </React.Fragment>
+            );
         }
     }
 
     MenuBarContainer.propTypes = {
         canCreateNew: PropTypes.bool,
         canSave: PropTypes.bool,
-        confirmWithMessage: PropTypes.func,
         projectChanged: PropTypes.bool
-    };
-    MenuBarContainer.defaultProps = {
-        // default to using standard js confirm
-        confirmWithMessage: message => (confirm(message)) // eslint-disable-line no-alert
     };
     const mapStateToProps = state => ({
         projectChanged: state.scratchGui.projectChanged

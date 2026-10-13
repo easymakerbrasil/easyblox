@@ -1,171 +1,109 @@
 import React from 'react';
 import configureStore from 'redux-mock-store';
-import MenuBarHOC from '../../../src/containers/menu-bar-hoc.jsx';
-import {render} from '@testing-library/react';
+import {fireEvent, screen} from '@testing-library/react';
 import '@testing-library/jest-dom';
-
-// TODO rewrite this test to use react-testing-library
+import MenuBarHOC from '../../../src/containers/menu-bar-hoc.jsx';
+import {renderWithIntl} from '../../helpers/intl-helpers.jsx';
 
 describe('Menu Bar HOC', () => {
-    const mockStore = configureStore();
-    let store;
-    let Component;
+    const onContinue = jest.fn();
+    const Component = ({requestNewProjectConfirmation, shouldSaveBeforeTransition}) => {
+        const handleNew = React.useCallback(() => requestNewProjectConfirmation(onContinue),
+            [requestNewProjectConfirmation]);
+        return (
+            <>
+                <button onClick={handleNew}>Novo</button>
+                <div data-testid="save-before-transition">{String(shouldSaveBeforeTransition())}</div>
+            </>
+        );
+    };
+    const WrappedComponent = MenuBarHOC(Component);
+    const mount = function (props) {
+        return renderWithIntl(
+            <WrappedComponent
+                store={configureStore()({scratchGui: {projectChanged: false}})}
+                {...props}
+            />
+        );
+    };
 
-    beforeEach(() => {
-        store = mockStore({
-            scratchGui: {
-                projectChanged: true
-            }
-        });
+    beforeEach(() => onContinue.mockClear());
 
-        Component = jest.fn(
-            ({confirmReadyToReplaceProject, shouldSaveBeforeTransition}) => (
+    test.each([
+        [false, false],
+        [false, true],
+        [true, true]
+    ])('continues directly when changed=%s and canCreateNew=%s', (projectChanged, canCreateNew) => {
+        mount({projectChanged, canCreateNew});
+        fireEvent.click(screen.getByText('Novo'));
+        expect(onContinue).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    test('defers an edited project without canCreateNew until confirmation, exactly once', () => {
+        mount({projectChanged: true, canCreateNew: false});
+        fireEvent.click(screen.getByText('Novo'));
+        fireEvent.click(screen.getByText('Novo'));
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(onContinue).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', {name: 'Criar novo projeto'}));
+        expect(onContinue).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    test.each(['Cancelar', 'Close'])('%s preserves the current project', label => {
+        mount({projectChanged: true, canCreateNew: false});
+        fireEvent.click(screen.getByText('Novo'));
+        fireEvent.click(screen.getByRole('button', {name: label}));
+        expect(onContinue).not.toHaveBeenCalled();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    test('Escape cancels without creating a project', () => {
+        mount({projectChanged: true, canCreateNew: false});
+        fireEvent.click(screen.getByText('Novo'));
+        fireEvent.keyDown(screen.getByRole('dialog'), {key: 'Escape', keyCode: 27});
+        expect(onContinue).not.toHaveBeenCalled();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    test('does not replace the pending continuation', () => {
+        const first = jest.fn();
+        const second = jest.fn();
+        const Probe = ({requestNewProjectConfirmation}) => {
+            const handleFirst = React.useCallback(() => requestNewProjectConfirmation(first),
+                [requestNewProjectConfirmation]);
+            const handleSecond = React.useCallback(() => requestNewProjectConfirmation(second),
+                [requestNewProjectConfirmation]);
+            return (
                 <>
-                    <div id="confirmReadyToReplaceProject">
-                        {`${confirmReadyToReplaceProject()}`}
-                    </div>
-                    <div id="shouldSaveBeforeTransition">
-                        {`${shouldSaveBeforeTransition()}`}
-                    </div>
+                    <button onClick={handleFirst}>Primeiro</button>
+                    <button onClick={handleSecond}>Segundo</button>
                 </>
-            )
-        );
-    });
-
-    test('Logged in user who IS owner and HAS changed project will NOT be prompted to save', () => {
-        const WrappedComponent = MenuBarHOC(Component);
-        const {container} = render(
-            <WrappedComponent
-                canCreateNew
-                canSave
-                projectChanged
-                // assume the user will click "cancel" on the confirm dialog
-                confirmWithMessage={() => (false)} // eslint-disable-line react/jsx-no-bind
-                store={store}
-            />
-        );
-
-        const element = container.querySelector('#confirmReadyToReplaceProject');
-        expect(element).toHaveTextContent(/true/i);
-    });
-
-    test('Logged in user who IS owner and has NOT changed project will NOT be prompted to save', () => {
-        const WrappedComponent = MenuBarHOC(Component);
-        const {container} = render(
-            <WrappedComponent
-                canCreateNew
-                canSave
-                confirmWithMessage={() => (false)} // eslint-disable-line react/jsx-no-bind
-                projectChanged={false}
-                store={store}
-            />
-        );
-
-        const element = container.querySelector('#confirmReadyToReplaceProject');
-        expect(element).toHaveTextContent(/true/i);
-    });
-
-    test('Logged in user who is NOT owner and HAS changed project will NOT be prompted to save', () => {
-        const WrappedComponent = MenuBarHOC(Component);
-        const {container} = render(
-            <WrappedComponent
-                canCreateNew
-                projectChanged
-                canSave={false}
-                confirmWithMessage={() => (false)} // eslint-disable-line react/jsx-no-bind
-                store={store}
-            />
-        );
-
-        const element = container.querySelector('#confirmReadyToReplaceProject');
-        expect(element).toHaveTextContent(/true/i);
-    });
-
-    test('Logged OUT user who HAS changed project WILL be prompted to save', () => {
-        const WrappedComponent = MenuBarHOC(Component);
-        const {container} = render(
-            <WrappedComponent
+            );
+        };
+        const WrappedProbe = MenuBarHOC(Probe);
+        renderWithIntl(
+            <WrappedProbe
                 projectChanged
                 canCreateNew={false}
-                canSave={false}
-                confirmWithMessage={() => (false)} // eslint-disable-line react/jsx-no-bind
-                store={store}
+                store={configureStore()({scratchGui: {projectChanged: true}})}
             />
         );
-
-        const element = container.querySelector('#confirmReadyToReplaceProject');
-        expect(element).toHaveTextContent(/false/i);
+        fireEvent.click(screen.getByText('Primeiro'));
+        fireEvent.click(screen.getByText('Segundo'));
+        fireEvent.click(screen.getByRole('button', {name: 'Criar novo projeto'}));
+        expect(first).toHaveBeenCalledTimes(1);
+        expect(second).not.toHaveBeenCalled();
     });
 
-    test('Logged OUT user who has NOT changed project WILL NOT be prompted to save', () => {
-        const WrappedComponent = MenuBarHOC(Component);
-        const {container} = render(
-            <WrappedComponent
-                canCreateNew={false}
-                canSave={false}
-                confirmWithMessage={() => (false)} // eslint-disable-line react/jsx-no-bind
-                projectChanged={false}
-                store={store}
-            />
-        );
-        const element = container.querySelector('#confirmReadyToReplaceProject');
-        expect(element).toHaveTextContent(/true/i);
+    test.each([
+        [true, true, 'true'],
+        [true, false, 'false'],
+        [false, true, 'false'],
+        [false, false, 'false']
+    ])('preserves save-before-transition for canSave=%s changed=%s', (canSave, projectChanged, expected) => {
+        mount({canSave, projectChanged});
+        expect(screen.getByTestId('save-before-transition')).toHaveTextContent(expected);
     });
-
-    test('Logged in user who IS owner and HAS changed project SHOULD save before transition to project page', () => {
-        const WrappedComponent = MenuBarHOC(Component);
-        const {container} = render(
-            <WrappedComponent
-                canSave
-                projectChanged
-                store={store}
-            />
-        );
-
-        const element = container.querySelector('#shouldSaveBeforeTransition');
-        expect(element).toHaveTextContent(/true/i);
-    });
-
-    test('Logged in user who IS owner and has NOT changed project should NOT save before transition', () => {
-        const WrappedComponent = MenuBarHOC(Component);
-        const {container} = render(
-            <WrappedComponent
-                canSave
-                projectChanged={false}
-                store={store}
-            />
-        );
-
-        const element = container.querySelector('#shouldSaveBeforeTransition');
-        expect(element).toHaveTextContent(/false/i);
-    });
-
-    test('Logged in user who is NOT owner and HAS changed project should NOT save before transition', () => {
-        const WrappedComponent = MenuBarHOC(Component);
-        const {container} = render(
-            <WrappedComponent
-                projectChanged
-                canSave={false}
-                store={store}
-            />
-        );
-
-        const element = container.querySelector('#shouldSaveBeforeTransition');
-        expect(element).toHaveTextContent(/false/i);
-    });
-
-    test('Logged in user who is NOT owner and has NOT changed project should NOT save before transition', () => {
-        const WrappedComponent = MenuBarHOC(Component);
-        const {container} = render(
-            <WrappedComponent
-                canSave={false}
-                projectChanged={false}
-                store={store}
-            />
-        );
-
-        const element = container.querySelector('#shouldSaveBeforeTransition');
-        expect(element).toHaveTextContent(/false/i);
-    });
-
 });

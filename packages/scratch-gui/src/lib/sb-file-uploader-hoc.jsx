@@ -5,7 +5,7 @@ import {defineMessages, injectIntl} from 'react-intl';
 import intlShape from './intlShape';
 import {connect} from 'react-redux';
 import log from '../lib/log';
-import sharedMessages from './shared-messages';
+import ProjectReplacementModal from '../components/project-replacement-modal/project-replacement-modal.jsx';
 
 import {
     LoadingStates,
@@ -79,12 +79,16 @@ const SBFileUploaderHOC = function (WrappedComponent) {
     class SBFileUploaderComponent extends React.Component {
         constructor (props) {
             super(props);
+            this.state = {replacementOperation: null};
+            this.pendingUpload = null;
             bindAll(this, [
                 'createFileObjects',
                 'handleFinishedLoadingUpload',
                 'handleStartSelectingFileUpload',
                 'handleStartSelectingExternalProjectImport',
                 'handleChange',
+                'handleReplacementConfirm',
+                'handleReplacementCancel',
                 'onload',
                 'removeFileObjects'
             ]);
@@ -95,6 +99,7 @@ const SBFileUploaderHOC = function (WrappedComponent) {
             }
         }
         componentWillUnmount () {
+            this.pendingUpload = null;
             this.removeFileObjects();
         }
         // step 1: this is where the upload process begins
@@ -115,6 +120,7 @@ const SBFileUploaderHOC = function (WrappedComponent) {
             selectionMode =
                 FILE_SELECTION_MODES.OPEN
         ) {
+            if (this.pendingUpload) return;
             // redo step 7, in case it got skipped last time and its objects are
             // still in memory
             this.removeFileObjects();
@@ -143,35 +149,38 @@ const SBFileUploaderHOC = function (WrappedComponent) {
         // step 3: user has picked a file using the file chooser dialog.
         // We don't actually load the file here, we only decide whether to do so.
         handleChange (e) {
+            if (this.pendingUpload) return;
             const {
-                intl,
                 isShowingWithoutId,
                 loadingState,
                 projectChanged,
                 userOwnsProject
             } = this.props;
             const thisFileInput = e.target;
-            if (thisFileInput.files) { // Don't attempt to load if no file was selected
-                this.fileToUpload = thisFileInput.files[0];
-
-                // If user owns the project, or user has changed the project,
-                // we must confirm with the user that they really intend to
-                // replace it. (If they don't own the project and haven't
-                // changed it, no need to confirm.)
-                let uploadAllowed = true;
-                if (userOwnsProject || (projectChanged && isShowingWithoutId)) {
-                    uploadAllowed = confirm( // eslint-disable-line no-alert
-                        intl.formatMessage(sharedMessages.replaceProjectWarning)
-                    );
-                }
-                if (uploadAllowed) {
-                    // cues step 4
-                    this.props.requestProjectUpload(loadingState);
-                } else {
-                    // skips ahead to step 7
-                    this.removeFileObjects();
-                }
+            if (!thisFileInput.files || thisFileInput.files.length === 0) {
+                this.removeFileObjects();
+                return;
             }
+            this.fileToUpload = thisFileInput.files[0];
+
+            // Owners and users editing a project without an ID must approve replacement.
+            if (userOwnsProject || (projectChanged && isShowingWithoutId)) {
+                this.pendingUpload = {loadingState};
+                this.setState({replacementOperation: this.fileSelectionMode});
+                return;
+            }
+            this.props.requestProjectUpload(loadingState);
+        }
+        handleReplacementConfirm () {
+            if (!this.pendingUpload) return;
+            const {loadingState} = this.pendingUpload;
+            this.pendingUpload = null;
+            this.setState({replacementOperation: null}, () => this.props.requestProjectUpload(loadingState));
+        }
+        handleReplacementCancel () {
+            this.pendingUpload = null;
+            this.removeFileObjects();
+            this.setState({replacementOperation: null});
         }
         // step 4 is below, in mapDispatchToProps
 
@@ -347,6 +356,12 @@ const SBFileUploaderHOC = function (WrappedComponent) {
                             this.handleStartSelectingExternalProjectImport
                         }
                         {...componentProps}
+                    />
+                    <ProjectReplacementModal
+                        isOpen={this.state.replacementOperation !== null}
+                        operation={this.state.replacementOperation || FILE_SELECTION_MODES.OPEN}
+                        onConfirm={this.handleReplacementConfirm}
+                        onCancel={this.handleReplacementCancel}
                     />
                 </React.Fragment>
             );

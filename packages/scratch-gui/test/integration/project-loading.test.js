@@ -106,9 +106,7 @@ describe('Loading scratch gui', () => {
             await findByText('1.28'); // length of A Bass sound
             await clickXpath(FILE_MENU_XPATH);
             await clickXpath('//li[span[text()="New"]]');
-            driver.switchTo()
-                .alert()
-                .accept();
+            await clickText('Criar novo projeto', scope.modal);
             await clickBlocksCategory('Operators');
         });
     });
