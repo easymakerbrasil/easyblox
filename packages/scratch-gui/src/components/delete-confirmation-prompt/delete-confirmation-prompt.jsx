@@ -7,6 +7,16 @@ import styles from './delete-confirmation-prompt.css';
 import deleteIcon from './icon--delete.svg';
 import undoIcon from './icon--undo.svg';
 const messages = defineMessages({
+    confirmLabel: {
+        defaultMessage: 'Sim',
+        description: 'Label for confirming asset deletion in EasyBlox',
+        id: 'gui.easybloxDeleteConfirmation.confirm'
+    },
+    cancelLabel: {
+        defaultMessage: 'Não',
+        description: 'Label for cancelling asset deletion in EasyBlox',
+        id: 'gui.easybloxDeleteConfirmation.cancel'
+    },
     shouldDeleteSpriteMessage: {
         defaultMessage: 'Are you sure you want to delete this sprite?',
         description: 'Message to indicate whether selected sprite should be deleted.',
@@ -82,11 +92,13 @@ const DeleteConfirmationPrompt = ({
             containerClassName={styles.body}
             messageClassName={styles.label}
             confirmButtonConfig={{
+                label: intl.formatMessage(messages.confirmLabel),
                 icon: deleteIcon,
                 className: styles.buttonRowButton,
                 onClick: onOk
             }}
             cancelButtonConfig={{
+                label: intl.formatMessage(messages.cancelLabel),
                 icon: undoIcon,
                 className: styles.buttonRowButton,
                 onClick: onCancel
