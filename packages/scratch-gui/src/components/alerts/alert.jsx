@@ -9,6 +9,9 @@ import Spinner from '../spinner/spinner.jsx';
 import {AlertLevels} from '../../lib/alerts/index.jsx';
 
 import styles from './alert.css';
+import closeStyles from '../close-button/close-button.css';
+import closeIcon from '../close-button/icon--close.svg';
+import closeIconOrange from '../close-button/icon--close-orange.svg';
 
 const closeButtonColors = {
     [AlertLevels.SUCCESS]: CloseButton.COLOR_GREEN,
@@ -16,12 +19,14 @@ const closeButtonColors = {
 };
 
 const AlertComponent = ({
+    announcementRole,
     content,
     closeButton,
     extensionName,
     iconSpinner,
     iconURL,
     level,
+    message,
     showDownload,
     showSaveNow,
     onCloseAlert,
@@ -31,7 +36,7 @@ const AlertComponent = ({
     showReconnect
 }) => (
     <Box
-        className={classNames(styles.alert, styles[level])}
+        className={classNames(styles.alert, styles[level], {[styles.operationAlert]: announcementRole})}
     >
         {/* TODO: implement Rtl handling */}
         {(iconSpinner || iconURL) && (
@@ -50,7 +55,11 @@ const AlertComponent = ({
                 )}
             </div>
         )}
-        <div className={styles.alertMessage}>
+        <div
+            aria-atomic={announcementRole ? true : null}
+            className={styles.alertMessage}
+            role={announcementRole}
+        >
             {extensionName ? (
                 <FormattedMessage
                     defaultMessage="Scratch lost connection to {extensionName}."
@@ -62,7 +71,7 @@ const AlertComponent = ({
                         )
                     }}
                 />
-            ) : content}
+            ) : (message || content)}
         </div>
         <div className={styles.alertButtons}>
             {showSaveNow && (
@@ -105,12 +114,41 @@ const AlertComponent = ({
                 <Box
                     className={styles.alertCloseButtonContainer}
                 >
-                    <CloseButton
+                    {announcementRole ? (
+                        <FormattedMessage
+                            defaultMessage="Fechar aviso"
+                            description="Accessible name for dismissing a Stage preparation alert"
+                            id="gui.stagePreparation.closeAlert"
+                        >
+                            {function (label) {
+                                return (
+                                    <button
+                                        aria-label={label}
+                                        className={classNames(closeStyles.closeButton, closeStyles.large,
+                                            styles.accessibleCloseButton, {
+                                                [closeStyles.orange]: level === AlertLevels.WARN
+                                            })}
+                                        type="button"
+                                        onClick={onCloseAlert}
+                                    >
+                                        <img
+                                            alt=""
+                                            aria-hidden="true"
+                                            className={classNames(closeStyles.closeIcon, {
+                                                [closeStyles.orange]: level === AlertLevels.WARN
+                                            })}
+                                            src={level === AlertLevels.WARN ? closeIconOrange : closeIcon}
+                                        />
+                                    </button>
+                                );
+                            }}
+                        </FormattedMessage>
+                    ) : (<CloseButton
                         className={classNames(styles.alertCloseButton)}
                         color={closeButtonColors[level]}
                         size={CloseButton.SIZE_LARGE}
                         onClick={onCloseAlert}
-                    />
+                    />)}
                 </Box>
             )}
         </div>
@@ -118,12 +156,14 @@ const AlertComponent = ({
 );
 
 AlertComponent.propTypes = {
+    announcementRole: PropTypes.oneOf(['status', 'alert']),
     closeButton: PropTypes.bool,
     content: PropTypes.oneOfType([PropTypes.element, PropTypes.string]),
     extensionName: PropTypes.string,
     iconSpinner: PropTypes.bool,
     iconURL: PropTypes.string,
     level: PropTypes.string,
+    message: PropTypes.string,
     onCloseAlert: PropTypes.func.isRequired,
     onDownload: PropTypes.func,
     onReconnect: PropTypes.func,

@@ -17,7 +17,7 @@ class Alert extends React.Component {
         ]);
     }
     handleOnCloseAlert () {
-        this.props.onCloseAlert(this.props.index);
+        this.props.onCloseAlert(this.props.index, this.props.instanceId);
     }
     handleOnReconnect () {
         this.props.onOpenConnectionModal(this.props.extensionId);
@@ -25,10 +25,10 @@ class Alert extends React.Component {
     }
     render () {
         const {
+            announcementRole,
             closeButton,
             content,
             extensionName,
-            index,
             level,
             iconSpinner,
             iconURL,
@@ -41,6 +41,7 @@ class Alert extends React.Component {
         return (
             <SB3Downloader>{(_, downloadProject) => (
                 <AlertComponent
+                    announcementRole={announcementRole}
                     closeButton={closeButton}
                     content={content}
                     extensionName={extensionName}
@@ -74,6 +75,7 @@ const mapDispatchToProps = dispatch => ({
 });
 
 Alert.propTypes = {
+    announcementRole: PropTypes.oneOf(['status', 'alert']),
     closeButton: PropTypes.bool,
     content: PropTypes.element,
     extensionId: PropTypes.string,
@@ -81,6 +83,7 @@ Alert.propTypes = {
     iconSpinner: PropTypes.bool,
     iconURL: PropTypes.string,
     index: PropTypes.number,
+    instanceId: PropTypes.string,
     level: PropTypes.string.isRequired,
     message: PropTypes.string,
     onCloseAlert: PropTypes.func.isRequired,

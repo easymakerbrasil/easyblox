@@ -2,9 +2,17 @@ import React from 'react';
 import '@testing-library/jest-dom';
 
 import {act, fireEvent} from '@testing-library/react';
+import {Provider} from 'react-redux';
+import {createStore} from 'redux';
+import alertsReducer from '../../../src/reducers/alerts';
+import {
+    showStagePreparationAlert,
+    clearStagePreparationAlerts
+} from '../../../src/lib/easyblox-stage-preparation-alerts';
 
 import {renderWithIntl} from '../../helpers/intl-helpers.jsx';
 import {GUIComponent} from '../../../src/components/gui/gui.jsx';
+import MockHardwareControls from '../../../src/components/hardware-controls/hardware-controls.jsx';
 
 import {
     runEasyBloxStageFirmwareRestore
@@ -66,6 +74,8 @@ jest.mock('../../../src/components/menu-bar/menu-bar.jsx', () => (
         connectionState,
         onPrepareStageFirmware,
         onProgramModeChange,
+        onSelectBoard,
+        selectedBoard,
         onStartSelectingExternalProjectImport,
         stageFirmwareIssue
     }) => (
@@ -78,6 +88,17 @@ jest.mock('../../../src/components/menu-bar/menu-bar.jsx', () => (
             }
             data-testid="menu-bar-state"
         >
+            <button
+                data-testid="select-board"
+                onClick={onSelectBoard}
+            >Select board</button>
+            <MockHardwareControls
+                connectionState={connectionState}
+                onPrepareStageFirmware={onPrepareStageFirmware}
+                onSelectBoard={onSelectBoard}
+                selectedBoard={selectedBoard}
+                stageFirmwareIssue={stageFirmwareIssue}
+            />
             <button
                 data-testid="request-upload-mode"
                 onClick={() => onProgramModeChange('upload')}
@@ -111,23 +132,39 @@ jest.mock('../../../src/components/menu-bar/menu-bar.jsx', () => (
 ));
 
 jest.mock('../../../src/components/board-selection-modal/board-selection-modal.jsx', () => (
-    ({onConfirm}) => (
-        <div>
-            <button
-                data-testid="confirm-arduino-uno"
-                onClick={() => onConfirm('arduino-uno')}
-            >
-                Arduino UNO
-            </button>
+    ({onConfirm, onRemove, onCancel}) => {
+        const {useCallback} = require('react');
+        const handleEasyMakerConfirm = useCallback(() => onConfirm('easymaker'), [onConfirm]);
+        return (
+            <div>
+                <button
+                    data-testid="remove-board"
+                    onClick={onRemove}
+                >Remove board</button>
+                <button
+                    data-testid="cancel-board"
+                    onClick={onCancel}
+                >Cancel</button>
+                <button
+                    data-testid="confirm-easymaker"
+                    onClick={handleEasyMakerConfirm}
+                >EasyMaker</button>
+                <button
+                    data-testid="confirm-arduino-uno"
+                    onClick={() => onConfirm('arduino-uno')}
+                >
+                    Arduino UNO
+                </button>
 
-            <button
-                data-testid="confirm-easyduino-proto"
-                onClick={() => onConfirm('easyduino-proto')}
-            >
-                EasyDuino Proto
-            </button>
-        </div>
-    )
+                <button
+                    data-testid="confirm-easyduino-proto"
+                    onClick={() => onConfirm('easyduino-proto')}
+                >
+                    EasyDuino Proto
+                </button>
+            </div>
+        );
+    }
 ));
 
 jest.mock('../../../src/containers/blocks.jsx', () => (
@@ -150,6 +187,188 @@ jest.mock('../../../src/containers/target-pane.jsx', () => () => null);
 jest.mock('../../../src/components/extension-button/extension-button.jsx', () => () => null);
 jest.mock('../../../src/containers/watermark.jsx', () => () => null);
 jest.mock('../../../src/components/debug-modal/debug-modal.jsx', () => () => null);
+jest.mock('../../../src/containers/sb3-downloader.jsx', () => (
+    ({children}) => children(null, jest.fn())
+));
+
+describe('GUI Stage preparation presentation', () => {
+    const setup = function () {
+        const handlers = new Map();
+        const store = createStore((state, action) => (
+            {scratchGui: {alerts: alertsReducer(state?.scratchGui.alerts, action)}}
+        ));
+        const vm = {
+            generateArduinoUnoUploadCode: jest.fn().mockReturnValue(''),
+            getPeripheralIsConnected: jest.fn().mockReturnValue(false),
+            getPeripheralIsStageConnected: jest.fn().mockReturnValue(false),
+            disconnectPeripheral: jest.fn(),
+            getEasyBloxProjectContext: () => ({selectedBoardId: 'arduino-uno', programMode: 'stage'}),
+            on: jest.fn((event, handler) => {
+                handlers.set(event, handler);
+                if (event === 'PROJECT_LOADED') handler();
+            }),
+            removeListener: jest.fn(),
+            setEasyBloxSelectedBoard: jest.fn(),
+            setProgramContext: jest.fn(),
+            refreshWorkspace: jest.fn()
+        };
+        const attempts = [];
+        const restore = function (options) {
+            const captureResolve = function (resolve) {
+                attempts.push({options, resolve});
+            };
+            return new Promise(captureResolve);
+        };
+        runEasyBloxStageFirmwareRestore.mockImplementation(restore);
+        const show = function (status) {
+            return showStagePreparationAlert(store.dispatch, status);
+        };
+        const clear = function (scopeId) {
+            clearStagePreparationAlerts(store.dispatch, scopeId);
+        };
+        const onShow = jest.fn(show);
+        const onClear = jest.fn(clear);
+        const view = renderWithIntl(
+            <Provider store={store}>
+                <GUIComponent
+                    alertsVisible
+                    colorMode="default"
+                    onClearStagePreparationAlerts={onClear}
+                    onRequestCloseDebugModal={jest.fn()}
+                    onShowStagePreparationAlert={onShow}
+                    setTheme={jest.fn()}
+                    theme="default"
+                    vm={vm}
+                />
+            </Provider>
+        );
+        const start = function () {
+            fireEvent.click(view.getByTestId('prepare-stage-firmware'));
+            return attempts[attempts.length - 1];
+        };
+        const emit = function (attempt, state, code = null) {
+            const messages = {
+                'restoring-stage': 'Preparando a placa para o Modo Palco...',
+                'reconnecting-stage': 'Restaurando a comunicação com a placa...',
+                'stage-ready': 'Placa pronta no Modo Palco.',
+                'error': 'A placa não foi encontrada. Verifique o cabo USB e tente novamente.'
+            };
+            const status = {state, code, message: messages[state]};
+            act(() => attempt.options.onStatus(status));
+            return status;
+        };
+        const finish = async function (attempt) {
+            await act(async () => {
+                attempt.resolve({portHint: {}, peripheralId: 'serial-1'});
+                await Promise.resolve();
+            });
+        };
+        return {...view, store, onShow, handlers, attempts, start, emit, finish};
+    };
+
+    test('preserves full status and replaces progress, persistent error and success', async () => {
+        const view = setup();
+        const attempt = view.start();
+        const status = view.emit(attempt, 'restoring-stage');
+        expect(view.onShow).toHaveBeenLastCalledWith(expect.objectContaining(status));
+        expect(view.getByRole('status')).toHaveTextContent(status.message);
+        view.emit(attempt, 'reconnecting-stage');
+        expect(view.getAllByRole('status')).toHaveLength(1);
+        const error = view.emit(attempt, 'error', 'PORT_NOT_FOUND');
+        expect(view.onShow).toHaveBeenLastCalledWith(expect.objectContaining(error));
+        expect(view.getByRole('alert')).toHaveTextContent(error.message);
+        expect(view.getByTestId('menu-bar-state')).toHaveAttribute('data-stage-firmware-issue', '');
+        await view.finish(attempt);
+        const next = view.start();
+        expect(view.queryByRole('alert')).toBeNull();
+        view.emit(next, 'restoring-stage');
+        view.emit(next, 'error', 'PORT_NOT_FOUND');
+        view.emit(next, 'stage-ready');
+        expect(view.queryByRole('alert')).toBeNull();
+        expect(view.getByRole('status')).toHaveTextContent('Placa pronta no Modo Palco.');
+        await view.finish(next);
+    });
+
+    test('ignores callbacks from a completed previous attempt and keeps the new progress', async () => {
+        const view = setup();
+        const old = view.start();
+        view.emit(old, 'error', 'PORT_NOT_FOUND');
+        await view.finish(old);
+        const next = view.start();
+        view.emit(next, 'restoring-stage');
+        const count = view.onShow.mock.calls.length;
+        view.emit(old, 'error', 'UPLOAD_FAILED');
+        expect(view.onShow).toHaveBeenCalledTimes(count);
+        expect(view.getByRole('status')).toHaveTextContent('Preparando a placa');
+        await view.finish(next);
+    });
+
+    const checkContextChange = async function (action) {
+        const view = setup();
+        const attempt = view.start();
+        view.emit(attempt, 'restoring-stage');
+        if (action === 'change' || action === 'remove') {
+            fireEvent.click(view.getByTestId('select-board'));
+            fireEvent.click(view.getByTestId(action === 'change' ? 'confirm-easymaker' : 'remove-board'));
+        } else if (action === 'upload') {
+            fireEvent.click(view.getByTestId('request-upload-mode'));
+        } else {
+            view.unmount();
+        }
+        expect(view.store.getState().scratchGui.alerts.alertsList).toHaveLength(0);
+        const count = view.onShow.mock.calls.length;
+        view.emit(attempt, 'error', 'PORT_NOT_FOUND');
+        await view.finish(attempt);
+        expect(view.onShow).toHaveBeenCalledTimes(count);
+        expect(view.store.getState().scratchGui.alerts.alertsList).toHaveLength(0);
+    };
+    test.each(['change', 'remove', 'upload', 'unmount'])(
+        'clears and ignores late status after %s', checkContextChange
+    );
+
+    test('a valid ready event clears its error, while another extension cannot clear it', async () => {
+        const view = setup();
+        const attempt = view.start();
+        view.emit(attempt, 'error', 'STAGE_HANDSHAKE_FAILED');
+        await view.finish(attempt);
+        act(() => view.handlers.get('PERIPHERAL_STAGE_READY')({extensionId: 'microbit'}));
+        expect(view.getByRole('alert')).toBeInTheDocument();
+        act(() => view.handlers.get('PERIPHERAL_STAGE_READY')({extensionId: 'arduinoUno'}));
+        expect(view.queryByRole('alert')).toBeNull();
+        expect(view.getByRole('status')).toHaveTextContent('Placa pronta no Modo Palco.');
+    });
+
+    test('unmount cancels the success timer and leaves unrelated alerts intact', async () => {
+        jest.useFakeTimers();
+        const view = setup();
+        const attempt = view.start();
+        view.emit(attempt, 'stage-ready');
+        await view.finish(attempt);
+        expect(jest.getTimerCount()).toBeGreaterThan(0);
+        view.unmount();
+        expect(view.store.getState().scratchGui.alerts.alertsList).toHaveLength(0);
+        expect(jest.getTimerCount()).toBe(0);
+        jest.useRealTimers();
+    });
+
+    test('opening and cancelling the A4.2 modal keeps the preparation error and starts no new attempt', async () => {
+        const view = setup();
+        const attempt = view.start();
+        view.emit(attempt, 'error', 'STAGE_HANDSHAKE_FAILED');
+        await view.finish(attempt);
+        act(() => view.handlers.get('PERIPHERAL_STAGE_HANDSHAKE_FAILED')({
+            extensionId: 'arduinoUno', reason: 'legacy'
+        }));
+        fireEvent.click(view.getByRole('button', {name: 'Cancelar'}));
+        expect(view.getByRole('alert')).toBeInTheDocument();
+        fireEvent.click(view.getByRole('button', {name: 'Erro de conexão. Tentar novamente'}));
+        expect(view.getByRole('dialog', {name: 'Preparar Modo Palco?'})).toBeInTheDocument();
+        expect(view.attempts).toHaveLength(1);
+        fireEvent.click(view.getByRole('button', {name: 'Cancelar'}));
+        expect(view.getByRole('alert')).toBeInTheDocument();
+        expect(view.attempts).toHaveLength(1);
+    });
+});
 
 describe('GUI program mode propagation', () => {
 
@@ -818,6 +1037,7 @@ describe('GUI program mode propagation', () => {
 
     test('automatically restores Stage after an EasyBlox Upload when returning to Stage', async () => {
         const handlers = {};
+        const onShowStagePreparationAlert = jest.fn();
 
         runEasyBloxUpload
             .mockClear();
@@ -934,6 +1154,7 @@ describe('GUI program mode propagation', () => {
         } = renderWithIntl(
             <GUIComponent
                 colorMode="default"
+                onShowStagePreparationAlert={onShowStagePreparationAlert}
                 setTheme={jest.fn()}
                 theme="default"
                 vm={vm}
@@ -1017,6 +1238,18 @@ describe('GUI program mode propagation', () => {
                     'arduino-uno'
             })
         );
+        // The automatic operation uses the same status callback as manual preparation.
+        const {onStatus} = runEasyBloxStageFirmwareRestore.mock.calls[0][0];
+        const statuses = [
+            {state: 'restoring-stage', message: 'Preparando a placa para o Modo Palco...'},
+            {state: 'reconnecting-stage', message: 'Restaurando a comunicação com a placa...'},
+            {state: 'error', code: 'UPLOAD_FAILED', message: 'Não foi possível preparar a placa para o Modo Palco.'},
+            {state: 'stage-ready', message: 'Placa pronta no Modo Palco.'}
+        ];
+        for (const status of statuses) {
+            act(() => onStatus(status));
+            expect(onShowStagePreparationAlert).toHaveBeenLastCalledWith(expect.objectContaining(status));
+        }
     });
 
     test('tracks Stage firmware diagnosis and only restores after explicit user action', async () => {

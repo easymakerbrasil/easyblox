@@ -45,6 +45,7 @@ import systemPreferencesHOC from '../lib/system-preferences-hoc.jsx';
 import {PLATFORM} from '../lib/platform.js';
 
 import GUIComponent from '../components/gui/gui.jsx';
+import {showStagePreparationAlert, clearStagePreparationAlerts} from '../lib/easyblox-stage-preparation-alerts';
 import {GUIStoragePropType} from '../gui-config';
 import {AccountMenuOptionsPropTypes} from '../lib/account-menu-options';
 import {
@@ -232,6 +233,12 @@ const mapStateToProps = (state, ownProps) => {
 };
 
 const mapDispatchToProps = dispatch => ({
+    onShowStagePreparationAlert (status) {
+        return showStagePreparationAlert(dispatch, status);
+    },
+    onClearStagePreparationAlerts (scopeId) {
+        clearStagePreparationAlerts(dispatch, scopeId);
+    },
     onExtensionButtonClick: () => dispatch(openExtensionLibrary()),
     onActivateTab: tab => dispatch(activateTab(tab)),
     onUpdateDynamicAssets: dynamicAssets => dispatch(setDynamicAssets(dynamicAssets)),

@@ -1,35 +1,12 @@
-const ERROR_MESSAGES = Object.freeze({
-    BOARD_CONNECTION_REQUIRED:
-        'Conecte o Arduino UNO ao EasyBlox para preparar o Modo Palco.',
-    PORT_RELEASE_FAILED:
-        'Não foi possível liberar a conexão com a placa. Desconecte e tente novamente.',
-    HARDWARE_SERVICE_UNAVAILABLE:
-        'O serviço de gravação do EasyBlox não está disponível.',
-    TOOLCHAIN_NOT_FOUND:
-        'O ambiente de gravação do Arduino não foi encontrado neste computador.',
-    STAGE_FIRMWARE_NOT_FOUND:
-        'O firmware do Modo Palco não foi encontrado.',
-    STAGE_FIRMWARE_INVALID:
-        'O firmware do Modo Palco não pôde ser utilizado.',
-    BUILD_FAILED:
-        'Não foi possível preparar o Arduino UNO para o Modo Palco.',
-    PORT_NOT_FOUND:
-        'A placa não foi encontrada. Verifique o cabo USB e tente novamente.',
-    PORT_AMBIGUOUS:
-        'Há mais de uma placa USB igual conectada. Deixe apenas a placa que deseja usar.',
-    PORT_BUSY:
-        'A porta da placa está ocupada. Feche outros programas que possam estar usando o Arduino.',
-    BOARD_NOT_RESPONDING:
-        'O Arduino UNO não respondeu durante a preparação do Modo Palco.',
-    UPLOAD_FAILED:
-        'Não foi possível preparar o Arduino UNO para o Modo Palco.',
-    STAGE_HANDSHAKE_FAILED:
-        'O Arduino UNO não respondeu ao Modo Palco após a preparação.',
-    STAGE_RECONNECT_FAILED:
-        'Não foi possível restaurar a comunicação com o Arduino UNO.',
-    DEFAULT:
-        'Não foi possível preparar o Arduino UNO para o Modo Palco.'
-});
+import {
+    stagePreparationMessages,
+    stagePreparationErrorMessages,
+    getStagePreparationErrorMessage
+} from './easyblox-stage-firmware-messages';
+
+const ERROR_MESSAGES = Object.freeze(Object.fromEntries(
+    Object.entries(stagePreparationErrorMessages).map(([code, descriptor]) => [code, descriptor.defaultMessage])
+));
 
 export class EasyBloxStageFirmwareWorkflowError extends Error {
     constructor (
@@ -118,8 +95,7 @@ const translateError =
 
         return new EasyBloxStageFirmwareWorkflowError(
             code,
-            ERROR_MESSAGES[code] ||
-                ERROR_MESSAGES.DEFAULT,
+            getStagePreparationErrorMessage(code).defaultMessage,
             error
         );
     };
@@ -302,6 +278,9 @@ export const runEasyBloxStageFirmwareRestore =
         peripheralId,
         client,
         onStatus,
+        formatMessage = function (descriptor) {
+            return descriptor.defaultMessage;
+        },
         rebootDelayMs = 1000,
         handshakeTimeoutMs = 5000
     }) {
@@ -354,7 +333,7 @@ export const runEasyBloxStageFirmwareRestore =
             emitStatus(
                 onStatus,
                 'restoring-stage',
-                'Preparando Arduino UNO para o Modo Palco...'
+                formatMessage(stagePreparationMessages.restoring)
             );
 
             if (
@@ -385,7 +364,7 @@ export const runEasyBloxStageFirmwareRestore =
             emitStatus(
                 onStatus,
                 'reconnecting-stage',
-                'Restaurando a comunicação com o Arduino UNO...'
+                formatMessage(stagePreparationMessages.reconnecting)
             );
 
             await wait(
@@ -405,7 +384,7 @@ export const runEasyBloxStageFirmwareRestore =
             emitStatus(
                 onStatus,
                 'stage-ready',
-                'Arduino UNO pronto no Modo Palco.'
+                formatMessage(stagePreparationMessages.ready)
             );
 
             return {
@@ -423,7 +402,7 @@ export const runEasyBloxStageFirmwareRestore =
             emitStatus(
                 onStatus,
                 'error',
-                translated.message,
+                formatMessage(getStagePreparationErrorMessage(translated.code)),
                 {
                     code:
                         translated.code

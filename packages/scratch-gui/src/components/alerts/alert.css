@@ -108,3 +108,23 @@ body .alert {
     margin-left: 0;
     margin-right: 0;
 }
+
+.accessible-close-button {
+    border: 0;
+    padding: 0;
+}
+
+.accessible-close-button:focus-visible {
+    outline: 2px solid $motion-primary;
+    outline-offset: 3px;
+}
+
+.operation-alert .alert-message {
+    min-width: 0;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.operation-alert .alert-buttons {
+    flex-shrink: 0;
+}

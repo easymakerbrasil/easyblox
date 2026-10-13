@@ -6,6 +6,7 @@ const SHOW_EXTENSION_ALERT = 'scratch-gui/alerts/SHOW_EXTENSION_ALERT';
 const CLOSE_ALERT = 'scratch-gui/alerts/CLOSE_ALERT';
 const CLOSE_ALERTS_WITH_ID = 'scratch-gui/alerts/CLOSE_ALERTS_WITH_ID';
 const CLOSE_ALERT_WITH_ID = 'scratch-gui/alerts/CLOSE_ALERT_WITH_ID';
+let nextAlertInstanceId = 0;
 
 /**
  * Initial state of alerts reducer
@@ -47,17 +48,21 @@ const reducer = function (state, action) {
         if (alertId) {
             const newAlert = {
                 alertId: alertId,
+                instanceId: action.instanceId,
                 level: AlertLevels.WARN // default level
             };
             const alertData = alertsData.find(thisAlertData => thisAlertData.alertId === alertId);
             if (alertData) {
                 const newList = state.alertsList.filter(curAlert => (
-                    !alertData.clearList || alertData.clearList.indexOf(curAlert.alertId) === -1
+                    !alertData.clearList || alertData.clearList.indexOf(curAlert.alertId) === -1 ||
+                    (alertData.allowRuntimeMessage && curAlert.scopeId !== action.data?.scopeId)
                 ));
-                if (action.data && action.data.message) {
+                if (alertData.allowRuntimeMessage && action.data) {
                     newAlert.message = action.data.message;
+                    newAlert.scopeId = action.data.scopeId;
                 }
 
+                newAlert.announcementRole = alertData.announcementRole;
                 newAlert.alertType = alertData.alertType || AlertTypes.STANDARD;
                 newAlert.closeButton = alertData.closeButton;
                 newAlert.content = alertData.content;
@@ -83,6 +88,7 @@ const reducer = function (state, action) {
                 const newList = state.alertsList.slice();
                 const newAlert = {
                     alertType: AlertTypes.EXTENSION,
+                    instanceId: action.instanceId,
                     closeButton: true,
                     extensionId: extensionId,
                     extensionName: extension.name,
@@ -101,12 +107,15 @@ const reducer = function (state, action) {
     }
     case CLOSE_ALERT_WITH_ID:
     case CLOSE_ALERT: {
-        if (action.alertId) {
-            action.index = state.alertsList.findIndex(a => a.alertId === action.alertId);
-            if (action.index === -1) return state;
+        let index = action.index;
+        if (action.instanceId) {
+            index = state.alertsList.findIndex(({instanceId}) => instanceId === action.instanceId);
+        } else if (action.alertId) {
+            index = state.alertsList.findIndex(a => a.alertId === action.alertId);
         }
+        if (index === -1) return state;
         const newList = state.alertsList.slice();
-        newList.splice(action.index, 1);
+        newList.splice(index, 1);
         return Object.assign({}, state, {
             alertsList: newList
         });
@@ -114,7 +123,8 @@ const reducer = function (state, action) {
     case CLOSE_ALERTS_WITH_ID: {
         return Object.assign({}, state, {
             alertsList: state.alertsList.filter(curAlert => (
-                curAlert.alertId !== action.alertId
+                curAlert.alertId !== action.alertId ||
+                (typeof action.scopeId !== 'undefined' && curAlert.scopeId !== action.scopeId)
             ))
         });
     }
@@ -126,48 +136,57 @@ const reducer = function (state, action) {
 /**
  * Action creator to close an alert with the given index.
  * @param {object} index - the index of the alert to close.
+ * @param {string} [instanceId] - Stable identity, preferred over the index when supplied.
  * @returns {object} - an object to be passed to the reducer.
  */
-const closeAlert = function (index) {
+const closeAlert = function (index, instanceId) {
     return {
         type: CLOSE_ALERT,
-        index
+        index,
+        instanceId
     };
 };
 
 /**
  * Action creator to close all alerts with a given ID.
  * @param {string} alertId - id string of the alert to close
+ * @param {string} [scopeId] - Limit removal to alerts owned by this GUI instance.
  * @returns {object} - an object to be passed to the reducer.
  */
-const closeAlertsWithId = function (alertId) {
+const closeAlertsWithId = function (alertId, scopeId) {
     return {
         type: CLOSE_ALERTS_WITH_ID,
-        alertId
+        alertId,
+        scopeId
     };
 };
 
 /**
  * Action creator to close a single alert with a given ID.
  * @param {string} alertId - id string of the alert to close
+ * @param {string} [instanceId] - Close this specific instance rather than the first matching ID.
  * @returns {object} - an object to be passed to the reducer.
  */
-const closeAlertWithId = function (alertId) {
+const closeAlertWithId = function (alertId, instanceId) {
     return {
         type: CLOSE_ALERT_WITH_ID,
-        alertId
+        alertId,
+        instanceId
     };
 };
 
 /**
  * Action creator to show an alert with the given alertId.
  * @param {string} alertId - id string of the alert to show
+ * @param {object} [data] - Runtime message and scope for alerts opting in to runtime content.
  * @returns {object} - an object to be passed to the reducer.
  */
-const showStandardAlert = function (alertId) {
+const showStandardAlert = function (alertId, data) {
     return {
         type: SHOW_ALERT,
-        alertId
+        alertId,
+        instanceId: `alert-${++nextAlertInstanceId}`,
+        data
     };
 };
 
@@ -181,6 +200,7 @@ const showStandardAlert = function (alertId) {
 const showExtensionAlert = function (data) {
     return {
         type: SHOW_EXTENSION_ALERT,
+        instanceId: `alert-${++nextAlertInstanceId}`,
         data
     };
 };
@@ -190,14 +210,17 @@ const showExtensionAlert = function (data) {
  * timeout to make it close/go away.
  * @param {object} dispatch - dispatch function
  * @param {string} alertId - the ID of the alert
+ * @param {object} [data] - Runtime message and scope for alerts opting in to runtime content.
+ * @returns {number|undefined} Timeout handle when the registered alert has a timeout.
  */
-const showAlertWithTimeout = function (dispatch, alertId) {
+const showAlertWithTimeout = function (dispatch, alertId, data) {
     const alertData = alertsData.find(thisAlertData => thisAlertData.alertId === alertId);
     if (alertData) {
-        dispatch(showStandardAlert(alertId));
+        const action = showStandardAlert(alertId, data);
+        dispatch(action);
         if (alertData.maxDisplaySecs) {
-            setTimeout(() => {
-                dispatch(closeAlertsWithId(alertId));
+            return setTimeout(() => {
+                dispatch(closeAlertWithId(alertId, action.instanceId));
             }, alertData.maxDisplaySecs * 1000);
         }
     }
@@ -208,6 +231,7 @@ export {
     initialState as alertsInitialState,
     closeAlert,
     closeAlertWithId,
+    closeAlertsWithId,
     filterInlineAlerts,
     filterPopupAlerts,
     showAlertWithTimeout,

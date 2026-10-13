@@ -39,6 +39,7 @@ import {
     startEasyBloxSerialMonitor
 } from '../../lib/easyblox-serial-monitor';
 import {runEasyBloxStageFirmwareRestore} from '../../lib/easyblox-stage-firmware-workflow';
+import {stagePreparationMessages} from '../../lib/easyblox-stage-firmware-messages';
 import {
     resolveUploadConnectionState,
     shouldIgnorePeripheralDisconnected
@@ -129,6 +130,7 @@ const easybloxHardwareServiceClient =
 
 export const GUIComponent = props => {
     const intl = useIntl();
+    const {onShowStagePreparationAlert, onClearStagePreparationAlerts} = props;
     const [programMode, setProgramMode] = useState('stage');
     const [selectedBoard, setSelectedBoard] = useState(null);
     const [boardSelectionModalVisible, setBoardSelectionModalVisible] = useState(false);
@@ -141,6 +143,7 @@ export const GUIComponent = props => {
         stageFirmwareIssue,
         setStageFirmwareIssue
     ] = useState(null);
+    const [stagePreparationStatus, setStagePreparationStatus] = useState(null);
     const [uploadPreviewCode, setUploadPreviewCode] = useState('');
     const [uploadPreviewError, setUploadPreviewError] = useState(null);
     const [uploadState, setUploadState] = useState('idle');
@@ -182,6 +185,52 @@ export const GUIComponent = props => {
 
     const stageFirmwareNeedsRestoreRef =
         React.useRef(false);
+
+    const stagePreparationScopeId = React.useId();
+    const stagePreparationAttemptRef = React.useRef(null);
+    const stagePreparationAttemptNumberRef = React.useRef(0);
+    const stagePreparationStatusRef = React.useRef(null);
+    const stagePreparationTimerRef = React.useRef(null);
+    const stagePreparationMountedRef = React.useRef(false);
+    const stagePreparationContextRef = React.useRef(null);
+    stagePreparationContextRef.current = {selectedBoard, programMode};
+
+    const updateStagePreparationStatus = useCallback((status = null) => {
+        stagePreparationStatusRef.current = status;
+        setStagePreparationStatus(status);
+    }, []);
+
+    const clearStagePreparationPresentation = useCallback(() => {
+        clearTimeout(stagePreparationTimerRef.current);
+        stagePreparationTimerRef.current = null;
+        onClearStagePreparationAlerts(stagePreparationScopeId);
+    }, [onClearStagePreparationAlerts, stagePreparationScopeId]);
+
+    useEffect(() => {
+        stagePreparationMountedRef.current = true;
+        return () => {
+            stagePreparationMountedRef.current = false;
+            stagePreparationAttemptRef.current = null;
+            stagePreparationStatusRef.current = null;
+            clearStagePreparationPresentation();
+        };
+    }, [clearStagePreparationPresentation]);
+
+    useEffect(() => {
+        stagePreparationAttemptRef.current = null;
+        updateStagePreparationStatus(null);
+        clearStagePreparationPresentation();
+    }, [selectedBoard, programMode, updateStagePreparationStatus, clearStagePreparationPresentation]);
+
+    useEffect(() => {
+        if (stagePreparationStatus) {
+            stagePreparationTimerRef.current = onShowStagePreparationAlert(stagePreparationStatus);
+        }
+        return () => {
+            clearTimeout(stagePreparationTimerRef.current);
+            stagePreparationTimerRef.current = null;
+        };
+    }, [stagePreparationStatus, onShowStagePreparationAlert]);
 
 
     const updateSerialMonitorState =
@@ -648,6 +697,17 @@ export const GUIComponent = props => {
                 }
 
                 setStageFirmwareIssue(null);
+                const status = stagePreparationStatusRef.current;
+                const context = stagePreparationContextRef.current;
+                if (status?.state === 'error' && status.boardId === context.selectedBoard &&
+                    selectedBoard === context.selectedBoard && context.programMode === 'stage') {
+                    updateStagePreparationStatus({
+                        ...status,
+                        state: 'stage-ready',
+                        code: null,
+                        message: intl.formatMessage(stagePreparationMessages.ready)
+                    });
+                }
                 updateConnectionState();
             };
 
@@ -832,6 +892,8 @@ export const GUIComponent = props => {
         vm,
         selectedBoard,
         programMode,
+        intl,
+        updateStagePreparationStatus,
         updateSerialMonitorState
     ]);
     const handleSelectBoard = useCallback(() => {
@@ -1069,6 +1131,20 @@ export const GUIComponent = props => {
             stageRestoreInFlightRef.current =
                 true;
 
+            const attempt = {
+                id: ++stagePreparationAttemptNumberRef.current,
+                boardId: selectedBoard,
+                programMode: stagePreparationContextRef.current.programMode
+            };
+            stagePreparationAttemptRef.current = attempt;
+            updateStagePreparationStatus(null);
+            clearStagePreparationPresentation();
+            const isCurrentAttempt = () => (
+                stagePreparationMountedRef.current && stagePreparationAttemptRef.current === attempt &&
+                stagePreparationContextRef.current.selectedBoard === attempt.boardId &&
+                stagePreparationContextRef.current.programMode === attempt.programMode
+            );
+
             try {
                 const restoreResult =
                     await runEasyBloxStageFirmwareRestore({
@@ -1082,8 +1158,18 @@ export const GUIComponent = props => {
                             stagePeripheralIdRef.current,
                         client:
                             easybloxHardwareServiceClient,
+                        formatMessage: intl.formatMessage,
                         onStatus:
-                            status => {
+                            function (status) {
+                                if (!isCurrentAttempt()) return;
+                                updateStagePreparationStatus({
+                                    state: status.state,
+                                    code: status.code ?? null,
+                                    message: status.message,
+                                    scopeId: stagePreparationScopeId,
+                                    attemptId: attempt.id,
+                                    boardId: attempt.boardId
+                                });
                                 switch (
                                     status.state
                                 ) {
@@ -1117,6 +1203,7 @@ export const GUIComponent = props => {
                             }
                     });
 
+                if (!isCurrentAttempt()) return;
                 setUploadPortHint(
                     restoreResult.portHint
                 );
@@ -1129,9 +1216,7 @@ export const GUIComponent = props => {
 
                 setStageFirmwareIssue(null);
             } catch (error) {
-                setConnectionState(
-                    'error'
-                );
+                if (isCurrentAttempt()) setConnectionState('error');
             } finally {
                 stageRestoreInFlightRef.current =
                     false;
@@ -1139,6 +1224,10 @@ export const GUIComponent = props => {
         }, [
             selectedBoard,
             uploadPortHint,
+            intl,
+            stagePreparationScopeId,
+            updateStagePreparationStatus,
+            clearStagePreparationPresentation,
             vm
         ]);
 
@@ -1704,6 +1793,8 @@ export const GUIComponent = props => {
 };
 
 GUIComponent.propTypes = {
+    onShowStagePreparationAlert: PropTypes.func,
+    onClearStagePreparationAlerts: PropTypes.func,
     accountMenuOptions: AccountMenuOptionsPropTypes,
     activeTabIndex: PropTypes.number,
     authorId: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]), // can be false
@@ -1794,6 +1885,8 @@ GUIComponent.propTypes = {
 };
 
 GUIComponent.defaultProps = {
+    onShowStagePreparationAlert: () => null,
+    onClearStagePreparationAlerts: () => {},
     basePath: './',
     blocksId: 'original',
     // TODO: Currently all of those are always true. Do we actually need them?

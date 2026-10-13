@@ -104,7 +104,7 @@ describe('EasyBlox Stage firmware workflow', () => {
                 onStatus:
                     status =>
                         statuses.push(
-                            status.state
+                            status
                         ),
                 rebootDelayMs: 0,
                 handshakeTimeoutMs: 100
@@ -119,9 +119,9 @@ describe('EasyBlox Stage firmware workflow', () => {
 
         expect(statuses)
             .toEqual([
-                'restoring-stage',
-                'reconnecting-stage',
-                'stage-ready'
+                {state: 'restoring-stage', message: 'Preparando a placa para o Modo Palco...'},
+                {state: 'reconnecting-stage', message: 'Restaurando a comunicação com a placa...'},
+                {state: 'stage-ready', message: 'Placa pronta no Modo Palco.'}
             ]);
 
         expect(result.portHint)
@@ -253,5 +253,115 @@ describe('EasyBlox Stage firmware workflow', () => {
         expect(
             EasyBloxStageFirmwareWorkflowError
         ).toBeDefined();
+    });
+});
+
+describe('Stage preparation public errors', () => {
+    const cases = [
+        ['BOARD_CONNECTION_REQUIRED', 'Conecte a placa ao EasyBlox para preparar o Modo Palco.'],
+        ['PORT_RELEASE_FAILED', 'Não foi possível liberar a conexão com a placa. ' +
+            'Desconecte e reconecte o cabo USB e tente novamente.'],
+        ['HARDWARE_SERVICE_UNAVAILABLE',
+            'A preparação de placas não está disponível no EasyBlox neste momento. Tente novamente.'],
+        ['TOOLCHAIN_NOT_FOUND',
+            'Os recursos necessários para preparar o Modo Palco não estão disponíveis neste computador.'],
+        ['STAGE_FIRMWARE_NOT_FOUND', 'Os recursos do Modo Palco não estão disponíveis neste computador.'],
+        ['STAGE_FIRMWARE_INVALID', 'Os recursos do Modo Palco não puderam ser utilizados.'],
+        ['BUILD_FAILED', 'Não foi possível preparar a placa para o Modo Palco.'],
+        ['PORT_NOT_FOUND', 'A placa não foi encontrada. Verifique o cabo USB e tente novamente.'],
+        ['PORT_AMBIGUOUS', 'Há mais de uma placa USB que o EasyBlox não conseguiu distinguir. ' +
+            'Deixe conectada apenas a placa que deseja usar.'],
+        ['PORT_BUSY', 'A conexão com a placa está ocupada. Feche outros programas que possam estar usando a placa.'],
+        ['BOARD_NOT_RESPONDING', 'A placa não respondeu durante a preparação do Modo Palco.'],
+        ['UPLOAD_FAILED', 'Não foi possível preparar a placa para o Modo Palco.'],
+        ['STAGE_HANDSHAKE_FAILED',
+            'A placa foi preparada, mas o EasyBlox não conseguiu confirmar a comunicação no Modo Palco.'],
+        ['STAGE_RECONNECT_FAILED', 'A placa foi preparada, mas o EasyBlox não conseguiu restabelecer a comunicação.'],
+        ['DEFAULT', 'Não foi possível preparar a placa para o Modo Palco.'],
+        ['UNRECOGNIZED', 'Não foi possível preparar a placa para o Modo Palco.'],
+        ['toString', 'Não foi possível preparar a placa para o Modo Palco.']
+    ];
+
+    test.each(cases)('%s keeps diagnostics internal', async (code, message) => {
+        const error = Object.assign(new Error('Arduino CLI C:/private/cache FQBN 0x03'), {
+            code, stdout: 'private stdout', stderr: 'private stderr'
+        });
+        const onStatus = jest.fn();
+        await expect(runEasyBloxStageFirmwareRestore({
+            vm: {getPeripheralIsConnected: () => false},
+            board: BOARD,
+            boardId: 'arduino-uno',
+            cachedPortHint: PORT_HINT,
+            peripheralId: 'web-serial-1',
+            client: {restoreStageFirmware: () => Promise.reject(error)},
+            onStatus
+        })).rejects.toMatchObject({code, cause: error});
+        expect(onStatus).toHaveBeenLastCalledWith({state: 'error', code, message});
+    });
+
+    test('does not publish raw messages from workflow errors or change their rejection identity', async () => {
+        const error = new EasyBloxStageFirmwareWorkflowError('UPLOAD_FAILED', 'C:/private Arduino CLI');
+        const onStatus = jest.fn();
+        await expect(runEasyBloxStageFirmwareRestore({
+            vm: {getPeripheralIsConnected: () => false},
+            board: BOARD,
+            boardId: 'arduino-uno',
+            cachedPortHint: PORT_HINT,
+            peripheralId: 'web-serial-1',
+            client: {restoreStageFirmware: () => Promise.reject(error)},
+            onStatus
+        })).rejects.toBe(error);
+        expect(onStatus).toHaveBeenLastCalledWith({
+            state: 'error', code: 'UPLOAD_FAILED', message: 'Não foi possível preparar a placa para o Modo Palco.'
+        });
+    });
+
+    test.each([
+        ['PERIPHERAL_STAGE_HANDSHAKE_FAILED', 'STAGE_HANDSHAKE_FAILED',
+            'A placa foi preparada, mas o EasyBlox não conseguiu confirmar a comunicação no Modo Palco.'],
+        ['PERIPHERAL_REQUEST_ERROR', 'STAGE_RECONNECT_FAILED',
+            'A placa foi preparada, mas o EasyBlox não conseguiu restabelecer a comunicação.'],
+        ['PERIPHERAL_CONNECTION_LOST_ERROR', 'STAGE_RECONNECT_FAILED',
+            'A placa foi preparada, mas o EasyBlox não conseguiu restabelecer a comunicação.']
+    ])('keeps specific public errors after writing: %s', async (event, code, message) => {
+        const vm = new EventEmitter();
+        vm.getPeripheralIsConnected = () => false;
+        vm.connectPeripheral = () => vm.emit(event, {extensionId: 'arduinoUno', message: 'raw private failure'});
+        const client = {restoreStageFirmware: jest.fn().mockResolvedValue({ok: true})};
+        const onStatus = jest.fn();
+        await expect(runEasyBloxStageFirmwareRestore({
+            vm,
+            board: BOARD,
+            boardId: 'arduino-uno',
+            cachedPortHint: PORT_HINT,
+            peripheralId: 'serial-1',
+            client,
+            onStatus,
+            rebootDelayMs: 0
+        })).rejects.toMatchObject({code});
+        expect(client.restoreStageFirmware).toHaveBeenCalledTimes(1);
+        expect(onStatus.mock.calls.map(([status]) => status.state)).toEqual([
+            'restoring-stage', 'reconnecting-stage', 'error'
+        ]);
+        expect(onStatus).toHaveBeenLastCalledWith({state: 'error', code, message});
+        expect(vm.eventNames()).toEqual([]);
+    });
+
+    test('formats only controlled descriptors without changing internal rejection diagnostics', async () => {
+        const onStatus = jest.fn();
+        const formatMessage = jest.fn(({id}) => `translated:${id}`);
+        await expect(runEasyBloxStageFirmwareRestore({
+            vm: {getPeripheralIsConnected: () => false},
+            board: BOARD,
+            boardId: 'arduino-uno',
+            cachedPortHint: PORT_HINT,
+            peripheralId: 'serial-1',
+            client: {restoreStageFirmware: () => Promise.reject(new Error('raw failure'))},
+            onStatus,
+            formatMessage
+        })).rejects.toMatchObject({code: 'DEFAULT', message: 'Não foi possível preparar a placa para o Modo Palco.'});
+        expect(onStatus).toHaveBeenLastCalledWith({
+            state: 'error', code: 'DEFAULT', message: 'translated:gui.stagePreparation.defaultError'
+        });
     });
 });

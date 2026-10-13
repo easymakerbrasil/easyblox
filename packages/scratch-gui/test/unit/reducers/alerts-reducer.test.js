@@ -3,12 +3,67 @@
 /* eslint-env jest */
 import {AlertTypes, AlertLevels} from '../../../src/lib/alerts/index.jsx';
 import alertsReducer, {
+    alertsInitialState,
     closeAlert,
     closeAlertWithId,
     filterInlineAlerts,
     filterPopupAlerts,
+    showAlertWithTimeout,
     showStandardAlert
 } from '../../../src/reducers/alerts';
+
+describe('Stage preparation alert identities', () => {
+    test('replaces its family while preserving INLINE and unrelated alerts', () => {
+        let state = alertsReducer(alertsInitialState, showStandardAlert('saving'));
+        state = alertsReducer(state, showStandardAlert('stagePreparationError', {
+            scopeId: 'gui-1', message: 'Mensagem pública'
+        }));
+        expect(state.alertsList[1].message).toBe('Mensagem pública');
+        state = alertsReducer(state, showStandardAlert('stagePreparationProgress', {
+            scopeId: 'gui-1', message: 'Preparando'
+        }));
+        state = alertsReducer(state, showStandardAlert('stagePreparationProgress', {
+            scopeId: 'gui-1', message: 'Reconectando'
+        }));
+        expect(state.alertsList.map(({alertId}) => alertId)).toEqual(['saving', 'stagePreparationProgress']);
+        expect(state.alertsList[1].message).toBe('Reconectando');
+        expect(filterInlineAlerts(state.alertsList)).toHaveLength(1);
+    });
+
+    test('closes exactly the instance even with a stale index', () => {
+        const first = showStandardAlert('stagePreparationError', {scopeId: 'gui-1'});
+        const second = showStandardAlert('stagePreparationError', {scopeId: 'gui-2'});
+        let state = alertsReducer(alertsInitialState, first);
+        state = alertsReducer(state, second);
+        state = alertsReducer(state, closeAlert(0, second.instanceId));
+        expect(state.alertsList).toHaveLength(1);
+        expect(state.alertsList[0].scopeId).toBe('gui-1');
+        expect(alertsReducer(state, closeAlert(0, second.instanceId))).toBe(state);
+    });
+
+    test('an old success timeout cannot remove a newer success or error', () => {
+        jest.useFakeTimers();
+        let state = alertsReducer(alertsInitialState, {type: 'init'});
+        const dispatch = function (action) {
+            state = alertsReducer(state, action);
+        };
+        showAlertWithTimeout(dispatch, 'stagePreparationSuccess', {scopeId: 'gui-1', message: 'Primeiro'});
+        jest.advanceTimersByTime(1000);
+        showAlertWithTimeout(dispatch, 'stagePreparationSuccess', {scopeId: 'gui-1', message: 'Segundo'});
+        jest.advanceTimersByTime(4000);
+        expect(state.alertsList[0].message).toBe('Segundo');
+        dispatch(showStandardAlert('stagePreparationError', {scopeId: 'gui-1', message: 'Erro'}));
+        jest.advanceTimersByTime(10000);
+        expect(state.alertsList[0].message).toBe('Erro');
+        jest.useRealTimers();
+    });
+
+    test('runtime messages cannot overwrite existing save content', () => {
+        const state = alertsReducer(alertsInitialState, showStandardAlert('saving', {message: 'Dados técnicos'}));
+        expect(state.alertsList[0].message).toBeUndefined();
+        expect(state.alertsList[0].content).toBeDefined();
+    });
+});
 
 test('initialState', () => {
     let defaultState;

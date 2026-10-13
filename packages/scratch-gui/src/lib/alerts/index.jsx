@@ -4,6 +4,15 @@ import keyMirror from 'keymirror';
 
 import successImage from '../assets/icon--success.svg';
 import failImage from '../assets/icon--error.svg';
+import {stagePreparationMessages} from '../easyblox-stage-firmware-messages';
+
+export const STAGE_PREPARATION_ALERT_IDS = Object.freeze({
+    progress: 'stagePreparationProgress',
+    success: 'stagePreparationSuccess',
+    error: 'stagePreparationError'
+});
+
+const stagePreparationFamily = Object.values(STAGE_PREPARATION_ALERT_IDS);
 
 const AlertTypes = keyMirror({
     STANDARD: null,
@@ -19,6 +28,36 @@ const AlertLevels = {
 };
 
 const alerts = [
+    {
+        alertId: STAGE_PREPARATION_ALERT_IDS.progress,
+        clearList: stagePreparationFamily,
+        allowRuntimeMessage: true,
+        announcementRole: 'status',
+        content: <FormattedMessage {...stagePreparationMessages.restoring} />,
+        iconSpinner: true,
+        level: AlertLevels.INFO_BLUE
+    },
+    {
+        alertId: STAGE_PREPARATION_ALERT_IDS.success,
+        clearList: stagePreparationFamily,
+        allowRuntimeMessage: true,
+        announcementRole: 'status',
+        content: <FormattedMessage {...stagePreparationMessages.ready} />,
+        iconURL: successImage,
+        level: AlertLevels.SUCCESS,
+        closeButton: true,
+        maxDisplaySecs: 5
+    },
+    {
+        alertId: STAGE_PREPARATION_ALERT_IDS.error,
+        clearList: stagePreparationFamily,
+        allowRuntimeMessage: true,
+        announcementRole: 'alert',
+        content: <FormattedMessage {...stagePreparationMessages.defaultError} />,
+        iconURL: failImage,
+        level: AlertLevels.WARN,
+        closeButton: true
+    },
     {
         alertId: 'createSuccess',
         alertType: AlertTypes.STANDARD,

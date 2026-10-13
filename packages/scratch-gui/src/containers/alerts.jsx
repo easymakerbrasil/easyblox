@@ -16,7 +16,7 @@ const Alerts = ({
 }) => (
     <AlertsComponent
         // only display standard and extension alerts here
-        alertsList={filterPopupAlerts(alertsList)}
+        alertsList={filterPopupAlerts(alertsList.map((alert, sourceIndex) => ({...alert, sourceIndex})))}
         className={className}
         onCloseAlert={onCloseAlert}
     />
@@ -33,7 +33,7 @@ const mapStateToProps = state => ({
 });
 
 const mapDispatchToProps = dispatch => ({
-    onCloseAlert: index => dispatch(closeAlert(index))
+    onCloseAlert: (index, instanceId) => dispatch(closeAlert(index, instanceId))
 });
 
 export default connect(
