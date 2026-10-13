@@ -2,6 +2,8 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import styles from './hardware-controls.css';
 import ConfirmationPrompt from '../confirmation-prompt/confirmation-prompt.jsx';
+import StageFirmwarePreparationModal
+    from '../stage-firmware-preparation-modal/stage-firmware-preparation-modal.jsx';
 import {PopupAlign, PopupSide} from '../../lib/calculatePopupPosition.js';
 import {getBoardById} from '../../lib/libraries/extensions/index.jsx';
 
@@ -50,29 +52,11 @@ const HardwareControls = ({
 
     const connectionLabel = CONNECTION_LABELS[connectionState];
 
-    const stageFirmwarePrompt =
-        stageFirmwareIssue === 'legacy' ?
-            {
-                message:
-                    'O firmware do Modo Palco precisa ser atualizado.',
-                actionLabel:
-                    'Atualizar para o Modo Palco'
-            } :
-            stageFirmwareIssue === 'incompatible' ?
-                {
-                    message:
-                        'A versão do firmware do Modo Palco não é compatível.',
-                    actionLabel:
-                        'Atualizar para o Modo Palco'
-                } :
-                stageFirmwareIssue === 'unidentified' ?
-                    {
-                        message:
-                            'O firmware do Modo Palco não foi identificado.',
-                        actionLabel:
-                            'Preparar para o Modo Palco'
-                    } :
-                    null;
+    const hasStageFirmwarePrompt = [
+        'legacy',
+        'incompatible',
+        'unidentified'
+    ].includes(stageFirmwareIssue);
 
     const connectionVisualState =
         connectionState === 'uploading' ||
@@ -89,14 +73,14 @@ const HardwareControls = ({
         onDisconnect();
     };
 
-    const handleStageFirmwareCancel = () => {
+    const handleStageFirmwareCancel = React.useCallback(() => {
         setStageFirmwarePromptOpen(false);
-    };
+    }, []);
 
-    const handleStageFirmwareConfirm = () => {
+    const handleStageFirmwareConfirm = React.useCallback(() => {
         setStageFirmwarePromptOpen(false);
         onPrepareStageFirmware();
-    };
+    }, [onPrepareStageFirmware]);
 
     const handleConnectionClick = React.useCallback(() => {
         if (stageFirmwareIssue) {
@@ -173,36 +157,13 @@ const HardwareControls = ({
                 title="Desconectar placa"
             />
 
-            <ConfirmationPrompt
-                align={PopupAlign.CENTER}
-                cancelButtonConfig={{
-                    label: 'Cancelar',
-                    onClick: handleStageFirmwareCancel
-                }}
-                confirmButtonConfig={{
-                    className: styles.disconnectConfirmButton,
-                    label:
-                        stageFirmwarePrompt ?
-                            stageFirmwarePrompt.actionLabel :
-                            'Preparar para o Modo Palco',
-                    onClick: handleStageFirmwareConfirm
-                }}
-                isOpen={
-                    stageFirmwarePromptOpen &&
-                    Boolean(stageFirmwarePrompt)
-                }
-                layoutConfig={{
-                    modalWidth: 320
-                }}
-                message={
-                    stageFirmwarePrompt ?
-                        stageFirmwarePrompt.message :
-                        ''
-                }
-                relativeElementRef={connectionButtonRef}
-                side={PopupSide.DOWN}
-                title="Modo Palco"
-            />
+            {stageFirmwarePromptOpen && hasStageFirmwarePrompt ? (
+                <StageFirmwarePreparationModal
+                    issue={stageFirmwareIssue}
+                    onCancel={handleStageFirmwareCancel}
+                    onConfirm={handleStageFirmwareConfirm}
+                />
+            ) : null}
 
         </div>
     );

@@ -1,8 +1,10 @@
 import React from 'react';
-import {fireEvent, render, screen} from '@testing-library/react';
+import {fireEvent, render as renderComponent, screen} from '@testing-library/react';
+import {IntlProvider} from 'react-intl';
 import '@testing-library/jest-dom';
 
 import HardwareControls from '../../../src/components/hardware-controls/hardware-controls';
+import {renderWithIntl as render} from '../../helpers/intl-helpers.jsx';
 
 describe('HardwareControls', () => {
     test('shows no board as a selectable board indicator', () => {
@@ -241,25 +243,21 @@ describe('HardwareControls', () => {
     test.each([
         [
             'legacy',
-            'O firmware do Modo Palco precisa ser atualizado.',
-            'Atualizar para o Modo Palco'
+            'A preparação do Modo Palco desta placa precisa ser atualizada.'
         ],
         [
             'incompatible',
-            'A versão do firmware do Modo Palco não é compatível.',
-            'Atualizar para o Modo Palco'
+            'A preparação do Modo Palco desta placa não é compatível com esta versão do EasyBlox.'
         ],
         [
             'unidentified',
-            'O firmware do Modo Palco não foi identificado.',
-            'Preparar para o Modo Palco'
+            'O EasyBlox não conseguiu confirmar se esta placa está pronta para o Modo Palco.'
         ]
     ])(
         'offers an explicit Stage firmware action for %s firmware',
         (
             stageFirmwareIssue,
-            expectedMessage,
-            expectedAction
+            expectedMessage
         ) => {
             const onConnect = jest.fn();
             const onPrepareStageFirmware =
@@ -287,6 +285,13 @@ describe('HardwareControls', () => {
                 )
             ).toBeInTheDocument();
 
+            expect(screen.getByRole('dialog', {name: 'Preparar Modo Palco?'})).toBeInTheDocument();
+            expect(screen.getByText('Preparar Modo Palco?')).toBeVisible();
+            expect(screen.getByText(
+                'Para continuar, o EasyBlox precisa preparar a placa. ' +
+                'Esse processo substituirá o programa que está gravado nela atualmente.'
+            )).toBeVisible();
+
             expect(
                 onPrepareStageFirmware
             ).not.toHaveBeenCalled();
@@ -300,7 +305,7 @@ describe('HardwareControls', () => {
                     'button',
                     {
                         name:
-                            expectedAction
+                            'Preparar Modo Palco'
                     }
                 )
             );
@@ -353,7 +358,7 @@ describe('HardwareControls', () => {
 
         expect(
             screen.queryByText(
-                'O firmware do Modo Palco não foi identificado.'
+                'O EasyBlox não conseguiu confirmar se esta placa está pronta para o Modo Palco.'
             )
         ).not.toBeInTheDocument();
     });
@@ -386,7 +391,7 @@ describe('HardwareControls', () => {
 
         expect(
             screen.queryByText(
-                'O firmware do Modo Palco precisa ser atualizado.'
+                'A preparação do Modo Palco desta placa precisa ser atualizada.'
             )
         ).not.toBeInTheDocument();
 
@@ -402,11 +407,99 @@ describe('HardwareControls', () => {
 
         expect(
             screen.getByText(
-                'O firmware do Modo Palco precisa ser atualizado.'
+                'A preparação do Modo Palco desta placa precisa ser atualizada.'
             )
         ).toBeInTheDocument();
 
         expect(onConnect)
             .not.toHaveBeenCalled();
+    });
+
+    test.each([
+        ['Cancelar', false],
+        ['Close', false],
+        ['Escape', true]
+    ])('%s preserves the diagnosis and allows preparation after reopening', (label, isEscape) => {
+        const onPrepareStageFirmware = jest.fn();
+        const onConnect = jest.fn();
+        const onDisconnect = jest.fn();
+        render(
+            <HardwareControls
+                connectionState="error"
+                selectedBoard="arduino-uno"
+                stageFirmwareIssue="unidentified"
+                onPrepareStageFirmware={onPrepareStageFirmware}
+                onConnect={onConnect}
+                onDisconnect={onDisconnect}
+            />
+        );
+
+        if (isEscape) {
+            fireEvent.keyDown(screen.getByRole('dialog'), {key: 'Escape', keyCode: 27});
+        } else {
+            fireEvent.click(screen.getByRole('button', {name: label}));
+        }
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(onPrepareStageFirmware).not.toHaveBeenCalled();
+        expect(onConnect).not.toHaveBeenCalled();
+        expect(onDisconnect).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByRole('button', {name: 'Erro de conexão. Tentar novamente'}));
+        expect(screen.getByText(
+            'O EasyBlox não conseguiu confirmar se esta placa está pronta para o Modo Palco.'
+        )).toBeVisible();
+        fireEvent.click(screen.getByRole('button', {name: 'Preparar Modo Palco'}));
+        expect(onPrepareStageFirmware).toHaveBeenCalledTimes(1);
+        expect(onConnect).not.toHaveBeenCalled();
+        expect(onDisconnect).not.toHaveBeenCalled();
+    });
+
+    test('opens only for a diagnosis and preserves the opening rules when it changes', () => {
+        const props = {
+            connectionState: 'error',
+            selectedBoard: 'arduino-uno',
+            onPrepareStageFirmware: jest.fn(),
+            onConnect: jest.fn()
+        };
+        const {rerender} = renderComponent(<HardwareControls {...props} />, {
+            wrapper: ({children}) => <IntlProvider locale="pt-br">{children}</IntlProvider>
+        });
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+        rerender(
+            <HardwareControls
+                {...props}
+                stageFirmwareIssue="legacy"
+            />
+        );
+        expect(screen.getByRole('dialog', {name: 'Preparar Modo Palco?'})).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', {name: 'Cancelar'}));
+
+        rerender(
+            <HardwareControls
+                {...props}
+                stageFirmwareIssue="legacy"
+            />
+        );
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+        rerender(
+            <HardwareControls
+                {...props}
+                stageFirmwareIssue="incompatible"
+            />
+        );
+        expect(screen.getByRole('dialog', {name: 'Preparar Modo Palco?'})).toBeInTheDocument();
+
+        rerender(
+            <HardwareControls
+                {...props}
+                stageFirmwareIssue={null}
+            />
+        );
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(props.onPrepareStageFirmware).not.toHaveBeenCalled();
+        expect(props.onConnect).not.toHaveBeenCalled();
     });
 });
