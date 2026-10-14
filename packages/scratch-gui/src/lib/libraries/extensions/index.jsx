@@ -581,7 +581,7 @@ const BOARD_PROFILES = [
         capabilities: [
             'bluetoothSerial'
         ],
-        releaseState: 'coming-soon',
+        releaseState: 'available',
         visible: true
     },
     {

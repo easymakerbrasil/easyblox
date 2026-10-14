@@ -160,10 +160,10 @@ jest.mock('../../../src/components/board-selection-modal/board-selection-modal.j
                 </button>
 
                 <button
-                    data-testid="confirm-easyduino-proto"
-                    onClick={() => onConfirm('easyduino-proto')}
+                    data-testid="confirm-easyduino-jr"
+                    onClick={() => onConfirm('easyduino-jr')}
                 >
-                    EasyDuino Proto
+                    EasyDuino Jr
                 </button>
             </div>
         );
@@ -476,7 +476,7 @@ describe('GUI program mode propagation', () => {
 
         fireEvent.click(
             getByTestId(
-                'confirm-easyduino-proto'
+                'confirm-easyduino-jr'
             )
         );
 
@@ -492,7 +492,7 @@ describe('GUI program mode propagation', () => {
         expect(
             vm.setEasyBloxSelectedBoard
         ).not.toHaveBeenCalledWith(
-            'easyduino-proto'
+            'easyduino-jr'
         );
 
         expect(
@@ -652,7 +652,8 @@ describe('GUI program mode propagation', () => {
             ]);
     });
 
-    test('restores Arduino UNO and Upload mode when an EasyBlox project finishes loading', () => {
+    test.each([['arduino-uno', 'Arduino UNO'], ['easymaker', 'EasyMaker'],
+        ['easyduino-proto', 'EasyDuino Proto']])('restores %s in Upload mode', (boardId, boardName) => {
         const setEasyBloxSelectedBoard =
             jest.fn();
 
@@ -664,7 +665,7 @@ describe('GUI program mode propagation', () => {
 
         const getEasyBloxProjectContext =
             jest.fn().mockReturnValue({
-                selectedBoardId: 'arduino-uno',
+                selectedBoardId: boardId,
                 programMode: 'upload'
             });
 
@@ -714,7 +715,7 @@ describe('GUI program mode propagation', () => {
         expect(
             setEasyBloxSelectedBoard
         ).toHaveBeenLastCalledWith(
-            'arduino-uno'
+            boardId
         );
 
         expect(getByTestId('blocks'))
@@ -726,7 +727,7 @@ describe('GUI program mode propagation', () => {
         expect(setProgramContext)
             .toHaveBeenLastCalledWith(
                 'upload',
-                'arduino-uno'
+                boardId
             );
 
         expect(refreshWorkspace)
@@ -737,13 +738,14 @@ describe('GUI program mode propagation', () => {
                 'button',
                 {
                     name:
-                        'Enviar para Arduino UNO'
+                        `Enviar para ${boardName}`
                 }
             )
         ).toBeDisabled();
     });
 
-    test('restores Arduino UNO while keeping a loaded EasyBlox project in Stage mode', () => {
+    test.each([['arduino-uno', 'stage'], ['easymaker', 'stage'],
+        ['easyduino-proto', 'stage']])('restores %s in Stage mode', (boardId, programMode) => {
         const setEasyBloxSelectedBoard =
             jest.fn();
 
@@ -755,8 +757,8 @@ describe('GUI program mode propagation', () => {
 
         const getEasyBloxProjectContext =
             jest.fn().mockReturnValue({
-                selectedBoardId: 'arduino-uno',
-                programMode: 'stage'
+                selectedBoardId: boardId,
+                programMode
             });
 
         const vm = {
@@ -804,18 +806,18 @@ describe('GUI program mode propagation', () => {
         expect(
             setEasyBloxSelectedBoard
         ).toHaveBeenLastCalledWith(
-            'arduino-uno'
+            boardId
         );
 
         expect(getByTestId('blocks'))
             .toHaveAttribute(
                 'data-program-mode',
-                'stage'
+                programMode
             );
 
         expect(setProgramContext)
             .toHaveBeenLastCalledWith(
-                'stage',
+                programMode,
                 null
             );
 
@@ -837,7 +839,7 @@ describe('GUI program mode propagation', () => {
             jest.fn()
                 .mockReturnValue({
                     selectedBoardId:
-                        'easyduino-proto',
+                        'easyduino-jr',
 
                     programMode:
                         'upload'
@@ -1038,7 +1040,8 @@ describe('GUI program mode propagation', () => {
         }
     );
 
-    test('automatically restores Stage after an EasyBlox Upload when returning to Stage', async () => {
+    test.each([['arduino-uno', 'Arduino UNO'], ['easymaker', 'EasyMaker'],
+        ['easyduino-proto', 'EasyDuino Proto']])('uploads %s with UNO target', async (boardId, boardName) => {
         const handlers = {};
         const onShowStagePreparationAlert = jest.fn();
 
@@ -1116,7 +1119,7 @@ describe('GUI program mode propagation', () => {
             getEasyBloxProjectContext:
                 jest.fn().mockReturnValue({
                     selectedBoardId:
-                        'arduino-uno',
+                        boardId,
                     programMode:
                         'upload'
                 }),
@@ -1170,7 +1173,7 @@ describe('GUI program mode propagation', () => {
                     'button',
                     {
                         name:
-                            'Enviar para Arduino UNO'
+                            `Enviar para ${boardName}`
                     }
                 )
             );
@@ -1188,7 +1191,7 @@ describe('GUI program mode propagation', () => {
         expect(
             vm.generateArduinoUnoUploadBuildBundle
         ).toHaveBeenCalledWith(
-            'arduino-uno'
+            boardId
         );
 
         expect(runEasyBloxUpload)

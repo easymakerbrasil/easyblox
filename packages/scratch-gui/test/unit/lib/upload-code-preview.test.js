@@ -53,6 +53,13 @@ describe('generateArduinoUnoUploadRawFiles', () => {
 });
 
 describe('generateArduinoUnoUploadPreview', () => {
+    test('selects the Proto workspace without replacing its logical identity with UNO', () => {
+        const vm = {generateArduinoUnoUploadCode: jest.fn().mockReturnValue('void setup() {}')};
+        expect(generateArduinoUnoUploadPreview(vm, 'easyduino-proto')).toEqual({
+            code: 'void setup() {}', error: null
+        });
+        expect(vm.generateArduinoUnoUploadCode).toHaveBeenCalledWith('easyduino-proto');
+    });
     test('returns generated Arduino UNO C++ from the VM', () => {
         const vm = {
             generateArduinoUnoUploadCode: jest.fn()

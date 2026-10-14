@@ -93,7 +93,6 @@ describe('BoardSelectionModal', () => {
 
         [
             'EasyMaker Connection',
-            'EasyDuino Proto',
             'EasyDuino Jr'
         ].forEach(name => {
             expect(
@@ -110,7 +109,7 @@ describe('BoardSelectionModal', () => {
             screen.getAllByText(
                 'BREVE'
             )
-        ).toHaveLength(3);
+        ).toHaveLength(2);
     });
 
     test('uses direct board selection instead of a combobox', () => {
@@ -134,7 +133,8 @@ describe('BoardSelectionModal', () => {
 
     test.each([
         ['Arduino UNO', 'arduino-uno'],
-        ['EasyMaker', 'easymaker']
+        ['EasyMaker', 'easymaker'],
+        ['EasyDuino Proto', 'easyduino-proto']
     ])('selects %s directly from its card', (name, boardId) => {
         const onConfirm = jest.fn();
 
@@ -157,7 +157,6 @@ describe('BoardSelectionModal', () => {
 
     test.each([
         'EasyMaker Connection',
-        'EasyDuino Proto',
         'EasyDuino Jr'
     ])('does not select future board %s', name => {
         const onConfirm =
@@ -230,6 +229,20 @@ describe('BoardSelectionModal', () => {
         ).not.toBeInTheDocument();
     });
 
+    const checkProtoMode = function (requiredMode) {
+        const onConfirm = jest.fn();
+        render(<BoardSelectionModal
+            requiredMode={requiredMode}
+            onCancel={jest.fn()}
+            onConfirm={onConfirm}
+        />);
+        const proto = screen.getByRole('button', {name: 'EasyDuino Proto'});
+        expect(proto).toBeEnabled();
+        fireEvent.click(proto);
+        expect(onConfirm).toHaveBeenCalledWith('easyduino-proto');
+    };
+    test.each(['stage', 'upload'])('allows Proto selection in %s', checkProtoMode);
+
     test('allows closing without selecting a board', () => {
         const onCancel = jest.fn();
 
@@ -246,7 +259,7 @@ describe('BoardSelectionModal', () => {
             })
         );
 
-                expect(onCancel).toHaveBeenCalledTimes(1);
+        expect(onCancel).toHaveBeenCalledTimes(1);
     });
 
     test('shows the remove option when a board is selected', () => {

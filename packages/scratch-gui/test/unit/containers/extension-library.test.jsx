@@ -20,6 +20,18 @@ describe('ExtensionLibrary active extensions', () => {
         ...overrides
     });
 
+    const checkBluetooth = function (activeBoardId) {
+        const instance = new ExtensionLibrary(createProps({activeBoardId}));
+        const isBluetooth = function (item) {
+            return item.extensionId === 'easybloxBt';
+        };
+        const bluetooth = instance.render().props.data.find(isBluetooth);
+        expect(bluetooth.disabled).toBe(false);
+    };
+    test.each(['arduino-uno', 'easymaker', 'easyduino-proto'])(
+        'allows the compatible Bluetooth extension for %s', checkBluetooth
+    );
+
     test('marks only active extensions as removable', () => {
         const instance = new ExtensionLibrary(createProps({
             activeExtensionIds: ['translate']

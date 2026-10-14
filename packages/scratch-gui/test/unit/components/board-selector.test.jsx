@@ -56,7 +56,6 @@ describe('BoardSelector', () => {
 
         [
             'EasyMaker Connection',
-            'EasyDuino Proto',
             'EasyDuino Jr'
         ].forEach(name => {
             expect(
@@ -83,7 +82,7 @@ describe('BoardSelector', () => {
         ).toHaveValue('arduino-uno');
     });
 
-    test('requests a board change', () => {
+    const checkBoardChange = function (boardId) {
         const onBoardChange = jest.fn();
 
         render(
@@ -97,12 +96,13 @@ describe('BoardSelector', () => {
             screen.getByRole('combobox'),
             {
                 target: {
-                    value: 'arduino-uno'
+                    value: boardId
                 }
             }
         );
 
         expect(onBoardChange).toHaveBeenCalledTimes(1);
-        expect(onBoardChange).toHaveBeenCalledWith('arduino-uno');
-    });
+        expect(onBoardChange).toHaveBeenCalledWith(boardId);
+    };
+    test.each(['arduino-uno', 'easymaker', 'easyduino-proto'])('requests a change to %s', checkBoardChange);
 });
