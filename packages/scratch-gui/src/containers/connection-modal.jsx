@@ -190,7 +190,8 @@ class ConnectionModal extends React.Component {
                 onConnected={this.handleConnected}
                 onConnecting={this.handleConnecting}
                 onDisconnect={this.handleDisconnect}
-                onHelp={this.handleHelp}
+                onHelp={window.easybloxDesktop && typeof window.easybloxDesktop.getAppInfo === 'function' ?
+                    null : this.handleHelp}
                 onScanning={this.handleScanning}
                 onSendPeripheralUpdate={canUpdatePeripheral ? this.handleSendUpdate : null}
                 onUpdatePeripheral={canUpdatePeripheral ? this.handleUpdatePeripheral : null}

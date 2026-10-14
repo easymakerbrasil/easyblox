@@ -11,6 +11,8 @@ class WebGlModal extends React.Component {
         return (
             <WebGlModalComponent
                 isRtl={this.props.isRtl}
+                canOpenExternalLinks={!(window.easybloxDesktop &&
+                    typeof window.easybloxDesktop.getAppInfo === 'function')}
                 onBack={this.handleCancel}
             />
         );

@@ -50,7 +50,7 @@ const ErrorStep = props => (
                         id="gui.connection.error.tryagainbutton"
                     />
                 </button>
-                <button
+                {props.onHelp && <button
                     className={styles.connectionButton}
                     onClick={props.onHelp}
                 >
@@ -63,7 +63,7 @@ const ErrorStep = props => (
                         description="Button to view help content"
                         id="gui.connection.error.helpbutton"
                     />
-                </button>
+                </button>}
             </Box>
         </Box>
     </Box>

@@ -14,7 +14,7 @@ const messages = defineMessages({
     }
 });
 
-const WebGlModal = props => {
+const WebGlModal = ({canOpenExternalLinks = true, ...props}) => {
     const intl = useIntl();
     return (
         <ReactModal
@@ -45,14 +45,14 @@ const WebGlModal = props => {
                                         id="gui.webglModal.webgllink"
                                     />
                                 ),
-                                a: webGlLink => (
+                                a: webGlLink => (canOpenExternalLinks ? (
                                     <a
                                         className={styles.faqLink}
                                         href="https://get.webgl.org/"
                                     >
                                         {webGlLink}
                                     </a>
-                                )
+                                ) : <span>{webGlLink}</span>)
                             }}
                         />
                         { /* eslint-enable max-len */ }
@@ -84,14 +84,14 @@ const WebGlModal = props => {
                                         id="gui.webglModal.previewfaqlinktext"
                                     />
                                 ),
-                                a: previewFaqLink => (
+                                a: previewFaqLink => (canOpenExternalLinks ? (
                                     <a
                                         className={styles.faqLink}
                                         href="//scratch.mit.edu/3faq"
                                     >
                                         {previewFaqLink}
                                     </a>
-                                )
+                                ) : <span>{previewFaqLink}</span>)
                             }}
                         />
                     </div>
@@ -102,6 +102,7 @@ const WebGlModal = props => {
 };
 
 WebGlModal.propTypes = {
+    canOpenExternalLinks: PropTypes.bool,
     isRtl: PropTypes.bool,
     onBack: PropTypes.func.isRequired
 };

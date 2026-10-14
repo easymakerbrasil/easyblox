@@ -18,6 +18,14 @@ jest.mock('../../../src/components/connection-modal/connection-modal.jsx', () =>
 
 jest.mock('../../../src/lib/libraries/extensions/index.jsx', () => ([
     {
+        extensionId: 'microbit',
+        helpLink: 'https://scratch.mit.edu/microbit'
+    },
+    {
+        extensionId: 'gdxfor',
+        helpLink: 'https://scratch.mit.edu/vernier'
+    },
+    {
         extensionId: 'testSerialWeb',
         useAutoScan: false,
         connectionTransport: 'serial'
@@ -66,7 +74,7 @@ describe('ConnectionModal container', () => {
                 vm={vm}
             />
         );
-        return ConnectionModalComponent.mock.calls[0][0];
+        return ConnectionModalComponent.mock.calls.at(-1)[0];
     };
 
     test('uses auto-scanning flow for serial connections on web', () => {
@@ -77,6 +85,28 @@ describe('ConnectionModal container', () => {
     test('uses list scanning flow for serial connections on desktop', () => {
         const props = renderConnectionModal('testSerialDesktop', PLATFORM.DESKTOP);
         expect(props.useAutoScan).toEqual(false);
+    });
+    test('keeps Web help, including simulated Desktop without a bridge', () => {
+        const open = jest.spyOn(window, 'open').mockImplementation(() => null);
+        try {
+            const props = renderConnectionModal('microbit', PLATFORM.WEB);
+            props.onHelp();
+            expect(open).toHaveBeenCalledWith('https://scratch.mit.edu/microbit', '_blank');
+            renderConnectionModal('gdxfor', PLATFORM.DESKTOP).onHelp();
+            expect(open).toHaveBeenCalledWith('https://scratch.mit.edu/vernier', '_blank');
+        } finally {
+            open.mockRestore();
+        }
+    });
+    test('removes legacy help only when the real Desktop bridge is available', () => {
+        const getAppInfo = jest.fn();
+        window.easybloxDesktop = {getAppInfo};
+        try {
+            expect(renderConnectionModal('gdxfor', PLATFORM.WEB).onHelp).toBeNull();
+            expect(getAppInfo).not.toHaveBeenCalled();
+        } finally {
+            delete window.easybloxDesktop;
+        }
     });
     test.each([
         [

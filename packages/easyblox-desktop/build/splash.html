@@ -93,6 +93,20 @@
             margin-top: 34px;
         }
 
+        .version {
+            margin: 8px 0 0;
+            color: #9f9f9f;
+            font-size: 12px;
+            line-height: 1.2;
+            max-width: 90%;
+            overflow-wrap: anywhere;
+            text-align: center;
+        }
+
+        .version:empty {
+            display: none;
+        }
+
         .loading-track {
             position: relative;
             width: 100%;
@@ -166,6 +180,8 @@
         <p class="tagline">
             Mais que Robótica. Transformação Educacional.
         </p>
+
+        <p class="version" id="splash-version"></p>
 
         <div
             class="loading"

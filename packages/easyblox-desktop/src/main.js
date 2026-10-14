@@ -1,5 +1,7 @@
 const path = require('node:path');
 
+const {registerDesktopAppInfo} = require('./desktop-app-info');
+
 const {
     app,
     BrowserWindow,
@@ -32,6 +34,7 @@ const {
 
 const {
     DEFAULT_UPDATE_MANIFEST_URL,
+    parseVersion,
     UpdateService
 } = require('./update-service');
 
@@ -92,6 +95,40 @@ let mainWindow = null;
 let splashWindow = null;
 let shuttingDown = false;
 
+const fillSplashVersion = async window => {
+    const contents = window.webContents;
+    if (window.isDestroyed() || contents.isDestroyed()) return;
+    let timer;
+    let cancel;
+    try {
+        const version = app.getVersion();
+        parseVersion(version);
+        const interrupted = new Promise((resolve, reject) => {
+            cancel = () => resolve();
+            window.once('closed', cancel);
+            contents.once('destroyed', cancel);
+            timer = setTimeout(() => reject(new Error('Splash version delivery timed out')), 3000);
+        });
+        await Promise.race([
+            // Update only this local DOM while JavaScript in the page remains disabled.
+            contents.executeJavaScriptInIsolatedWorld(1001, [{code: `
+                const element = document.getElementById('splash-version');
+                if (!element) throw new Error('Missing splash version element');
+                element.textContent = ${JSON.stringify(`Versão ${version}`)};
+            `}]),
+            interrupted
+        ]);
+    } catch (error) {
+        console.warn('EasyBlox fillSplashVersion failed', {reason: error.message});
+    } finally {
+        clearTimeout(timer);
+        if (cancel) {
+            window.removeListener('closed', cancel);
+            contents.removeListener('destroyed', cancel);
+        }
+    }
+};
+
 const createSplashWindow =
     async () => {
         splashWindow =
@@ -130,11 +167,15 @@ const createSplashWindow =
             SPLASH_HTML_PATH
         );
 
+        const window = splashWindow;
+        if (!window || window.isDestroyed() || window.webContents.isDestroyed()) return;
+        await fillSplashVersion(window);
+
         if (
-            splashWindow &&
-            !splashWindow.isDestroyed()
+            !window.isDestroyed() &&
+            !window.webContents.isDestroyed()
         ) {
-            splashWindow.show();
+            window.show();
         }
     };
 
@@ -305,11 +346,14 @@ const createMainWindow =
                 icon:
                     WINDOW_ICON_PATH,
                 webPreferences: {
+                    preload: path.join(__dirname, 'desktop-preload.js'),
                     contextIsolation: true,
                     nodeIntegration: false,
                     sandbox: true
                 }
             });
+
+        registerDesktopAppInfo(mainWindow, app);
 
         configureSerialPortSelection(
             mainWindow
