@@ -1,0 +1,90 @@
+@import "../../css/easyblox-colors.css";
+
+.modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    width: 30rem;
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+    display: flex;
+    background: $easyblox-graphite;
+}
+
+.modal-content > div {
+    min-height: 0;
+}
+
+.header {
+    flex-shrink: 0;
+}
+
+.header > div:first-child {
+    flex: 1;
+    margin: 0;
+    padding: 1rem 0;
+    padding-inline-start: 3rem;
+}
+
+.header > div:last-child {
+    flex: 0 0 3rem;
+    padding: 0;
+    justify-content: center;
+}
+
+.body {
+    padding: 1.5rem;
+    color: $easyblox-white;
+    text-align: center;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.logo {
+    display: block;
+    width: 18rem;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto 1rem;
+}
+
+.product-name,
+.institution,
+.status {
+    margin: 0 0 1rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.product-name {
+    font-weight: 700;
+}
+
+.status {
+    margin-bottom: 0;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 1.5rem 1.5rem;
+    flex-shrink: 0;
+}
+
+.close-button {
+    padding: 0.65rem 1.1rem;
+    border: 1px solid $easyblox-yellow;
+    border-radius: 2rem;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    background: $easyblox-yellow;
+    color: $easyblox-graphite;
+}
+
+.close-button:focus-visible {
+    outline: 2px solid $easyblox-white;
+    outline-offset: 3px;
+}

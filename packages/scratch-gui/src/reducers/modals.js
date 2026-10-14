@@ -12,8 +12,10 @@ const MODAL_SPRITE_LIBRARY = 'spriteLibrary';
 const MODAL_SOUND_RECORDER = 'soundRecorder';
 const MODAL_CONNECTION = 'connectionModal';
 const MODAL_TIPS_LIBRARY = 'tipsLibrary';
+const MODAL_ABOUT = 'aboutModal';
 
 const initialState = {
+    [MODAL_ABOUT]: false,
     [MODAL_BACKDROP_LIBRARY]: false,
     [MODAL_COSTUME_LIBRARY]: false,
     [MODAL_DEBUG]: false,
@@ -53,6 +55,12 @@ const closeModal = function (modal) {
         type: CLOSE_MODAL,
         modal: modal
     };
+};
+const openAboutModal = function () {
+    return openModal(MODAL_ABOUT);
+};
+const closeAboutModal = function () {
+    return closeModal(MODAL_ABOUT);
 };
 const openBackdropLibrary = function () {
     return openModal(MODAL_BACKDROP_LIBRARY);
@@ -123,6 +131,8 @@ const closeConnectionModal = function () {
 export {
     reducer as default,
     initialState as modalsInitialState,
+    openAboutModal,
+    closeAboutModal,
     openBackdropLibrary,
     openCostumeLibrary,
     openDebugModal,

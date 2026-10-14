@@ -7,7 +7,7 @@ import useMenuNavigation from '../../hooks/use-menu-navigation';
 
 import LanguageMenu from './language-menu.jsx';
 import MenuBarMenu from './menu-bar-menu.jsx';
-import {MenuSection} from '../menu/menu.jsx';
+import {MenuItem, MenuSection} from '../menu/menu.jsx';
 import PreferenceMenu from './preference-menu.jsx';
 
 import {DEFAULT_MODE, HIGH_CONTRAST_MODE, colorModeMap} from '../../lib/settings/color-mode/index.js';
@@ -15,6 +15,7 @@ import {themeMap} from '../../lib/settings/theme/index.js';
 import {persistColorMode} from '../../lib/settings/color-mode/persistence.js';
 import {persistTheme} from '../../lib/settings/theme/persistence.js';
 import {setColorMode, setTheme} from '../../reducers/settings.js';
+import {openAboutModal} from '../../reducers/modals';
 
 import menuBarStyles from './menu-bar.css';
 
@@ -29,6 +30,12 @@ const settingsMenuAriaMessage = defineMessage({
 
 const enabledColorModes = [DEFAULT_MODE, HIGH_CONTRAST_MODE];
 
+const aboutMessage = defineMessage({
+    id: 'gui.aboutEasyBlox.title',
+    defaultMessage: 'Sobre o EasyBlox',
+    description: 'Title and settings action for EasyBlox application information'
+});
+
 const SettingsMenu = ({
     canChangeLanguage,
     canChangeColorMode,
@@ -39,6 +46,7 @@ const SettingsMenu = ({
     onChangeColorMode,
     activeTheme,
     onChangeTheme,
+    onOpenAbout,
     depth
 }) => {
     const intl = useIntl();
@@ -63,11 +71,18 @@ const SettingsMenu = ({
         handleOnOpen,
         handleOnClose,
         handleKeyDown,
+        handleKeyDownOpenMenu,
         menuRef
     } = useMenuNavigation({
         depth,
         isRtl
     });
+
+    const handleAbout = useMemo(() => function (event) {
+        event.stopPropagation();
+        handleOnClose();
+        onOpenAbout();
+    }, [handleOnClose, onOpenAbout]);
 
     return (<button
         className={classNames(menuBarStyles.menuBarItem, menuBarStyles.hoverable, menuBarStyles.themeMenu, {
@@ -117,6 +132,15 @@ const SettingsMenu = ({
                     depth={depth + 1}
                 />}
             </MenuSection>
+            <MenuSection>
+                <MenuItem
+                    isDataMenuItem
+                    onClick={handleAbout}
+                    onParentKeyDown={handleKeyDownOpenMenu}
+                >
+                    {intl.formatMessage(aboutMessage)}
+                </MenuItem>
+            </MenuSection>
         </MenuBarMenu>
     </button>);
 };
@@ -131,6 +155,7 @@ SettingsMenu.propTypes = {
     onChangeColorMode: PropTypes.func,
     activeTheme: PropTypes.string,
     onChangeTheme: PropTypes.func,
+    onOpenAbout: PropTypes.func.isRequired,
     depth: PropTypes.number
 };
 
@@ -141,6 +166,7 @@ const mapStateToProps = state => ({
 });
 
 const mapDispatchToProps = dispatch => ({
+    onOpenAbout: () => dispatch(openAboutModal()),
     onChangeColorMode: colorMode => {
         dispatch(setColorMode(colorMode));
         persistColorMode(colorMode);

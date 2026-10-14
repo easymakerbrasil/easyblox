@@ -13,6 +13,9 @@ import {
 import {renderWithIntl} from '../../helpers/intl-helpers.jsx';
 import {GUIComponent} from '../../../src/components/gui/gui.jsx';
 import MockHardwareControls from '../../../src/components/hardware-controls/hardware-controls.jsx';
+import MockAboutEasyBlox from '../../../src/containers/about-easyblox.jsx';
+
+jest.mock('../../../src/containers/about-easyblox.jsx', () => jest.fn(() => null));
 
 import {
     runEasyBloxStageFirmwareRestore
@@ -1573,5 +1576,22 @@ describe('GUI program mode propagation', () => {
 
         expect(getByTestId('blocks'))
             .toHaveAttribute('data-program-mode', 'stage');
+    });
+    test('mounts About only while its mapped visibility is true', () => {
+        const renderGui = function (aboutModalVisible) {
+            return renderWithIntl(<GUIComponent
+                aboutModalVisible={aboutModalVisible}
+                colorMode="default"
+                menuBarHidden
+                setTheme={jest.fn()}
+                theme="default"
+                vm={{setProgramContext: jest.fn(), refreshWorkspace: jest.fn()}}
+            />);
+        };
+        MockAboutEasyBlox.mockClear();
+        renderGui(false).unmount();
+        expect(MockAboutEasyBlox).not.toHaveBeenCalled();
+        renderGui(true).unmount();
+        expect(MockAboutEasyBlox).toHaveBeenCalled();
     });
 });

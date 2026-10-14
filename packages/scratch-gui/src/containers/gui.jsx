@@ -203,6 +203,7 @@ const mapStateToProps = (state, ownProps) => {
     const loadingState = state.scratchGui.projectState.loadingState;
     return {
         storage: state.scratchGui.config.storage,
+        aboutModalVisible: state.scratchGui.modals.aboutModal,
         activeTabIndex: state.scratchGui.editorTab.activeTabIndex,
         alertsVisible: state.scratchGui.alerts.visible,
         backdropLibraryVisible: state.scratchGui.modals.backdropLibrary,

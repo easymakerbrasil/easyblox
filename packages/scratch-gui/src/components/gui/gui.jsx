@@ -29,6 +29,7 @@ import Cards from '../../containers/cards.jsx';
 import Alerts from '../../containers/alerts.jsx';
 import DragLayer from '../../containers/drag-layer.jsx';
 import ConnectionModal from '../../containers/connection-modal.jsx';
+import AboutEasyBlox from '../../containers/about-easyblox.jsx';
 import TelemetryModal from '../telemetry-modal/telemetry-modal.jsx';
 import BoardSelectionModal from '../board-selection-modal/board-selection-modal.jsx';
 import EasyConectDesktopWindow from '../../containers/easyconect-desktop-window.jsx';
@@ -356,6 +357,7 @@ export const GUIComponent = props => {
         canUseCloud,
         children,
         connectionModalVisible,
+        aboutModalVisible,
         costumeLibraryVisible,
         costumesTabVisible,
         debugModalVisible,
@@ -1464,6 +1466,7 @@ export const GUIComponent = props => {
                             vm={vm}
                         />
                     ) : null}
+                    {aboutModalVisible ? <AboutEasyBlox /> : null}
                     {costumeLibraryVisible ? (
                         <CostumeLibrary
                             vm={vm}
@@ -1793,6 +1796,7 @@ export const GUIComponent = props => {
 };
 
 GUIComponent.propTypes = {
+    aboutModalVisible: PropTypes.bool,
     onShowStagePreparationAlert: PropTypes.func,
     onClearStagePreparationAlerts: PropTypes.func,
     accountMenuOptions: AccountMenuOptionsPropTypes,
