@@ -25,6 +25,7 @@ import easyMakerBoardIconURL from './boards/easymaker.png';
 import easyMakerConnectionBoardIconURL from './boards/easymaker-connection.png';
 import easyDuinoProtoBoardIconURL from './boards/easyduino-proto.png';
 import easyDuinoJrBoardIconURL from './boards/easyduino-jr.png';
+import easyDuinoConnectionBoardIconURL from './boards/easyduino-connection.png';
 import easybloxBtIconURL from './easybloxBt/easyblox-bt.svg';
 import easybloxBtInsetIconURL from './easybloxBt/easyblox-bt-small.svg';
 import easybloxQrIconURL from './easybloxQr/easyblox-qr.svg';
@@ -550,21 +551,18 @@ const BOARD_PROFILES = [
         visible: true
     },
     {
-        name: 'EasyMaker Connection',
-        boardId: 'easymaker-connection',
+        name: 'EasyDuino Jr',
+        boardId: 'easyduino-jr',
         targetBoardId: 'arduino-uno',
         extensionId: 'arduinoUno',
-        iconURL: easyMakerConnectionBoardIconURL,
+        iconURL: easyDuinoJrBoardIconURL,
         kind: 'board',
         supportedModes: [
             'stage',
             'upload'
         ],
-        capabilities: [
-            'bluetoothSerial',
-            'wifi'
-        ],
-        releaseState: 'coming-soon',
+        capabilities: [],
+        releaseState: 'available',
         visible: true
     },
     {
@@ -585,19 +583,31 @@ const BOARD_PROFILES = [
         visible: true
     },
     {
-        name: 'EasyDuino Jr',
-        boardId: 'easyduino-jr',
+        name: 'EasyMaker Connection',
+        boardId: 'easymaker-connection',
         targetBoardId: 'arduino-uno',
         extensionId: 'arduinoUno',
-        iconURL: easyDuinoJrBoardIconURL,
+        iconURL: easyMakerConnectionBoardIconURL,
         kind: 'board',
         supportedModes: [
             'stage',
             'upload'
         ],
-        capabilities: [],
-        releaseState: 'available',
+        capabilities: [
+            'bluetoothSerial',
+            'wifi'
+        ],
+        releaseState: 'coming-soon',
         visible: true
+    },
+    {
+        name: 'EasyDuino Connection',
+        boardId: 'easyduino-connection',
+        kind: 'board',
+        visible: true,
+        releaseState: 'coming-soon',
+        supportedModes: [],
+        iconURL: easyDuinoConnectionBoardIconURL
     },
     {
         name: 'micro:bit',

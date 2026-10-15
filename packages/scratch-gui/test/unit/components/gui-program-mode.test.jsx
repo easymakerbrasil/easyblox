@@ -139,6 +139,7 @@ jest.mock('../../../src/components/board-selection-modal/board-selection-modal.j
         const {useCallback} = require('react');
         const handleEasyMakerConfirm = useCallback(() => onConfirm('easymaker'), [onConfirm]);
         const handleConnectionConfirm = useCallback(() => onConfirm('easymaker-connection'), [onConfirm]);
+        const handleEasyDuinoConnectionConfirm = useCallback(() => onConfirm('easyduino-connection'), [onConfirm]);
         return (
             <div>
                 <button
@@ -171,6 +172,12 @@ jest.mock('../../../src/components/board-selection-modal/board-selection-modal.j
                     onClick={handleConnectionConfirm}
                 >
                     EasyMaker Connection
+                </button>
+                <button
+                    data-testid="confirm-easyduino-connection"
+                    onClick={handleEasyDuinoConnectionConfirm}
+                >
+                    EasyDuino Connection
                 </button>
             </div>
         );
@@ -438,7 +445,7 @@ describe('GUI program mode propagation', () => {
         );
     });
 
-    test('rejects a coming-soon board even if selection is requested programmatically', () => {
+    const checkUnavailableSelection = function (boardId) {
         const vm = {
             generateArduinoUnoUploadCode:
                 jest.fn()
@@ -483,7 +490,7 @@ describe('GUI program mode propagation', () => {
 
         fireEvent.click(
             getByTestId(
-                'confirm-easymaker-connection'
+                `confirm-${boardId}`
             )
         );
 
@@ -499,7 +506,7 @@ describe('GUI program mode propagation', () => {
         expect(
             vm.setEasyBloxSelectedBoard
         ).not.toHaveBeenCalledWith(
-            'easymaker-connection'
+            boardId
         );
 
         expect(
@@ -508,7 +515,10 @@ describe('GUI program mode propagation', () => {
             'stage',
             null
         );
-    });
+    };
+    test.each(['easymaker-connection', 'easyduino-connection'])(
+        'rejects coming-soon board %s even when requested programmatically', checkUnavailableSelection
+    );
 
     const checkJrSelection = function (programMode) {
         const vm = {
@@ -862,7 +872,7 @@ describe('GUI program mode propagation', () => {
             .toHaveBeenCalled();
     });
 
-    test('does not restore a coming-soon board from loaded project metadata', () => {
+    const checkUnavailableRestoration = function (boardId) {
         const setEasyBloxSelectedBoard =
             jest.fn();
 
@@ -876,7 +886,7 @@ describe('GUI program mode propagation', () => {
             jest.fn()
                 .mockReturnValue({
                     selectedBoardId:
-                        'easymaker-connection',
+                        boardId,
 
                     programMode:
                         'upload'
@@ -959,7 +969,10 @@ describe('GUI program mode propagation', () => {
         expect(
             refreshWorkspace
         ).toHaveBeenCalled();
-    });
+    };
+    test.each(['easymaker-connection', 'easyduino-connection'])(
+        'does not restore coming-soon board %s from loaded project metadata', checkUnavailableRestoration
+    );
 
     test.each([
         [

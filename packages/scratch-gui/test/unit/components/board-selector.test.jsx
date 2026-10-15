@@ -19,6 +19,11 @@ describe('BoardSelector', () => {
             })
         ).toBeInTheDocument();
 
+        expect(screen.getAllByRole('option').map(({value}) => value)).toEqual([
+            '', 'arduino-uno', 'easymaker', 'easyduino-jr', 'easyduino-proto',
+            'easymaker-connection', 'easyduino-connection'
+        ]);
+
         expect(
             screen.getByRole('option', {
                 name: 'Arduino UNO'
@@ -57,7 +62,8 @@ describe('BoardSelector', () => {
         expect(screen.getByRole('option', {name: 'EasyDuino Jr'})).toBeEnabled();
 
         [
-            'EasyMaker Connection'
+            'EasyMaker Connection',
+            'EasyDuino Connection'
         ].forEach(name => {
             expect(
                 screen.getByRole(
@@ -107,5 +113,18 @@ describe('BoardSelector', () => {
     };
     test.each(['arduino-uno', 'easymaker', 'easyduino-proto', 'easyduino-jr'])(
         'requests a change to %s', checkBoardChange
+    );
+
+    const checkUnavailableChange = function (boardId) {
+        const onBoardChange = jest.fn();
+        render(<BoardSelector
+            selectedBoard={null}
+            onBoardChange={onBoardChange}
+        />);
+        fireEvent.change(screen.getByRole('combobox'), {target: {value: boardId}});
+        expect(onBoardChange).not.toHaveBeenCalled();
+    };
+    test.each(['easymaker-connection', 'easyduino-connection'])(
+        'rejects a programmatic change to %s', checkUnavailableChange
     );
 });

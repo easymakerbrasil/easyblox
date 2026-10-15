@@ -18,6 +18,7 @@ class BoardSelectionModal extends React.PureComponent {
 
     render () {
         const visibleBoards = getVisibleBoards().filter(board =>
+            board.releaseState === 'coming-soon' ||
             !this.props.requiredMode ||
             board.supportedModes.includes(this.props.requiredMode)
         );

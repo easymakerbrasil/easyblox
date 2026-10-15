@@ -93,10 +93,23 @@ test('exposes EasyBlox product boards to the board selection flow', () => {
     expect(boardIds).toEqual([
         'arduino-uno',
         'easymaker',
-        'easymaker-connection',
+        'easyduino-jr',
         'easyduino-proto',
-        'easyduino-jr'
+        'easymaker-connection',
+        'easyduino-connection'
     ]);
+});
+
+test('keeps EasyDuino Connection visual without an invented backend or capabilities', () => {
+    expect(getBoardById('easyduino-connection')).toEqual({
+        name: 'EasyDuino Connection',
+        boardId: 'easyduino-connection',
+        kind: 'board',
+        visible: true,
+        releaseState: 'coming-soon',
+        supportedModes: [],
+        iconURL: expect.any(String)
+    });
 });
 
 test('marks launch-ready boards as available and future boards as coming soon', () => {
