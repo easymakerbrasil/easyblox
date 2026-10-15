@@ -442,8 +442,8 @@ test('Sensors expose EasyMaker ultrasonic physical port symbols', t => {
                             .triangle
                             .dataURI,
                     alt: 'porta triângulo',
-                    width: 32,
-                    height: 32
+                    width: 24,
+                    height: 24
                 },
                 value: 'analog-a2-a3'
             },
@@ -454,8 +454,8 @@ test('Sensors expose EasyMaker ultrasonic physical port symbols', t => {
                             .pentagon
                             .dataURI,
                     alt: 'porta pentágono',
-                    width: 32,
-                    height: 32
+                    width: 24,
+                    height: 24
                 },
                 value: 'analog-a4-a5'
             },
@@ -466,8 +466,8 @@ test('Sensors expose EasyMaker ultrasonic physical port symbols', t => {
                             .asterisk
                             .dataURI,
                     alt: 'porta asterisco',
-                    width: 32,
-                    height: 32
+                    width: 24,
+                    height: 24
                 },
                 value: 'digital-d2-d3'
             }
@@ -656,8 +656,8 @@ test('Sensors expose EasyMaker DHT physical port symbols', t => {
                             .asterisk
                             .dataURI,
                     alt: 'porta asterisco',
-                    width: 32,
-                    height: 32
+                    width: 24,
+                    height: 24
                 },
                 value: 'digital-d2-d3'
             },
@@ -668,8 +668,8 @@ test('Sensors expose EasyMaker DHT physical port symbols', t => {
                             .question
                             .dataURI,
                     alt: 'porta interrogação',
-                    width: 32,
-                    height: 32
+                    width: 24,
+                    height: 24
                 },
                 value: 'digital-d12'
             },
@@ -680,8 +680,8 @@ test('Sensors expose EasyMaker DHT physical port symbols', t => {
                             .chevrons
                             .dataURI,
                     alt: 'porta menor e maior',
-                    width: 32,
-                    height: 32
+                    width: 24,
+                    height: 24
                 },
                 value: 'digital-d13'
             }

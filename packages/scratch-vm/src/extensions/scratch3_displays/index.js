@@ -154,8 +154,8 @@ class Scratch3DisplaysBlocks {
                             {
                                 src: symbol.dataURI,
                                 alt,
-                                width: symbol.width,
-                                height: symbol.height
+                                width: useEasyMakerTm1637Surface ? 24 : symbol.width,
+                                height: useEasyMakerTm1637Surface ? 24 : symbol.height
                             } :
                             physicalPort ?
                                 physicalPort.fallbackLabel :

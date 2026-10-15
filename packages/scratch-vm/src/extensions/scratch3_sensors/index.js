@@ -124,8 +124,8 @@ class Scratch3SensorsBlocks {
                             {
                                 src: symbol.dataURI,
                                 alt,
-                                width: symbol.width,
-                                height: symbol.height
+                                width: useEasyMakerGenericSensorSurface ? 24 : symbol.width,
+                                height: useEasyMakerGenericSensorSurface ? 24 : symbol.height
                             } :
                             physicalPort.fallbackLabel,
                     value: portId
@@ -165,8 +165,8 @@ class Scratch3SensorsBlocks {
                             {
                                 src: symbol.dataURI,
                                 alt,
-                                width: symbol.width,
-                                height: symbol.height
+                                width: useEasyMakerGenericSensorSurface ? 24 : symbol.width,
+                                height: useEasyMakerGenericSensorSurface ? 24 : symbol.height
                             } :
                             physicalPort.fallbackLabel,
                     value: portId
@@ -206,8 +206,8 @@ class Scratch3SensorsBlocks {
                             {
                                 src: symbol.dataURI,
                                 alt,
-                                width: symbol.width,
-                                height: symbol.height
+                                width: useEasyMakerUltrasonicSurface ? 24 : symbol.width,
+                                height: useEasyMakerUltrasonicSurface ? 24 : symbol.height
                             } :
                             physicalPort.fallbackLabel,
                     value: portId
@@ -247,8 +247,8 @@ class Scratch3SensorsBlocks {
                             {
                                 src: symbol.dataURI,
                                 alt,
-                                width: symbol.width,
-                                height: symbol.height
+                                width: useEasyMakerDhtSurface ? 24 : symbol.width,
+                                height: useEasyMakerDhtSurface ? 24 : symbol.height
                             } :
                             physicalPort.fallbackLabel,
                     value: portId

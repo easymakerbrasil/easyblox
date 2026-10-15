@@ -55,6 +55,11 @@ class Scratch3ActuatorsBlocks {
         const useEasyMakerSurface =
             this._isEasyMakerSelected();
 
+        const getDropdownPortSymbol = symbolId => {
+            const symbol = EasyMakerPortSymbols[symbolId];
+            return useEasyMakerSurface ? {...symbol, width: 24, height: 24} : symbol;
+        };
+
         const useEasyMakerMotorSurface =
             useEasyMakerSurface;
 
@@ -89,9 +94,9 @@ class Scratch3ActuatorsBlocks {
 
                 const symbol =
                     physicalPort ?
-                        EasyMakerPortSymbols[
+                        getDropdownPortSymbol(
                             physicalPort.symbolId
-                        ] :
+                        ) :
                         null;
 
                 const alt =
@@ -133,9 +138,9 @@ class Scratch3ActuatorsBlocks {
 
                 const symbol =
                     physicalPort ?
-                        EasyMakerPortSymbols[
+                        getDropdownPortSymbol(
                             physicalPort.symbolId
-                        ] :
+                        ) :
                         null;
 
                 const alt =
@@ -175,9 +180,9 @@ class Scratch3ActuatorsBlocks {
 
                 const symbol =
                     physicalPort ?
-                        EasyMakerPortSymbols[
+                        getDropdownPortSymbol(
                             physicalPort.symbolId
-                        ] :
+                        ) :
                         null;
 
                 const alt =
@@ -217,9 +222,9 @@ class Scratch3ActuatorsBlocks {
 
                 const symbol =
                     physicalPort ?
-                        EasyMakerPortSymbols[
+                        getDropdownPortSymbol(
                             physicalPort.symbolId
-                        ] :
+                        ) :
                         null;
 
                 const alt =
@@ -969,6 +974,10 @@ class Scratch3ActuatorsBlocks {
             );
 
         return [
+            {
+                blockType: BlockType.LABEL,
+                text: formatMessage({id: 'actuators.easymaker.ledsLabel', default: 'LEDs'})
+            },
             blocksByOpcode.get(
                 'ledWrite'
             ),
@@ -984,6 +993,10 @@ class Scratch3ActuatorsBlocks {
 
             '---',
 
+            {
+                blockType: BlockType.LABEL,
+                text: formatMessage({id: 'actuators.easymaker.buzzerLabel', default: 'Buzzer'})
+            },
             blocksByOpcode.get(
                 'toneStart'
             ),
@@ -993,6 +1006,10 @@ class Scratch3ActuatorsBlocks {
 
             '---',
 
+            {
+                blockType: BlockType.LABEL,
+                text: formatMessage({id: 'actuators.easymaker.motorsLabel', default: 'Motores'})
+            },
             blocksByOpcode.get(
                 'motorInit'
             ),
@@ -1005,15 +1022,16 @@ class Scratch3ActuatorsBlocks {
             blocksByOpcode.get(
                 'motorStop'
             ),
-
-            '---',
-
             blocksByOpcode.get(
                 'servoWrite'
             ),
 
             '---',
 
+            {
+                blockType: BlockType.LABEL,
+                text: formatMessage({id: 'actuators.easymaker.relayLabel', default: 'Relé'})
+            },
             blocksByOpcode.get(
                 'relayWrite'
             )

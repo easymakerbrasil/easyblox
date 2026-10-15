@@ -84,8 +84,8 @@ class Scratch3ArduinoUnoBlocks {
                         symbol && alt ?
                             {
                                 src: symbol.dataURI,
-                                width: symbol.width,
-                                height: symbol.height,
+                                width: useEasyMakerSurface ? 24 : symbol.width,
+                                height: useEasyMakerSurface ? 24 : symbol.height,
                                 alt
                             } :
                             String(port.pin),

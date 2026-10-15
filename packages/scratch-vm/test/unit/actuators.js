@@ -8,6 +8,173 @@ const EasyMakerProductProfile =
 
 const test = tap.test;
 
+test('Only EasyMaker actuator dropdowns use compact port symbols', t => {
+    const symbols = require('../../src/board-profiles/easymaker-port-symbols');
+    let boardId = 'arduino-uno';
+    const extension = new Scratch3ActuatorsBlocks({
+        getPeripheralExtension: () => ({}),
+        getEasyBloxSelectedBoardId: () => boardId
+    });
+    const original = extension.getInfo();
+    const menuNames = ['easyMakerDigitalPorts', 'easyMakerLedPorts',
+        'easyMakerBuzzerPorts', 'easyMakerTrafficLightPorts'];
+    const imageOpcodes = ['motorInit', 'rgbLedDigitalWrite', 'rgbLedPwmWrite'];
+    for (boardId of ['easymaker', 'easyduino-jr', 'arduino-uno', 'easyduino-proto',
+        'easymaker-connection', 'easyduino-connection', 'easymaker']) {
+        const info = extension.getInfo();
+        const size = boardId === 'easymaker' ? 24 : 32;
+        for (const name of menuNames) {
+            t.same(info.menus[name], {
+                ...original.menus[name],
+                items: original.menus[name].items.map(item => ({
+                    ...item,
+                    text: {...item.text, width: size, height: size}
+                }))
+            }, `${boardId}: ${name} preserves images, descriptions, values and order`);
+        }
+        for (const opcode of imageOpcodes) {
+            const block = info.blocks.find(item => item.opcode === opcode);
+            const originalBlock = original.blocks.find(item => item.opcode === opcode);
+            t.same(block.arguments.PORT, originalBlock.arguments.PORT,
+                `${boardId}: ${opcode} preserves its original fixed image`);
+        }
+        const fixedImageOpcodes = info.blocks
+            .filter(block => block.arguments && Object.values(block.arguments)
+                .some(argument => argument.type === ArgumentType.IMAGE))
+            .map(block => block.opcode)
+            .sort();
+        t.same(fixedImageOpcodes, imageOpcodes.slice().sort(),
+            `${boardId}: all fixed image consumers are covered`);
+    }
+    for (const symbol of Object.values(symbols)) {
+        t.same([symbol.width, symbol.height], [32, 32], `${symbol.id}: canonical dimensions are untouched`);
+    }
+    t.end();
+});
+
+test('EasyMaker actuator labels and spacing survive board changes in both modes', t => {
+    const Runtime = require('../../src/engine/runtime');
+    const runtime = new Runtime();
+    t.teardown(() => runtime.dispose());
+    runtime.registerPeripheralExtension('arduinoUno', {});
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+    runtime._registerExtensionPrimitives(extension.getInfo());
+    const snapshot = boardId => {
+        runtime.setEasyBloxSelectedBoardId(boardId);
+        const info = extension.getInfo();
+        runtime._refreshExtensionPrimitives(info);
+        return {
+            info,
+            xml: ['stage', 'upload'].map(mode =>
+                runtime.getBlocksXML(null, mode).find(category => category.id === 'actuators').xml)
+        };
+    };
+    const otherBoards = ['arduino-uno', 'easyduino-jr', 'easyduino-proto',
+        'easymaker-connection', 'easyduino-connection'];
+    const originals = new Map(otherBoards.map(boardId => [boardId, snapshot(boardId)]));
+    const easyMaker = snapshot('easymaker');
+    const expectedOpcodes = ['ledWrite', 'rgbLedDigitalWrite', 'rgbLedPwmWrite', 'trafficLightWrite',
+        'toneStart', 'toneStop', 'motorInit', 'motorWrite', 'motorStop', 'servoWrite', 'relayWrite'];
+    t.same(easyMaker.info.blocks.filter(block => block.blockType === 'label').map(block => block.text),
+        ['LEDs', 'Buzzer', 'Motores', 'Relé']);
+    for (const xml of easyMaker.xml) {
+        t.same(Array.from(xml.matchAll(/<label text="([^"]+)"/g), match => match[1]),
+            ['LEDs', 'Buzzer', 'Motores', 'Relé']);
+        t.equal((xml.match(/<sep gap="36"\/>/g) || []).length, 3);
+        t.same(Array.from(xml.matchAll(/<block type="actuators_([^"]+)"/g), match => match[1]), expectedOpcodes);
+        t.notMatch(xml, 'actuators_motorConfigure');
+        t.match(xml, /actuators_motorStop[\s\S]*?<\/block><block type="actuators_servoWrite"/);
+    }
+    t.equal(easyMaker.xml[0], easyMaker.xml[1], 'both modes use the same visual organization');
+    const configuration = easyMaker.info.blocks.find(block => block.opcode === 'motorConfigure');
+    t.equal(configuration.hideFromPalette, true, 'legacy opcode remains registered and hidden');
+    for (const boardId of otherBoards) {
+        t.same(snapshot(boardId), originals.get(boardId), `${boardId}: metadata and XML remain unchanged`);
+        t.same(snapshot('easymaker'), easyMaker, 'returning to EasyMaker does not duplicate labels');
+    }
+    t.end();
+});
+
+test('EasyMaker organization preserves every command definition and menu', t => {
+    const runtime = {
+        getPeripheralExtension: () => ({}),
+        getEasyBloxSelectedBoardId: () => 'easymaker'
+    };
+    const ungroupedExtension = new Scratch3ActuatorsBlocks(runtime);
+    ungroupedExtension._orderBlocksForSurface = blocks => blocks;
+    const ungrouped = ungroupedExtension.getInfo();
+    const grouped = new Scratch3ActuatorsBlocks(runtime).getInfo();
+    const definitions = info => Object.fromEntries(info.blocks.filter(block => block.opcode)
+        .map(block => [block.opcode, block]));
+    t.same(definitions(grouped), definitions(ungrouped), 'texts, arguments, defaults and symbols are untouched');
+    t.same(grouped.menus, ungrouped.menus, 'port menus are untouched');
+    t.equal(Object.keys(definitions(grouped)).length, 12, 'all command opcodes remain registered');
+    t.end();
+});
+
+test('EasyMaker actuator sb3 roundtrip preserves visible and hidden command data', async t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const fs = require('fs');
+    const path = require('path');
+    const vm = new VirtualMachine();
+    const restored = new VirtualMachine();
+    t.teardown(() => {
+        vm.quit();
+        restored.quit();
+    });
+    await vm.loadProject(fs.readFileSync(path.resolve(__dirname, '../fixtures/origin.sb3')));
+    vm.setEasyBloxSelectedBoard('easymaker');
+    const info = new Scratch3ActuatorsBlocks(vm.runtime).getInfo();
+    const target = vm.runtime.targets.find(item => !item.isStage);
+    const program = vm.getOrCreateUploadProgram('easymaker');
+    for (const blocks of [target.blocks, program.blocks]) {
+        for (const definition of info.blocks.filter(block => block.opcode)) {
+            const id = `stored_${definition.opcode}`;
+            const block = {
+                id,
+                opcode: `actuators_${definition.opcode}`,
+                inputs: {},
+                fields: {},
+                next: null,
+                parent: null,
+                topLevel: true,
+                shadow: false,
+                x: 40,
+                y: 40
+            };
+            for (const [name, argument] of Object.entries(definition.arguments)) {
+                if (argument.type === ArgumentType.IMAGE) continue;
+                const shadow = `${id}_${name}`;
+                block.inputs[name] = {name, block: shadow, shadow};
+                blocks.createBlock({
+                    id: shadow,
+                    opcode: argument.menu ? `actuators_menu_${argument.menu}` : 'math_number',
+                    inputs: {},
+                    fields: {
+                        [argument.menu || 'NUM']: {
+                            name: argument.menu || 'NUM',
+                            value: String(argument.defaultValue)
+                        }
+                    },
+                    next: null,
+                    parent: id,
+                    topLevel: false,
+                    shadow: true
+                });
+            }
+            blocks.createBlock(block);
+        }
+    }
+    vm.setProgramContext('upload', 'easymaker');
+    const before = JSON.parse(vm.toJSON());
+    await restored.loadProject(Buffer.from(await (await vm.saveProjectSb3()).arrayBuffer()));
+    const after = JSON.parse(restored.toJSON());
+    t.same(after.easybloxUploadPrograms, before.easybloxUploadPrograms);
+    t.same(after.targets.map(item => item.blocks), before.targets.map(item => item.blocks));
+    t.same(restored.getEasyBloxProjectContext(), {selectedBoardId: 'easymaker', programMode: 'upload'});
+    t.ok(restored.getOrCreateUploadProgram('easymaker').blocks.getBlock('stored_motorConfigure'));
+});
+
 test('Jr actuator toolbox groups LEDs, buzzer, motors and relay with native labels and spacing', t => {
     const Runtime = require('../../src/engine/runtime');
     const runtime = new Runtime();
@@ -1132,12 +1299,13 @@ test('Actuators expose EasyMaker Buzzer and pedagogical palette order', t => {
                 block =>
                     block === '---' ?
                         '---' :
-                        block.opcode
+                        block.opcode || block.text
             );
 
     t.same(
         visiblePalette,
         [
+            'LEDs',
             'ledWrite',
             'rgbLedDigitalWrite',
             'rgbLedPwmWrite',
@@ -1145,21 +1313,22 @@ test('Actuators expose EasyMaker Buzzer and pedagogical palette order', t => {
 
             '---',
 
+            'Buzzer',
             'toneStart',
             'toneStop',
 
             '---',
 
+            'Motores',
             'motorInit',
             'motorWrite',
             'motorStop',
-
-            '---',
 
             'servoWrite',
 
             '---',
 
+            'Relé',
             'relayWrite'
         ],
         'EasyMaker orders light, sound, movement and relay groups'
