@@ -9,6 +9,211 @@ const EasyMakerPortSymbols =
 
 const test = tap.test;
 
+test('Jr fixes HC-SR04 and DHT11 presentation while retaining legacy arguments and joystick definitions', t => {
+    const Runtime = require('../../src/engine/runtime');
+    const runtime = new Runtime();
+    t.teardown(() => runtime.dispose());
+    runtime.registerPeripheralExtension('arduinoUno', {});
+    runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+    const info = new Scratch3SensorsBlocks(runtime).getInfo();
+    const ultrasonic = info.blocks.find(block => block.opcode === 'ultrasonicRead');
+    const dht = info.blocks.find(block => block.opcode === 'dhtRead');
+    t.equal(ultrasonic.text, 'obter distância do ultrassônico em cm');
+    t.same(Object.keys(ultrasonic.arguments), ['TRIG', 'ECHO']);
+    t.notMatch(dht.text, /\[PIN\]/);
+    t.match(dht.text, '[TYPE]');
+    t.same(Object.keys(dht.arguments), ['TYPE', 'PIN']);
+    t.same(info.menus.dhtTypes.items, [{text: 'temperatura', value: '0'}, {text: 'umidade', value: '1'}]);
+    runtime._registerExtensionPrimitives(info);
+    const category = runtime._blockInfo.find(item => item.id === 'sensors');
+    const converted = opcode => category.blocks.find(block => block.info && block.info.opcode === opcode).json;
+    t.same(converted('ultrasonicRead').args0 || [], [], 'no editable TRIG or ECHO in Scratch Blocks JSON');
+    t.same(converted('dhtRead').args0.map(arg => arg.name), ['TYPE']);
+    for (const opcode of ['joystickInit', 'joystickInitEasyMaker', 'joystickValue', 'joystickClicked']) {
+        t.equal(info.blocks.find(block => block.opcode === opcode).hideFromPalette, true);
+        t.equal(converted(opcode).type, `sensors_${opcode}`, 'hidden opcode remains registered');
+    }
+    for (const mode of ['stage', 'upload']) {
+        const toolbox = runtime.getBlocksXML(null, mode).find(item => item.id === 'sensors').xml;
+        t.notMatch(toolbox, /sensors_joystick/, `${mode}: joystick absent from the actual toolbox XML`);
+    }
+    t.end();
+});
+
+test('Only Jr overrides legacy HC-SR04 and DHT pins after logical board changes', async t => {
+    let boardId = 'easyduino-jr';
+    const calls = [];
+    const sensors = new Scratch3SensorsBlocks({
+        getEasyBloxSelectedBoardId: () => boardId,
+        getPeripheralExtension: () => ({
+            ultrasonicRead: (...pins) => {
+                calls.push(['ultrasonic', ...pins]);
+                return Promise.resolve(1234);
+            },
+            dhtRead: (...pins) => {
+                calls.push(['dht', ...pins]);
+                return Promise.resolve({temperature: 2356, humidity: 4875});
+            }
+        })
+    });
+    for (boardId of ['easyduino-jr', 'arduino-uno', 'easymaker', 'easyduino-proto', 'easyduino-jr']) {
+        t.equal(await sensors.ultrasonicRead({TRIG: 8, ECHO: 9}), 123.4);
+        t.equal(await sensors.dhtRead({PIN: 10, TYPE: 0}), 23.56);
+        t.equal(await sensors.dhtRead({PIN: 10, TYPE: 1}), 48.75);
+        t.same(calls.splice(0), boardId === 'easyduino-jr' ?
+            [['ultrasonic', 16, 17], ['dht', 12, 0], ['dht', 12, 1]] :
+            [['ultrasonic', 8, 9], ['dht', 10, 0], ['dht', 10, 1]], boardId);
+        const info = sensors.getInfo();
+        for (const opcode of ['joystickInit', 'joystickValue', 'joystickClicked']) {
+            const hidden = info.blocks.find(block => block.opcode === opcode).hideFromPalette;
+            const expected = boardId === 'easyduino-jr' || (boardId === 'easymaker' && opcode === 'joystickInit');
+            t.equal(Boolean(hidden), expected, `${boardId}: ${opcode} visibility`);
+        }
+    }
+    t.equal(await sensors.ultrasonicRead({}), 123.4, 'new Jr blocks do not need stored pin inputs');
+    t.equal(await sensors.dhtRead({TYPE: 1}), 48.75);
+    t.equal(await sensors.ultrasonicReadPort({PORT: 'legacy-port'}), 123.4);
+    t.equal(await sensors.dhtReadPort({PORT: 'legacy-port', TYPE: 0}), 23.56);
+    t.same(calls.slice(-2), [['ultrasonic', 16, 17], ['dht', 12, 0]],
+        'legacy connector opcodes also use the fixed Jr wiring');
+});
+
+test('Jr semantic sensor metadata exposes only TYPE and its declared components', t => {
+    const sensors = new Scratch3SensorsBlocks({
+        getEasyBloxSelectedBoardId: () => 'easyduino-jr',
+        getPeripheralExtension: () => ({})
+    });
+    const info = sensors.getInfo();
+    const digital = info.blocks.find(block => block.opcode === 'digitalSensorRead');
+    const analog = info.blocks.find(block => block.opcode === 'analogSensorRead');
+    t.equal(digital.hideFromPalette, false);
+    t.equal(analog.hideFromPalette, false);
+    t.equal(digital.text, 'sensor digital [TYPE]');
+    t.equal(analog.text, 'sensor analógico [TYPE]');
+    t.same(Object.keys(digital.arguments), ['TYPE'], 'no EasyMaker connector input on Jr');
+    t.same(Object.keys(analog.arguments), ['TYPE'], 'fixed wiring does not offer editable PORT');
+    t.equal(digital.arguments.TYPE.defaultValue, 'REFLECTIVE');
+    t.equal(analog.arguments.TYPE.defaultValue, 'POTENTIOMETER');
+    t.same(info.menus[digital.arguments.TYPE.menu].items, [{text: 'Reflexivo', value: 'REFLECTIVE'}]);
+    t.same(info.menus[analog.arguments.TYPE.menu].items, [
+        {text: 'Potenciômetro', value: 'POTENTIOMETER'},
+        {text: 'LDR', value: 'LDR'},
+        {text: 'Umidade do Solo', value: 'SOIL_MOISTURE'}
+    ]);
+    t.ok(info.menus.easyMakerDigitalSensorPorts, 'legacy PORT shadows retain their menu definition');
+    t.ok(info.menus.easyMakerAnalogSensorPorts, 'stored PORT data remains interpretable');
+    t.equal(info.blocks.find(block => block.opcode === 'ultrasonicRead').arguments.TRIG.defaultValue, 16);
+    t.equal(info.blocks.find(block => block.opcode === 'ultrasonicRead').arguments.ECHO.defaultValue, 17);
+    t.equal(info.blocks.find(block => block.opcode === 'dhtRead').arguments.PIN.defaultValue, 12);
+    t.end();
+});
+
+test('Sensor metadata follows board changes without mutating the other board surfaces', t => {
+    let boardId = 'easymaker';
+    const sensors = new Scratch3SensorsBlocks({
+        getEasyBloxSelectedBoardId: () => boardId,
+        getPeripheralExtension: () => ({})
+    });
+    for (const id of ['easymaker', 'arduino-uno', 'easyduino-proto']) {
+        boardId = id;
+        const original = sensors.getInfo();
+        boardId = 'easyduino-jr';
+        const jr = sensors.getInfo();
+        t.notOk(jr.blocks.find(block => block.opcode === 'analogSensorRead').arguments.PORT);
+        boardId = id;
+        t.same(sensors.getInfo(), original, `${id} metadata is unchanged after visiting Jr`);
+        const digital = original.blocks.find(block => block.opcode === 'digitalSensorRead');
+        t.equal(digital.text, 'sensor digital [TYPE] na porta [PORT]');
+        t.ok(digital.arguments.PORT);
+        t.equal(digital.hideFromPalette, id !== 'easymaker');
+        t.equal(original.menus.digitalSensorTypes.items.length, 6);
+        t.equal(original.menus.analogSensorTypes.items.length, 5);
+    }
+    t.end();
+});
+
+test('Jr semantic analog sensors follow the selected logical profile and preserve raw values', async t => {
+    const Runtime = require('../../src/engine/runtime');
+    const runtime = new Runtime();
+    t.teardown(() => runtime.dispose());
+    const pins = [];
+    runtime.registerPeripheralExtension('arduinoUno', {
+        analogRead: pin => {
+            pins.push(pin);
+            return Promise.resolve(pin === 15 ? 0 : pin === 14 ? 1023 : 527);
+        }
+    });
+    const sensors = new Scratch3SensorsBlocks(runtime);
+    runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+    const cases = [['LDR', 0], ['POTENTIOMETER', 1023], ['SOIL_MOISTURE', 527]];
+    for (const [TYPE, value] of cases) {
+        t.equal(await sensors.analogSensorRead({TYPE, PORT: 'analog-a5'}), value);
+    }
+    t.same(pins, [15, 14, 16]);
+    t.equal(sensors.analogSensorRead({TYPE: 'SOUND', PORT: 'analog-a0'}), null);
+    t.equal(sensors.analogSensorRead({TYPE: 'REFLECTIVE', PORT: 'analog-a0'}), null);
+    runtime.setEasyBloxSelectedBoardId('easymaker');
+    await sensors.analogSensorRead({TYPE: 'LDR', PORT: 'analog-a0'});
+    t.equal(pins[pins.length - 1], 14, 'EasyMaker still resolves its explicit connector');
+    runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+    await sensors.analogSensorRead({TYPE: 'LDR', PORT: 'analog-a0'});
+    t.equal(pins[pins.length - 1], 15, 'returning to Jr resolves its component again');
+});
+
+test('Jr reflective detection is active LOW while generic Arduino digitalRead stays unchanged', async t => {
+    const Runtime = require('../../src/engine/runtime');
+    const ArduinoBlocks = require('../../src/extensions/scratch3_arduino_uno');
+    const runtime = new Runtime();
+    t.teardown(() => runtime.dispose());
+    let level = 0;
+    const pins = [];
+    runtime.registerPeripheralExtension('arduinoUno', {
+        digitalRead: pin => {
+            pins.push(pin);
+            return Promise.resolve(level);
+        }
+    });
+    const sensors = new Scratch3SensorsBlocks(runtime);
+    const arduino = new ArduinoBlocks(runtime);
+    arduino._peripheral = sensors._peripheral;
+    runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+    t.equal(await sensors.digitalSensorRead({TYPE: 'REFLECTIVE', PORT: 'digital-d12'}), true);
+    t.equal(pins[0], 13);
+    t.equal(await arduino.digitalRead({PIN: 13}), false);
+    level = 1;
+    t.equal(await sensors.digitalSensorRead({TYPE: 'REFLECTIVE'}), false);
+    t.equal(await arduino.digitalRead({PIN: 13}), true);
+    level = null;
+    t.equal(await sensors.digitalSensorRead({TYPE: 'REFLECTIVE'}), null);
+    t.equal(sensors.digitalSensorRead({TYPE: 'PIR', PORT: 'digital-d12'}), null);
+    runtime.setEasyBloxSelectedBoardId('easymaker');
+    level = 1;
+    t.equal(await sensors.digitalSensorRead({TYPE: 'REFLECTIVE', PORT: 'digital-d13'}), true);
+    runtime.setEasyBloxSelectedBoardId('easyduino-proto');
+    t.equal(await arduino.digitalRead({PIN: 13}), true);
+});
+
+test('Jr keeps the existing HC-SR04 and DHT11 technical paths and units', async t => {
+    const calls = [];
+    const sensors = new Scratch3SensorsBlocks({
+        getEasyBloxSelectedBoardId: () => 'easyduino-jr',
+        getPeripheralExtension: () => ({
+            ultrasonicRead: (trig, echo) => {
+                calls.push(['ultrasonic', trig, echo]);
+                return Promise.resolve(1234);
+            },
+            dhtRead: (pin, type) => {
+                calls.push(['dht', pin, type]);
+                return Promise.resolve({temperature: 2356, humidity: 4875});
+            }
+        })
+    });
+    t.equal(await sensors.ultrasonicRead({TRIG: 16, ECHO: 17}), 123.4);
+    t.equal(await sensors.dhtRead({PIN: 12, TYPE: 0}), 23.56);
+    t.equal(await sensors.dhtRead({PIN: 12, TYPE: 1}), 48.75);
+    t.same(calls, [['ultrasonic', 16, 17], ['dht', 12, 0], ['dht', 12, 1]]);
+});
+
 test('Sensors reuse the registered Arduino UNO peripheral', t => {
     const sharedPeripheral = {};
 

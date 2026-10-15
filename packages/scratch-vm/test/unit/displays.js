@@ -7,6 +7,93 @@ const BlockType =
 const Scratch3DisplaysBlocks =
     require('../../src/extensions/scratch3_displays');
 
+test('Only Jr hides the entire matrix section and fixed TM1637 pin selectors', t => {
+    const Runtime = require('../../src/engine/runtime');
+    const runtime = new Runtime();
+    t.teardown(() => runtime.dispose());
+    runtime.registerPeripheralExtension('arduinoUno', {});
+    const extension = new Scratch3DisplaysBlocks(runtime);
+    for (const boardId of ['arduino-uno', 'easymaker', 'easyduino-proto']) {
+        runtime.setEasyBloxSelectedBoardId(boardId);
+        const before = extension.getInfo();
+        runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+        const info = extension.getInfo();
+        const init = info.blocks.find(block => block.opcode === 'tm1637Init');
+        t.same(Object.keys(init.arguments), ['CLK', 'DIO'], 'legacy argument definitions remain');
+        t.notMatch(init.text, /\[(CLK|DIO|PORT)\]/);
+        runtime._registerExtensionPrimitives(info);
+        const category = runtime._blockInfo.find(item => item.id === 'displays');
+        const converted = category.blocks.find(block => block.info.opcode === 'tm1637Init');
+        t.same(converted.json.args0 || [], []);
+        for (const opcode of ['configureMatrix', 'matrixWrite', 'matrixClear', 'matrixBrightness']) {
+            t.ok(category.blocks.some(block => block.info.opcode === opcode), 'matrix opcode stays registered');
+            t.equal(info.blocks.find(block => block.opcode === opcode).hideFromPalette, true);
+        }
+        for (const mode of ['stage', 'upload']) {
+            const xml = runtime.getBlocksXML(null, mode).find(item => item.id === 'displays').xml;
+            t.notMatch(xml, /Matriz de LED|displays_(configureMatrix|matrixWrite|matrixClear|matrixBrightness)/);
+            t.same(Array.from(xml.matchAll(/<label text="([^"]+)"/g), match => match[1]),
+                ['Display LCD 16×2', 'Display de 7 segmentos']);
+            t.equal((xml.match(/<sep gap="36"\/>/g) || []).length, 1, 'no empty matrix section or leading gap');
+            for (const opcode of ['lcdInit', 'lcdWrite', 'lcdClear', 'lcdMode',
+                'tm1637Init', 'tm1637Show', 'tm1637Clear']) {
+                t.match(xml, `type="displays_${opcode}"`);
+            }
+        }
+        runtime.setEasyBloxSelectedBoardId(boardId);
+        t.same(extension.getInfo(), before, `${boardId} surface restored after Jr`);
+    }
+    t.end();
+});
+
+test('Jr TM1637 uses profile pins on every write without contaminating other board configurations', t => {
+    let boardId = 'arduino-uno';
+    const calls = [];
+    const extension = new Scratch3DisplaysBlocks({
+        getEasyBloxSelectedBoardId: () => boardId,
+        getPeripheralExtension: () => ({tm1637Write: (...args) => calls.push(args)})
+    });
+    const args = {VALUE: 12, LENGTH: 4, POSITION: 1, POINT: '1', LEADING_ZEROS: '1'};
+    extension.tm1637Init({CLK: 8, DIO: 9});
+    for (boardId of ['easyduino-jr', 'arduino-uno', 'easyduino-proto', 'easyduino-jr']) {
+        if (boardId === 'easyduino-jr') extension.tm1637Init({CLK: 2, DIO: 3, PORT: 'legacy-port'});
+        extension.tm1637Show(args);
+        extension.tm1637Clear();
+        const pins = boardId === 'easyduino-jr' ? [19, 18] : [8, 9];
+        t.same(calls.splice(0), [[...pins, [0x3F, 0xBF, 0x06, 0x5B]], [...pins, [0, 0, 0, 0]]], boardId);
+    }
+    boardId = 'easymaker';
+    const ports = require('../../src/board-profiles/easymaker-product-profile').devices.tm1637.ports;
+    const portId = Object.keys(ports)[0];
+    extension.tm1637Init({PORT: portId});
+    extension.tm1637Clear();
+    t.same(calls.splice(0), [[ports[portId].clkPin, ports[portId].dioPin, [0, 0, 0, 0]]]);
+    boardId = 'easyduino-jr';
+    extension.tm1637Init({});
+    extension.tm1637Clear();
+    t.same(calls.splice(0), [[19, 18, [0, 0, 0, 0]]]);
+    t.end();
+});
+
+test('Jr external LCD reuses the UNO commands without an address or additional pin configuration', t => {
+    const calls = [];
+    const extension = new Scratch3DisplaysBlocks({
+        getEasyBloxSelectedBoardId: () => 'easyduino-jr',
+        getPeripheralExtension: () => Object.fromEntries(['lcdInit', 'lcdWrite', 'lcdMode', 'lcdClear']
+            .map(method => [method, (...args) => calls.push([method, ...args])]))
+    });
+    extension.lcdInit();
+    extension.lcdWrite({TEXT: 'EasyBlox', ROW: 2, COLUMN: 3});
+    for (let mode = 0; mode <= 4; mode++) extension.lcdMode({MODE: String(mode)});
+    extension.lcdClear();
+    t.same(calls, [['lcdInit'], ['lcdWrite', 'EasyBlox', 1, 2],
+        ['lcdMode', 0], ['lcdMode', 1], ['lcdMode', 2], ['lcdMode', 3], ['lcdMode', 4], ['lcdClear']]);
+    const info = extension.getInfo();
+    t.equal(info.blocks.find(block => block.opcode === 'lcdInit').text, 'inicializar LCD 16×2 I2C');
+    t.notOk(info.blocks.find(block => block.opcode === 'lcdInit').arguments);
+    t.end();
+});
+
 test('Displays reuse the registered Arduino UNO peripheral', t => {
     const peripheral = {};
 

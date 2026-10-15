@@ -596,7 +596,7 @@ const BOARD_PROFILES = [
             'upload'
         ],
         capabilities: [],
-        releaseState: 'coming-soon',
+        releaseState: 'available',
         visible: true
     },
     {

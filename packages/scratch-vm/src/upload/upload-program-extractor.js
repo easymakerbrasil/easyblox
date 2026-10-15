@@ -12,6 +12,7 @@ const {
 
 const EasyMakerProductProfile =
     require('../board-profiles/easymaker-product-profile');
+const getProductProfile = require('../board-profiles/get-product-profile');
 
 const ENTRY_POINT_OPCODE = 'arduinoUno_whenArduinoUnoStart';
 const DIGITAL_WRITE_OPCODE = 'arduinoUno_digitalWrite';
@@ -206,6 +207,7 @@ class UploadProgramExtractor {
             source;
 
         this._resources = new Set();
+        this._usedJrMotors = new Set();
     }
 
     /**
@@ -234,6 +236,7 @@ class UploadProgramExtractor {
      */
     extract () {
         this._resources = new Set();
+        this._usedJrMotors = new Set();
 
         const entryPoints = this._findEntryPoints();
 
@@ -343,7 +346,34 @@ class UploadProgramExtractor {
             ir.unreachable = unreachable;
         }
 
+        // Explicit product wiring keeps motor generation independent of generic board defaults.
+        let configurationIndex = 0;
+        for (const motor of Array.from(this._usedJrMotors).sort()) {
+            if (setup.some(statement => statement.type === 'MotorConfigure' && statement.motor === motor)) continue;
+            const configuration = this._getJrMotorConfiguration(motor);
+            setup.splice(configurationIndex++, 0, {
+                type: 'MotorConfigure',
+                motor,
+                in1Pin: configuration.in1Pin,
+                in2Pin: configuration.in2Pin,
+                pwmPin: configuration.pwmPin
+            });
+        }
         return ir;
+    }
+
+    /**
+     * Resolve fixed motor wiring from the program owner, independently of the GUI.
+     * @param {number} motor Logical motor number.
+     * @returns {?object} Jr motor configuration, or null for other boards.
+     * @private
+     */
+    _getJrMotorConfiguration (motor) {
+        const profile = getProductProfile(this.program && this.program.boardId);
+        if (!profile || profile.id !== 'easyduino-jr') return null;
+        const configuration = profile.dedicatedResources.motors[motor];
+        if (!configuration) throw new Error(`Motor is not supported by EasyDuino Jr: ${motor}`);
+        return configuration;
     }
 
     /**
@@ -851,6 +881,20 @@ class UploadProgramExtractor {
                 block.opcode ===
                 EASYMAKER_RGB_LED_PWM_WRITE_OPCODE;
 
+            const profile = getProductProfile(this.program && this.program.boardId);
+            if (profile && profile.id === 'easyduino-jr') {
+                const rgb = profile.devices.rgbLed;
+                const color = this._readMenuValue(blocks, block, 'COLOR').toUpperCase();
+                const pin = {R: rgb.redPin, G: rgb.greenPin, B: rgb.bluePin}[color];
+                if (!Number.isInteger(pin)) throw new Error(`RGB LED color is not supported by EasyDuino Jr: ${color}`);
+                return {
+                    type: isPwm ? 'PwmWrite' : 'DigitalWrite',
+                    pin,
+                    value: isPwm ? this._readRuntimeNumberInput(blocks, block, 'VALUE') :
+                        this._readDigitalValue(blocks, block, 'STATE')
+                };
+            }
+
             const portId = isPwm ?
                 'digital-d9-d10-d11' :
                 'digital-d4-d7-d8';
@@ -911,6 +955,16 @@ class UploadProgramExtractor {
         }
 
         case EASYMAKER_TRAFFIC_LIGHT_WRITE_OPCODE: {
+            const profile = getProductProfile(this.program && this.program.boardId);
+            if (profile && profile.id === 'easyduino-jr') {
+                const light = profile.devices.trafficLight;
+                const color = this._readMenuValue(blocks, block, 'COLOR').toUpperCase();
+                const pin = {GREEN: light.greenPin, YELLOW: light.yellowPin, RED: light.redPin}[color];
+                if (!Number.isInteger(pin)) {
+                    throw new Error(`Traffic light color is not supported by EasyDuino Jr: ${color}`);
+                }
+                return {type: 'DigitalWrite', pin, value: this._readDigitalValue(blocks, block, 'STATE')};
+            }
             const portId =
                 this._readMenuValue(
                     blocks,
@@ -975,13 +1029,12 @@ class UploadProgramExtractor {
 
         case TONE_START_OPCODE:
         case EASYMAKER_TONE_START_OPCODE: {
+            const profile = getProductProfile(this.program && this.program.boardId);
             if (
                 block.opcode ===
                     EASYMAKER_TONE_START_OPCODE &&
                 (
-                    !this.program ||
-                    this.program.boardId !==
-                        EasyMakerProductProfile.id
+                    !profile
                 )
             ) {
                 throw new Error(
@@ -1020,7 +1073,8 @@ class UploadProgramExtractor {
                 );
             }
 
-            const pin =
+            const pin = block.opcode === EASYMAKER_TONE_START_OPCODE && profile && profile.id === 'easyduino-jr' ?
+                profile.devices.buzzer.pin :
                 this._readNumberInput(
                     blocks,
                     block,
@@ -1057,13 +1111,12 @@ class UploadProgramExtractor {
 
         case TONE_STOP_OPCODE:
         case EASYMAKER_TONE_STOP_OPCODE: {
+            const profile = getProductProfile(this.program && this.program.boardId);
             if (
                 block.opcode ===
                     EASYMAKER_TONE_STOP_OPCODE &&
                 (
-                    !this.program ||
-                    this.program.boardId !==
-                        EasyMakerProductProfile.id
+                    !profile
                 )
             ) {
                 throw new Error(
@@ -1071,7 +1124,8 @@ class UploadProgramExtractor {
                 );
             }
 
-            const pin =
+            const pin = block.opcode === EASYMAKER_TONE_STOP_OPCODE && profile && profile.id === 'easyduino-jr' ?
+                profile.devices.buzzer.pin :
                 this._readNumberInput(
                     blocks,
                     block,
@@ -1205,6 +1259,14 @@ class UploadProgramExtractor {
             };
 
         case TM1637_INIT_OPCODE: {
+            const profile = getProductProfile(this.program && this.program.boardId);
+            if (profile && profile.id === 'easyduino-jr') {
+                return {
+                    type: 'Tm1637Init',
+                    clkPin: profile.devices.tm1637.clkPin,
+                    dioPin: profile.devices.tm1637.dioPin
+                };
+            }
             if (
                 this.program &&
                 this.program.boardId ===
@@ -1367,11 +1429,8 @@ class UploadProgramExtractor {
             };
 
         case EASYMAKER_MOTOR_INIT_OPCODE: {
-            if (
-                !this.program ||
-                this.program.boardId !==
-                    EasyMakerProductProfile.id
-            ) {
+            const profile = getProductProfile(this.program && this.program.boardId);
+            if (!profile) {
                 throw new Error(
                     'EasyMaker motor initialization requires EasyMaker board'
                 );
@@ -1385,13 +1444,14 @@ class UploadProgramExtractor {
                 );
 
             const configuration =
-                EasyMakerProductProfile
+                profile
                     .dedicatedResources
                     .motors[motor];
 
             if (!configuration) {
                 throw new Error(
-                    'Motor is not supported by EasyMaker'
+                    profile.id === 'easyduino-jr' ?
+                        'Motor is not supported by EasyDuino Jr' : 'Motor is not supported by EasyMaker'
                 );
             }
 
@@ -1407,7 +1467,18 @@ class UploadProgramExtractor {
             };
         }
 
-        case MOTOR_CONFIGURE_OPCODE:
+        case MOTOR_CONFIGURE_OPCODE: {
+            const motor = this._readNumberInput(blocks, block, 'MOTOR');
+            const configuration = this._getJrMotorConfiguration(motor);
+            if (configuration) {
+                return {
+                    type: 'MotorConfigure',
+                    motor,
+                    in1Pin: configuration.in1Pin,
+                    in2Pin: configuration.in2Pin,
+                    pwmPin: configuration.pwmPin
+                };
+            }
             return {
                 type: 'MotorConfigure',
                 motor: this._readNumberInput(
@@ -1431,15 +1502,14 @@ class UploadProgramExtractor {
                     'PWM'
                 )
             };
+        }
 
-        case MOTOR_WRITE_OPCODE:
+        case MOTOR_WRITE_OPCODE: {
+            const motor = this._readNumberInput(blocks, block, 'MOTOR');
+            if (this._getJrMotorConfiguration(motor)) this._usedJrMotors.add(motor);
             return {
                 type: 'MotorWrite',
-                motor: this._readNumberInput(
-                    blocks,
-                    block,
-                    'MOTOR'
-                ),
+                motor,
                 direction: this._readNumberInput(
                     blocks,
                     block,
@@ -1451,21 +1521,22 @@ class UploadProgramExtractor {
                     'SPEED'
                 )
             };
+        }
 
-        case MOTOR_STOP_OPCODE:
+        case MOTOR_STOP_OPCODE: {
+            const motor = this._readNumberInput(blocks, block, 'MOTOR');
+            if (this._getJrMotorConfiguration(motor)) this._usedJrMotors.add(motor);
             return {
                 type: 'MotorStop',
-                motor: this._readNumberInput(
-                    blocks,
-                    block,
-                    'MOTOR'
-                )
+                motor
             };
+        }
 
-        case SERVO_WRITE_OPCODE:
+        case SERVO_WRITE_OPCODE: {
+            const profile = getProductProfile(this.program && this.program.boardId);
             return {
                 type: 'ServoWrite',
-                pin: this._readNumberInput(
+                pin: profile && profile.id === 'easyduino-jr' ? profile.devices.servo.pin : this._readNumberInput(
                     blocks,
                     block,
                     'PIN'
@@ -1476,6 +1547,7 @@ class UploadProgramExtractor {
                     'ANGLE'
                 )
             };
+        }
 
         case RELAY_WRITE_OPCODE:
             return {
@@ -2222,6 +2294,17 @@ class UploadProgramExtractor {
                     'TYPE'
                 ).toUpperCase();
 
+            const profile = getProductProfile(this.program && this.program.boardId);
+            if (profile && profile.id === 'easyduino-jr') {
+                if (type !== 'REFLECTIVE') {
+                    throw new Error(`Unsupported EasyDuino Jr digital sensor type: ${type}`);
+                }
+                const sensor = profile.devices.reflectiveSensor;
+                const read = {type: 'DigitalReadExpression', pin: sensor.pin};
+                return sensor.activeLevel === 'LOW' ?
+                    {type: 'UnaryExpression', operator: 'Not', operand: read} : read;
+            }
+
             if (
                 type !== 'PIR' &&
                 type !== 'TILT' &&
@@ -2267,6 +2350,19 @@ class UploadProgramExtractor {
                     block,
                     'TYPE'
                 ).toUpperCase();
+
+            const profile = getProductProfile(this.program && this.program.boardId);
+            if (profile && profile.id === 'easyduino-jr') {
+                const sensor = {
+                    LDR: profile.devices.ldr,
+                    POTENTIOMETER: profile.devices.potentiometer,
+                    SOIL_MOISTURE: profile.devices.soilMoisture
+                }[type];
+                if (!sensor) {
+                    throw new Error(`Unsupported EasyDuino Jr analog sensor type: ${type}`);
+                }
+                return {type: 'AnalogReadExpression', pin: sensor.pin};
+            }
 
             if (
                 type !== 'POTENTIOMETER' &&
@@ -2385,7 +2481,15 @@ class UploadProgramExtractor {
             };
         }
 
-        case ULTRASONIC_READ_OPCODE:
+        case ULTRASONIC_READ_OPCODE: {
+            const profile = getProductProfile(this.program && this.program.boardId);
+            if (profile && profile.id === 'easyduino-jr') {
+                return {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: profile.devices.ultrasonic.trigPin,
+                    echoPin: profile.devices.ultrasonic.echoPin
+                };
+            }
             return {
                 type: 'UltrasonicReadExpression',
                 trigPin: this._readNumberInput(
@@ -2399,8 +2503,17 @@ class UploadProgramExtractor {
                     'ECHO'
                 )
             };
+        }
 
         case EASYMAKER_ULTRASONIC_READ_OPCODE: {
+            const profile = getProductProfile(this.program && this.program.boardId);
+            if (profile && profile.id === 'easyduino-jr') {
+                return {
+                    type: 'UltrasonicReadExpression',
+                    trigPin: profile.devices.ultrasonic.trigPin,
+                    echoPin: profile.devices.ultrasonic.echoPin
+                };
+            }
             const portId =
                 this._readMenuValue(
                     blocks,
@@ -2445,9 +2558,10 @@ class UploadProgramExtractor {
                 );
             }
 
+            const profile = getProductProfile(this.program && this.program.boardId);
             return {
                 type: 'DhtReadExpression',
-                pin: this._readNumberInput(
+                pin: profile && profile.id === 'easyduino-jr' ? profile.devices.dht11.pin : this._readNumberInput(
                     blocks,
                     block,
                     'PIN'
@@ -2474,6 +2588,14 @@ class UploadProgramExtractor {
                 );
             }
 
+            const profile = getProductProfile(this.program && this.program.boardId);
+            if (profile && profile.id === 'easyduino-jr') {
+                return {
+                    type: 'DhtReadExpression',
+                    pin: profile.devices.dht11.pin,
+                    reading: readingType === 0 ? 'temperature' : 'humidity'
+                };
+            }
             const portId =
                 this._readMenuValue(
                     blocks,

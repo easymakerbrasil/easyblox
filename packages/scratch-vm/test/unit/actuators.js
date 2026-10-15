@@ -8,6 +8,226 @@ const EasyMakerProductProfile =
 
 const test = tap.test;
 
+test('Jr actuator toolbox groups LEDs, buzzer, motors and relay with native labels and spacing', t => {
+    const Runtime = require('../../src/engine/runtime');
+    const runtime = new Runtime();
+    t.teardown(() => runtime.dispose());
+    runtime.registerPeripheralExtension('arduinoUno', {});
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+    for (const boardId of ['arduino-uno', 'easymaker', 'easyduino-proto']) {
+        runtime.setEasyBloxSelectedBoardId(boardId);
+        const before = extension.getInfo();
+        runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+        const info = extension.getInfo();
+        const visible = info.blocks.filter(block => !block.hideFromPalette)
+            .map(block => typeof block === 'string' ? block : block.opcode || block.text);
+        t.same(visible, [
+            'LEDs', 'rgbLedDigitalWrite', 'rgbLedPwmWrite', 'trafficLightWrite', '---',
+            'Buzzer', 'toneStart', 'toneStop', '---',
+            'Motores', 'motorInit', 'motorWrite', 'motorStop', 'servoWrite', '---',
+            'Relé', 'relayWrite'
+        ]);
+        const opcodes = blocks => blocks.filter(block => block.opcode).map(block => block.opcode);
+        t.same(opcodes(info.blocks).sort(), opcodes(before.blocks).sort(),
+            'ordering preserves all registered opcodes');
+        runtime._registerExtensionPrimitives(info);
+        for (const mode of ['stage', 'upload']) {
+            const xml = runtime.getBlocksXML(null, mode).find(item => item.id === 'actuators').xml;
+            t.same(Array.from(xml.matchAll(/<label text="([^"]+)"/g), match => match[1]),
+                ['LEDs', 'Buzzer', 'Motores', 'Relé']);
+            t.equal((xml.match(/<sep gap="36"\/>/g) || []).length, 3);
+            t.match(xml, /actuators_trafficLightWrite[\s\S]*<sep gap="36"\/><label text="Buzzer"/);
+            t.match(xml, /actuators_servoWrite[\s\S]*<sep gap="36"\/><label text="Relé"/);
+        }
+        runtime.setEasyBloxSelectedBoardId(boardId);
+        t.same(extension.getInfo(), before, `${boardId} metadata remains unchanged after Jr`);
+    }
+    t.end();
+});
+
+test('Only Jr offers the five external relay pins without changing stored pin behavior', t => {
+    let boardId = 'easyduino-jr';
+    const calls = [];
+    const extension = new Scratch3ActuatorsBlocks({
+        getEasyBloxSelectedBoardId: () => boardId,
+        getPeripheralExtension: () => ({relayWrite: (...args) => calls.push(args)})
+    });
+    const jr = extension.getInfo();
+    t.same(jr.menus.relayPins.items, [
+        {text: 'D2', value: '2'}, {text: 'D3', value: '3'}, {text: 'D5', value: '5'},
+        {text: 'D7', value: '7'}, {text: 'D8', value: '8'}
+    ]);
+    const relay = jr.blocks.find(block => block.opcode === 'relayWrite');
+    t.same(Object.keys(relay.arguments), ['PIN', 'STATE']);
+    t.equal(relay.arguments.PIN.menu, 'relayPins');
+    t.equal(relay.arguments.PIN.defaultValue, 2, 'new blocks start on an offered pin');
+    extension.relayWrite({PIN: 12, STATE: 1});
+    t.same(calls, [[12, 1]], 'the menu does not reserve pins or invalidate stored blocks');
+    for (boardId of ['arduino-uno', 'easymaker', 'easyduino-proto']) {
+        const info = extension.getInfo();
+        t.equal(info.menus.relayPins.items.length, 18, `${boardId} retains its complete technical menu`);
+        t.equal(info.blocks.find(block => block.opcode === 'relayWrite').arguments.PIN.defaultValue, 12);
+    }
+    boardId = 'easyduino-jr';
+    t.same(extension.getInfo(), jr, 'Jr surface is restored after switching boards');
+    t.end();
+});
+
+test('Jr relay sb3 roundtrip retains legacy PIN and STATE data in Stage and Upload', async t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const fs = require('fs');
+    const path = require('path');
+    const vm = new VirtualMachine();
+    const restored = new VirtualMachine();
+    t.teardown(() => {
+        vm.quit();
+        restored.quit();
+    });
+    await vm.loadProject(fs.readFileSync(path.resolve(__dirname, '../fixtures/origin.sb3')));
+    const target = vm.runtime.targets.find(item => !item.isStage);
+    const program = vm.getOrCreateUploadProgram('easyduino-jr');
+    for (const blocks of [target.blocks, program.blocks]) {
+        blocks.createBlock({
+            id: 'legacy_relay',
+            opcode: 'actuators_relayWrite',
+            inputs: {
+                PIN: {name: 'PIN', block: 'legacy_pin', shadow: 'legacy_pin'},
+                STATE: {name: 'STATE', block: 'legacy_state', shadow: 'legacy_state'}
+            },
+            fields: {},
+            next: null,
+            parent: null,
+            topLevel: true,
+            shadow: false,
+            x: 40,
+            y: 40
+        });
+        for (const [id, value] of [['legacy_pin', '12'], ['legacy_state', '1']]) {
+            blocks.createBlock({
+                id,
+                opcode: 'math_number',
+                fields: {NUM: {name: 'NUM', value}},
+                inputs: {},
+                next: null,
+                parent: 'legacy_relay',
+                topLevel: false,
+                shadow: true
+            });
+        }
+    }
+    vm.setProgramContext('upload', 'easyduino-jr');
+    const before = JSON.parse(vm.toJSON());
+    await restored.loadProject(Buffer.from(await (await vm.saveProjectSb3()).arrayBuffer()));
+    const after = JSON.parse(restored.toJSON());
+    t.same(after.easybloxUploadPrograms, before.easybloxUploadPrograms);
+    t.same(after.targets.map(item => item.blocks), before.targets.map(item => item.blocks));
+    t.same(restored.getEasyBloxProjectContext(), {selectedBoardId: 'easyduino-jr', programMode: 'upload'});
+    const loaded = restored.getOrCreateUploadProgram('easyduino-jr').blocks;
+    const relay = loaded.getBlock('legacy_relay');
+    t.equal(relay.opcode, 'actuators_relayWrite');
+    t.equal(loaded.getBlock(relay.inputs.PIN.block).fields.NUM.value, '12');
+    t.equal(loaded.getBlock(relay.inputs.STATE.block).fields.NUM.value, '1');
+});
+
+test('Jr RGB, traffic light, buzzer and servo use the physical profile and existing UNO commands', t => {
+    const calls = [];
+    const peripheral = Object.fromEntries(['digitalWrite', 'pwmWrite', 'toneStart', 'toneStop', 'servoWrite']
+        .map(method => [method, (...args) => calls.push([method, ...args])]));
+    const extension = new Scratch3ActuatorsBlocks({
+        getEasyBloxSelectedBoardId: () => 'easyduino-jr',
+        getPeripheralExtension: () => peripheral
+    });
+    for (const [COLOR, pin] of [['R', 9], ['G', 10], ['B', 11]]) {
+        extension.rgbLedDigitalWrite({COLOR, STATE: 1});
+        extension.rgbLedDigitalWrite({COLOR, STATE: 0});
+        extension.rgbLedPwmWrite({COLOR, VALUE: 128});
+        t.same(calls.splice(0), [['digitalWrite', pin, 1], ['digitalWrite', pin, 0], ['pwmWrite', pin, 128]]);
+    }
+    for (const [COLOR, pin] of [['GREEN', 4], ['YELLOW', 7], ['RED', 8]]) {
+        extension.trafficLightWrite({COLOR, PORT: 'digital-d2-d3', STATE: 1});
+        extension.trafficLightWrite({COLOR, STATE: 0});
+        t.same(calls.splice(0), [['digitalWrite', pin, 1], ['digitalWrite', pin, 0]],
+            'only the selected signal changes');
+    }
+    extension.toneStart({PIN: 12, NOTE: 440, DURATION: 500});
+    extension.toneStop({PIN: 12});
+    extension.servoWrite({PIN: 11, ANGLE: 90});
+    extension.servoWrite({ANGLE: 210});
+    t.same(calls.splice(0), [['toneStart', 6, 440, 500], ['toneStop', 6],
+        ['servoWrite', 5, 90], ['servoWrite', 5, 180]]);
+    extension.rgbLedPwmWrite({COLOR: 'R', VALUE: 300});
+    t.same(calls.splice(0), [['pwmWrite', 9, 255]], 'existing PWM clamping remains');
+    t.equal(extension.rgbLedDigitalWrite({COLOR: 'X', STATE: 1}), null);
+    t.equal(extension.trafficLightWrite({COLOR: 'BLUE', STATE: 1}), null);
+    t.same(calls, []);
+    t.end();
+});
+
+test('Jr motors cannot inherit generic configuration across logical board changes', t => {
+    let boardId = 'arduino-uno';
+    const calls = [];
+    const extension = new Scratch3ActuatorsBlocks({
+        getEasyBloxSelectedBoardId: () => boardId,
+        getPeripheralExtension: () => ({
+            motorWrite: (...args) => calls.push(['write', ...args]),
+            motorStop: (...args) => calls.push(['stop', ...args])
+        })
+    });
+    extension.motorConfigure({MOTOR: 1, IN1: 12, IN2: 13, PWM: 11});
+    extension.motorConfigure({MOTOR: 2, IN1: 14, IN2: 15, PWM: 6});
+    const generic = JSON.stringify(extension._motors);
+    boardId = 'easyduino-jr';
+    extension.motorConfigure({MOTOR: 1, IN1: 16, IN2: 17, PWM: 9});
+    for (const [MOTOR, pins] of [[1, [2, 4, 3]], [2, [7, 8, 5]]]) {
+        extension.motorInit({MOTOR});
+        extension.motorWrite({MOTOR, DIRECTION: 0, SPEED: 100});
+        extension.motorWrite({MOTOR, DIRECTION: 1, SPEED: 33});
+        extension.motorStop({MOTOR});
+        t.same(calls.splice(0), [['stop', ...pins, 0], ['write', ...pins, 0, 255],
+            ['write', ...pins, 1, 84], ['stop', ...pins, 0]]);
+    }
+    t.equal(JSON.stringify(extension._motors), generic, 'Jr does not rewrite generic settings');
+    for (boardId of ['arduino-uno', 'easyduino-proto']) {
+        extension.motorWrite({MOTOR: 1, DIRECTION: 0, SPEED: 100});
+        t.same(calls.splice(0), [['write', 12, 13, 11, 0, 255]], `${boardId} retains its configurable pins`);
+    }
+    boardId = 'easymaker';
+    t.equal(extension._getMotorConfiguration(1), EasyMakerProductProfile.dedicatedResources.motors[1]);
+    boardId = 'easyduino-jr';
+    t.equal(extension._getMotorConfiguration(1),
+        require('../../src/board-profiles/easyduino-jr-product-profile').dedicatedResources.motors[1]);
+    t.end();
+});
+
+test('Jr actuator metadata hides fixed ports while retaining internal argument contracts', t => {
+    const Runtime = require('../../src/engine/runtime');
+    const runtime = new Runtime();
+    t.teardown(() => runtime.dispose());
+    runtime.registerPeripheralExtension('arduinoUno', {});
+    const extension = new Scratch3ActuatorsBlocks(runtime);
+    runtime.setEasyBloxSelectedBoardId('easymaker');
+    const easyMaker = extension.getInfo();
+    runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+    const info = extension.getInfo();
+    runtime._registerExtensionPrimitives(info);
+    const category = runtime._blockInfo.find(item => item.id === 'actuators');
+    for (const opcode of ['rgbLedDigitalWrite', 'rgbLedPwmWrite', 'trafficLightWrite',
+        'toneStart', 'toneStop', 'motorInit', 'servoWrite']) {
+        const block = info.blocks.find(item => item.opcode === opcode);
+        const original = easyMaker.blocks.find(item => item.opcode === opcode);
+        t.notOk(block.hideFromPalette, `${opcode} is available on Jr`);
+        t.same(Object.keys(block.arguments), Object.keys(original.arguments), 'internal arguments are preserved');
+        t.notMatch(block.text, /\[(PORT|PIN)\]/, 'fixed connector is not offered');
+        const converted = category.blocks.find(item => item.info && item.info.opcode === opcode).json;
+        t.notOk((converted.args0 || []).some(arg => arg.name === 'PORT' || arg.name === 'PIN' ||
+            arg.type === 'field_image'), 'no EasyMaker connector or editable fixed pin in Scratch Blocks JSON');
+    }
+    t.equal(info.blocks.find(block => block.opcode === 'motorConfigure').hideFromPalette, true);
+    runtime.setEasyBloxSelectedBoardId('easymaker');
+    t.same(extension.getInfo(), easyMaker, 'EasyMaker metadata is unchanged after Jr');
+    t.end();
+});
+
 test('Actuators reuse the registered Arduino UNO peripheral', t => {
     const sharedPeripheral = {};
 

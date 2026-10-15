@@ -1,8 +1,10 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
+const formatMessage = require('format-message');
 
 const EasyMakerProductProfile =
     require('../../board-profiles/easymaker-product-profile');
+const getProductProfile = require('../../board-profiles/get-product-profile');
 
 const EasyMakerPortSymbols =
     require('../../board-profiles/easymaker-port-symbols');
@@ -48,6 +50,8 @@ class Scratch3ActuatorsBlocks {
      * @returns {object} Extension metadata.
      */
     getInfo () {
+        const productProfile = this._getProductProfile();
+        const useJrSurface = productProfile && productProfile.id === 'easyduino-jr';
         const useEasyMakerSurface =
             this._isEasyMakerSelected();
 
@@ -263,7 +267,7 @@ class Scratch3ActuatorsBlocks {
                 easyMakerRgbPwmPort.symbolId
             ];
 
-        return {
+        const info = {
             id: EXTENSION_ID,
             name: 'Atuadores',
             color1: '#2E7D32',
@@ -830,6 +834,87 @@ class Scratch3ActuatorsBlocks {
                 }
             }
         };
+        if (useJrSurface) {
+            const messages = {
+                motorInit: formatMessage({
+                    id: 'actuators.jr.motorInit',
+                    default: 'inicializar motor [MOTOR]'
+                }),
+                rgbLedDigitalWrite: formatMessage({
+                    id: 'actuators.jr.rgbLedDigitalWrite',
+                    default: 'definir LED RGB cor [COLOR] como [STATE]'
+                }),
+                rgbLedPwmWrite: formatMessage({
+                    id: 'actuators.jr.rgbLedPwmWrite',
+                    default: 'definir LED RGB cor [COLOR] intensidade [VALUE]'
+                }),
+                trafficLightWrite: formatMessage({
+                    id: 'actuators.jr.trafficLightWrite',
+                    default: 'definir semáforo [COLOR] como [STATE]'
+                }),
+                toneStart: formatMessage({
+                    id: 'actuators.jr.toneStart',
+                    default: 'tocar nota [NOTE] no buzzer por [DURATION]'
+                }),
+                toneStop: formatMessage({
+                    id: 'actuators.jr.toneStop',
+                    default: 'parar tom do buzzer'
+                }),
+                servoWrite: formatMessage({
+                    id: 'actuators.jr.servoWrite',
+                    default: 'mover servo para [ANGLE] graus'
+                })
+            };
+            for (const block of info.blocks) {
+                if (messages[block.opcode]) {
+                    block.text = messages[block.opcode];
+                    block.hideFromPalette = false;
+                }
+                if (block.opcode === 'motorConfigure') block.hideFromPalette = true;
+                if (block.opcode === 'servoWrite') block.arguments.PIN.defaultValue = productProfile.devices.servo.pin;
+                if (block.opcode === 'relayWrite') block.arguments.PIN.defaultValue = 2;
+                if (block.opcode === 'toneStart' || block.opcode === 'toneStop') {
+                    block.arguments.PIN.defaultValue = productProfile.devices.buzzer.pin;
+                }
+            }
+            info.menus.relayPins.items = info.menus.relayPins.items.filter(item =>
+                ['2', '3', '5', '7', '8'].includes(item.value));
+            const blocks = new Map(info.blocks.filter(block => block.opcode).map(block => [block.opcode, block]));
+            info.blocks = [
+                {
+                    blockType: BlockType.LABEL,
+                    text: formatMessage({id: 'actuators.jr.ledsLabel', default: 'LEDs'})
+                },
+                blocks.get('ledWrite'),
+                blocks.get('rgbLedDigitalWrite'),
+                blocks.get('rgbLedPwmWrite'),
+                blocks.get('trafficLightWrite'),
+                '---',
+                {
+                    blockType: BlockType.LABEL,
+                    text: formatMessage({id: 'actuators.jr.buzzerLabel', default: 'Buzzer'})
+                },
+                blocks.get('toneStart'),
+                blocks.get('toneStop'),
+                '---',
+                {
+                    blockType: BlockType.LABEL,
+                    text: formatMessage({id: 'actuators.jr.motorsLabel', default: 'Motores'})
+                },
+                blocks.get('motorInit'),
+                blocks.get('motorConfigure'),
+                blocks.get('motorWrite'),
+                blocks.get('motorStop'),
+                blocks.get('servoWrite'),
+                '---',
+                {
+                    blockType: BlockType.LABEL,
+                    text: formatMessage({id: 'actuators.jr.relayLabel', default: 'Relé'})
+                },
+                blocks.get('relayWrite')
+            ];
+        }
+        return info;
     }
 
     /**
@@ -838,7 +923,8 @@ class Scratch3ActuatorsBlocks {
      * @returns {?number} Command sequence number or null when unavailable.
      */
     servoWrite (args) {
-        const pin = Number(args.PIN);
+        const profile = this._getProductProfile();
+        const pin = profile && profile.id === 'easyduino-jr' ? profile.devices.servo.pin : Number(args.PIN);
         const angle = Math.max(
             0,
             Math.min(
@@ -935,6 +1021,16 @@ class Scratch3ActuatorsBlocks {
     }
 
     /**
+     * Resolve physical wiring from the currently selected logical product.
+     * @returns {?object} Original product profile, or null for generic boards.
+     * @private
+     */
+    _getProductProfile () {
+        return getProductProfile(typeof this.runtime.getEasyBloxSelectedBoardId === 'function' ?
+            this.runtime.getEasyBloxSelectedBoardId() : null);
+    }
+
+    /**
      * Report whether the active physical board is EasyMaker.
      * @returns {boolean} True when EasyMaker is selected.
      * @private
@@ -952,16 +1048,17 @@ class Scratch3ActuatorsBlocks {
 
     /**
      * Resolve one motor configuration for the active board.
-     * EasyMaker uses its fixed PCB wiring; generic boards retain
+     * Physical products use their fixed wiring; generic boards retain
      * the locally configurable motor profiles.
      * @param {number} motor Logical motor number.
      * @returns {?object} Motor pin configuration.
      * @private
      */
     _getMotorConfiguration (motor) {
-        if (this._isEasyMakerSelected()) {
+        const profile = this._getProductProfile();
+        if (profile) {
             return (
-                EasyMakerProductProfile
+                profile
                     .dedicatedResources
                     .motors[motor] ||
                 null
@@ -972,13 +1069,13 @@ class Scratch3ActuatorsBlocks {
     }
 
     /**
-     * Initialize one fixed EasyMaker motor resource.
+     * Initialize one fixed product motor resource.
      * In Stage mode initialization leaves the motor safely stopped.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */
     motorInit (args) {
-        if (!this._isEasyMakerSelected()) {
+        if (!this._getProductProfile()) {
             return null;
         }
 
@@ -1014,6 +1111,8 @@ class Scratch3ActuatorsBlocks {
      * @returns {void}
      */
     motorConfigure (args) {
+        const profile = this._getProductProfile();
+        if (profile && profile.id === 'easyduino-jr') return;
         const motor = Number(args.MOTOR);
         const in1Pin = Number(args.IN1);
         const in2Pin = Number(args.IN2);
@@ -1152,11 +1251,15 @@ class Scratch3ActuatorsBlocks {
     }
 
     /**
-     * Play one musical note through an EasyMaker Buzzer.
+     * Play one musical note through the product buzzer.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */
     toneStart (args) {
+        const profile = this._getProductProfile();
+        if (profile && profile.id === 'easyduino-jr') {
+            return this._peripheral.toneStart(profile.devices.buzzer.pin, Number(args.NOTE), Number(args.DURATION));
+        }
         if (!this._isEasyMakerSelected()) {
             return null;
         }
@@ -1185,11 +1288,15 @@ class Scratch3ActuatorsBlocks {
     }
 
     /**
-     * Stop an EasyMaker Buzzer tone.
+     * Stop the product buzzer tone.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */
     toneStop (args) {
+        const profile = this._getProductProfile();
+        if (profile && profile.id === 'easyduino-jr') {
+            return this._peripheral.toneStop(profile.devices.buzzer.pin);
+        }
         if (!this._isEasyMakerSelected()) {
             return null;
         }
@@ -1250,12 +1357,13 @@ class Scratch3ActuatorsBlocks {
     }
 
     /**
-     * Set one channel of the EasyMaker digital RGB LED HIGH or LOW.
+     * Set one channel of the product RGB LED HIGH or LOW.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */
     rgbLedDigitalWrite (args) {
-        if (!this._isEasyMakerSelected()) {
+        const profile = this._getProductProfile();
+        if (!profile) {
             return null;
         }
 
@@ -1265,7 +1373,7 @@ class Scratch3ActuatorsBlocks {
         const state =
             Number(args.STATE);
 
-        const port =
+        const port = profile.id === 'easyduino-jr' ? profile.devices.rgbLed :
             EasyMakerProductProfile
                 .devices
                 .rgbLed
@@ -1296,12 +1404,13 @@ class Scratch3ActuatorsBlocks {
     }
 
     /**
-     * Set the PWM intensity of one EasyMaker RGB LED channel.
+     * Set the PWM intensity of one product RGB LED channel.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */
     rgbLedPwmWrite (args) {
-        if (!this._isEasyMakerSelected()) {
+        const profile = this._getProductProfile();
+        if (!profile) {
             return null;
         }
 
@@ -1317,7 +1426,7 @@ class Scratch3ActuatorsBlocks {
                 )
             );
 
-        const port =
+        const port = profile.id === 'easyduino-jr' ? profile.devices.rgbLed :
             EasyMakerProductProfile
                 .devices
                 .rgbLed
@@ -1345,13 +1454,13 @@ class Scratch3ActuatorsBlocks {
     }
 
     /**
-     * Set one EasyMaker traffic-light signal HIGH or LOW.
-     * The selected physical connector determines the fixed signal pins.
+     * Set one traffic-light signal HIGH or LOW using the product wiring.
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */
     trafficLightWrite (args) {
-        if (!this._isEasyMakerSelected()) {
+        const profile = this._getProductProfile();
+        if (!profile) {
             return null;
         }
 
@@ -1364,7 +1473,7 @@ class Scratch3ActuatorsBlocks {
         const state =
             Number(args.STATE);
 
-        const port =
+        const port = profile.id === 'easyduino-jr' ? profile.devices.trafficLight :
             EasyMakerProductProfile
                 .devices
                 .trafficLight

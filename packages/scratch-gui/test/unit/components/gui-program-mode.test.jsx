@@ -138,6 +138,7 @@ jest.mock('../../../src/components/board-selection-modal/board-selection-modal.j
     ({onConfirm, onRemove, onCancel}) => {
         const {useCallback} = require('react');
         const handleEasyMakerConfirm = useCallback(() => onConfirm('easymaker'), [onConfirm]);
+        const handleConnectionConfirm = useCallback(() => onConfirm('easymaker-connection'), [onConfirm]);
         return (
             <div>
                 <button
@@ -164,6 +165,12 @@ jest.mock('../../../src/components/board-selection-modal/board-selection-modal.j
                     onClick={() => onConfirm('easyduino-jr')}
                 >
                     EasyDuino Jr
+                </button>
+                <button
+                    data-testid="confirm-easymaker-connection"
+                    onClick={handleConnectionConfirm}
+                >
+                    EasyMaker Connection
                 </button>
             </div>
         );
@@ -476,7 +483,7 @@ describe('GUI program mode propagation', () => {
 
         fireEvent.click(
             getByTestId(
-                'confirm-easyduino-jr'
+                'confirm-easymaker-connection'
             )
         );
 
@@ -492,7 +499,7 @@ describe('GUI program mode propagation', () => {
         expect(
             vm.setEasyBloxSelectedBoard
         ).not.toHaveBeenCalledWith(
-            'easyduino-jr'
+            'easymaker-connection'
         );
 
         expect(
@@ -502,6 +509,34 @@ describe('GUI program mode propagation', () => {
             null
         );
     });
+
+    const checkJrSelection = function (programMode) {
+        const vm = {
+            generateArduinoUnoUploadCode: jest.fn().mockReturnValue(''),
+            getPeripheralIsConnected: jest.fn().mockReturnValue(false),
+            on: jest.fn(),
+            removeListener: jest.fn(),
+            setEasyBloxSelectedBoard: jest.fn(),
+            setProgramContext: jest.fn(),
+            refreshWorkspace: jest.fn()
+        };
+        const {getByTestId} = renderWithIntl(
+            <GUIComponent
+                colorMode="default"
+                setTheme={jest.fn()}
+                theme="default"
+                vm={vm}
+            />
+        );
+        fireEvent.click(getByTestId(programMode === 'upload' ? 'request-upload-mode' : 'select-board'));
+        fireEvent.click(getByTestId('confirm-easyduino-jr'));
+        expect(vm.setEasyBloxSelectedBoard).toHaveBeenCalledWith('easyduino-jr');
+        expect(getByTestId('blocks')).toHaveAttribute('data-program-mode', programMode);
+        expect(vm.setProgramContext).toHaveBeenLastCalledWith(
+            programMode, programMode === 'upload' ? 'easyduino-jr' : null
+        );
+    };
+    test.each(['stage', 'upload'])('selects Jr in %s with its own logical identity', checkJrSelection);
 
     test('synchronizes Stage and Upload program contexts with the VM', () => {
         const contextAndRefreshCalls = [];
@@ -653,7 +688,8 @@ describe('GUI program mode propagation', () => {
     });
 
     test.each([['arduino-uno', 'Arduino UNO'], ['easymaker', 'EasyMaker'],
-        ['easyduino-proto', 'EasyDuino Proto']])('restores %s in Upload mode', (boardId, boardName) => {
+        ['easyduino-proto', 'EasyDuino Proto'],
+        ['easyduino-jr', 'EasyDuino Jr']])('restores %s in Upload mode', (boardId, boardName) => {
         const setEasyBloxSelectedBoard =
             jest.fn();
 
@@ -745,7 +781,8 @@ describe('GUI program mode propagation', () => {
     });
 
     test.each([['arduino-uno', 'stage'], ['easymaker', 'stage'],
-        ['easyduino-proto', 'stage']])('restores %s in Stage mode', (boardId, programMode) => {
+        ['easyduino-proto', 'stage'],
+        ['easyduino-jr', 'stage']])('restores %s in Stage mode', (boardId, programMode) => {
         const setEasyBloxSelectedBoard =
             jest.fn();
 
@@ -839,7 +876,7 @@ describe('GUI program mode propagation', () => {
             jest.fn()
                 .mockReturnValue({
                     selectedBoardId:
-                        'easyduino-jr',
+                        'easymaker-connection',
 
                     programMode:
                         'upload'

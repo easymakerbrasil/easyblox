@@ -42,6 +42,8 @@ class Scratch3ArduinoUnoBlocks {
     getInfo () {
         const useEasyMakerSurface =
             this._isEasyMakerSelected();
+        const useJrSurface = typeof this.runtime.getEasyBloxSelectedBoardId === 'function' &&
+            this.runtime.getEasyBloxSelectedBoardId() === 'easyduino-jr';
 
         const easyMakerPhysicalPorts =
             Object.values(
@@ -91,7 +93,7 @@ class Scratch3ArduinoUnoBlocks {
                 };
             });
 
-        return {
+        const info = {
             id: EXTENSION_ID,
             name: 'Arduino UNO',
             blocks: [
@@ -459,6 +461,32 @@ class Scratch3ArduinoUnoBlocks {
                 }
             }
         };
+        if (useJrSurface) {
+            // Keep the original menus for stored blocks and the hidden tone commands.
+            for (const [menu, source, pins] of [
+                ['jrDigitalPins', 'digitalPins', ['2', '3', '5', '7', '8']],
+                ['jrAnalogPins', 'analogPins', ['16', '17', '18', '19']],
+                ['jrPwmPins', 'pwmPins', ['3', '5']]
+            ]) {
+                info.menus[menu] = {
+                    ...info.menus[source],
+                    items: info.menus[source].items.filter(item => pins.includes(item.value))
+                };
+            }
+            for (const [opcode, menu] of [
+                ['digitalWrite', 'jrDigitalPins'], ['digitalRead', 'jrDigitalPins'],
+                ['analogRead', 'jrAnalogPins'], ['pwmWrite', 'jrPwmPins']
+            ]) {
+                const pin = info.blocks.find(block => block.opcode === opcode).arguments.PIN;
+                pin.menu = menu;
+                pin.defaultValue = Number(info.menus[menu].items[0].value);
+            }
+            for (const block of info.blocks) {
+                if (block.opcode === 'toneStart' || block.opcode === 'toneStop') block.hideFromPalette = true;
+            }
+            info.blocks.splice(info.blocks.indexOf('---'), 1);
+        }
+        return info;
     }
 
     /**

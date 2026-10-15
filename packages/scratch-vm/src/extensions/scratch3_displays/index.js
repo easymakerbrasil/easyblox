@@ -1,5 +1,7 @@
 const ArgumentType = require('../../extension-support/argument-type');
 const BlockType = require('../../extension-support/block-type');
+const formatMessage = require('format-message');
+const getProductProfile = require('../../board-profiles/get-product-profile');
 const EasyMakerProductProfile =
     require('../../board-profiles/easymaker-product-profile');
 
@@ -70,6 +72,8 @@ class Scratch3DisplaysBlocks {
             typeof this.runtime.getEasyBloxSelectedBoardId === 'function' ?
                 this.runtime.getEasyBloxSelectedBoardId() :
                 null;
+        const productProfile = getProductProfile(selectedBoardId);
+        const useJrSurface = productProfile && productProfile.id === 'easyduino-jr';
 
         const useEasyMakerMatrixSurface =
             selectedBoardId ===
@@ -240,7 +244,16 @@ class Scratch3DisplaysBlocks {
                     text: 'inicializar LCD 16×2 I2C'
                 };
 
-        return {
+        if (useJrSurface) {
+            tm1637InitBlock.text = formatMessage({
+                id: 'displays.jr.tm1637Init',
+                default: 'inicializar display de 7 segmentos'
+            });
+            tm1637InitBlock.arguments.CLK.defaultValue = productProfile.devices.tm1637.clkPin;
+            tm1637InitBlock.arguments.DIO.defaultValue = productProfile.devices.tm1637.dioPin;
+        }
+
+        const info = {
             id: EXTENSION_ID,
             name: 'Displays',
             color1: '#E53935',
@@ -484,6 +497,12 @@ class Scratch3DisplaysBlocks {
                 }
             }
         };
+        if (useJrSurface) {
+            const matrixSectionEnd = info.blocks.indexOf('---');
+            for (const block of info.blocks.slice(0, matrixSectionEnd)) block.hideFromPalette = true;
+            info.blocks.splice(matrixSectionEnd, 1);
+        }
+        return info;
     }
 
     /**
@@ -657,6 +676,8 @@ class Scratch3DisplaysBlocks {
      * @returns {null} No transport command is sent.
      */
     tm1637Init (args) {
+        const profile = this._getProductProfile();
+        if (profile && profile.id === 'easyduino-jr') return;
         if (this._isEasyMakerSelected()) {
             const ports =
                 EasyMakerProductProfile
@@ -836,9 +857,10 @@ class Scratch3DisplaysBlocks {
      * @returns {?Promise<number>} Promise resolved after ACK, or null when unavailable.
      */
     tm1637Show (args) {
+        const pins = this._getTm1637Pins();
         return this._peripheral.tm1637Write(
-            this._tm1637ClkPin,
-            this._tm1637DioPin,
+            pins.clkPin,
+            pins.dioPin,
             this._tm1637ValueToSegments(args)
         );
     }
@@ -848,11 +870,33 @@ class Scratch3DisplaysBlocks {
      * @returns {?Promise<number>} Promise resolved after ACK, or null when unavailable.
      */
     tm1637Clear () {
+        const pins = this._getTm1637Pins();
         return this._peripheral.tm1637Write(
-            this._tm1637ClkPin,
-            this._tm1637DioPin,
+            pins.clkPin,
+            pins.dioPin,
             new Array(TM1637_DIGIT_COUNT).fill(0)
         );
+    }
+
+    /**
+     * Resolve physical wiring from the selected logical board.
+     * @returns {?object} Product profile or null for generic boards.
+     * @private
+     */
+    _getProductProfile () {
+        return getProductProfile(typeof this.runtime.getEasyBloxSelectedBoardId === 'function' ?
+            this.runtime.getEasyBloxSelectedBoardId() : null);
+    }
+
+    /**
+     * Resolve Jr wiring without overwriting other boards' configured pins.
+     * @returns {object} Clock and data pins for the active display.
+     * @private
+     */
+    _getTm1637Pins () {
+        const profile = this._getProductProfile();
+        return profile && profile.id === 'easyduino-jr' ? profile.devices.tm1637 :
+            {clkPin: this._tm1637ClkPin, dioPin: this._tm1637DioPin};
     }
 
     /**

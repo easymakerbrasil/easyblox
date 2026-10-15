@@ -91,9 +91,13 @@ describe('BoardSelectionModal', () => {
             )
         ).toBeEnabled();
 
+        ['EasyDuino Proto', 'EasyDuino Jr'].forEach(name => {
+            expect(screen.getByRole('button', {name})).toBeEnabled();
+            expect(screen.getByRole('button', {name})).not.toHaveTextContent('BREVE');
+        });
+
         [
-            'EasyMaker Connection',
-            'EasyDuino Jr'
+            'EasyMaker Connection'
         ].forEach(name => {
             expect(
                 screen.getByRole(
@@ -109,7 +113,7 @@ describe('BoardSelectionModal', () => {
             screen.getAllByText(
                 'BREVE'
             )
-        ).toHaveLength(2);
+        ).toHaveLength(1);
     });
 
     test('uses direct board selection instead of a combobox', () => {
@@ -134,7 +138,8 @@ describe('BoardSelectionModal', () => {
     test.each([
         ['Arduino UNO', 'arduino-uno'],
         ['EasyMaker', 'easymaker'],
-        ['EasyDuino Proto', 'easyduino-proto']
+        ['EasyDuino Proto', 'easyduino-proto'],
+        ['EasyDuino Jr', 'easyduino-jr']
     ])('selects %s directly from its card', (name, boardId) => {
         const onConfirm = jest.fn();
 
@@ -155,10 +160,8 @@ describe('BoardSelectionModal', () => {
         expect(onConfirm).toHaveBeenCalledWith(boardId);
     });
 
-    test.each([
-        'EasyMaker Connection',
-        'EasyDuino Jr'
-    ])('does not select future board %s', name => {
+    test('does not select future board EasyMaker Connection', () => {
+        const name = 'EasyMaker Connection';
         const onConfirm =
             jest.fn();
 
@@ -229,19 +232,25 @@ describe('BoardSelectionModal', () => {
         ).not.toBeInTheDocument();
     });
 
-    const checkProtoMode = function (requiredMode) {
+    const checkBoardMode = function (name, boardId, requiredMode) {
         const onConfirm = jest.fn();
         render(<BoardSelectionModal
             requiredMode={requiredMode}
             onCancel={jest.fn()}
             onConfirm={onConfirm}
         />);
-        const proto = screen.getByRole('button', {name: 'EasyDuino Proto'});
-        expect(proto).toBeEnabled();
-        fireEvent.click(proto);
-        expect(onConfirm).toHaveBeenCalledWith('easyduino-proto');
+        const board = screen.getByRole('button', {name});
+        expect(board).toBeEnabled();
+        expect(board).not.toHaveTextContent('BREVE');
+        fireEvent.click(board);
+        expect(onConfirm).toHaveBeenCalledWith(boardId);
     };
-    test.each(['stage', 'upload'])('allows Proto selection in %s', checkProtoMode);
+    test.each([
+        ['EasyDuino Proto', 'easyduino-proto', 'stage'],
+        ['EasyDuino Proto', 'easyduino-proto', 'upload'],
+        ['EasyDuino Jr', 'easyduino-jr', 'stage'],
+        ['EasyDuino Jr', 'easyduino-jr', 'upload']
+    ])('allows %s (%s) selection in %s', checkBoardMode);
 
     test('allows closing without selecting a board', () => {
         const onCancel = jest.fn();

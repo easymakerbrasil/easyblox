@@ -2,6 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const tap = require('tap');
 
+// Peripheral timing scenarios and project roundtrips share this file's overall deadline.
+tap.setTimeout(60000);
+
 const BlockType = require('../../src/extension-support/block-type');
 const BlockExecutionMode = require('../../src/extension-support/block-execution-mode');
 const BlockInactiveModeBehavior = require('../../src/extension-support/block-inactive-mode-behavior');
@@ -59,6 +62,168 @@ const encodeFrame = (sequence, command, payload) =>
 
 const flushPromises = () =>
     new Promise(resolve => setImmediate(resolve));
+
+tap.test('Only Jr limits raw UNO I/O menus and hides tones while keeping all primitives', t => {
+    const Runtime = require('../../src/engine/runtime');
+    const runtime = new Runtime();
+    t.teardown(() => runtime.dispose());
+    runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+    const info = extension.getInfo();
+    const block = opcode => info.blocks.find(item => item.opcode === opcode);
+    const menu = opcode => info.menus[block(opcode).arguments.PIN.menu];
+    const digital = ['2', '3', '5', '7', '8'];
+    const analog = ['16', '17', '18', '19'];
+    const pwm = ['3', '5'];
+    for (const [opcode, values] of [['digitalWrite', digital], ['digitalRead', digital],
+        ['analogRead', analog], ['pwmWrite', pwm]]) {
+        t.same(menu(opcode).items.map(item => item.value), values, opcode);
+        t.same(menu(opcode).items.map(item => item.text),
+            values.map(pin => Number(pin) >= 14 ? `A${Number(pin) - 14}` : `D${pin}`));
+        t.ok(values.includes(String(block(opcode).arguments.PIN.defaultValue)), 'default is an offered pin');
+        t.equal(menu(opcode).acceptReporters, true, 'stored input connections remain supported');
+    }
+    t.equal(info.menus.digitalPins.items.length, 18, 'legacy digital menu remains registered');
+    t.equal(info.menus.analogPins.items.length, 6);
+    t.equal(info.menus.pwmPins.items.length, 6);
+    runtime._registerExtensionPrimitives(info);
+    const category = runtime._blockInfo.find(item => item.id === 'arduinoUno');
+    for (const opcode of ['toneStart', 'toneStop']) {
+        t.equal(block(opcode).hideFromPalette, true);
+        t.equal(block(opcode).arguments.PIN.menu, 'digitalPins', 'hidden tone retains its complete original menu');
+        t.ok(category.blocks.some(item => item.info.opcode === opcode), 'opcode remains registered');
+    }
+    for (const mode of ['stage', 'upload']) {
+        const xml = runtime.getBlocksXML(null, mode).find(item => item.id === 'arduinoUno').xml;
+        t.notMatch(xml, /arduinoUno_tone(Start|Stop)/);
+        for (const opcode of ['whenArduinoUnoStart', 'digitalWrite', 'digitalRead', 'analogRead',
+            'pwmWrite', 'map', 'convertNumber', 'timerRead', 'timerReset']) {
+            t.match(xml, `type="arduinoUno_${opcode}"`);
+        }
+        t.equal((xml.match(/<sep gap="36"\/>/g) || []).length, 1, 'no empty tone section');
+    }
+    const Actuators = require('../../src/extensions/scratch3_actuators');
+    const actuators = new Actuators(runtime).getInfo();
+    for (const opcode of ['toneStart', 'toneStop']) {
+        const buzzer = actuators.blocks.find(item => item.opcode === opcode);
+        t.notOk(buzzer.hideFromPalette, 'Jr buzzer stays in Actuators');
+        t.equal(buzzer.arguments.PIN.defaultValue, 6);
+    }
+    t.end();
+});
+
+tap.test('UNO metadata and menus survive Jr to EasyMaker to Jr without changing other boards', t => {
+    const Runtime = require('../../src/engine/runtime');
+    const runtime = new Runtime();
+    t.teardown(() => runtime.dispose());
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+    runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+    const jr = extension.getInfo();
+    for (const boardId of ['arduino-uno', 'easymaker', 'easyduino-proto']) {
+        runtime.setEasyBloxSelectedBoardId(boardId);
+        const original = extension.getInfo();
+        runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+        t.same(extension.getInfo(), jr);
+        runtime.setEasyBloxSelectedBoardId(boardId);
+        t.same(extension.getInfo(), original, boardId);
+        t.equal(original.menus.digitalPins.items.length, 18);
+        t.equal(original.menus.analogPins.items.length, 6);
+        t.equal(original.menus.pwmPins.items.length, 6);
+    }
+    t.end();
+});
+
+tap.test('Jr raw UNO commands still forward legacy pins and hidden tones unchanged', async t => {
+    const Runtime = require('../../src/engine/runtime');
+    const runtime = new Runtime();
+    t.teardown(() => runtime.dispose());
+    runtime.setEasyBloxSelectedBoardId('easyduino-jr');
+    const extension = new Scratch3ArduinoUnoBlocks(runtime);
+    const calls = [];
+    extension._peripheral = Object.fromEntries(['digitalWrite', 'digitalRead', 'analogRead', 'pwmWrite',
+        'toneStart', 'toneStop'].map(method => [method, (...args) => {
+        calls.push([method, ...args]);
+        return Promise.resolve(1);
+    }]));
+    extension.digitalWrite({PIN: 13, VALUE: 1});
+    t.equal(await extension.digitalRead({PIN: 12}), true);
+    t.equal(await extension.analogRead({PIN: 14}), 1);
+    extension.pwmWrite({PIN: 11, VALUE: 123});
+    extension.toneStart({PIN: 6, NOTE: 440, DURATION: 500});
+    extension.toneStop({PIN: 6});
+    t.same(calls, [['digitalWrite', 13, 1], ['digitalRead', 12], ['analogRead', 14],
+        ['pwmWrite', 11, 123], ['toneStart', 6, 440, 500], ['toneStop', 6]]);
+});
+
+tap.test('Jr UNO sb3 roundtrip retains legacy menu shadows, pins and hidden tone blocks', async t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const vm = new VirtualMachine();
+    const restored = new VirtualMachine();
+    t.teardown(() => {
+        vm.quit();
+        restored.quit();
+    });
+    await vm.loadProject(fs.readFileSync(path.resolve(__dirname, '../fixtures/origin.sb3')));
+    const target = vm.runtime.targets.find(item => !item.isStage);
+    const program = vm.getOrCreateUploadProgram('easyduino-jr');
+    const specs = [
+        ['digitalWrite', {PIN: ['digitalPins', 13], VALUE: ['digitalValues', 1]}],
+        ['digitalRead', {PIN: ['digitalPins', 12]}],
+        ['analogRead', {PIN: ['analogPins', 14]}],
+        ['pwmWrite', {PIN: ['pwmPins', 11]}],
+        ['toneStart', {PIN: ['digitalPins', 6], NOTE: ['toneNotes', 440], DURATION: ['toneDurations', 500]}],
+        ['toneStop', {PIN: ['digitalPins', 6]}]
+    ];
+    for (const blocks of [target.blocks, program.blocks]) {
+        for (const [opcode, args] of specs) {
+            const id = `legacy_${opcode}`;
+            const block = {
+                id,
+                opcode: `arduinoUno_${opcode}`,
+                inputs: {},
+                fields: {},
+                next: null,
+                parent: null,
+                topLevel: true,
+                shadow: false,
+                x: 40,
+                y: 40
+            };
+            for (const [name, [menu, value]] of Object.entries(args)) {
+                const shadow = `${id}_${name}`;
+                block.inputs[name] = {name, block: shadow, shadow};
+                blocks.createBlock({
+                    id: shadow,
+                    opcode: `arduinoUno_menu_${menu}`,
+                    fields: {[menu]: {name: menu, value: String(value)}},
+                    inputs: {},
+                    parent: id,
+                    next: null,
+                    topLevel: false,
+                    shadow: true
+                });
+            }
+            blocks.createBlock(block);
+        }
+    }
+    vm.setProgramContext('upload', 'easyduino-jr');
+    const before = JSON.parse(vm.toJSON());
+    await restored.loadProject(Buffer.from(await (await vm.saveProjectSb3()).arrayBuffer()));
+    const after = JSON.parse(restored.toJSON());
+    t.same(after.easybloxUploadPrograms, before.easybloxUploadPrograms);
+    t.same(after.targets.map(item => item.blocks), before.targets.map(item => item.blocks));
+    t.same(restored.getEasyBloxProjectContext(), {selectedBoardId: 'easyduino-jr', programMode: 'upload'});
+    const loaded = restored.getOrCreateUploadProgram('easyduino-jr').blocks;
+    for (const [opcode, args] of specs) {
+        const block = loaded.getBlock(`legacy_${opcode}`);
+        t.equal(block.opcode, `arduinoUno_${opcode}`);
+        for (const [name, [menu, value]] of Object.entries(args)) {
+            const shadow = loaded.getBlock(block.inputs[name].block);
+            t.equal(shadow.opcode, `arduinoUno_menu_${menu}`);
+            t.equal(shadow.fields[menu].value, String(value));
+        }
+    }
+});
 
 tap.test('Arduino UNO registers itself as a peripheral extension', t => {
     const runtime = new MockRuntime(null);

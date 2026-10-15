@@ -1,8 +1,10 @@
 const BlockType = require('../../extension-support/block-type');
 const ArgumentType = require('../../extension-support/argument-type');
+const formatMessage = require('format-message');
 
 const EasyMakerProductProfile =
     require('../../board-profiles/easymaker-product-profile');
+const getProductProfile = require('../../board-profiles/get-product-profile');
 
 const EasyMakerPortSymbols =
     require('../../board-profiles/easymaker-port-symbols');
@@ -64,6 +66,9 @@ class Scratch3SensorsBlocks {
                 'function' ?
                 this.runtime.getEasyBloxSelectedBoardId() :
                 null;
+
+        const productProfile = this._getProductProfile();
+        const useJrSensorSurface = productProfile && productProfile.id === 'easyduino-jr';
 
         const useEasyMakerUltrasonicSurface =
             selectedBoardId ===
@@ -253,47 +258,63 @@ class Scratch3SensorsBlocks {
         const easyMakerDigitalSensorBlock = {
             opcode: 'digitalSensorRead',
             blockType: BlockType.BOOLEAN,
-            text: 'sensor digital [TYPE] na porta [PORT]',
+            text: useJrSensorSurface ? formatMessage({
+                id: 'sensors.jr.digitalSensorRead',
+                default: 'sensor digital [TYPE]',
+                description: 'Read the integrated EasyDuino Jr digital sensor.'
+            }) : 'sensor digital [TYPE] na porta [PORT]',
             hideFromPalette:
-                !useEasyMakerGenericSensorSurface,
+                !useEasyMakerGenericSensorSurface && !useJrSensorSurface,
             arguments: {
                 TYPE: {
                     type: ArgumentType.STRING,
                     menu: 'digitalSensorTypes',
-                    defaultValue: 'PIR'
+                    defaultValue: useJrSensorSurface ? 'REFLECTIVE' : 'PIR'
                 },
-                PORT: {
-                    type: ArgumentType.STRING,
-                    menu: 'easyMakerDigitalSensorPorts',
-                    defaultValue: 'digital-d2-d3'
-                }
+                ...(useJrSensorSurface ? {} : {
+                    PORT: {
+                        type: ArgumentType.STRING,
+                        menu: 'easyMakerDigitalSensorPorts',
+                        defaultValue: 'digital-d2-d3'
+                    }
+                })
             }
         };
 
         const easyMakerAnalogSensorBlock = {
             opcode: 'analogSensorRead',
             blockType: BlockType.REPORTER,
-            text: 'sensor analógico [TYPE] na porta [PORT]',
+            text: useJrSensorSurface ? formatMessage({
+                id: 'sensors.jr.analogSensorRead',
+                default: 'sensor analógico [TYPE]',
+                description: 'Read an integrated EasyDuino Jr analog sensor.'
+            }) : 'sensor analógico [TYPE] na porta [PORT]',
             hideFromPalette:
-                !useEasyMakerGenericSensorSurface,
+                !useEasyMakerGenericSensorSurface && !useJrSensorSurface,
             arguments: {
                 TYPE: {
                     type: ArgumentType.STRING,
                     menu: 'analogSensorTypes',
                     defaultValue: 'POTENTIOMETER'
                 },
-                PORT: {
-                    type: ArgumentType.STRING,
-                    menu: 'easyMakerAnalogSensorPorts',
-                    defaultValue: 'analog-a0'
-                }
+                ...(useJrSensorSurface ? {} : {
+                    PORT: {
+                        type: ArgumentType.STRING,
+                        menu: 'easyMakerAnalogSensorPorts',
+                        defaultValue: 'analog-a0'
+                    }
+                })
             }
         };
 
         const legacyUltrasonicBlock = {
             opcode: 'ultrasonicRead',
             blockType: BlockType.REPORTER,
-            text: 'distância do ultrassônico TRIG [TRIG] ECHO [ECHO] (cm)',
+            text: useJrSensorSurface ? formatMessage({
+                id: 'sensors.jr.ultrasonicRead',
+                default: 'obter distância do ultrassônico em cm',
+                description: 'EasyDuino Jr onboard ultrasonic distance sensor'
+            }) : 'distância do ultrassônico TRIG [TRIG] ECHO [ECHO] (cm)',
             hideFromPalette:
                 useEasyMakerUltrasonicSurface,
             arguments: {
@@ -331,7 +352,11 @@ class Scratch3SensorsBlocks {
         const legacyDhtBlock = {
             opcode: 'dhtRead',
             blockType: BlockType.REPORTER,
-            text: '[TYPE] do DHT no pino [PIN]',
+            text: useJrSensorSurface ? formatMessage({
+                id: 'sensors.jr.dhtRead',
+                default: '[TYPE] do DHT11',
+                description: 'EasyDuino Jr onboard temperature and humidity sensor'
+            }) : '[TYPE] do DHT no pino [PIN]',
             hideFromPalette:
                 useEasyMakerDhtSurface,
             arguments: {
@@ -393,7 +418,7 @@ class Scratch3SensorsBlocks {
                     opcode: 'joystickInit',
                     blockType: BlockType.COMMAND,
                     hideFromPalette:
-                        useEasyMakerJoystickSurface,
+                        useJrSensorSurface ? true : useEasyMakerJoystickSurface,
                     text: 'inicializar joystick X [X] Y [Y] CLICK [CLICK]',
                     arguments: {
                         X: {
@@ -423,6 +448,7 @@ class Scratch3SensorsBlocks {
                 {
                     opcode: 'joystickValue',
                     blockType: BlockType.REPORTER,
+                    ...(useJrSensorSurface ? {hideFromPalette: true} : {}),
                     text: 'valor do joystick [AXIS]',
                     arguments: {
                         AXIS: {
@@ -435,6 +461,7 @@ class Scratch3SensorsBlocks {
                 {
                     opcode: 'joystickClicked',
                     blockType: BlockType.BOOLEAN,
+                    ...(useJrSensorSurface ? {hideFromPalette: true} : {}),
                     text: 'joystick clicado?'
                 }
             ],
@@ -478,7 +505,7 @@ class Scratch3SensorsBlocks {
                             text: 'Som',
                             value: 'SOUND'
                         }
-                    ]
+                    ].filter(item => !useJrSensorSurface || item.value === 'REFLECTIVE')
                 },
 
                 analogSensorTypes: {
@@ -504,7 +531,8 @@ class Scratch3SensorsBlocks {
                             text: 'Som',
                             value: 'SOUND'
                         }
-                    ]
+                    ].filter(item => !useJrSensorSurface ||
+                        ['POTENTIOMETER', 'LDR', 'SOIL_MOISTURE'].includes(item.value))
                 },
 
                 easyMakerUltrasonicPorts: {
@@ -609,13 +637,24 @@ class Scratch3SensorsBlocks {
     }
 
     /**
-     * Read one generic EasyMaker digital sensor.
+     * Read a semantic digital sensor using the active product's physical mapping.
      * @param {object} args Scratch block arguments.
      * @returns {?Promise<boolean>} Digital sensor state.
      */
     digitalSensorRead (args) {
         const type =
             String(args.TYPE).toUpperCase();
+
+        const profile = this._getProductProfile();
+        if (profile && profile.id === 'easyduino-jr') {
+            if (type !== 'REFLECTIVE') {
+                return null;
+            }
+            const sensor = profile.devices.reflectiveSensor;
+            const result = this._peripheral.digitalRead(sensor.pin);
+            return result ? result.then(value => (value === null ? null :
+                value === (sensor.activeLevel === 'LOW' ? 0 : 1))) : result;
+        }
 
         if (
             type !== 'PIR' &&
@@ -653,13 +692,23 @@ class Scratch3SensorsBlocks {
     }
 
     /**
-     * Read one generic EasyMaker analog sensor.
+     * Read a raw analog sensor using the active product's physical mapping.
      * @param {object} args Scratch block arguments.
      * @returns {?Promise<number>} Analog value from 0 to 1023.
      */
     analogSensorRead (args) {
         const type =
             String(args.TYPE).toUpperCase();
+
+        const profile = this._getProductProfile();
+        if (profile && profile.id === 'easyduino-jr') {
+            const sensor = {
+                LDR: profile.devices.ldr,
+                POTENTIOMETER: profile.devices.potentiometer,
+                SOIL_MOISTURE: profile.devices.soilMoisture
+            }[type];
+            return sensor ? this._peripheral.analogRead(sensor.pin) : null;
+        }
 
         if (
             type !== 'POTENTIOMETER' &&
@@ -692,6 +741,10 @@ class Scratch3SensorsBlocks {
      * @returns {?Promise<number>} Promise resolved with centimeters, or null when unavailable.
      */
     ultrasonicRead (args) {
+        const profile = this._getProductProfile();
+        if (profile && profile.id === 'easyduino-jr') {
+            return this._readUltrasonicDistance(profile.devices.ultrasonic.trigPin, profile.devices.ultrasonic.echoPin);
+        }
         return this._readUltrasonicDistance(
             Number(args.TRIG),
             Number(args.ECHO)
@@ -704,6 +757,10 @@ class Scratch3SensorsBlocks {
      * @returns {?Promise<number>} Promise resolved with centimeters, or null when unavailable.
      */
     ultrasonicReadPort (args) {
+        const profile = this._getProductProfile();
+        if (profile && profile.id === 'easyduino-jr') {
+            return this.ultrasonicRead(args);
+        }
         const portId = String(args.PORT);
 
         const port =
@@ -754,6 +811,10 @@ class Scratch3SensorsBlocks {
      * @returns {?Promise<number>} Promise resolved with the selected value, or null when unavailable.
      */
     dhtRead (args) {
+        const profile = this._getProductProfile();
+        if (profile && profile.id === 'easyduino-jr') {
+            return this._readDhtValue(profile.devices.dht11.pin, Number(args.TYPE));
+        }
         return this._readDhtValue(
             Number(args.PIN),
             Number(args.TYPE)
@@ -766,6 +827,10 @@ class Scratch3SensorsBlocks {
      * @returns {?Promise<number>} Promise resolved with the selected value, or null when unavailable.
      */
     dhtReadPort (args) {
+        const profile = this._getProductProfile();
+        if (profile && profile.id === 'easyduino-jr') {
+            return this.dhtRead(args);
+        }
         const portId = String(args.PORT);
 
         const port =
@@ -923,6 +988,16 @@ class Scratch3SensorsBlocks {
             return values.clicked;
         });
 
+    }
+
+    /**
+     * Resolve the currently selected logical product without caching board changes.
+     * @returns {?object} Physical product profile, or null for generic boards.
+     * @private
+     */
+    _getProductProfile () {
+        return getProductProfile(typeof this.runtime.getEasyBloxSelectedBoardId === 'function' ?
+            this.runtime.getEasyBloxSelectedBoardId() : null);
     }
 
     /**

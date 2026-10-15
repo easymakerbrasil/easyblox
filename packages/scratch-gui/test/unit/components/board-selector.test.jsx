@@ -54,9 +54,10 @@ describe('BoardSelector', () => {
             )
         ).toBeEnabled();
 
+        expect(screen.getByRole('option', {name: 'EasyDuino Jr'})).toBeEnabled();
+
         [
-            'EasyMaker Connection',
-            'EasyDuino Jr'
+            'EasyMaker Connection'
         ].forEach(name => {
             expect(
                 screen.getByRole(
@@ -104,5 +105,7 @@ describe('BoardSelector', () => {
         expect(onBoardChange).toHaveBeenCalledTimes(1);
         expect(onBoardChange).toHaveBeenCalledWith(boardId);
     };
-    test.each(['arduino-uno', 'easymaker', 'easyduino-proto'])('requests a change to %s', checkBoardChange);
+    test.each(['arduino-uno', 'easymaker', 'easyduino-proto', 'easyduino-jr'])(
+        'requests a change to %s', checkBoardChange
+    );
 });

@@ -142,7 +142,7 @@ test('marks launch-ready boards as available and future boards as coming soon', 
         )
     ).toMatchObject({
         releaseState:
-            'coming-soon'
+            'available'
     });
 });
 

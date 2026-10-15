@@ -111,6 +111,683 @@ const createExtensionMenuShadow = (
     shadow: true
 });
 
+const createActuatorProfileProgram = (vm, boardId, steps) => {
+    const program = vm.getOrCreateUploadProgram(boardId);
+    program.blocks.createBlock(createUploadHat('actuator_0'));
+    steps.forEach(([opcode, args], index) => {
+        const id = `actuator_${index}`;
+        const block = {
+            id,
+            opcode,
+            parent: index === 0 ? 'upload_hat' : `actuator_${index - 1}`,
+            next: index + 1 < steps.length ? `actuator_${index + 1}` : null,
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        };
+        for (const [name, value] of Object.entries(args)) {
+            if (name === 'NOTE' || name === 'DURATION') {
+                block.fields[name] = {name, value: String(value)};
+                continue;
+            }
+            const shadow = `${id}_${name}`;
+            block.inputs[name] = {name, block: shadow, shadow};
+            if (typeof value === 'number') {
+                program.blocks.createBlock(createNumberShadow(shadow, id, value));
+            } else {
+                const menu = name === 'COLOR' ?
+                    (opcode === 'actuators_trafficLightWrite' ? 'trafficLightColors' : 'rgbLedColors') :
+                    'easyMakerTrafficLightPorts';
+                program.blocks.createBlock(
+                    createExtensionMenuShadow(shadow, id, `actuators_menu_${menu}`, menu, value)
+                );
+            }
+        }
+        program.blocks.createBlock(block);
+    });
+    return program;
+};
+
+const createDisplayProfileProgram = (vm, boardId, initArgs = {CLK: 8, DIO: 9}, lcd = false) => {
+    const commands = lcd ? [
+        ['displays_lcdInit', {}],
+        ['displays_lcdWrite', {TEXT: 'EasyBlox', ROW: 2, COLUMN: 3}],
+        ['displays_lcdMode', {MODE: '4'}],
+        ['displays_lcdClear', {}]
+    ] : [
+        ['displays_tm1637Init', initArgs],
+        ['displays_tm1637Show', {VALUE: 12, LENGTH: 4, POSITION: 1, POINT: '1', LEADING_ZEROS: '1'}],
+        ['displays_tm1637Clear', {}]
+    ];
+    const program = vm.getOrCreateUploadProgram(boardId);
+    program.blocks.createBlock(createUploadHat('display_0'));
+    commands.forEach(([opcode, args], index) => {
+        const id = `display_${index}`;
+        const block = {
+            id,
+            opcode,
+            next: index < commands.length - 1 ? `display_${index + 1}` : null,
+            parent: index ? `display_${index - 1}` : 'upload_hat',
+            inputs: {},
+            fields: {},
+            topLevel: false,
+            shadow: false
+        };
+        for (const [name, value] of Object.entries(args)) {
+            if (typeof value === 'number' || name === 'TEXT') {
+                const shadow = `${id}_${name}`;
+                block.inputs[name] = {name, block: shadow, shadow};
+                program.blocks.createBlock(name === 'TEXT' ? createTextShadow(shadow, id, value) :
+                    createNumberShadow(shadow, id, value));
+            } else {
+                block.fields[name] = {name, value};
+            }
+        }
+        program.blocks.createBlock(block);
+    });
+    return program;
+};
+
+tap.test('Only Jr resolves TM1637 Upload pins from the program owner and retains generic LCD IR', t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const profile = require('../../src/board-profiles/easymaker-product-profile');
+    const vm = new VirtualMachine();
+    t.teardown(() => vm.quit());
+    const programs = [];
+    for (const boardId of ['easyduino-jr', 'arduino-uno', 'easymaker', 'easyduino-proto']) {
+        const portId = Object.keys(profile.devices.tm1637.ports)[0];
+        const program = createDisplayProfileProgram(vm, boardId, boardId === 'easymaker' ? {PORT: portId} :
+            {CLK: 8, DIO: 9});
+        const before = JSON.stringify(program.blocks._blocks);
+        programs.push([boardId, before]);
+        vm.setEasyBloxSelectedBoard(boardId === 'easyduino-jr' ? 'easymaker' : 'easyduino-jr');
+        const pins = boardId === 'easyduino-jr' ? {clkPin: 19, dioPin: 18} : boardId === 'easymaker' ?
+            profile.devices.tm1637.ports[portId] : {clkPin: 8, dioPin: 9};
+        const ir = vm._getValidatedArduinoUnoUploadIr(boardId);
+        t.same(ir.setup, [
+            {type: 'Tm1637Init', clkPin: pins.clkPin, dioPin: pins.dioPin},
+            {type: 'Tm1637Show', value: 12, length: 4, position: 1, point: '1', leadingZeros: '1'},
+            {type: 'Tm1637Clear'}
+        ], boardId);
+        const code = vm.generateArduinoUnoUploadCode(boardId);
+        t.match(code, 'display.showNumber(12, 4, 1, true, true);');
+        t.match(code, 'display.clear();');
+        if (boardId === 'easyduino-jr') t.match(code, 'TM1637NumberDisplay display(A5, A4);');
+        t.equal(JSON.stringify(program.blocks._blocks), before);
+    }
+    for (const [boardId, before] of programs) {
+        t.equal(JSON.stringify(vm.getOrCreateUploadProgram(boardId).blocks._blocks), before,
+            `${boardId}: independent program remains unchanged`);
+    }
+    const noPins = new VirtualMachine();
+    t.teardown(() => noPins.quit());
+    createDisplayProfileProgram(noPins, 'easyduino-jr', {});
+    t.same(noPins._getValidatedArduinoUnoUploadIr('easyduino-jr').setup[0],
+        {type: 'Tm1637Init', clkPin: 19, dioPin: 18}, 'new Jr initializer needs no stored pin inputs');
+    const lcdVm = new VirtualMachine();
+    t.teardown(() => lcdVm.quit());
+    for (const boardId of ['easyduino-jr', 'arduino-uno', 'easymaker', 'easyduino-proto']) {
+        createDisplayProfileProgram(lcdVm, boardId, {}, true);
+        lcdVm.setEasyBloxSelectedBoard(boardId === 'easyduino-jr' ? 'easymaker' : 'easyduino-jr');
+        t.same(lcdVm._getValidatedArduinoUnoUploadIr(boardId).setup, [
+            {type: 'LcdInit'}, {type: 'LcdWrite', text: 'EasyBlox', row: 2, column: 3},
+            {type: 'LcdMode', mode: '4'}, {type: 'LcdClear'}
+        ], `${boardId}: LCD retains the shared UNO IR`);
+        const code = lcdVm.generateArduinoUnoUploadCode(boardId);
+        t.match(code, 'lcd.begin();');
+        t.match(code, 'lcd.write("EasyBlox", 2, 3);');
+        t.match(code, 'lcd.setMode(4);');
+        t.match(code, 'lcd.clear();');
+        t.notMatch(code, /0x27|0x3F|Wire\./, 'LCD address detection remains in the existing adapter');
+    }
+    const gpioVm = new VirtualMachine();
+    t.teardown(() => gpioVm.quit());
+    createActuatorProfileProgram(gpioVm, 'easyduino-jr', [
+        ['arduinoUno_digitalWrite', {PIN: 18, VALUE: 1}],
+        ['arduinoUno_digitalWrite', {PIN: 19, VALUE: 0}]
+    ]);
+    t.same(gpioVm._getValidatedArduinoUnoUploadIr('easyduino-jr').setup, [
+        {type: 'DigitalWrite', pin: 18, value: 1}, {type: 'DigitalWrite', pin: 19, value: 0}
+    ], 'A4/A5 remain usable as generic GPIO without a new product reservation');
+    t.end();
+});
+
+tap.test('Jr display sb3 roundtrip preserves hidden matrix blocks and legacy TM1637 inputs', async t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const fs = require('fs');
+    const path = require('path');
+    const vm = new VirtualMachine();
+    const restored = new VirtualMachine();
+    t.teardown(() => {
+        vm.quit();
+        restored.quit();
+    });
+    await vm.loadProject(fs.readFileSync(path.resolve(__dirname, '../fixtures/origin.sb3')));
+    const program = createDisplayProfileProgram(vm, 'easyduino-jr');
+    for (const opcode of ['configureMatrix', 'matrixWrite', 'matrixClear', 'matrixBrightness']) {
+        program.blocks.createBlock({
+            id: `legacy_${opcode}`,
+            opcode: `displays_${opcode}`,
+            fields: {MATRIX: {name: 'MATRIX', value: '0066FFFF7E3C1800'}},
+            inputs: {},
+            next: null,
+            parent: null,
+            topLevel: true,
+            shadow: false,
+            x: 300,
+            y: 100
+        });
+    }
+    const target = vm.runtime.targets.find(item => !item.isStage);
+    for (const block of Object.values(program.blocks._blocks)) {
+        if (block.id === 'upload_hat') continue;
+        const copy = JSON.parse(JSON.stringify(block));
+        if (copy.parent === 'upload_hat') {
+            copy.parent = null;
+            copy.topLevel = true;
+        }
+        target.blocks.createBlock(copy);
+    }
+    vm.setProgramContext('upload', 'easyduino-jr');
+    const before = JSON.parse(vm.toJSON());
+    await restored.loadProject(Buffer.from(await (await vm.saveProjectSb3()).arrayBuffer()));
+    const after = JSON.parse(restored.toJSON());
+    t.same(after.easybloxUploadPrograms, before.easybloxUploadPrograms);
+    t.same(after.targets.map(item => item.blocks), before.targets.map(item => item.blocks));
+    const loaded = restored.getOrCreateUploadProgram('easyduino-jr').blocks;
+    for (const opcode of ['configureMatrix', 'matrixWrite', 'matrixClear', 'matrixBrightness']) {
+        t.equal(loaded.getBlock(`legacy_${opcode}`).opcode, `displays_${opcode}`);
+    }
+    const init = loaded.getBlock('display_0');
+    t.equal(loaded.getBlock(init.inputs.CLK.block).fields.NUM.value, '8');
+    t.equal(loaded.getBlock(init.inputs.DIO.block).fields.NUM.value, '9');
+    t.same(restored._getValidatedArduinoUnoUploadIr('easyduino-jr').setup[0],
+        {type: 'Tm1637Init', clkPin: 19, dioPin: 18});
+});
+
+tap.test('Jr RGB and traffic light use generic UNO writes without EasyMaker connector reservations', t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    for (const [COLOR, pin] of [['R', 9], ['G', 10], ['B', 11]]) {
+        for (const [opcode, args, expected] of [
+            ['actuators_rgbLedDigitalWrite', {COLOR, STATE: 1}, {type: 'DigitalWrite', pin, value: 1}],
+            ['actuators_rgbLedDigitalWrite', {COLOR, STATE: 0}, {type: 'DigitalWrite', pin, value: 0}],
+            ['actuators_rgbLedPwmWrite', {COLOR, VALUE: 128}, {type: 'PwmWrite', pin, value: 128}]
+        ]) {
+            const vm = new VirtualMachine();
+            t.teardown(() => vm.quit());
+            createActuatorProfileProgram(vm, 'easyduino-jr', [[opcode, args]]);
+            vm.setEasyBloxSelectedBoard('easymaker');
+            const ir = vm._getValidatedArduinoUnoUploadIr('easyduino-jr');
+            t.same(ir.setup, [expected]);
+            t.notOk(ir.resources, 'no dedicated resource is added');
+            t.type(vm.generateArduinoUnoUploadCode('easyduino-jr'), 'string');
+        }
+    }
+    const vm = new VirtualMachine();
+    t.teardown(() => vm.quit());
+    createActuatorProfileProgram(vm, 'easyduino-jr', [
+        ['actuators_trafficLightWrite', {PORT: 'digital-d2-d3', COLOR: 'GREEN', STATE: 1}],
+        ['actuators_trafficLightWrite', {COLOR: 'YELLOW', STATE: 0}],
+        ['actuators_trafficLightWrite', {COLOR: 'RED', STATE: 1}],
+        ['arduinoUno_digitalWrite', {PIN: 2, VALUE: 1}]
+    ]);
+    t.same(vm._getValidatedArduinoUnoUploadIr('easyduino-jr').setup, [
+        {type: 'DigitalWrite', pin: 4, value: 1}, {type: 'DigitalWrite', pin: 7, value: 0},
+        {type: 'DigitalWrite', pin: 8, value: 1}, {type: 'DigitalWrite', pin: 2, value: 1}
+    ], 'each signal touches one pin, with no inherited connector reservation');
+    t.type(vm.generateArduinoUnoUploadCode('easyduino-jr'), 'string');
+    for (const steps of [
+        [['actuators_rgbLedPwmWrite', {COLOR: 'R', VALUE: 80}], ['arduinoUno_pwmWrite', {PIN: 10, VALUE: 120}]],
+        [['actuators_trafficLightWrite', {COLOR: 'GREEN', STATE: 1}], ['actuators_relayWrite', {PIN: 7, STATE: 1}]]
+    ]) {
+        const independent = new VirtualMachine();
+        t.teardown(() => independent.quit());
+        createActuatorProfileProgram(independent, 'easyduino-jr', steps);
+        t.type(independent.generateArduinoUnoUploadCode('easyduino-jr'), 'string',
+            'unused component pins remain available under the existing UNO validation rules');
+    }
+    t.end();
+});
+
+tap.test('Jr buzzer and servo resolve their fixed pins and preserve tone duration and servo scale', t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const vm = new VirtualMachine();
+    t.teardown(() => vm.quit());
+    const program = createActuatorProfileProgram(vm, 'easyduino-jr', [
+        ['actuators_toneStart', {PIN: 11, NOTE: 440, DURATION: 250}],
+        ['actuators_toneStop', {PIN: 11}], ['actuators_servoWrite', {PIN: 9, ANGLE: 180}]
+    ]);
+    const before = JSON.stringify(program.blocks._blocks);
+    vm.setEasyBloxSelectedBoard('arduino-uno');
+    t.same(vm._getValidatedArduinoUnoUploadIr('easyduino-jr').setup, [
+        {type: 'ToneStart', pin: 6, frequency: 440, duration: 250},
+        {type: 'ToneStop', pin: 6}, {type: 'ServoWrite', pin: 5, angle: 180}
+    ]);
+    const code = vm.generateArduinoUnoUploadCode('easyduino-jr');
+    t.match(code, 'tone(6, 440, 250)');
+    t.match(code, 'noTone(6)');
+    t.match(code, /attach\(5\)/);
+    t.equal(JSON.stringify(program.blocks._blocks), before, 'hidden PIN inputs remain stored');
+    t.end();
+});
+
+tap.test('Jr motor IR uses fixed profile wiring instead of stale generic configurations', t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const vm = new VirtualMachine();
+    t.teardown(() => vm.quit());
+    const program = createActuatorProfileProgram(vm, 'easyduino-jr', [
+        ['actuators_motorConfigure', {MOTOR: 1, IN1: 12, IN2: 13, PWM: 11}],
+        ['actuators_motorWrite', {MOTOR: 1, DIRECTION: 0, SPEED: 100}],
+        ['actuators_motorStop', {MOTOR: 1}], ['actuators_motorInit', {MOTOR: 2}],
+        ['actuators_motorWrite', {MOTOR: 2, DIRECTION: 1, SPEED: 50}],
+        ['actuators_motorStop', {MOTOR: 2}]
+    ]);
+    const before = JSON.stringify(program.blocks._blocks);
+    vm.setEasyBloxSelectedBoard('easyduino-proto');
+    const ir = vm._getValidatedArduinoUnoUploadIr('easyduino-jr');
+    t.same(ir.setup, [
+        {type: 'MotorConfigure', motor: 1, in1Pin: 2, in2Pin: 4, pwmPin: 3},
+        {type: 'MotorWrite', motor: 1, direction: 0, speedPercent: 100}, {type: 'MotorStop', motor: 1},
+        {type: 'MotorConfigure', motor: 2, in1Pin: 7, in2Pin: 8, pwmPin: 5},
+        {type: 'MotorWrite', motor: 2, direction: 1, speedPercent: 50}, {type: 'MotorStop', motor: 2}
+    ]);
+    const code = vm.generateArduinoUnoUploadCode('easyduino-jr');
+    for (const part of ['MOTOR1_IN1 = 2;', 'MOTOR1_IN2 = 4;', 'MOTOR1_PWM = 3;',
+        'MOTOR2_IN1 = 7;', 'MOTOR2_IN2 = 8;', 'MOTOR2_PWM = 5;', 'analogWrite(MOTOR2_PWM, 128);']) {
+        t.match(code, part);
+    }
+    t.equal(JSON.stringify(program.blocks._blocks), before);
+    t.end();
+});
+
+tap.test('Jr motors without explicit initialization still derive configurations from the product profile', t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    for (const inLoop of [false, true]) {
+        const vm = new VirtualMachine();
+        t.teardown(() => vm.quit());
+        const program = createActuatorProfileProgram(vm, 'easyduino-jr', [
+            ['actuators_motorWrite', {MOTOR: 1, DIRECTION: 1, SPEED: 40}],
+            ['actuators_motorStop', {MOTOR: 2}]
+        ]);
+        if (inLoop) {
+            program.blocks.getBlock('upload_hat').next = 'actuator_forever';
+            program.blocks.getBlock('actuator_0').parent = 'actuator_forever';
+            program.blocks.createBlock({
+                id: 'actuator_forever',
+                opcode: 'control_forever',
+                parent: 'upload_hat',
+                next: null,
+                inputs: {SUBSTACK: {name: 'SUBSTACK', block: 'actuator_0', shadow: null}},
+                fields: {},
+                topLevel: false,
+                shadow: false
+            });
+        }
+        const ir = vm._getValidatedArduinoUnoUploadIr('easyduino-jr');
+        t.same(ir.setup.slice(0, 2), [
+            {type: 'MotorConfigure', motor: 1, in1Pin: 2, in2Pin: 4, pwmPin: 3},
+            {type: 'MotorConfigure', motor: 2, in1Pin: 7, in2Pin: 8, pwmPin: 5}
+        ]);
+        t.type(vm.generateArduinoUnoUploadCode('easyduino-jr'), 'string');
+    }
+    t.end();
+});
+
+tap.test('Compatible boards retain RGB reservations, motor configuration and independent actuator programs', t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const vm = new VirtualMachine();
+    t.teardown(() => vm.quit());
+    for (const boardId of ['arduino-uno', 'easymaker', 'easyduino-proto']) {
+        createActuatorProfileProgram(vm, boardId, [
+            ['actuators_rgbLedDigitalWrite', {COLOR: 'R', STATE: 1}],
+            ['actuators_motorConfigure', {MOTOR: 1, IN1: 12, IN2: 13, PWM: 6}]
+        ]);
+        vm.setEasyBloxSelectedBoard('easyduino-jr');
+        const ir = vm._getValidatedArduinoUnoUploadIr(boardId);
+        t.same(ir.setup[0], {
+            type: 'RgbLedWrite',
+            portId: 'digital-d4-d7-d8',
+            mode: 'digital',
+            color: 'R',
+            pin: 4,
+            reservedPins: [4, 7, 8],
+            value: 1
+        });
+        t.same(ir.setup[1], {type: 'MotorConfigure', motor: 1, in1Pin: 12, in2Pin: 13, pwmPin: 6});
+        t.type(vm.generateArduinoUnoUploadCode(boardId), 'string');
+    }
+    t.end();
+});
+
+tap.test('Jr actuator sb3 roundtrip retains old PIN and PORT inputs without rewriting programs', async t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const fs = require('fs');
+    const path = require('path');
+    const vm = new VirtualMachine();
+    const restored = new VirtualMachine();
+    t.teardown(() => {
+        vm.quit();
+        restored.quit();
+    });
+    await vm.loadProject(fs.readFileSync(path.resolve(__dirname, '../fixtures/origin.sb3')));
+    const program = createActuatorProfileProgram(vm, 'easyduino-jr', [
+        ['actuators_rgbLedDigitalWrite', {COLOR: 'B', STATE: 1}],
+        ['actuators_trafficLightWrite', {PORT: 'digital-d2-d3', COLOR: 'GREEN', STATE: 1}],
+        ['actuators_toneStart', {PIN: 12, NOTE: 440, DURATION: 500}],
+        ['actuators_servoWrite', {PIN: 11, ANGLE: 90}]
+    ]);
+    const target = vm.runtime.targets.find(item => !item.isStage);
+    for (const block of Object.values(program.blocks._blocks)) {
+        const copy = JSON.parse(JSON.stringify(block));
+        if (copy.id === 'upload_hat') continue;
+        if (copy.parent === 'upload_hat') {
+            copy.parent = null;
+            copy.topLevel = true;
+            copy.x = 40;
+            copy.y = 40;
+        }
+        target.blocks.createBlock(copy);
+    }
+    vm.setProgramContext('upload', 'easyduino-jr');
+    const before = JSON.parse(vm.toJSON());
+    const bytes = Buffer.from(await (await vm.saveProjectSb3()).arrayBuffer());
+    await restored.loadProject(bytes);
+    const after = JSON.parse(restored.toJSON());
+    t.same(after.easybloxUploadPrograms, before.easybloxUploadPrograms);
+    t.same(after.targets.map(item => item.blocks), before.targets.map(item => item.blocks));
+    t.same(restored.getEasyBloxProjectContext(), {selectedBoardId: 'easyduino-jr', programMode: 'upload'});
+    t.same(restored._getValidatedArduinoUnoUploadIr('easyduino-jr').setup, [
+        {type: 'DigitalWrite', pin: 11, value: 1}, {type: 'DigitalWrite', pin: 4, value: 1},
+        {type: 'ToneStart', pin: 6, frequency: 440, duration: 500}, {type: 'ServoWrite', pin: 5, angle: 90}
+    ]);
+});
+
+const createSensorProfileProgram = (vm, boardId, opcode, args, numeric = false) => {
+    const program = vm.getOrCreateUploadProgram(boardId);
+    const input = id => ({name: id, block: id, shadow: id});
+    const definitions = [createUploadHat('sensor_if'), {
+        id: 'sensor_if',
+        opcode: 'control_if',
+        parent: 'upload_hat',
+        next: null,
+        inputs: {CONDITION: {name: 'CONDITION', block: numeric ? 'sensor_compare' : 'sensor', shadow: null}},
+        fields: {},
+        topLevel: false,
+        shadow: false
+    }];
+    if (numeric) {
+        definitions.push({
+            id: 'sensor_compare',
+            opcode: 'operator_gt',
+            parent: 'sensor_if',
+            next: null,
+            inputs: {
+                OPERAND1: {name: 'OPERAND1', block: 'sensor', shadow: null},
+                OPERAND2: input('sensor_zero')
+            },
+            fields: {},
+            topLevel: false,
+            shadow: false
+        }, createNumberShadow('sensor_zero', 'sensor_compare', 0));
+    }
+    const sensor = {
+        id: 'sensor',
+        opcode,
+        parent: numeric ? 'sensor_compare' : 'sensor_if',
+        next: null,
+        inputs: {},
+        fields: {},
+        topLevel: false,
+        shadow: false
+    };
+    definitions.push(sensor);
+    for (const [name, value] of Object.entries(args)) {
+        const id = `sensor_${name.toLowerCase()}`;
+        sensor.inputs[name] = {...input(id), name};
+        if (typeof value === 'number') {
+            definitions.push(createNumberShadow(id, 'sensor', value));
+        } else {
+            const menu = name === 'TYPE' ?
+                (numeric ? 'analogSensorTypes' : 'digitalSensorTypes') :
+                (numeric ? 'easyMakerAnalogSensorPorts' : 'easyMakerDigitalSensorPorts');
+            definitions.push(createExtensionMenuShadow(id, 'sensor', `sensors_menu_${menu}`, menu, value));
+        }
+    }
+    definitions.forEach(definition => program.blocks.createBlock(definition));
+    return program;
+};
+
+tap.test('Only Jr fixes HC-SR04 and DHT11 Upload pins using the program owner', t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    for (const boardId of ['easyduino-jr', 'arduino-uno', 'easymaker', 'easyduino-proto']) {
+        for (const [opcode, args, expected] of [
+            ['sensors_ultrasonicRead', {TRIG: 8, ECHO: 9}, {
+                type: 'UltrasonicReadExpression',
+                trigPin: boardId === 'easyduino-jr' ? 16 : 8,
+                echoPin: boardId === 'easyduino-jr' ? 17 : 9
+            }],
+            ['sensors_dhtRead', {PIN: 10, TYPE: 0}, {
+                type: 'DhtReadExpression', pin: boardId === 'easyduino-jr' ? 12 : 10, reading: 'temperature'
+            }],
+            ['sensors_dhtRead', {PIN: 10, TYPE: 1}, {
+                type: 'DhtReadExpression', pin: boardId === 'easyduino-jr' ? 12 : 10, reading: 'humidity'
+            }]
+        ]) {
+            const vm = new VirtualMachine();
+            t.teardown(() => vm.quit());
+            const program = createSensorProfileProgram(vm, boardId, opcode, args, true);
+            const before = JSON.stringify(program.blocks._blocks);
+            vm.setEasyBloxSelectedBoard(boardId === 'easyduino-jr' ? 'easymaker' : 'easyduino-jr');
+            t.same(vm._getValidatedArduinoUnoUploadIr(boardId).setup[0].condition.left, expected, boardId);
+            t.type(vm.generateArduinoUnoUploadCode(boardId), 'string');
+            t.equal(JSON.stringify(program.blocks._blocks), before, 'legacy pin inputs are not rewritten');
+        }
+    }
+    for (const [opcode, args, expected] of [
+        ['sensors_ultrasonicRead', {}, {type: 'UltrasonicReadExpression', trigPin: 16, echoPin: 17}],
+        ['sensors_dhtRead', {TYPE: 0}, {type: 'DhtReadExpression', pin: 12, reading: 'temperature'}],
+        ['sensors_dhtRead', {TYPE: 1}, {type: 'DhtReadExpression', pin: 12, reading: 'humidity'}],
+        ['sensors_ultrasonicReadPort', {}, {type: 'UltrasonicReadExpression', trigPin: 16, echoPin: 17}],
+        ['sensors_dhtReadPort', {TYPE: 0}, {type: 'DhtReadExpression', pin: 12, reading: 'temperature'}]
+    ]) {
+        const vm = new VirtualMachine();
+        t.teardown(() => vm.quit());
+        createSensorProfileProgram(vm, 'easyduino-jr', opcode, args, true);
+        t.same(vm._getValidatedArduinoUnoUploadIr('easyduino-jr').setup[0].condition.left, expected,
+            'new Jr blocks work without pin inputs');
+    }
+    t.end();
+});
+
+tap.test('Jr sb3 roundtrip preserves hidden joystick opcodes and legacy HC-SR04/DHT inputs', async t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const fs = require('fs');
+    const path = require('path');
+    const vm = new VirtualMachine();
+    const restored = new VirtualMachine();
+    t.teardown(() => {
+        vm.quit();
+        restored.quit();
+    });
+    await vm.loadProject(fs.readFileSync(path.resolve(__dirname, '../fixtures/origin.sb3')));
+    const program = createSensorProfileProgram(vm, 'easyduino-jr', 'sensors_ultrasonicRead',
+        {TRIG: 8, ECHO: 9}, true);
+    const addLegacyBlock = (id, opcode, args) => {
+        const block = {
+            id,
+            opcode,
+            next: null,
+            parent: null,
+            topLevel: true,
+            shadow: false,
+            fields: {},
+            inputs: {},
+            x: 300,
+            y: 100
+        };
+        for (const [name, value] of Object.entries(args)) {
+            if (name === 'AXIS') {
+                block.fields[name] = {name, value};
+            } else {
+                const shadow = `${id}_${name}`;
+                block.inputs[name] = {name, block: shadow, shadow};
+                program.blocks.createBlock(createNumberShadow(shadow, id, value));
+            }
+        }
+        program.blocks.createBlock(block);
+    };
+    addLegacyBlock('legacy_temperature', 'sensors_dhtRead', {PIN: 10, TYPE: 0});
+    addLegacyBlock('legacy_humidity', 'sensors_dhtRead', {PIN: 10, TYPE: 1});
+    addLegacyBlock('legacy_joystick_init', 'sensors_joystickInit', {X: 14, Y: 15, CLICK: 2});
+    addLegacyBlock('legacy_joystick_fixed', 'sensors_joystickInitEasyMaker', {});
+    addLegacyBlock('legacy_joystick_axis', 'sensors_joystickValue', {AXIS: 'X'});
+    addLegacyBlock('legacy_joystick_click', 'sensors_joystickClicked', {});
+    const target = vm.runtime.targets.find(item => !item.isStage);
+    for (const block of Object.values(program.blocks._blocks)) {
+        const copy = JSON.parse(JSON.stringify(block));
+        if (copy.id === 'upload_hat') continue;
+        if (copy.parent === 'upload_hat') {
+            copy.parent = null;
+            copy.topLevel = true;
+        }
+        target.blocks.createBlock(copy);
+    }
+    vm.setProgramContext('upload', 'easyduino-jr');
+    const before = JSON.parse(vm.toJSON());
+    await restored.loadProject(Buffer.from(await (await vm.saveProjectSb3()).arrayBuffer()));
+    const after = JSON.parse(restored.toJSON());
+    t.same(after.easybloxUploadPrograms, before.easybloxUploadPrograms);
+    t.same(after.targets.map(item => item.blocks), before.targets.map(item => item.blocks));
+    t.same(restored.getEasyBloxProjectContext(), {selectedBoardId: 'easyduino-jr', programMode: 'upload'});
+    const loaded = restored.getOrCreateUploadProgram('easyduino-jr');
+    const joystickIds = [
+        'legacy_joystick_init', 'legacy_joystick_fixed', 'legacy_joystick_axis', 'legacy_joystick_click'
+    ];
+    for (const id of joystickIds) {
+        t.equal(loaded.blocks.getBlock(id).opcode, program.blocks.getBlock(id).opcode);
+    }
+    const restoredNumber = (id, name) =>
+        loaded.blocks.getBlock(loaded.blocks.getBlock(id).inputs[name].block).fields.NUM.value;
+    t.equal(restoredNumber('sensor', 'TRIG'), '8');
+    t.equal(restoredNumber('sensor', 'ECHO'), '9');
+    t.equal(restoredNumber('legacy_temperature', 'PIN'), '10');
+    const extractor = new UploadProgramExtractor(loaded);
+    t.same(extractor._extractExpression(loaded.blocks, 'legacy_humidity'),
+        {type: 'DhtReadExpression', pin: 12, reading: 'humidity'});
+});
+
+tap.test('Jr semantic sensors use program ownership, existing UNO IR and existing C++ generation', async t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const Sensors = require('../../src/extensions/scratch3_sensors');
+    const vm = new VirtualMachine();
+    t.teardown(() => vm.quit());
+    const cases = [
+        ['LDR', 15, 'A1', 0], ['POTENTIOMETER', 14, 'A0', 1023], ['SOIL_MOISTURE', 16, 'A2', 527]
+    ];
+    for (const [TYPE, pin, analogPin, value] of cases) {
+        const current = new VirtualMachine();
+        t.teardown(() => current.quit());
+        const program = createSensorProfileProgram(current, 'easyduino-jr', 'sensors_analogSensorRead',
+            {TYPE, PORT: 'analog-a0'}, true);
+        const before = JSON.stringify(program.blocks._blocks);
+        current.setEasyBloxSelectedBoard('easymaker');
+        const ir = current._getValidatedArduinoUnoUploadIr('easyduino-jr');
+        t.same(ir.setup[0].condition.left, {type: 'AnalogReadExpression', pin});
+        const bundle = current.generateArduinoUnoUploadBuildBundle('easyduino-jr');
+        t.match(bundle.code, `analogRead(${analogPin})`);
+        t.same(bundle.supportFiles, []);
+        t.equal(JSON.stringify(program.blocks._blocks), before, 'extraction preserves blocks and old PORT shadows');
+        let stagePin = null;
+        const sensors = new Sensors({
+            getEasyBloxSelectedBoardId: () => 'easyduino-jr',
+            getPeripheralExtension: () => ({analogRead: actualPin => {
+                stagePin = actualPin;
+                return Promise.resolve(value);
+            }})
+        });
+        t.equal(await sensors.analogSensorRead({TYPE, PORT: 'analog-a0'}), value);
+        t.equal(stagePin, ir.setup[0].condition.left.pin, 'Stage and Upload resolve the same physical pin');
+    }
+    const jr = createSensorProfileProgram(vm, 'easyduino-jr', 'sensors_digitalSensorRead',
+        {TYPE: 'REFLECTIVE', PORT: 'digital-d12'});
+    for (const board of ['arduino-uno', 'easymaker', 'easyduino-proto']) {
+        const compatible = createSensorProfileProgram(vm, board, 'sensors_digitalSensorRead',
+            {TYPE: 'REFLECTIVE', PORT: 'digital-d12'});
+        vm.setEasyBloxSelectedBoard(board);
+        const condition = vm._getValidatedArduinoUnoUploadIr('easyduino-jr').setup[0].condition;
+        t.same(condition, {
+            type: 'UnaryExpression', operator: 'Not', operand: {type: 'DigitalReadExpression', pin: 13}
+        });
+        t.match(vm.generateArduinoUnoUploadCode('easyduino-jr'), /!\(digitalRead\(13\) == HIGH\)/);
+        vm.setEasyBloxSelectedBoard('easyduino-jr');
+        t.same(vm._getValidatedArduinoUnoUploadIr(board).setup[0].condition,
+            {type: 'DigitalReadExpression', pin: 12}, `${board} keeps its existing polarity and connector`);
+        t.not(jr.blocks, compatible.blocks);
+    }
+});
+
+tap.test('Jr preserves generic reads, existing HC-SR04 and DHT IR and rejects undeclared semantic sensors', t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    for (const [opcode, args, numeric, expected] of [
+        ['arduinoUno_digitalRead', {PIN: 13}, false, {type: 'DigitalReadExpression', pin: 13}],
+        ['arduinoUno_analogRead', {PIN: 16}, true, {type: 'AnalogReadExpression', pin: 16}],
+        ['sensors_ultrasonicRead', {TRIG: 16, ECHO: 17}, true,
+            {type: 'UltrasonicReadExpression', trigPin: 16, echoPin: 17}],
+        ['sensors_dhtRead', {PIN: 12, TYPE: 0}, true, {type: 'DhtReadExpression', pin: 12, reading: 'temperature'}],
+        ['sensors_dhtRead', {PIN: 12, TYPE: 1}, true, {type: 'DhtReadExpression', pin: 12, reading: 'humidity'}]
+    ]) {
+        const vm = new VirtualMachine();
+        t.teardown(() => vm.quit());
+        createSensorProfileProgram(vm, 'easyduino-jr', opcode, args, numeric);
+        const ir = vm._getValidatedArduinoUnoUploadIr('easyduino-jr');
+        t.same(numeric ? ir.setup[0].condition.left : ir.setup[0].condition, expected);
+        t.type(vm.generateArduinoUnoUploadCode('easyduino-jr'), 'string');
+    }
+    for (const [opcode, TYPE, numeric] of [
+        ['sensors_analogSensorRead', 'SOUND', true], ['sensors_analogSensorRead', 'REFLECTIVE', true],
+        ['sensors_digitalSensorRead', 'PIR', false]
+    ]) {
+        const vm = new VirtualMachine();
+        t.teardown(() => vm.quit());
+        const program = createSensorProfileProgram(vm, 'easyduino-jr', opcode, {TYPE, PORT: 'analog-a0'}, numeric);
+        const before = JSON.stringify(program.blocks._blocks);
+        t.throws(() => vm.generateArduinoUnoUploadCode('easyduino-jr'), /Unsupported EasyDuino Jr.*sensor type/);
+        t.equal(JSON.stringify(program.blocks._blocks), before, 'unsupported blocks are retained');
+    }
+    t.end();
+});
+
+tap.test('Jr sensor programs retain opcodes and PORT shadows through a real sb3 roundtrip', async t => {
+    const VirtualMachine = require('../../src/virtual-machine');
+    const path = require('path');
+    const {readFileToBuffer} = require('../fixtures/readProjectFile');
+    const vm = new VirtualMachine();
+    const restored = new VirtualMachine();
+    t.teardown(() => {
+        vm.quit();
+        restored.quit();
+    });
+    await vm.loadProject(readFileToBuffer(path.resolve(__dirname, '../fixtures/origin.sb3')));
+    for (const boardId of ['easyduino-jr', 'arduino-uno', 'easymaker', 'easyduino-proto']) {
+        createSensorProfileProgram(vm, boardId, 'sensors_analogSensorRead', {TYPE: 'LDR', PORT: 'analog-a0'}, true);
+    }
+    vm.setProgramContext('upload', 'easyduino-jr');
+    const before = JSON.parse(vm.toJSON()).easybloxUploadPrograms;
+    const blob = await vm.saveProjectSb3();
+    await restored.loadProject(Buffer.from(await blob.arrayBuffer()));
+    const after = JSON.parse(restored.toJSON()).easybloxUploadPrograms;
+    t.same(after, before, 'all board-owned programs and their serialized block structures survive');
+    t.equal(restored.getEasyBloxProjectContext().selectedBoardId, 'easyduino-jr');
+    for (const boardId of ['easyduino-jr', 'arduino-uno', 'easymaker', 'easyduino-proto']) {
+        const program = restored.getOrCreateUploadProgram(boardId);
+        t.equal(program.blocks.getBlock('sensor').opcode, 'sensors_analogSensorRead');
+        t.equal(program.blocks.getBlock('sensor_port').fields.easyMakerAnalogSensorPorts.value, 'analog-a0');
+        t.equal(restored._getValidatedArduinoUnoUploadIr(boardId).setup[0].condition.left.pin,
+            boardId === 'easyduino-jr' ? 15 : 14);
+    }
+});
+
 tap.test('Arduino UNO Upload extracts Scratch text as TextLiteral expression', t => {
     const runtime = createRuntimeWithBlocks([
         {
