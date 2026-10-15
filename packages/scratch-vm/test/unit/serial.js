@@ -571,3 +571,44 @@ tap.test('Serial stops queued writes after a transport write failure', async t =
         'connection loss events are emitted'
     );
 });
+
+tap.test('Serial validates optional write context only at the transport boundary', async t => {
+    let releaseFirst;
+    const firstWrite = new Promise(resolve => {
+        releaseFirst = resolve;
+    });
+    const writes = [];
+    let valid = true;
+    let validations = 0;
+    const transport = {
+        open: async () => {},
+        write: data => {
+            writes.push(data[0]);
+            return writes.length === 1 ? firstWrite : Promise.resolve('written');
+        }
+    };
+    const runtime = new MockRuntime(transport);
+    const serial = new Serial(runtime, 'arduinoUno');
+    serial.connect('COM3');
+    await new Promise(resolve => setImmediate(resolve));
+    const first = serial.write(Uint8Array.from([1]));
+    await new Promise(resolve => setImmediate(resolve));
+    const dropped = serial.write(Uint8Array.from([2]), () => {
+        validations++;
+        return valid;
+    });
+    const ordinary = serial.write(Uint8Array.from([3]));
+    t.equal(validations, 0, 'validity is not checked prematurely while another write is in flight');
+    valid = false;
+    releaseFirst();
+    await first;
+    t.equal(await dropped, null);
+    t.equal(await ordinary, 'written');
+    t.equal(validations, 1);
+    t.same(writes, [1, 3]);
+    valid = true;
+    t.equal(await serial.write(Uint8Array.from([4]), () => valid), 'written');
+    t.same(writes, [1, 3, 4]);
+    t.equal(serial.isConnected(), true);
+    t.same(runtime.events.map(event => event.event), [MockRuntime.PERIPHERAL_CONNECTED]);
+});

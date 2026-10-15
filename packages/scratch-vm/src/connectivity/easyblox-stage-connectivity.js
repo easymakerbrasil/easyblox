@@ -33,6 +33,10 @@ class EasyBloxStageConnectivity {
 
         this._connectivitySession = null;
         this._bluetoothSerialProvider = null;
+        this._contextGeneration = 0;
+        this._sessionGeneration = 0;
+        this._observedSessionGeneration = 0;
+        this._pendingOperations = new Map();
 
         if (
             this.runtime &&
@@ -43,8 +47,15 @@ class EasyBloxStageConnectivity {
                 () => {
                     this._connectivityRuntime
                         .clearWaiters();
+                    this._cancelPendingOperations(true);
                 }
             );
+            this.runtime.on('EASYBLOX_SELECTED_BOARD_CHANGED', () => {
+                if (!this._isBluetoothAllowed()) {
+                    this._invalidateContext();
+                }
+            });
+            this.runtime.on('RUNTIME_DISPOSED', () => this._invalidateContext());
         }
     }
 
@@ -53,8 +64,58 @@ class EasyBloxStageConnectivity {
      * @returns {number} session generation.
      */
     get sessionGeneration () {
-        return this._connectivityRuntime
-            .sessionGeneration;
+        const current = this._connectivityRuntime.sessionGeneration;
+        this._sessionGeneration += current - this._observedSessionGeneration;
+        this._observedSessionGeneration = current;
+        return this._sessionGeneration;
+    }
+
+    get contextGeneration () {
+        return this._contextGeneration;
+    }
+
+    _isBluetoothAllowed () {
+        return !this.runtime || typeof this.runtime.isEasyBloxBoardCapabilityAllowed !== 'function' ||
+            this.runtime.isEasyBloxBoardCapabilityAllowed(REQUIRED_BOARD_CAPABILITY);
+    }
+
+    _cancelPendingOperations (waitersOnly = false) {
+        for (const [cancel, isWaiter] of this._pendingOperations) {
+            if (!waitersOnly || isWaiter) {
+                cancel();
+            }
+        }
+    }
+
+    _invalidateContext () {
+        this._contextGeneration++;
+        this._sessionGeneration = this.sessionGeneration + 1;
+        this._observedSessionGeneration = 0;
+        this._cancelPendingOperations();
+        this._connectivityRuntime.clearWaiters();
+        if (this._bluetoothSerialProvider) {
+            this._bluetoothSerialProvider.onBluetoothSerialData(null);
+        }
+        this._bluetoothSerialProvider = null;
+        this._connectivitySession = null;
+        this._connectivityRuntime = new EasyBloxConnectivityRuntime();
+    }
+
+    _trackOperation (operation, generation, isWaiter = false) {
+        return new Promise((resolve, reject) => {
+            const cancel = () => {
+                this._pendingOperations.delete(cancel);
+                resolve(null);
+            };
+            this._pendingOperations.set(cancel, isWaiter);
+            Promise.resolve(operation).then(result => {
+                this._pendingOperations.delete(cancel);
+                resolve(generation === this._contextGeneration && this._isBluetoothAllowed() ? result : null);
+            }, error => {
+                this._pendingOperations.delete(cancel);
+                reject(error);
+            });
+        });
     }
 
     /**
@@ -65,7 +126,9 @@ class EasyBloxStageConnectivity {
      * @private
      */
     _writeStageTransport (data) {
-        if (!this._bluetoothSerialProvider) {
+        const provider = this._bluetoothSerialProvider;
+        const generation = this._contextGeneration;
+        if (!provider || !this._isBluetoothAllowed()) {
             return null;
         }
 
@@ -86,8 +149,12 @@ class EasyBloxStageConnectivity {
                     )
                 );
 
+            if (generation !== this._contextGeneration || !this._isBluetoothAllowed()) {
+                return null;
+            }
+
             lastSequence =
-                this._bluetoothSerialProvider
+                provider
                     .writeBluetoothSerial(
                         Uint8Array.from(chunk)
                     );
@@ -115,16 +182,19 @@ class EasyBloxStageConnectivity {
             return;
         }
 
+        if (this._bluetoothSerialProvider) {
+            this._invalidateContext();
+        }
+
         this._bluetoothSerialProvider = provider;
+        const generation = this._contextGeneration;
 
         const session =
             new EasyBloxConnectivitySession({
                 runtime:
                     this._connectivityRuntime,
-                write: data =>
-                    this._writeStageTransport(
-                        data
-                    )
+                write: data => (generation === this._contextGeneration && this._isBluetoothAllowed() ?
+                    this._writeStageTransport(data) : null)
             });
 
         this._connectivitySession = session;
@@ -132,6 +202,7 @@ class EasyBloxStageConnectivity {
         provider.onBluetoothSerialData(
             data => {
                 if (
+                    generation === this._contextGeneration && this._isBluetoothAllowed() &&
                     this._bluetoothSerialProvider ===
                         provider &&
                     this._connectivitySession ===
@@ -153,6 +224,7 @@ class EasyBloxStageConnectivity {
      */
     initializeBluetoothSerial () {
         if (
+            !this._isBluetoothAllowed() ||
             !this.runtime ||
             typeof this.runtime
                 .getPeripheralExtensionByCapability !==
@@ -184,7 +256,9 @@ class EasyBloxStageConnectivity {
 
         this._attachProvider(provider);
 
-        return provider.initBluetoothSerial();
+        const generation = this._contextGeneration;
+        const initialization = provider.initBluetoothSerial();
+        return initialization === null ? null : this._trackOperation(initialization, generation);
     }
 
     /**
@@ -195,7 +269,7 @@ class EasyBloxStageConnectivity {
      * @returns {?number} EBCP sequence, or null before initialization.
      */
     send (type, channel, payload) {
-        if (!this._connectivitySession) {
+        if (!this._connectivitySession || !this._isBluetoothAllowed()) {
             return null;
         }
 
@@ -210,12 +284,16 @@ class EasyBloxStageConnectivity {
      * Wait for the oldest matching EBCP application message.
      * @param {number} type EBCP message type.
      * @param {string} channel EBCP channel.
-     * @returns {Promise<object>} matching message.
+     * @returns {Promise<object|null>} matching message, or null on cancellation.
      */
     waitFor (type, channel) {
-        return this._connectivityRuntime.waitFor(
-            type,
-            channel
+        if (!this._isBluetoothAllowed()) {
+            return Promise.resolve(null);
+        }
+        return this._trackOperation(
+            this._connectivityRuntime.waitFor(type, channel),
+            this._contextGeneration,
+            true
         );
     }
 }

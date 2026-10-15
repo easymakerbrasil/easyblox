@@ -51,6 +51,7 @@ class ArduinoUnoPeripheral {
         this._pendingDhtReads = new Map();
         this._pendingCommandAcks = new Map();
         this._bluetoothSerialDataCallback = null;
+        this._bluetoothContextGeneration = 0;
         this._stageConnected = false;
         this._handshakeTimer = null;
         this._handshakeAttempts = 0;
@@ -62,6 +63,14 @@ class ArduinoUnoPeripheral {
                 'bluetoothSerial'
             ]
         );
+        if (typeof this._runtime.on === 'function') {
+            this._runtime.on('EASYBLOX_SELECTED_BOARD_CHANGED', () => {
+                if (!this._isBluetoothAllowed()) {
+                    this._invalidateBluetoothContext();
+                }
+            });
+            this._runtime.on('RUNTIME_DISPOSED', () => this._invalidateBluetoothContext());
+        }
     }
 
     /**
@@ -184,13 +193,19 @@ class ArduinoUnoPeripheral {
      * when initialization is acknowledged, or null when unavailable.
      */
     initBluetoothSerial () {
-        if (!this._stageConnected) {
+        if (!this._stageConnected || !this._isBluetoothAllowed()) {
             return null;
         }
 
-        return this._sendCommandWithAck(
-            COMMANDS.BT_SERIAL_INIT
+        const generation = this._bluetoothContextGeneration;
+        const initialization = this._sendCommandWithAck(
+            COMMANDS.BT_SERIAL_INIT,
+            [],
+            () => generation === this._bluetoothContextGeneration && this._isBluetoothAllowed()
         );
+        return initialization === null ? null : Promise.resolve(initialization)
+            .then(result => (generation === this._bluetoothContextGeneration && this._isBluetoothAllowed() ?
+                result : null));
     }
 
     /**
@@ -203,6 +218,7 @@ class ArduinoUnoPeripheral {
     writeBluetoothSerial (data) {
         if (
             !this._stageConnected ||
+            !this._isBluetoothAllowed() ||
             !(data instanceof Uint8Array) ||
             data.length === 0 ||
             data.length > MAX_PAYLOAD_LENGTH
@@ -210,9 +226,11 @@ class ArduinoUnoPeripheral {
             return null;
         }
 
+        const generation = this._bluetoothContextGeneration;
         return this._sendCommand(
             COMMANDS.BT_SERIAL_WRITE,
-            data
+            data,
+            () => generation === this._bluetoothContextGeneration && this._isBluetoothAllowed()
         );
     }
 
@@ -222,10 +240,32 @@ class ArduinoUnoPeripheral {
      * @returns {void}
      */
     onBluetoothSerialData (callback) {
+        const generation = this._bluetoothContextGeneration;
         this._bluetoothSerialDataCallback =
-            typeof callback === 'function' ?
-                callback :
+            typeof callback === 'function' && this._isBluetoothAllowed() ?
+                data => {
+                    if (generation === this._bluetoothContextGeneration && this._isBluetoothAllowed()) {
+                        callback(data);
+                    }
+                } :
                 null;
+    }
+
+    _isBluetoothAllowed () {
+        return typeof this._runtime.isEasyBloxBoardCapabilityAllowed !== 'function' ||
+            this._runtime.isEasyBloxBoardCapabilityAllowed('bluetoothSerial');
+    }
+
+    _invalidateBluetoothContext () {
+        this._bluetoothContextGeneration++;
+        this._bluetoothSerialDataCallback = null;
+        for (const [sequence, pending] of this._pendingCommandAcks) {
+            if (pending.command === COMMANDS.BT_SERIAL_INIT) {
+                clearTimeout(pending.timeout);
+                this._pendingCommandAcks.delete(sequence);
+                pending.resolve(null);
+            }
+        }
     }
 
     /**
@@ -1179,6 +1219,7 @@ class ArduinoUnoPeripheral {
 
         if (frame.command === RESPONSES.BT_SERIAL_DATA) {
             if (
+                !this._isBluetoothAllowed() ||
                 frame.sequence !== 0 ||
                 frame.payload.length === 0
             ) {
@@ -1438,9 +1479,10 @@ class ArduinoUnoPeripheral {
      * Send a Stage protocol command.
      * @param {number} command Protocol command.
      * @param {Uint8Array|Array<number>} payload Command payload.
+     * @param {?function(): boolean} isWriteValid Optional queued write context check.
      * @returns {?number} Sequence number or null when serial is unavailable.
      */
-    _sendCommand (command, payload = []) {
+    _sendCommand (command, payload = [], isWriteValid = null) {
         if (!this._serial || !this._serial.isConnected()) {
             return null;
         }
@@ -1459,7 +1501,7 @@ class ArduinoUnoPeripheral {
             payload
         );
 
-        this._serial.write(frame);
+        this._serial.write(frame, isWriteValid);
 
         return sequence;
     }
@@ -1469,10 +1511,11 @@ class ArduinoUnoPeripheral {
      * Used by commands which require firmware processing backpressure.
      * @param {number} command Protocol command.
      * @param {Uint8Array|Array<number>} payload Command payload.
+     * @param {?function(): boolean} isWriteValid Optional queued write context check.
      * @returns {?Promise<number>} Promise resolved with the sequence number
      * when acknowledged, or null on failure/timeout.
      */
-    _sendCommandWithAck (command, payload = []) {
+    _sendCommandWithAck (command, payload = [], isWriteValid = null) {
         if (!this._serial || !this._serial.isConnected()) {
             return null;
         }
@@ -1511,11 +1554,12 @@ class ArduinoUnoPeripheral {
                 sequence,
                 {
                     resolve,
-                    timeout
+                    timeout,
+                    command
                 }
             );
 
-            this._serial.write(frame);
+            this._serial.write(frame, isWriteValid);
         });
     }
 

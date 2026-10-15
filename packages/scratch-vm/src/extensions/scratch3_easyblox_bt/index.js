@@ -362,6 +362,12 @@ class Scratch3EasyBloxBtBlocks {
             typeof this.runtime.on ===
                 'function'
         ) {
+            this.runtime.on('EASYBLOX_SELECTED_BOARD_CHANGED', () => {
+                if (!this._isBluetoothAllowed()) {
+                    this._invalidateBluetoothContext();
+                }
+            });
+            this.runtime.on('RUNTIME_DISPOSED', () => this._invalidateBluetoothContext());
             this.runtime.on(
                 'PROJECT_STOP_ALL',
                 () => {
@@ -779,6 +785,21 @@ class Scratch3EasyBloxBtBlocks {
             sessionGeneration;
     }
 
+    _isBluetoothAllowed () {
+        return typeof this.runtime.isEasyBloxBoardCapabilityAllowed !== 'function' ||
+            this.runtime.isEasyBloxBoardCapabilityAllowed(REQUIRED_BOARD_CAPABILITY);
+    }
+
+    _invalidateBluetoothContext () {
+        this._receivedByThread = new WeakMap();
+        this._easyConectState.reset();
+        this._easyConectRemoteActuatorBindings.clear();
+        this._easyConectWatcherGeneration++;
+        this._easyConectWatchersActive = false;
+        this._easyConectStageInitialization = null;
+        this._easyConectSessionGeneration = this._stageConnectivity.sessionGeneration;
+    }
+
     /**
      * Arm one pending EBCP receive for every high-level EasyConect signal.
      * @returns {void}
@@ -786,6 +807,7 @@ class Scratch3EasyBloxBtBlocks {
      */
     _startEasyConectStageWatchers () {
         if (
+            !this._isBluetoothAllowed() ||
             this._easyConectWatchersActive
         ) {
             return;
@@ -830,6 +852,7 @@ class Scratch3EasyBloxBtBlocks {
             return;
         }
 
+        const generation = this._stageConnectivity.contextGeneration;
         this._stageConnectivity
             .waitFor(
                 signal.messageType,
@@ -837,6 +860,8 @@ class Scratch3EasyBloxBtBlocks {
             )
             .then(message => {
                 if (
+                    !message || generation !== this._stageConnectivity.contextGeneration ||
+                    !this._isBluetoothAllowed() ||
                     watcherGeneration !==
                     this._easyConectWatcherGeneration
                 ) {
@@ -999,6 +1024,9 @@ class Scratch3EasyBloxBtBlocks {
         signalId,
         binding
     ) {
+        if (!this._isBluetoothAllowed()) {
+            return;
+        }
         this._easyConectRemoteActuatorBindings
             .set(
                 signalId,
@@ -1023,6 +1051,7 @@ class Scratch3EasyBloxBtBlocks {
             return initialization;
         }
 
+        const generation = this._stageConnectivity.contextGeneration;
         const tracked =
             Promise.resolve(
                 initialization
@@ -1034,6 +1063,7 @@ class Scratch3EasyBloxBtBlocks {
         tracked.then(
             result => {
                 if (
+                    generation !== this._stageConnectivity.contextGeneration ||
                     result !== null ||
                     this._easyConectStageInitialization !==
                         tracked
@@ -1044,6 +1074,7 @@ class Scratch3EasyBloxBtBlocks {
                 setTimeout(
                     () => {
                         if (
+                            generation !== this._stageConnectivity.contextGeneration ||
                             this._easyConectStageInitialization !==
                                 tracked
                         ) {
@@ -1094,6 +1125,7 @@ class Scratch3EasyBloxBtBlocks {
      */
     _ensureEasyConectStageTransport () {
         if (
+            !this._isBluetoothAllowed() ||
             this._easyConectStageInitialization
         ) {
             return;
@@ -1133,6 +1165,7 @@ class Scratch3EasyBloxBtBlocks {
             util && util.thread;
 
         if (
+            !this._isBluetoothAllowed() ||
             !thread ||
             (
                 typeof thread !== 'object' &&
@@ -1201,10 +1234,14 @@ class Scratch3EasyBloxBtBlocks {
      * @returns {Promise<void>} resolves when a matching message is consumed
      */
     waitText (args, util) {
+        const generation = this._stageConnectivity.contextGeneration;
         return this._stageConnectivity.waitFor(
             TEXT,
             EASYBLOX_BT_CHANNEL
         ).then(message => {
+            if (!message || generation !== this._stageConnectivity.contextGeneration || !this._isBluetoothAllowed()) {
+                return;
+            }
             const state =
                 this._getReceivedState(util);
 
@@ -1250,10 +1287,14 @@ class Scratch3EasyBloxBtBlocks {
      * @returns {Promise<void>} resolves when a matching message is consumed
      */
     waitNumber (args, util) {
+        const generation = this._stageConnectivity.contextGeneration;
         return this._stageConnectivity.waitFor(
             NUMBER,
             EASYBLOX_BT_CHANNEL
         ).then(message => {
+            if (!message || generation !== this._stageConnectivity.contextGeneration || !this._isBluetoothAllowed()) {
+                return;
+            }
             const state =
                 this._getReceivedState(util);
 

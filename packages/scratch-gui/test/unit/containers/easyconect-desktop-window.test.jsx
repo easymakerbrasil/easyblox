@@ -10,6 +10,7 @@ import '@testing-library/jest-dom';
 import {
     EasyConectDesktopWindowContainer
 } from '../../../src/containers/easyconect-desktop-window.jsx';
+import EasyConectDesktopSession from '../../../src/lib/easyconect-desktop-session';
 
 class FakeSession {
     constructor (state = {
@@ -110,6 +111,93 @@ class FakeSession {
 describe(
     'EasyConectDesktopWindowContainer',
     () => {
+        test.each([{pending: false}, {pending: true}])('Jr cancels the session: $pending', async ({pending}) => {
+            let resolveConnection;
+            let physicallyConnected = false;
+            const unsubscribe = jest.fn();
+            const pendingConnect = function (resolve) {
+                resolveConnection = () => {
+                    physicallyConnected = true;
+                    resolve();
+                };
+            };
+            const client = {
+                listDevices: jest.fn(() => Promise.resolve([{deviceId: 'COM10', name: 'EasyMaker-39'}])),
+                connect: jest.fn(() => new Promise(pendingConnect)),
+                disconnect: jest.fn(() => {
+                    const wasConnected = physicallyConnected;
+                    physicallyConnected = false;
+                    return Promise.resolve(wasConnected);
+                }),
+                onDisconnect: jest.fn(() => unsubscribe),
+                send: jest.fn(() => Promise.resolve()),
+                waitFor: jest.fn(() => new Promise(() => {}))
+            };
+            const session = new EasyConectDesktopSession({client});
+            const onRequestClose = jest.fn();
+            const onConnectionStateChange = jest.fn();
+            const renderWindow = function (compatible) {
+                return (
+                    <EasyConectDesktopWindowContainer
+                        easyBloxBtActive
+                        isOpen
+                        easyConectBoardCompatible={compatible}
+                        onConnectionStateChange={onConnectionStateChange}
+                        onRequestClose={onRequestClose}
+                        session={session}
+                    />
+                );
+            };
+            const {rerender, unmount} = render(renderWindow(true));
+            let connecting;
+            await act(async () => {
+                connecting = session.connect();
+                await Promise.resolve();
+            });
+            expect(session.getState().status).toBe('connecting');
+            if (!pending) {
+                await act(async () => {
+                    resolveConnection();
+                    await connecting;
+                });
+                expect(session.getState().status).toBe('connected');
+            }
+            rerender(renderWindow(false));
+            expect(onRequestClose).toHaveBeenCalledTimes(1);
+            expect(session.getTerminalSession()).toBeNull();
+            expect(session.getControlsSession()).toBeNull();
+            expect(session.getMotorsServoSession()).toBeNull();
+            expect(session.getOutputsSession()).toBeNull();
+            expect(session.getGamepadSession()).toBeNull();
+            await act(async () => {
+                if (pending) {
+                    resolveConnection();
+                    expect(await connecting).toBe(false);
+                }
+            });
+            expect(physicallyConnected).toBe(false);
+            expect(session.getState().status).toBe('disconnected');
+            expect(onConnectionStateChange).toHaveBeenLastCalledWith(false);
+            expect(client.send).not.toHaveBeenCalled();
+            rerender(renderWindow(true));
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', {name: 'Conectar'}));
+                await Promise.resolve();
+            });
+            await act(async () => {
+                resolveConnection();
+                await Promise.resolve();
+            });
+            expect(session.getState().status).toBe('connected');
+            expect(client.connect).toHaveBeenCalledTimes(2);
+            expect(client.onDisconnect).toHaveBeenCalledTimes(1);
+            expect(onRequestClose).toHaveBeenCalledTimes(1);
+            unmount();
+            expect(session._stateListeners.size).toBe(0);
+            session.dispose();
+            expect(unsubscribe).toHaveBeenCalledTimes(1);
+        });
+
         test('owns the EasyConect session actions and reflects session state changes', () => {
             const session =
                 new FakeSession();

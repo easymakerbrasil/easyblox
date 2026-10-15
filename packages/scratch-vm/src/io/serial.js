@@ -207,9 +207,10 @@ class Serial {
     /**
      * Write raw bytes to the serial transport.
      * @param {Uint8Array} data Bytes to send.
+     * @param {?function(): boolean} isValid Optional context check immediately before transport delivery.
      * @returns {?Promise} Transport write result.
      */
-    write (data) {
+    write (data, isValid = null) {
         if (!this._connected || !this._transport || typeof this._transport.write !== 'function') {
             return null;
         }
@@ -221,6 +222,10 @@ class Serial {
                     !this._transport ||
                     typeof this._transport.write !== 'function'
                 ) {
+                    return null;
+                }
+
+                if (isValid && !isValid()) {
                     return null;
                 }
 

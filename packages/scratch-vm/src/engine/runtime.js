@@ -8,6 +8,7 @@ const BlocksRuntimeCache = require('./blocks-runtime-cache');
 const BlockType = require('../extension-support/block-type');
 const BlockExecutionMode = require('../extension-support/block-execution-mode');
 const BlockInactiveModeBehavior = require('../extension-support/block-inactive-mode-behavior');
+const EasyDuinoJrProductProfile = require('../board-profiles/easyduino-jr-product-profile');
 const Profiler = require('./profiler');
 const Sequencer = require('./sequencer');
 const execute = require('./execute.js');
@@ -811,6 +812,10 @@ class Runtime extends EventEmitter {
         return 'RUNTIME_DISPOSED';
     }
 
+    static get EASYBLOX_SELECTED_BOARD_CHANGED () {
+        return 'EASYBLOX_SELECTED_BOARD_CHANGED';
+    }
+
     /**
      * Event name for reporting that a block was updated and needs to be rerendered.
      * @constant {string}
@@ -856,6 +861,7 @@ class Runtime extends EventEmitter {
         }
 
         this._easybloxSelectedBoardId = boardId;
+        this.emit(Runtime.EASYBLOX_SELECTED_BOARD_CHANGED, boardId);
 
         /*
          * Extension getInfo() may expose a different pedagogical surface for
@@ -2033,6 +2039,10 @@ class Runtime extends EventEmitter {
      * @returns {?object} Matching peripheral extension, or null when unavailable.
      */
     getPeripheralExtensionByCapability (capability) {
+        if (!this.isEasyBloxBoardCapabilityAllowed(capability)) {
+            return null;
+        }
+
         let fallback = null;
 
         for (const extensionId of Object.keys(
@@ -2064,6 +2074,11 @@ class Runtime extends EventEmitter {
         }
 
         return fallback;
+    }
+
+    isEasyBloxBoardCapabilityAllowed (capability) {
+        return capability !== 'bluetoothSerial' ||
+            this.getEasyBloxSelectedBoardId() !== EasyDuinoJrProductProfile.id;
     }
 
     /**

@@ -37,8 +37,21 @@ const ArduinoUnoBoardProfile =
     require('./upload/board-profiles/arduino-uno-board-profile');
 const EasyMakerProductProfile =
     require('./board-profiles/easymaker-product-profile');
+const EasyDuinoJrProductProfile =
+    require('./board-profiles/easyduino-jr-product-profile');
+const {CONNECTIVITY_RESOURCES} =
+    require('./connectivity/easyblox-connectivity-contract');
 const ArduinoUnoGenerator =
     require('./upload/arduino-uno-generator');
+
+const EASYDUINO_JR_ARDUINO_UNO_UPLOAD_PROFILE = Object.freeze({
+    ...ArduinoUnoBoardProfile,
+    id: EasyDuinoJrProductProfile.id,
+    logicalResources: Object.freeze(Object.fromEntries(
+        Object.entries(ArduinoUnoBoardProfile.logicalResources)
+            .filter(([resource]) => resource !== CONNECTIVITY_RESOURCES.SOFTWARE_UART_D2_D3)
+    ))
+});
 
 const EASYMAKER_ARDUINO_UNO_UPLOAD_PROFILE =
     Object.freeze({
@@ -3415,6 +3428,10 @@ class VirtualMachine extends EventEmitter {
     _getArduinoUnoUploadBoardProfile (
         boardId = 'arduino-uno'
     ) {
+        if (boardId === EasyDuinoJrProductProfile.id) {
+            return EASYDUINO_JR_ARDUINO_UNO_UPLOAD_PROFILE;
+        }
+
         return (
             boardId ===
                 EasyMakerProductProfile.id
