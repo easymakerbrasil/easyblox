@@ -25,6 +25,9 @@ import ProgramModeSelector from '../program-mode-selector/program-mode-selector.
 import HardwareControls from '../hardware-controls/hardware-controls.jsx';
 
 import {setPlayer} from '../../reducers/mode';
+import {setProjectUnchanged} from '../../reducers/project-changed';
+import {showStandardAlert} from '../../reducers/alerts';
+import log from '../../lib/log';
 import {
     isTimeTravel220022BC,
     isTimeTravel1920,
@@ -47,6 +50,7 @@ import {
 } from '../../reducers/menus';
 
 import createEasyBloxProjectFileService from '../../lib/easyblox-project-file-service';
+import createEasyBloxDesktopFilePicker from '../../lib/easyblox-desktop-file-picker';
 import downloadBlob from '../../lib/download-blob';
 import {getProjectTitleFromFilename} from '../../lib/sb-file-uploader-utils';
 import {
@@ -175,11 +179,27 @@ class MenuBar extends React.Component {
     constructor (props) {
         super(props);
 
+        this.projectContentRevision = 0;
+        this.lastConfirmedRevision = 0;
+        this.projectLoadEpoch = 0;
+        this.desktopCloseRequestId = null;
+        this.desktopCloseRequestEpoch = null;
+        this.desktopCloseDecisionInProgress = false;
+        this.unsubscribeDesktopCloseRequested = null;
+        this.unsubscribeDesktopCloseDecision = null;
+
+        this.handleProjectContentChanged = () => {
+            this.projectContentRevision += 1;
+        };
+
         bindAll(this, [
             'handleClickNew',
             'handleClickSeeCommunity',
             'handleClickShare',
             'handleProjectLoaded',
+            'handleProjectSaveConfirmed',
+            'handleDesktopCloseRequested',
+            'handleDesktopCloseDecision',
             'handleSave',
             'handleSaveAs',
             'handleSetMode',
@@ -189,11 +209,16 @@ class MenuBar extends React.Component {
             'restoreOptionMessage'
         ]);
 
-        const showSaveFilePicker =
-            typeof window !== 'undefined' &&
-            typeof window.showSaveFilePicker === 'function' ?
+        const desktop = typeof window === 'undefined' ?
+            null : window.easybloxDesktop;
+        const showSaveFilePicker = desktop &&
+            typeof desktop.chooseProjectFile === 'function' &&
+            typeof desktop.writeProjectFile === 'function' ?
+            createEasyBloxDesktopFilePicker(desktop) :
+            (typeof window !== 'undefined' &&
+                typeof window.showSaveFilePicker === 'function' ?
                 window.showSaveFilePicker.bind(window) :
-                null;
+                null);
 
         this.projectFileService =
             createEasyBloxProjectFileService({
@@ -202,6 +227,8 @@ class MenuBar extends React.Component {
                     this.props.vm.saveProjectSb3.bind(
                         this.props.vm
                     ),
+                getProjectRevision: () => this.projectContentRevision,
+                onSaveConfirmed: this.handleProjectSaveConfirmed,
                 getProjectFilename: this.getProjectFilename,
                 downloadBlob,
                 onFileAssociated:
@@ -230,8 +257,33 @@ class MenuBar extends React.Component {
             this.handleProjectLoaded
         );
 
+        this.props.vm.on(
+            'PROJECT_CHANGED',
+            this.handleProjectContentChanged
+        );
+
+        const desktop = typeof window === 'undefined' ?
+            null : window.easybloxDesktop;
+        if (
+            desktop &&
+            typeof desktop.onCloseRequested === 'function' &&
+            typeof desktop.onCloseDecision === 'function'
+        ) {
+            this.unsubscribeDesktopCloseDecision =
+                desktop.onCloseDecision(this.handleDesktopCloseDecision);
+            this.unsubscribeDesktopCloseRequested =
+                desktop.onCloseRequested(this.handleDesktopCloseRequested);
+        }
     }
     componentWillUnmount () {
+        if (this.unsubscribeDesktopCloseRequested) {
+            this.unsubscribeDesktopCloseRequested();
+            this.unsubscribeDesktopCloseRequested = null;
+        }
+        if (this.unsubscribeDesktopCloseDecision) {
+            this.unsubscribeDesktopCloseDecision();
+            this.unsubscribeDesktopCloseDecision = null;
+        }
         document.removeEventListener(
             'keydown',
             this.handleKeyPress
@@ -242,10 +294,95 @@ class MenuBar extends React.Component {
             this.handleProjectLoaded
         );
 
+        this.props.vm.removeListener(
+            'PROJECT_CHANGED',
+            this.handleProjectContentChanged
+        );
     }
 
     handleProjectLoaded () {
+        this.projectContentRevision += 1;
+        this.lastConfirmedRevision = this.projectContentRevision;
+        this.projectLoadEpoch += 1;
         this.projectFileService.clearFileHandle();
+    }
+    handleProjectSaveConfirmed (revision) {
+        this.lastConfirmedRevision = revision;
+        if (revision === this.projectContentRevision) {
+            this.props.onSetProjectUnchanged();
+        }
+    }
+    async handleDesktopCloseRequested (requestId) {
+        const desktop = window.easybloxDesktop;
+        if (this.desktopCloseRequestId !== null) return;
+        this.desktopCloseRequestId = requestId;
+        this.desktopCloseRequestEpoch = this.projectLoadEpoch;
+
+        try {
+            const dirty = Boolean(
+                this.props.projectChanged ||
+                this.projectContentRevision !== this.lastConfirmedRevision
+            );
+            if (dirty) {
+                const ack = await desktop.ackClose(requestId);
+                if (!ack || ack.status !== 'acknowledged') {
+                    await desktop.resolveClose(requestId, 'cancel');
+                    this.desktopCloseRequestId = null;
+                }
+            } else {
+                await desktop.resolveClose(requestId, 'discard');
+                this.desktopCloseRequestId = null;
+            }
+        } catch (error) {
+            log.error('EasyBlox desktop close request failed:', error);
+            try {
+                await desktop.resolveClose(requestId, 'cancel');
+            } catch (resolveError) {
+                log.error('EasyBlox close cancellation failed:', resolveError);
+            }
+            this.desktopCloseRequestId = null;
+        }
+    }
+    async handleDesktopCloseDecision (requestId, decision) {
+        if (
+            this.desktopCloseRequestId !== requestId ||
+            this.desktopCloseDecisionInProgress
+        ) return;
+        this.desktopCloseDecisionInProgress = true;
+        const desktop = window.easybloxDesktop;
+        let resolution = 'cancel';
+
+        try {
+            if (this.desktopCloseRequestEpoch === this.projectLoadEpoch) {
+                if (decision === 'discard') {
+                    resolution = 'discard';
+                } else if (decision === 'save') {
+                    const saveResult = await this.handleSave();
+                    if (
+                        saveResult === 'saved' &&
+                        this.desktopCloseRequestEpoch === this.projectLoadEpoch &&
+                        this.projectContentRevision === this.lastConfirmedRevision
+                    ) {
+                        resolution = 'save';
+                    } else if (saveResult === 'downloaded') {
+                        this.props.onShowLocalSaveError();
+                    }
+                }
+            }
+        } catch (error) {
+            log.error('EasyBlox save before close failed:', error);
+            this.props.onShowLocalSaveError();
+        }
+
+        try {
+            await desktop.resolveClose(requestId, resolution);
+        } catch (error) {
+            log.error('EasyBlox desktop close resolution failed:', error);
+        } finally {
+            this.desktopCloseRequestId = null;
+            this.desktopCloseRequestEpoch = null;
+            this.desktopCloseDecisionInProgress = false;
+        }
     }
     handleSave () {
         return this.projectFileService.save();
@@ -686,6 +823,8 @@ MenuBar.propTypes = {
     onRequestCloseLogin: PropTypes.func,
     onSeeCommunity: PropTypes.func,
     onSetProjectTitle: PropTypes.func,
+    onSetProjectUnchanged: PropTypes.func.isRequired,
+    onShowLocalSaveError: PropTypes.func.isRequired,
     onSetTimeTravelMode: PropTypes.func,
     onShare: PropTypes.func,
     onStartSelectingExternalProjectImport: PropTypes.func,
@@ -723,6 +862,7 @@ MenuBar.propTypes = {
 
     platform: PropTypes.oneOf(Object.keys(PLATFORM)),
     projectTitle: PropTypes.string,
+    projectChanged: PropTypes.bool,
     renderLogin: PropTypes.func,
     shouldSaveBeforeTransition: PropTypes.func,
     showComingSoon: PropTypes.bool,
@@ -766,6 +906,7 @@ const mapStateToProps = (state, ownProps) => {
         isShowingProject: getIsShowingProject(loadingState),
         loginMenuOpen: loginMenuOpen(state),
         projectTitle: state.scratchGui.projectTitle,
+        projectChanged: state.scratchGui.projectChanged,
         easyBloxBtActive:
             ownProps.easyBloxBtActive ??
             isExtensionActive(
@@ -823,6 +964,8 @@ const mapDispatchToProps = (dispatch, ownProps) => ({
             title
         )
     ),
+    onSetProjectUnchanged: () => dispatch(setProjectUnchanged()),
+    onShowLocalSaveError: () => dispatch(showStandardAlert('localSavingError')),
     onSetTimeTravelMode: mode => dispatch(setTimeTravel(mode)),
     onToggleEasyConect:
         ownProps.onToggleEasyConect ??

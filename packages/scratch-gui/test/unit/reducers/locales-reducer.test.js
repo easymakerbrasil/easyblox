@@ -1,6 +1,10 @@
 /* eslint-env jest */
 import {localesInitialState} from '../../../src/reducers/locales';
 
+test('provides the file menu accessibility label without a missing translation', () => {
+    expect(localesInitialState.messagesByLocale['pt-br']['gui.aria.fileMenu']).toBe('Menu Arquivo');
+});
+
 test('provides EasyBlox pt-BR interface translations', () => {
     const ptBrMessages = localesInitialState.messagesByLocale['pt-br'];
 

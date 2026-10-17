@@ -59,6 +59,7 @@ const vmManagerHOC = function (WrappedComponent) {
             }
         }
         componentWillUnmount () {
+            this.projectLoadResetToken = (this.projectLoadResetToken || 0) + 1;
             this.props.vm.runtime.removeListener('RUNTIME_DISPOSED', this.handleRuntimeDisposed);
             this._releaseMicrophoneInput();
         }
@@ -66,12 +67,42 @@ const vmManagerHOC = function (WrappedComponent) {
             this.props.onCloseSoundRecorder();
         }
         loadProject () {
+            const loadToken = (this.projectLoadResetToken || 0) + 1;
+            this.projectLoadResetToken = loadToken;
+
             return this.props.vm.loadProject(this.props.projectData)
                 .then(() => {
+                    const vm = this.props.vm;
+                    let changedAfterLoad = false;
+                    let replacedAfterLoad = false;
+
+                    const onProjectChanged = () => {
+                        changedAfterLoad = true;
+                    };
+
+                    const onProjectLoaded = () => {
+                        replacedAfterLoad = true;
+                    };
+
+                    vm.on('PROJECT_CHANGED', onProjectChanged);
+                    vm.on('PROJECT_LOADED', onProjectLoaded);
+
                     this.props.onLoadedProject(this.props.loadingState, this.props.canSave);
-                    // Wrap in a setTimeout because skin loading in
-                    // the renderer can be async.
-                    setTimeout(() => this.props.onSetProjectUnchanged());
+
+                    // Preserve the deferred reset for asynchronous skin loading.
+                    // Never clear changes made after loading or for another project.
+                    setTimeout(() => {
+                        vm.removeListener('PROJECT_CHANGED', onProjectChanged);
+                        vm.removeListener('PROJECT_LOADED', onProjectLoaded);
+
+                        if (
+                            this.projectLoadResetToken === loadToken &&
+                            !changedAfterLoad &&
+                            !replacedAfterLoad
+                        ) {
+                            this.props.onSetProjectUnchanged();
+                        }
+                    });
 
                     // If the vm is not running, call draw on the renderer manually
                     // This draws the state of the loaded project with no blocks running

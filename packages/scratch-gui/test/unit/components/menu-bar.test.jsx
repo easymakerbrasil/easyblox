@@ -19,6 +19,7 @@ import configureStore from 'redux-mock-store';
 import {Provider} from 'react-redux';
 import VM from '@scratch/scratch-vm';
 import {MenuRefProvider} from '../../../src/contexts/menu-ref-context.jsx';
+import log from '../../../src/lib/log';
 jest.mock('../../../src/lib/easyblox-project-file-service');
 
 describe('MenuBar Component', () => {
@@ -82,6 +83,97 @@ describe('MenuBar Component', () => {
 
     afterEach(() => {
         jest.clearAllMocks();
+    });
+
+    describe('Desktop close decisions', () => {
+        let closeRequested;
+        let closeDecision;
+        let desktop;
+        let logError;
+
+        beforeEach(() => {
+            desktop = {
+                onCloseRequested: jest.fn(callback => {
+                    closeRequested = callback;
+                    return jest.fn();
+                }),
+                onCloseDecision: jest.fn(callback => {
+                    closeDecision = callback;
+                    return jest.fn();
+                }),
+                ackClose: jest.fn().mockResolvedValue({status: 'acknowledged'}),
+                resolveClose: jest.fn().mockResolvedValue({status: 'resolved'})
+            };
+            window.easybloxDesktop = desktop;
+            logError = jest.spyOn(log, 'error').mockImplementation(() => {});
+            renderWithIntl(getComponent());
+            store.getState().scratchGui.vm.emit('PROJECT_CHANGED');
+        });
+
+        afterEach(() => {
+            logError.mockRestore();
+            delete window.easybloxDesktop;
+        });
+
+        test('waits for a confirmed revision before authorizing save and close', async () => {
+            let finish;
+            projectFileService.save.mockReturnValue(new Promise(resolve => {
+                finish = resolve;
+            }));
+            await closeRequested(1);
+            const pending = closeDecision(1, 'save');
+            expect(desktop.resolveClose).not.toHaveBeenCalled();
+            createEasyBloxProjectFileService.mock.calls[0][0].onSaveConfirmed(1);
+            finish('saved');
+            await pending;
+            expect(desktop.resolveClose).toHaveBeenCalledWith(1, 'save');
+        });
+
+        test.each(['cancel', 'discard'])('%s does not save the project', async decision => {
+            await closeRequested(1);
+            await closeDecision(1, decision);
+            expect(desktop.resolveClose).toHaveBeenCalledWith(1, decision);
+            expect(projectFileService.save).not.toHaveBeenCalled();
+        });
+
+        test('cancelled picker keeps the project open', async () => {
+            projectFileService.save.mockResolvedValue('cancelled');
+            await closeRequested(1);
+            await closeDecision(1, 'save');
+            expect(desktop.resolveClose).toHaveBeenCalledWith(1, 'cancel');
+        });
+
+        test('write failure keeps the project open, reports the error, and allows another close', async () => {
+            projectFileService.save.mockRejectedValue(new Error('EACCES'));
+            await closeRequested(1);
+            await closeDecision(1, 'save');
+            expect(desktop.resolveClose).toHaveBeenCalledWith(1, 'cancel');
+            expect(logError).toHaveBeenCalled();
+            expect(store.getActions()).toEqual(expect.arrayContaining([
+                expect.objectContaining({alertId: 'localSavingError'})
+            ]));
+            await closeRequested(2);
+            expect(desktop.ackClose).toHaveBeenCalledWith(2);
+        });
+
+        test('an edit after serialization prevents close despite a successful disk write', async () => {
+            projectFileService.save.mockImplementation(() => {
+                createEasyBloxProjectFileService.mock.calls[0][0].onSaveConfirmed(1);
+                store.getState().scratchGui.vm.emit('PROJECT_CHANGED');
+                return Promise.resolve('saved');
+            });
+            await closeRequested(1);
+            await closeDecision(1, 'save');
+            expect(desktop.resolveClose).toHaveBeenCalledWith(1, 'cancel');
+        });
+
+        test('replacing the project while the dialog is open prevents saving the replacement', async () => {
+            await closeRequested(1);
+            store.getState().scratchGui.vm.emit('PROJECT_LOADED');
+            await closeDecision(1, 'save');
+            expect(projectFileService.save).not.toHaveBeenCalled();
+            expect(desktop.resolveClose).toHaveBeenCalledWith(1, 'cancel');
+        });
     });
 
     describe('EasyBlox local project save integration', () => {

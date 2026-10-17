@@ -6,6 +6,7 @@ const SELECT_LOCALE = 'scratch-gui/locales/SELECT_LOCALE';
 
 const easyBloxEditorMessages = Object.assign({}, editorMessages, {
     'pt-br': Object.assign({}, editorMessages['pt-br'], {
+        'gui.aria.fileMenu': 'Menu Arquivo',
         'gui.sharedMessages.loadFromComputerTitle': 'Carregar do seu computador',
         'gui.menuBar.colorMode': 'Modo de cor',
         'gui.menuBar.turboModeOn': 'Ativar modo turbo',

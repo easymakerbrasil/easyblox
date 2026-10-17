@@ -29,6 +29,19 @@ const AlertLevels = {
 
 const alerts = [
     {
+        alertId: 'localSavingError',
+        clearList: ['localSavingError'],
+        closeButton: true,
+        content: (
+            <FormattedMessage
+                defaultMessage="Project could not save."
+                description="Message indicating that project could not be saved"
+                id="gui.alerts.savingError"
+            />
+        ),
+        level: AlertLevels.WARN
+    },
+    {
         alertId: STAGE_PREPARATION_ALERT_IDS.progress,
         clearList: stagePreparationFamily,
         allowRuntimeMessage: true,

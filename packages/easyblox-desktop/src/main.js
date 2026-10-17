@@ -1,6 +1,8 @@
 const path = require('node:path');
 
 const {registerDesktopAppInfo} = require('./desktop-app-info');
+const {registerDesktopCloseIpc} = require('./desktop-close-ipc');
+const {registerDesktopNativeSaveIpc} = require('./desktop-native-save-ipc');
 const {registerMediaPermissions} = require('./media-permissions');
 
 const {
@@ -373,7 +375,175 @@ const createMainWindow =
             });
 
         registerDesktopAppInfo(mainWindow, app);
+        registerDesktopNativeSaveIpc(mainWindow, {dialog});
         registerMediaPermissions(mainWindow, {isGuiServerTrusted});
+
+        const closingWindow = mainWindow;
+        let closeAuthorized = false;
+        let authorizedCloseEvent = null;
+        let closeAckTimer = null;
+        let closeAckRequestId = null;
+
+        const clearCloseAckTimer = () => {
+            if (closeAckTimer !== null) {
+                clearTimeout(closeAckTimer);
+                closeAckTimer = null;
+            }
+
+            closeAckRequestId = null;
+        };
+
+        const closeRegistration = registerDesktopCloseIpc(
+            closingWindow,
+            {
+                onAcknowledged: requestId => {
+                    if (closeAckRequestId === requestId) {
+                        clearCloseAckTimer();
+                    }
+
+                    const isStillPending = () => (
+                        !closingWindow.isDestroyed() &&
+                        !closingWindow.webContents.isDestroyed() &&
+                        closeRegistration.getState() === 'pending' &&
+                        closeRegistration.isAcknowledged(requestId)
+                    );
+
+                    Promise.resolve()
+                        .then(() => {
+                            if (!isStillPending()) return null;
+                            return dialog.showMessageBox(closingWindow, {
+                                type: 'warning',
+                                title: 'Alterações não salvas',
+                                message: 'Deseja salvar o projeto antes de fechar o EasyBlox?',
+                                buttons: ['Salvar', 'Não salvar', 'Cancelar'],
+                                defaultId: 0,
+                                cancelId: 2,
+                                noLink: true
+                            });
+                        })
+                        .then(result => {
+                            if (!result || !isStillPending()) return;
+                            const choices = ['save', 'discard', 'cancel'];
+                            closingWindow.webContents.send(
+                                'easyblox:desktop:close-decision',
+                                requestId,
+                                choices[result.response] || 'cancel'
+                            );
+                        })
+                        .catch(error => {
+                            console.error('EasyBlox close dialog failed:', error);
+                            if (isStillPending()) {
+                                closeRegistration.cancelPending();
+                            }
+                        });
+                },
+
+                onResolved: requestId => {
+                    if (closeAckRequestId === requestId) {
+                        clearCloseAckTimer();
+                    }
+                },
+
+                onAuthorized: () => {
+                    clearCloseAckTimer();
+                    if (
+                        closingWindow.isDestroyed() ||
+                        closingWindow.webContents.isDestroyed()
+                    ) {
+                        return;
+                    }
+
+                    closeAuthorized = true;
+                    authorizedCloseEvent = null;
+
+                    try {
+                        closingWindow.close();
+
+                        if (
+                            !authorizedCloseEvent ||
+                            authorizedCloseEvent.defaultPrevented
+                        ) {
+                            closeAuthorized = false;
+                            authorizedCloseEvent = null;
+                            closeRegistration.resetAuthorized();
+                        }
+                    } catch (error) {
+                        closeAuthorized = false;
+                        authorizedCloseEvent = null;
+                        closeRegistration.resetAuthorized();
+                        throw error;
+                    }
+                }
+            }
+        );
+
+        closingWindow.on('close', event => {
+            if (
+                closeAuthorized &&
+                closeRegistration.getState() === 'authorized'
+            ) {
+                authorizedCloseEvent = event;
+                return;
+            }
+
+            closeAuthorized = false;
+            authorizedCloseEvent = null;
+
+            event.preventDefault();
+
+            try {
+                const requestId = closeRegistration.requestClose();
+
+                if (
+                    requestId !== null &&
+                    closeRegistration.getState() === 'pending' &&
+                    !closeRegistration.isAcknowledged(requestId)
+                ) {
+                    clearCloseAckTimer();
+                    closeAckRequestId = requestId;
+
+                    closeAckTimer = setTimeout(() => {
+                        if (closeAckRequestId !== requestId) {
+                            return;
+                        }
+
+                        clearCloseAckTimer();
+
+                        if (
+                            closeRegistration.getState() === 'pending' &&
+                            !closeRegistration.isAcknowledged(requestId)
+                        ) {
+                            closeRegistration.cancelPending();
+                        }
+                    }, 5000);
+                }
+            } catch (error) {
+                clearCloseAckTimer();
+
+                console.error(
+                    `EasyBlox close request failed: ${error.message}`
+                );
+            }
+        });
+
+        closingWindow.webContents.on(
+            'will-prevent-unload',
+            event => {
+                if (
+                    closeAuthorized &&
+                    closeRegistration.getState() === 'authorized'
+                ) {
+                    event.preventDefault();
+                }
+            }
+        );
+
+        closingWindow.on('closed', clearCloseAckTimer);
+
+        closingWindow.webContents.on(
+            'destroyed',
+            clearCloseAckTimer
+        );
 
         configureSerialPortSelection(
             mainWindow

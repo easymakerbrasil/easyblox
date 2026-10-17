@@ -16,6 +16,7 @@ import {renderWithIntl} from '../../helpers/intl-helpers.jsx';
 import RecordingStep from '../../../src/containers/recording-step.jsx';
 import SharedAudioContext from '../../../src/lib/audio/shared-audio-context';
 import {LoadingState} from '../../../src/reducers/project-state';
+import {setProjectUnchanged} from '../../../src/reducers/project-changed';
 
 import vmManagerHOC from '../../../src/lib/vm-manager-hoc.jsx';
 jest.mock('get-user-media-promise', () => jest.fn());
@@ -326,4 +327,308 @@ describe('VMManagerHOC', () => {
             mounted.unmount();
             expect(current.track.stop).toHaveBeenCalledTimes(1);
         });
+
+    const mountProjectForDeferredReset = () => {
+        vm.loadProject = jest.fn().mockResolvedValue(undefined);
+
+        const WrappedComponent = vmManagerHOC(() => <div />);
+
+        const commonProps = {
+            fontsLoaded: true,
+            isPlayerOnly: true,
+            isStarted: true,
+            store,
+            vm
+        };
+
+        const mounted = render(
+            <WrappedComponent
+                {...commonProps}
+                isLoadingWithId={false}
+            />
+        );
+
+        mounted.rerender(
+            <WrappedComponent
+                {...commonProps}
+                isLoadingWithId
+                loadingState={LoadingState.LOADING_VM_WITH_ID}
+                projectData="100"
+            />
+        );
+
+        return mounted;
+    };
+
+    const countProjectUnchangedActions = () => {
+        const unchangedType = setProjectUnchanged().type;
+
+        return store.getActions()
+            .filter(action => action.type === unchangedType)
+            .length;
+    };
+
+    test('completed project load performs one deferred unchanged reset', async () => {
+        jest.useFakeTimers();
+
+        try {
+            const mounted = mountProjectForDeferredReset();
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(vm.loadProject).toHaveBeenCalledTimes(1);
+            expect(vm.loadProject).toHaveBeenCalledWith('100');
+
+            // Reset must not happen before its deferred callback.
+            expect(countProjectUnchangedActions()).toBe(0);
+
+            act(() => {
+                jest.runOnlyPendingTimers();
+            });
+
+            expect(countProjectUnchangedActions()).toBe(1);
+
+            mounted.unmount();
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    test('project edit before deferred reset preserves changed state', async () => {
+        jest.useFakeTimers();
+
+        try {
+            const mounted = mountProjectForDeferredReset();
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(vm.loadProject).toHaveBeenCalledTimes(1);
+            expect(countProjectUnchangedActions()).toBe(0);
+
+            // The user edits the project after loading.
+            act(() => {
+                vm.emit('PROJECT_CHANGED');
+            });
+
+            // The old deferred reset is now executed.
+            act(() => {
+                jest.runOnlyPendingTimers();
+            });
+
+            // The edit must not be cleared by the load callback.
+            expect(countProjectUnchangedActions()).toBe(0);
+
+            mounted.unmount();
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    test('project replacement invalidates deferred unchanged reset', async () => {
+        jest.useFakeTimers();
+
+        try {
+            const originalChangedListeners =
+                vm.listenerCount('PROJECT_CHANGED');
+            const originalLoadedListeners =
+                vm.listenerCount('PROJECT_LOADED');
+
+            const mounted = mountProjectForDeferredReset();
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(vm.loadProject).toHaveBeenCalledTimes(1);
+            expect(countProjectUnchangedActions()).toBe(0);
+
+            expect(vm.listenerCount('PROJECT_CHANGED')).toBe(
+                originalChangedListeners + 1
+            );
+            expect(vm.listenerCount('PROJECT_LOADED')).toBe(
+                originalLoadedListeners + 1
+            );
+
+            // Another project replaces the one associated with this reset.
+            act(() => {
+                vm.emit('PROJECT_LOADED');
+            });
+
+            act(() => {
+                jest.runOnlyPendingTimers();
+            });
+
+            expect(countProjectUnchangedActions()).toBe(0);
+
+            // Both temporary listeners must be released.
+            expect(vm.listenerCount('PROJECT_CHANGED')).toBe(
+                originalChangedListeners
+            );
+            expect(vm.listenerCount('PROJECT_LOADED')).toBe(
+                originalLoadedListeners
+            );
+
+            mounted.unmount();
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    test('new load invalidates the previous deferred reset', async () => {
+        jest.useFakeTimers();
+
+        try {
+            const originalChangedListeners =
+                vm.listenerCount('PROJECT_CHANGED');
+            const originalLoadedListeners =
+                vm.listenerCount('PROJECT_LOADED');
+
+            vm.loadProject = jest.fn().mockResolvedValue(undefined);
+
+            const WrappedComponent = vmManagerHOC(() => <div />);
+
+            const commonProps = {
+                fontsLoaded: true,
+                isPlayerOnly: true,
+                isStarted: true,
+                store,
+                vm
+            };
+
+            const mounted = render(
+                <WrappedComponent
+                    {...commonProps}
+                    isLoadingWithId={false}
+                />
+            );
+
+            // Begin loading Project A.
+            mounted.rerender(
+                <WrappedComponent
+                    {...commonProps}
+                    isLoadingWithId
+                    loadingState={LoadingState.LOADING_VM_WITH_ID}
+                    projectData="Projeto A"
+                />
+            );
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(vm.loadProject).toHaveBeenCalledWith('Projeto A');
+            expect(countProjectUnchangedActions()).toBe(0);
+
+            // Return to a non-loading state.
+            mounted.rerender(
+                <WrappedComponent
+                    {...commonProps}
+                    isLoadingWithId={false}
+                />
+            );
+
+            // Begin loading Project B before Project A's reset runs.
+            mounted.rerender(
+                <WrappedComponent
+                    {...commonProps}
+                    isLoadingWithId
+                    loadingState={LoadingState.LOADING_VM_WITH_ID}
+                    projectData="Projeto B"
+                />
+            );
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(vm.loadProject).toHaveBeenCalledTimes(2);
+            expect(vm.loadProject).toHaveBeenNthCalledWith(
+                1,
+                'Projeto A'
+            );
+            expect(vm.loadProject).toHaveBeenNthCalledWith(
+                2,
+                'Projeto B'
+            );
+
+            expect(countProjectUnchangedActions()).toBe(0);
+
+            // Both completed loads have pending reset callbacks.
+            expect(vm.listenerCount('PROJECT_CHANGED')).toBe(
+                originalChangedListeners + 2
+            );
+            expect(vm.listenerCount('PROJECT_LOADED')).toBe(
+                originalLoadedListeners + 2
+            );
+
+            act(() => {
+                jest.runOnlyPendingTimers();
+            });
+
+            // Only Project B's reset remains authorized.
+            expect(countProjectUnchangedActions()).toBe(1);
+
+            // Both loads must release their temporary listeners.
+            expect(vm.listenerCount('PROJECT_CHANGED')).toBe(
+                originalChangedListeners
+            );
+            expect(vm.listenerCount('PROJECT_LOADED')).toBe(
+                originalLoadedListeners
+            );
+
+            mounted.unmount();
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    test('unmount invalidates pending reset and releases listeners', async () => {
+        jest.useFakeTimers();
+
+        try {
+            const originalChangedListeners =
+                vm.listenerCount('PROJECT_CHANGED');
+            const originalLoadedListeners =
+                vm.listenerCount('PROJECT_LOADED');
+
+            const mounted = mountProjectForDeferredReset();
+
+            await act(async () => {
+                await Promise.resolve();
+            });
+
+            expect(countProjectUnchangedActions()).toBe(0);
+
+            expect(vm.listenerCount('PROJECT_CHANGED')).toBe(
+                originalChangedListeners + 1
+            );
+            expect(vm.listenerCount('PROJECT_LOADED')).toBe(
+                originalLoadedListeners + 1
+            );
+
+            // The component disappears before its reset callback executes.
+            mounted.unmount();
+
+            act(() => {
+                jest.runOnlyPendingTimers();
+            });
+
+            // A component that no longer exists must not reset Redux.
+            expect(countProjectUnchangedActions()).toBe(0);
+
+            // The pending callback must release both listeners.
+            expect(vm.listenerCount('PROJECT_CHANGED')).toBe(
+                originalChangedListeners
+            );
+            expect(vm.listenerCount('PROJECT_LOADED')).toBe(
+                originalLoadedListeners
+            );
+        } finally {
+            jest.useRealTimers();
+        }
+    });
 });
