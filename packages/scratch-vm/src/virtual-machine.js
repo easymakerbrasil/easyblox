@@ -626,7 +626,7 @@ class VirtualMachine extends EventEmitter {
     /**
      * Return extension IDs actually owned by the current project.
      * Loaded extension services which are unused by this project are excluded.
-     * QR project resources also imply ownership of the EasyBlox QR extension.
+     * Monitors and QR project resources also imply extension ownership.
      * @returns {!Array<string>} Project extension IDs.
      */
     getProjectExtensionIds () {
@@ -701,6 +701,12 @@ class VirtualMachine extends EventEmitter {
                     }
                 });
         }
+
+        this.runtime.getMonitorState().forEach(monitor => {
+            const opcode = monitor.get('opcode');
+            const extensionId = typeof opcode === 'string' ? sb3.getExtensionIdForOpcode(opcode) : null;
+            if (extensionId) extensionIds.add(extensionId);
+        });
 
         if (
             this.getEasyBloxQrCodes()

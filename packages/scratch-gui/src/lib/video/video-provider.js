@@ -31,6 +31,22 @@ class VideoProvider {
         this._track = null;
 
         /**
+         * This provider's individual acquisition in camera.js.
+         * @private
+         * @type {?object}
+         */
+        this._cameraRequest = null;
+        this._videoUrl = null;
+        this._playing = false;
+
+        /**
+         * Identifies the current provider activation.
+         * @private
+         * @type {number}
+         */
+        this._activationId = 0;
+
+        /**
          * Stores some canvas/frame data per resolution/mirror states
          */
         this._workspace = [];
@@ -70,7 +86,7 @@ class VideoProvider {
 
     /**
      * Request video be enabled.  Sets up video, creates video skin and enables preview.
-     * @returns {Promise.<Video>} resolves a promise to this video provider when video is ready.
+     * @returns {Promise<VideoProvider|null>} Provider after play succeeds, null on cancellation; rejects on failure.
      */
     enableVideo () {
         this.enabled = true;
@@ -82,29 +98,47 @@ class VideoProvider {
      */
     disableVideo () {
         this.enabled = false;
-        // If we have begun a setup process, call _teardown after it completes
-        if (this._singleSetup) {
-            this._singleSetup
-                .then(this._teardown.bind(this))
-                .catch(err => this.onError(err));
-        }
+        this._activationId += 1;
+        this._teardown();
     }
 
     /**
-     * async part of disableVideo
+     * Release this provider's camera acquisition.
+     * Physical MediaStream tracks are managed exclusively by camera.js.
      * @private
      */
     _teardown () {
-        // we might be asked to re-enable before _teardown is called, just ignore it.
-        if (this.enabled === false) {
-            const disableTrack = requestDisableVideo();
-            this._singleSetup = null;
-            // by clearing refs to video and track, we should lose our hold over the camera
-            this._video = null;
-            if (this._track && disableTrack) {
-                this._track.stop();
-            }
-            this._track = null;
+        const video = this._video;
+        const acquisition = this._cameraRequest;
+        const videoUrl = this._videoUrl;
+        this._video = null;
+        this._track = null;
+        this._cameraRequest = null;
+        this._videoUrl = null;
+        this._playing = false;
+        this._workspace = [];
+        this._singleSetup = null;
+
+        const cleanup = video ? [
+            () => video.pause(),
+            () => {
+                if ('srcObject' in video) video.srcObject = null;
+            },
+            () => video.removeAttribute('src')
+        ] : [];
+        if (videoUrl) cleanup.push(() => window.URL.revokeObjectURL(videoUrl));
+        try {
+            cleanup.forEach(action => {
+                try {
+                    action();
+                } catch (error) {
+                    log.error('VideoProvider._teardown: element cleanup failed', {
+                        activationId: this._activationId
+                    }, error);
+                }
+            });
+        } finally {
+            if (acquisition) requestDisableVideo(acquisition);
         }
     }
 
@@ -195,44 +229,63 @@ class VideoProvider {
      * @returns {Promise} When video has been received, rejected if video is not received
      */
     _setupVideo () {
-        // We cache the result of this setup so that we can only ever have a single
-        // video/getUserMedia request happen at a time.
         if (this._singleSetup) {
             return this._singleSetup;
         }
 
-        this._singleSetup = requestVideoStream({
+        const activationId = ++this._activationId;
+
+        const acquisition = requestVideoStream({
             width: {min: 480, ideal: 640},
             height: {min: 360, ideal: 480}
-        })
-            .then(stream => {
-                this._video = document.createElement('video');
+        });
+        this._cameraRequest = acquisition;
 
-                // Use the new srcObject API, falling back to createObjectURL
-                try {
-                    this._video.srcObject = stream;
-                } catch (error) {
-                    this._video.src = window.URL.createObjectURL(stream);
+        const setupPromise = acquisition.ready
+            .then(stream => {
+                if (
+                    !stream ||
+                    !this.enabled ||
+                    activationId !== this._activationId
+                ) {
+                    return null;
                 }
-                // Hint to the stream that it should load. A standard way to do this
-                // is add the video tag to the DOM. Since this extension wants to
-                // hide the video tag and instead render a sample of the stream into
-                // the webgl rendered Scratch canvas, another hint like this one is
-                // needed.
-                this._video.play(); // Needed for Safari/Firefox, Chrome auto-plays.
-                this._track = stream.getTracks()[0];
-                return this;
+
+                const video = document.createElement('video');
+                this._video = video;
+                this._track = stream.getTracks()[0] || null;
+
+                try {
+                    video.srcObject = stream;
+                } catch (error) {
+                    this._videoUrl = window.URL.createObjectURL(stream);
+                    video.src = this._videoUrl;
+                }
+
+                return Promise.resolve(video.play()).then(() => {
+                    if (!this.enabled || activationId !== this._activationId) return null;
+                    this._playing = true;
+                    return this;
+                });
             })
             .catch(error => {
-                this._singleSetup = null;
+                if (activationId !== this._activationId) return null;
+                this.enabled = false;
+                this._teardown();
                 this.onError(error);
+                throw error;
             });
 
-        return this._singleSetup;
+        this._singleSetup = setupPromise;
+
+        return setupPromise;
     }
 
     get videoReady () {
         if (!this.enabled) {
+            return false;
+        }
+        if (!this._playing) {
             return false;
         }
         if (!this._video) {

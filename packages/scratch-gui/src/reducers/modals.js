@@ -13,9 +13,11 @@ const MODAL_SOUND_RECORDER = 'soundRecorder';
 const MODAL_CONNECTION = 'connectionModal';
 const MODAL_TIPS_LIBRARY = 'tipsLibrary';
 const MODAL_ABOUT = 'aboutModal';
+const MODAL_MEDIA_INPUT = 'mediaInputModal';
 
 const initialState = {
     [MODAL_ABOUT]: false,
+    [MODAL_MEDIA_INPUT]: false,
     [MODAL_BACKDROP_LIBRARY]: false,
     [MODAL_COSTUME_LIBRARY]: false,
     [MODAL_DEBUG]: false,
@@ -61,6 +63,12 @@ const openAboutModal = function () {
 };
 const closeAboutModal = function () {
     return closeModal(MODAL_ABOUT);
+};
+const openMediaInputModal = function () {
+    return openModal(MODAL_MEDIA_INPUT);
+};
+const closeMediaInputModal = function () {
+    return closeModal(MODAL_MEDIA_INPUT);
 };
 const openBackdropLibrary = function () {
     return openModal(MODAL_BACKDROP_LIBRARY);
@@ -133,6 +141,8 @@ export {
     initialState as modalsInitialState,
     openAboutModal,
     closeAboutModal,
+    openMediaInputModal,
+    closeMediaInputModal,
     openBackdropLibrary,
     openCostumeLibrary,
     openDebugModal,

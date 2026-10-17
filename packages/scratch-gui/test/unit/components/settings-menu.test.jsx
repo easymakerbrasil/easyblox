@@ -76,6 +76,21 @@ describe('Settings About integration with real Redux and Modal', () => {
         await waitFor(() => expect(getAppInfo).toHaveBeenCalledTimes(2));
     };
     test.each(['click', 'keyboard'])('opens through %s, closes dropdown and restores gear focus', checkOpen);
+    test.each(['click', 'keyboard'])('opens camera and microphone through %s and closes the menu', method => {
+        renderSettings();
+        const gear = screen.getByRole('button', {name: 'Settings menu'});
+        fireEvent.click(gear);
+        const action = screen.getByText('Câmera e microfone…');
+        if (method === 'keyboard') {
+            action.focus();
+            fireEvent.keyDown(action, {key: 'Enter'});
+        } else {
+            fireEvent.click(action);
+        }
+        expect(gear).toHaveAttribute('aria-expanded', 'false');
+        expect(store.getState().scratchGui.modals.mediaInputModal).toBe(true);
+        expect(store.getState().scratchGui.modals.aboutModal).toBe(false);
+    });
     test('closes nested menus without changing preferences, locale or cookies', async () => {
         renderSettings();
         const gear = screen.getByRole('button', {name: 'Settings menu'});

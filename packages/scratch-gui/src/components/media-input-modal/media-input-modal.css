@@ -1,0 +1,123 @@
+
+@import "../../css/easyblox-colors.css";
+
+.modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+    width: 32rem;
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+    display: flex;
+    background: $easyblox-graphite;
+}
+
+.modal-content > div {
+    min-height: 0;
+}
+
+.header {
+    flex-shrink: 0;
+}
+
+.header > div:first-child {
+    flex: 1;
+    margin: 0;
+    padding: 1rem 0;
+    padding-inline-start: 3rem;
+}
+
+.header > div:last-child {
+    flex: 0 0 3rem;
+    padding: 0;
+    justify-content: center;
+}
+
+.body {
+    padding: 1.5rem;
+    min-height: 0;
+    overflow-y: auto;
+    color: $easyblox-white;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.field label {
+    font-weight: 700;
+}
+
+.field select {
+    width: 100%;
+    padding: 0.7rem;
+    border: 1px solid $easyblox-yellow;
+    border-radius: 0.4rem;
+    background: $easyblox-graphite;
+    color: $easyblox-white;
+    font: inherit;
+}
+
+.field select:disabled {
+    opacity: 0.65;
+}
+
+.information {
+    margin: 0;
+    line-height: 1.5;
+    font-size: 0.875rem;
+}
+
+.information p {
+    margin: 0 0 0.65rem;
+}
+
+.information p:last-child {
+    margin-bottom: 0;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 0 1.5rem 1.5rem;
+    flex-wrap: wrap;
+}
+
+.refresh-button,
+.done-button {
+    padding: 0.65rem 1rem;
+    border-radius: 2rem;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.refresh-button {
+    border: 1px solid $easyblox-yellow;
+    background: transparent;
+    color: $easyblox-yellow;
+}
+
+.done-button {
+    border: 1px solid $easyblox-yellow;
+    background: $easyblox-yellow;
+    color: $easyblox-graphite;
+}
+
+.refresh-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.refresh-button:focus-visible,
+.done-button:focus-visible,
+.field select:focus-visible {
+    outline: 2px solid $easyblox-white;
+    outline-offset: 3px;
+}

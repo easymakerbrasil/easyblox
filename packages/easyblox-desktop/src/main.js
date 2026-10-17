@@ -1,6 +1,7 @@
 const path = require('node:path');
 
 const {registerDesktopAppInfo} = require('./desktop-app-info');
+const {registerMediaPermissions} = require('./media-permissions');
 
 const {
     app,
@@ -94,6 +95,14 @@ let guiServer = null;
 let mainWindow = null;
 let splashWindow = null;
 let shuttingDown = false;
+const serialSelections = new WeakMap();
+
+const isGuiServerTrusted = () => {
+    if (shuttingDown || !guiServer) return false;
+    // Only the server bound by startDesktop is trusted; a service already occupying the port is never reused.
+    const address = guiServer.address();
+    return address.host === '127.0.0.1' && address.port === 8601;
+};
 
 const fillSplashVersion = async window => {
     const contents = window.webContents;
@@ -184,48 +193,58 @@ const configureSerialPortSelection =
         const serialSession =
             window.webContents.session;
 
-        serialSession.on(
-            'select-serial-port',
-            (
-                event,
-                portList,
-                webContents,
-                callback
-            ) => {
-                event.preventDefault();
+        const previous = serialSelections.get(serialSession);
+        if (previous) previous();
+        let active = true;
 
-                if (
-                    webContents !==
-                    window.webContents
-                ) {
-                    callback('');
-                    return;
-                }
+        const selectPort = (
+            event,
+            portList,
+            webContents,
+            callback
+        ) => {
+            event.preventDefault();
 
-                showSerialPortPicker({
-                    parent:
-                        window,
-                    ports:
-                        portList
-                })
-                    .then(
-                        portId => {
-                            callback(
-                                portId
-                            );
-                        }
-                    )
-                    .catch(
-                        error => {
-                            console.error(
-                                `EasyBlox serial port selection failed: ${error.message}`
-                            );
-
-                            callback('');
-                        }
-                    );
+            if (
+                !active || window.isDestroyed() || window.webContents.isDestroyed() ||
+                webContents !== window.webContents
+            ) {
+                callback('');
+                return;
             }
-        );
+
+            showSerialPortPicker({
+                parent: window,
+                ports: portList
+            })
+                .then(
+                    portId => {
+                        callback(
+                            !active || window.isDestroyed() || window.webContents.isDestroyed() ? '' : portId
+                        );
+                    }
+                )
+                .catch(
+                    error => {
+                        console.error(
+                            `EasyBlox serial port selection failed: ${error.message}`
+                        );
+
+                        callback('');
+                    }
+                );
+        };
+        const cleanup = () => {
+            active = false;
+            serialSession.removeListener('select-serial-port', selectPort);
+            window.removeListener('closed', cleanup);
+            window.webContents.removeListener('destroyed', cleanup);
+            if (serialSelections.get(serialSession) === cleanup) serialSelections.delete(serialSession);
+        };
+        serialSelections.set(serialSession, cleanup);
+        serialSession.on('select-serial-port', selectPort);
+        window.on('closed', cleanup);
+        window.webContents.on('destroyed', cleanup);
     };
 
 const showUpdateAvailableDialog =
@@ -354,6 +373,7 @@ const createMainWindow =
             });
 
         registerDesktopAppInfo(mainWindow, app);
+        registerMediaPermissions(mainWindow, {isGuiServerTrusted});
 
         configureSerialPortSelection(
             mainWindow

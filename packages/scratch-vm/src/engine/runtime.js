@@ -2620,6 +2620,13 @@ class Runtime extends EventEmitter {
      */
     dispose () {
         this.stopAll();
+
+        // Invalidate camera acquisitions before replacing the current project.
+        // Extension services may remain loaded after targets are disposed.
+        if (this.ioDevices && this.ioDevices.video) {
+            this.ioDevices.video.reset();
+        }
+
         // Deleting each target's variable's monitors.
         this.targets.forEach(target => {
             if (target.isOriginal) target.deleteMonitors();

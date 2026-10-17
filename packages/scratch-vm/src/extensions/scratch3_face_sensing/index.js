@@ -3,6 +3,8 @@ const BlockType = require('../../extension-support/block-type');
 const MathUtil = require('../../util/math-util');
 const formatMessage = require('format-message');
 const Video = require('../../io/video');
+const Runtime = require('../../engine/runtime');
+const log = require('../../util/log');
 const TargetType = require('../../extension-support/target-type');
 const {distance, toScratchCoords} = require('./utils');
 
@@ -89,31 +91,28 @@ class Scratch3FaceSensingBlocks {
             () => false
         );
 
-        this.runtime.emit('EXTENSION_DATA_LOADING', true);
+        this._session = null;
+        this._cameraLease = null;
+        this._faceDetector = null;
+        this._loopTimeout = null;
+        this._loading = false;
 
-        const model = FaceDetection.SupportedModels.MediaPipeFaceDetector;
-        const detectorConfig = {
-            runtime: 'mediapipe',
-            solutionPath: '/chunks/mediapipe/face_detection',
-            maxFaces: 1
-        };
-
-        FaceDetection.createDetector(model, detectorConfig)
-            .catch(() => {
-                const fallbackConfig = {
-                    runtime: 'mediapipe',
-                    solutionPath: `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@${mediapipePackage.version}`,
-                    maxFaces: 1
-                };
-
-                return FaceDetection.createDetector(model, fallbackConfig);
-            })
-            .then(detector => {
-                this._faceDetector = detector;
-                if (this.runtime.ioDevices) {
-                    this._loop();
-                }
+        if (this.runtime.ioDevices) {
+            this.runtime.on('EASYBLOX_FACE_SENSING_ACTIVATE', () => this.activate());
+            this.runtime.on('EASYBLOX_FACE_SENSING_DEACTIVATE', () => this.deactivate());
+            this.runtime.on(Runtime.RUNTIME_DISPOSED, () => this.deactivate());
+            this.runtime.on(Runtime.EXTENSION_ADDED, info => {
+                if (info.id === 'faceSensing' && this.runtime.getTargetForStage()) this.activate();
             });
+            this.runtime.on(Runtime.PROJECT_LOADED, () => {
+                const ownsBlocks = this.runtime.targets.some(target =>
+                    Object.values(target.blocks._blocks).some(block =>
+                        block.opcode.startsWith('faceSensing_')));
+                const ownsMonitors = this.runtime.getMonitorState().some(monitor =>
+                    monitor.get('opcode').startsWith('faceSensing_'));
+                if (ownsBlocks || ownsMonitors) this.activate();
+            });
+        }
     }
 
     /**
@@ -255,39 +254,205 @@ class Scratch3FaceSensingBlocks {
     }
 
     /**
-     * Occasionally step a loop to sample the video, stamp it to the preview
-     * skin, and add a TypedArray copy of the canvas's pixel data.
+     * Activate only this consumer; repeated inclusion keeps the same acquisition.
+     * @returns {?object} Camera lease, or null without a provider.
+     */
+    activate () {
+        if (this._isCurrentSession(this._session)) return this._cameraLease;
+        this.deactivate();
+        const video = this.runtime.ioDevices.video;
+        const lease = video.acquireCamera('faceSensing');
+        if (!lease) return null;
+        const session = {lease, cameraReady: false, detector: null, inFlight: false};
+        this._session = session;
+        this._cameraLease = lease;
+        this._setLoading(true);
+        this._loop(session);
+
+        lease.ready.then(acquired => {
+            if (this._session !== session) return;
+            if (acquired !== lease || !this._isCurrentSession(session)) {
+                this.deactivate();
+                return;
+            }
+            session.cameraReady = true;
+            this._finishLoading(session);
+        }, error => {
+            if (this._session !== session) return;
+            log.warn('FaceSensing.activate: camera acquisition failed', {leaseId: lease.id}, error);
+            this.deactivate();
+        }).catch(error => {
+            log.error('FaceSensing.activate: acquisition callback failed', {leaseId: lease.id}, error);
+        });
+        this._loadDetector(session);
+        return lease;
+    }
+
+    /**
+     * Invalidate pending work and release only the Facial acquisition.
+     */
+    deactivate () {
+        const session = this._session;
+        this._session = null;
+        this._cameraLease = null;
+        this._faceDetector = null;
+        clearTimeout(this._loopTimeout);
+        this._loopTimeout = null;
+        this._currentFace = null;
+        this._smoothedIsDetected = false;
+        this._isDetectedArray.fill(false);
+        this._cachedSize = 100;
+        this._cachedTilt = 90;
+        try {
+            if (session) this.runtime.ioDevices.video.releaseCamera(session.lease);
+        } finally {
+            if (session) this._releaseDetector(session);
+            this._setLoading(false);
+        }
+    }
+
+    /**
+     * @param {?object} session Activation identity.
+     * @returns {boolean} Whether the activation still owns capture.
      * @private
      */
-    _loop () {
-        setTimeout(this._loop.bind(this), Math.max(this.runtime.currentStepTime, Scratch3FaceSensingBlocks.INTERVAL));
+    _isCurrentSession (session) {
+        return Boolean(session && this._session === session &&
+            this.runtime.ioDevices.video.isCameraLeaseActive(session.lease));
+    }
 
-        // Close the alert if the face detector is created and the video loading has either succeeded or failed.
-        // The alert will remain open until the permissions are set
-        if (!this._firstTime && this._videoLoadingCompleted) {
-            this.runtime.emit('EXTENSION_DATA_LOADING', false);
-            this._firstTime = true;
+    /**
+     * @param {boolean} loading Whether camera/model setup is pending.
+     * @private
+     */
+    _setLoading (loading) {
+        if (this._loading === loading) return;
+        this._loading = loading;
+        this.runtime.emit('EXTENSION_DATA_LOADING', loading);
+    }
+
+    /**
+     * @param {object} session Activation identity.
+     * @private
+     */
+    _finishLoading (session) {
+        if (this._isCurrentSession(session) && session.cameraReady && session.detector) this._setLoading(false);
+    }
+
+    /**
+     * @param {object} session Activation identity owning this model request.
+     * @private
+     */
+    _loadDetector (session) {
+        const model = FaceDetection.SupportedModels.MediaPipeFaceDetector;
+        Promise.resolve()
+            .then(() => {
+                if (!this._isCurrentSession(session)) return null;
+                return FaceDetection.createDetector(model, {
+                    runtime: 'mediapipe', solutionPath: '/chunks/mediapipe/face_detection', maxFaces: 1
+                });
+            })
+            .catch(error => {
+                if (!this._isCurrentSession(session)) return null;
+                log.warn('FaceSensing._loadDetector: local model failed; trying CDN',
+                    {leaseId: session.lease.id}, error);
+                return FaceDetection.createDetector(model, {
+                    runtime: 'mediapipe',
+                    solutionPath: `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection@${mediapipePackage.version}`,
+                    maxFaces: 1
+                });
+            })
+            .then(detector => {
+                if (!detector) return;
+                if (!this._isCurrentSession(session)) {
+                    this._disposeDetector(detector);
+                    if (this._session === session) this.deactivate();
+                    return;
+                }
+                session.detector = detector;
+                this._faceDetector = detector;
+                this._finishLoading(session);
+            }, error => {
+                if (this._session !== session) return;
+                log.warn('FaceSensing._loadDetector: model initialization failed', {leaseId: session.lease.id}, error);
+                this.deactivate();
+            })
+            .catch(error => {
+                log.error('FaceSensing._loadDetector: model callback failed', {leaseId: session.lease.id}, error);
+            });
+    }
+
+    /**
+     * Release a model after its pending inference settles, avoiding disposal during inference.
+     * @param {object} session Activation owning the model.
+     * @private
+     */
+    _releaseDetector (session) {
+        if (!session.detector || session.inFlight) return;
+        const detector = session.detector;
+        session.detector = null;
+        this._disposeDetector(detector);
+    }
+
+    /**
+     * @param {object} detector Model whose ownership has ended.
+     * @private
+     */
+    _disposeDetector (detector) {
+        try {
+            Promise.resolve(detector.dispose()).catch(error => {
+                log.warn('FaceSensing._disposeDetector: model cleanup failed', error);
+            });
+        } catch (error) {
+            log.warn('FaceSensing._disposeDetector: model cleanup failed', error);
         }
+    }
+
+    /**
+     * Analyze at most one frame at a time while this activation owns capture.
+     * @param {object} session Activation identity.
+     * @private
+     */
+    _loop (session) {
+        if (this._session !== session) return;
+        if (!this._isCurrentSession(session)) {
+            this.deactivate();
+            return;
+        }
+        clearTimeout(this._loopTimeout);
+        this._loopTimeout = setTimeout(() => this._loop(session),
+            Math.max(this.runtime.currentStepTime, Scratch3FaceSensingBlocks.INTERVAL));
+        if (!session.cameraReady || !session.detector || session.inFlight) return;
 
         const frame = this.runtime.ioDevices.video.getFrame({
             format: Video.FORMAT_IMAGE_DATA,
             dimensions: Scratch3FaceSensingBlocks.DIMENSIONS,
             cacheTimeout: this.runtime.currentStepTime
         });
-        if (frame) {
-            this._faceDetector.estimateFaces(frame).then(faces => {
-                if (faces && faces.length > 0) {
-                    if (!this._firstTime) {
-                        this._firstTime = true;
-                        this.runtime.emit('EXTENSION_DATA_LOADING', false);
-                    }
-                    this._currentFace = faces[0];
-                } else {
-                    this._currentFace = null;
-                }
+        if (!frame) return;
+        session.inFlight = true;
+        Promise.resolve()
+            .then(() => {
+                if (!this._isCurrentSession(session)) return null;
+                return session.detector.estimateFaces(frame);
+            })
+            .then(faces => {
+                if (!this._isCurrentSession(session)) return;
+                this._currentFace = faces && faces.length ? faces[0] : null;
                 this._updateIsDetected();
+            }, error => {
+                if (!this._isCurrentSession(session)) return;
+                log.warn('FaceSensing._loop: face estimation failed', {leaseId: session.lease.id}, error);
+                this._currentFace = null;
+                this._updateIsDetected();
+            })
+            .finally(() => {
+                session.inFlight = false;
+                if (!this._isCurrentSession(session)) this._releaseDetector(session);
+            })
+            .catch(error => {
+                log.error('FaceSensing._loop: inference callback failed', {leaseId: session.lease.id}, error);
             });
-        }
     }
 
     /**
@@ -318,12 +483,6 @@ class Scratch3FaceSensingBlocks {
      * @returns {object} metadata for this extension and its blocks.
      */
     getInfo () {
-        // Enable the video layer
-        this.runtime.ioDevices.video.enableVideo()
-            .finally(() => {
-                this._videoLoadingCompleted = true;
-            });
-
         return {
             id: 'faceSensing',
             name: formatMessage({

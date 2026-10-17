@@ -6,6 +6,7 @@ const Clone = require('../../util/clone');
 const Cast = require('../../util/cast');
 const formatMessage = require('format-message');
 const Video = require('../../io/video');
+const log = require('../../util/log');
 
 const VideoMotion = require('./library');
 
@@ -94,14 +95,53 @@ class Scratch3VideoSensingBlocks {
 
         /**
          * A flag to determine if this extension has been installed in a project.
-         * It is set to false the first time getInfo is run.
+         * Actual registration consumes this flag; metadata queries do not.
          * @type {boolean}
          */
         this.firstInstall = true;
+        this._cameraLease = null;
+        this._cameraSessionId = 0;
+        this._cameraReady = false;
 
         if (this.runtime.ioDevices) {
+            this.runtime.on(Runtime.RUNTIME_DISPOSED, () => this._releaseCamera());
+            this.runtime.on('EASYBLOX_VIDEO_SENSING_DEACTIVATE', () => this._releaseCamera());
+            // Explicit library inclusion can activate an already registered service.
+            this.runtime.on('EASYBLOX_VIDEO_SENSING_ACTIVATE', () => {
+                if (!this.runtime.ioDevices.video.isCameraLeaseActive(this._cameraLease)) {
+                    this.videoToggle({VIDEO_STATE: VideoState.ON});
+                }
+            });
+            this.runtime.on(Runtime.EXTENSION_ADDED, info => {
+                if (info.id !== 'videoSensing' || !this.firstInstall) return;
+                this.firstInstall = false;
+                // Project deserialization registers extensions before installing its Stage.
+                if (this.runtime.getTargetForStage()) {
+                    this.globalVideoState = VideoState.ON;
+                    this.globalVideoTransparency = 50;
+                    this.updateVideoDisplay();
+                }
+            });
             // Configure the video device with values from globally stored locations.
-            this.runtime.on(Runtime.PROJECT_LOADED, this.updateVideoDisplay.bind(this));
+            this.runtime.on(Runtime.PROJECT_LOADED, () => {
+                const hasVideoSensingBlocks = this.runtime.targets.some(target =>
+                    target && target.blocks && target.blocks._blocks &&
+                    Object.keys(target.blocks._blocks).some(blockId => {
+                        const block = target.blocks._blocks[blockId];
+                        return block &&
+                            typeof block.opcode === 'string' &&
+                            block.opcode.startsWith('videoSensing_');
+                    })
+                );
+
+                const hasVideoSensingMonitors = this.runtime.getMonitorState().some(monitor => {
+                    const opcode = monitor.get('opcode');
+                    return typeof opcode === 'string' && opcode.startsWith('videoSensing_');
+                });
+                if (hasVideoSensingBlocks || hasVideoSensingMonitors) {
+                    this.updateVideoDisplay();
+                }
+            });
 
             // Clear target motion state values when the project starts.
             this.runtime.on(Runtime.PROJECT_RUN_START, this.reset.bind(this));
@@ -231,6 +271,11 @@ class Scratch3VideoSensingBlocks {
     _loop () {
         const loopTime = Math.max(this.runtime.currentStepTime, Scratch3VideoSensingBlocks.INTERVAL);
         this._loopInterval = setTimeout(this._loop.bind(this), loopTime);
+        if (!this._cameraReady) return;
+        if (!this.runtime.ioDevices.video.isCameraLeaseActive(this._cameraLease)) {
+            this._releaseCamera();
+            return;
+        }
 
         // Add frame to detector
         const time = Date.now();
@@ -394,17 +439,6 @@ class Scratch3VideoSensingBlocks {
      * @returns {object} metadata for this extension and its blocks.
      */
     getInfo () {
-        // Set the video display properties to defaults the first time
-        // getInfo is run. This turns on the video device when it is
-        // first added to a project, and is overwritten by a PROJECT_LOADED
-        // event listener that later calls updateVideoDisplay
-        if (this.firstInstall) {
-            this.globalVideoState = VideoState.ON;
-            this.globalVideoTransparency = 50;
-            this.updateVideoDisplay();
-            this.firstInstall = false;
-        }
-
         // Return extension definition
         return {
             id: 'videoSensing',
@@ -559,13 +593,41 @@ class Scratch3VideoSensingBlocks {
     videoToggle (args) {
         const state = args.VIDEO_STATE;
         this.globalVideoState = state;
+        const video = this.runtime.ioDevices.video;
         if (state === VideoState.OFF) {
-            this.runtime.ioDevices.video.disableVideo();
+            this._releaseCamera();
         } else {
-            this.runtime.ioDevices.video.enableVideo();
             // Mirror if state is ON. Do not mirror if state is ON_FLIPPED.
-            this.runtime.ioDevices.video.mirror = state === VideoState.ON;
+            video.mirror = state === VideoState.ON;
+            const lease = video.acquireCamera('videoSensing');
+            if (lease !== this._cameraLease) this._cameraReady = false;
+            this._cameraLease = lease;
+            const sessionId = ++this._cameraSessionId;
+            if (!lease) return;
+            lease.ready.then(acquired => {
+                if (sessionId !== this._cameraSessionId || this._cameraLease !== lease) return;
+                this._cameraReady = acquired === lease && video.isCameraLeaseActive(lease);
+                if (!this._cameraReady) this._cameraLease = null;
+            }, error => {
+                if (sessionId !== this._cameraSessionId || this._cameraLease !== lease) return;
+                this._cameraLease = null;
+                this._cameraReady = false;
+                log.warn('VideoSensing.videoToggle: camera acquisition failed', {sessionId, state}, error);
+            }).catch(error => {
+                log.error('VideoSensing.videoToggle: activation callback failed', {sessionId, state}, error);
+            });
         }
+    }
+
+    /**
+     * Invalidate pending callbacks and release only the Video Sensing acquisition.
+     */
+    _releaseCamera () {
+        const lease = this._cameraLease;
+        this._cameraSessionId++;
+        this._cameraLease = null;
+        this._cameraReady = false;
+        if (lease) this.runtime.ioDevices.video.releaseCamera(lease);
     }
 
     /**

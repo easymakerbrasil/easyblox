@@ -3,6 +3,116 @@ const tap =
 
 const VirtualMachine =
     require('../../src/virtual-machine');
+const MonitorRecord = require('../../src/engine/monitor-record');
+
+for (const opcode of ['videoSensing_videoOn', 'faceSensing_faceSize']) {
+    tap.test(`monitor-only projects own ${opcode.split('_')[0]} without querying camera`, t => {
+        const vm = new VirtualMachine();
+        const video = vm.runtime.ioDevices.video;
+        let starts = 0;
+        video.setProvider({
+            enableVideo () {
+                starts++;
+                return Promise.resolve();
+            },
+            disableVideo () {},
+            getFrame: () => null
+        });
+        t.teardown(() => vm.runtime.dispose());
+        vm.runtime.requestAddMonitor(MonitorRecord({id: 'monitor', opcode, visible: true}));
+        t.same(vm.getProjectExtensionIds(), [opcode.split('_')[0]]);
+        t.same(vm.getProjectExtensionIds(), [opcode.split('_')[0]], 'queries are repeatable');
+        t.equal(starts, 0, 'ownership lookup cannot acquire capture');
+        t.equal(video._cameraConsumers.size, 0);
+        vm.runtime.dispose();
+        t.same(vm.getProjectExtensionIds(), [], 'project reset clears monitor ownership');
+        t.end();
+    });
+}
+
+tap.test('monitor ownership deduplicates blocks and excludes core monitors and cached services', t => {
+    const vm = new VirtualMachine();
+    t.teardown(() => vm.runtime.dispose());
+    vm.runtime.targets = [{blocks: {_blocks: {face: {opcode: 'faceSensing_faceSize'}}}}];
+    vm.runtime.requestAddMonitor(MonitorRecord({id: 'face', opcode: 'faceSensing_faceSize', visible: false}));
+    vm.runtime.requestAddMonitor(MonitorRecord({id: 'video', opcode: 'videoSensing_videoOn'}));
+    vm.runtime.requestAddMonitor(MonitorRecord({id: 'core', opcode: 'motion_xposition'}));
+    vm.extensionManager._loadedExtensions.set('music', 'cached-music');
+    vm.runtime.restoreEasyBloxQrCodes([{id: 'qr_monitor', name: 'QR', content: 'MONITORS'}]);
+    t.same(vm.getProjectExtensionIds().sort(), ['easybloxQr', 'faceSensing', 'videoSensing']);
+    vm.runtime.targets = [];
+    vm.runtime.requestRemoveMonitor('face');
+    t.same(vm.getProjectExtensionIds().sort(), ['easybloxQr', 'videoSensing'],
+        'removed monitors are not collected from cached monitor blocks');
+    t.end();
+});
+
+tap.test('sb3 roundtrips preserve block, monitor and QR ownership without inheriting cached extensions', async t => {
+    const fs = require('fs');
+    const path = require('path');
+    const JSZip = require('jszip');
+    const dispatch = require('../../src/dispatch/central-dispatch');
+    const fixture = fs.readFileSync(path.join(__dirname, '../fixtures/default.sb3'));
+    const vm = new VirtualMachine();
+    t.teardown(() => {
+        const service = dispatch.services[vm.extensionManager._loadedExtensions.get('videoSensing')];
+        if (service) service._stopLoop();
+        vm.runtime.dispose();
+        vm.quit();
+    });
+    for (const source of ['blocks', 'monitors', 'both']) {
+        const zip = await JSZip.loadAsync(fixture);
+        const project = JSON.parse(await zip.file('project.json').async('string'));
+        const opcodes = ['videoSensing_videoOn', 'faceSensing_faceSize'];
+        if (source !== 'blocks') {
+            project.monitors = opcodes.map((opcode, index) => ({
+                id: `monitor-${index}`,
+                opcode,
+                params: index === 0 ? {ATTRIBUTE: 'motion', SUBJECT: 'Stage'} : {},
+                mode: 'default',
+                spriteName: null,
+                value: 0,
+                x: 0,
+                y: index * 50,
+                visible: index === 0
+            }));
+        }
+        if (source !== 'monitors') {
+            opcodes.forEach((opcode, index) => {
+                project.targets[1].blocks[`block-${index}`] = {
+                    opcode,
+                    next: null,
+                    parent: null,
+                    inputs: {},
+                    fields: {},
+                    shadow: false,
+                    topLevel: true,
+                    x: 0,
+                    y: index * 50
+                };
+            });
+        }
+        zip.file('project.json', JSON.stringify(project));
+        await vm.loadProject(await zip.generateAsync({type: 'nodebuffer'}));
+        t.same(vm.getProjectExtensionIds().sort(), ['faceSensing', 'videoSensing'], source);
+        const saved = JSON.parse(vm.toJSON());
+        const roundtrip = await JSZip.loadAsync(fixture);
+        roundtrip.file('project.json', JSON.stringify(saved));
+        await vm.loadProject(await roundtrip.generateAsync({type: 'nodebuffer'}));
+        t.same(vm.getProjectExtensionIds().sort(), ['faceSensing', 'videoSensing'], `${source} roundtrip`);
+        t.same(JSON.parse(vm.toJSON()).monitors, saved.monitors, 'monitor data is unchanged');
+        await vm.loadProject(fixture);
+        t.same(vm.getProjectExtensionIds(), [], 'empty project excludes cached services');
+    }
+    vm.createEasyBloxQrCode('QR resource', 'RESOURCE-ONLY');
+    t.same(vm.getProjectExtensionIds(), ['easybloxQr']);
+    const zip = await JSZip.loadAsync(fixture);
+    zip.file('project.json', vm.toJSON());
+    await vm.loadProject(await zip.generateAsync({type: 'nodebuffer'}));
+    t.same(vm.getProjectExtensionIds(), ['easybloxQr'], 'resource-only QR roundtrip');
+    await vm.loadProject(fixture);
+    t.same(vm.getProjectExtensionIds(), []);
+});
 
 tap.test(
     'EasyBlox project extension IDs start empty',

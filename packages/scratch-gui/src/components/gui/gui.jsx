@@ -30,6 +30,7 @@ import Alerts from '../../containers/alerts.jsx';
 import DragLayer from '../../containers/drag-layer.jsx';
 import ConnectionModal from '../../containers/connection-modal.jsx';
 import AboutEasyBlox from '../../containers/about-easyblox.jsx';
+import MediaInputModal from '../media-input-modal/media-input-modal.jsx';
 import TelemetryModal from '../telemetry-modal/telemetry-modal.jsx';
 import BoardSelectionModal from '../board-selection-modal/board-selection-modal.jsx';
 import EasyConectDesktopWindow from '../../containers/easyconect-desktop-window.jsx';
@@ -65,6 +66,7 @@ import DebugModal from '../debug-modal/debug-modal.jsx';
 import {setPlatform} from '../../reducers/platform.js';
 import {setTheme} from '../../reducers/settings.js';
 import {BLOCKS_TAB_INDEX} from '../../reducers/editor-tab';
+import {closeMediaInputModal} from '../../reducers/modals';
 import {PLATFORM} from '../../lib/platform.js';
 import {MenuRefProvider} from '../../contexts/menu-ref-context.jsx';
 import {ModalFocusProvider} from '../../contexts/modal-focus-context.jsx';
@@ -358,6 +360,7 @@ export const GUIComponent = props => {
         children,
         connectionModalVisible,
         aboutModalVisible,
+        mediaInputModalVisible,
         costumeLibraryVisible,
         costumesTabVisible,
         debugModalVisible,
@@ -397,6 +400,7 @@ export const GUIComponent = props => {
         onRequestCloseBackdropLibrary,
         onRequestCloseCostumeLibrary,
         onRequestCloseDebugModal,
+        onRequestCloseMediaInputModal,
         onRequestCloseTelemetryModal,
         onSeeCommunity,
         onShare,
@@ -1467,6 +1471,11 @@ export const GUIComponent = props => {
                         />
                     ) : null}
                     {aboutModalVisible ? <AboutEasyBlox /> : null}
+                    {mediaInputModalVisible ? (
+                        <MediaInputModal
+                            onClose={onRequestCloseMediaInputModal}
+                        />
+                    ) : null}
                     {costumeLibraryVisible ? (
                         <CostumeLibrary
                             vm={vm}
@@ -1797,6 +1806,7 @@ export const GUIComponent = props => {
 
 GUIComponent.propTypes = {
     aboutModalVisible: PropTypes.bool,
+    mediaInputModalVisible: PropTypes.bool,
     onShowStagePreparationAlert: PropTypes.func,
     onClearStagePreparationAlerts: PropTypes.func,
     accountMenuOptions: AccountMenuOptionsPropTypes,
@@ -1855,6 +1865,7 @@ GUIComponent.propTypes = {
     onRequestCloseBackdropLibrary: PropTypes.func,
     onRequestCloseCostumeLibrary: PropTypes.func,
     onRequestCloseDebugModal: PropTypes.func,
+    onRequestCloseMediaInputModal: PropTypes.func,
     onRequestCloseTelemetryModal: PropTypes.func,
     onSeeCommunity: PropTypes.func,
     onShare: PropTypes.func,
@@ -1918,6 +1929,7 @@ GUIComponent.defaultProps = {
 };
 
 const mapStateToProps = state => ({
+    mediaInputModalVisible: state.scratchGui.modals.mediaInputModal,
     // This is the button's mode, as opposed to the actual current state
     blocksId: state.scratchGui.timeTravel.year.toString(),
     stageSizeMode: state.scratchGui.stageSize.stageSize,
@@ -1926,6 +1938,7 @@ const mapStateToProps = state => ({
 });
 
 const mapDispatchToProps = dispatch => ({
+    onRequestCloseMediaInputModal: () => dispatch(closeMediaInputModal()),
     setPlatform: platform => dispatch(setPlatform(platform)),
     setTheme: theme => dispatch(setTheme(theme))
 });

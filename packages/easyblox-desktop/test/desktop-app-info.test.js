@@ -177,6 +177,8 @@ test('Desktop sanitizes invalid official metadata', () => {
 test('Main registers IPC before GUI load and preserves sandbox, serial and updates', async () => {
     const fixture = createWindow();
     const serialSession = new EventEmitter();
+    serialSession.setPermissionCheckHandler = () => {};
+    serialSession.setPermissionRequestHandler = () => {};
     fixture.window.webContents.session = serialSession;
     let options;
     let loadedUrl;
@@ -216,6 +218,7 @@ test('Main registers IPC before GUI load and preserves sandbox, serial and updat
                 };
             }
             if (name === './desktop-app-info') return {registerDesktopAppInfo};
+            if (name === './media-permissions') return require('../src/media-permissions');
             if (name === './serial-port-picker') {
                 return {
                     showSerialPortPicker: () => {

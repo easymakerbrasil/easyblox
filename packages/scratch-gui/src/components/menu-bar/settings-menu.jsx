@@ -15,7 +15,7 @@ import {themeMap} from '../../lib/settings/theme/index.js';
 import {persistColorMode} from '../../lib/settings/color-mode/persistence.js';
 import {persistTheme} from '../../lib/settings/theme/persistence.js';
 import {setColorMode, setTheme} from '../../reducers/settings.js';
-import {openAboutModal} from '../../reducers/modals';
+import {openAboutModal, openMediaInputModal} from '../../reducers/modals';
 
 import menuBarStyles from './menu-bar.css';
 
@@ -36,6 +36,12 @@ const aboutMessage = defineMessage({
     description: 'Title and settings action for EasyBlox application information'
 });
 
+const mediaInputMessage = defineMessage({
+    id: 'gui.menuBar.mediaInput',
+    defaultMessage: 'Câmera e microfone…',
+    description: 'Settings action for camera and microphone preferences'
+});
+
 const SettingsMenu = ({
     canChangeLanguage,
     canChangeColorMode,
@@ -47,6 +53,7 @@ const SettingsMenu = ({
     activeTheme,
     onChangeTheme,
     onOpenAbout,
+    onOpenMediaInput,
     depth
 }) => {
     const intl = useIntl();
@@ -83,6 +90,12 @@ const SettingsMenu = ({
         handleOnClose();
         onOpenAbout();
     }, [handleOnClose, onOpenAbout]);
+
+    const handleMediaInput = useMemo(() => function (event) {
+        event.stopPropagation();
+        handleOnClose();
+        onOpenMediaInput();
+    }, [handleOnClose, onOpenMediaInput]);
 
     return (<button
         className={classNames(menuBarStyles.menuBarItem, menuBarStyles.hoverable, menuBarStyles.themeMenu, {
@@ -135,6 +148,13 @@ const SettingsMenu = ({
             <MenuSection>
                 <MenuItem
                     isDataMenuItem
+                    onClick={handleMediaInput}
+                    onParentKeyDown={handleKeyDownOpenMenu}
+                >
+                    {intl.formatMessage(mediaInputMessage)}
+                </MenuItem>
+                <MenuItem
+                    isDataMenuItem
                     onClick={handleAbout}
                     onParentKeyDown={handleKeyDownOpenMenu}
                 >
@@ -156,6 +176,7 @@ SettingsMenu.propTypes = {
     activeTheme: PropTypes.string,
     onChangeTheme: PropTypes.func,
     onOpenAbout: PropTypes.func.isRequired,
+    onOpenMediaInput: PropTypes.func.isRequired,
     depth: PropTypes.number
 };
 
@@ -167,6 +188,7 @@ const mapStateToProps = state => ({
 
 const mapDispatchToProps = dispatch => ({
     onOpenAbout: () => dispatch(openAboutModal()),
+    onOpenMediaInput: () => dispatch(openMediaInputModal()),
     onChangeColorMode: colorMode => {
         dispatch(setColorMode(colorMode));
         persistColorMode(colorMode);

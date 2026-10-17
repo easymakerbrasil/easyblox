@@ -140,6 +140,14 @@ const fakeBlockUtility = {
     target: fakeTarget
 };
 
+test('metadata can be queried without a video device or project activation', t => {
+    const sensing = new VideoSensing(fakeRuntime);
+    t.equal(sensing.getInfo().id, 'videoSensing');
+    t.equal(sensing.getInfo().id, 'videoSensing');
+    t.equal(sensing.firstInstall, true, 'metadata does not consume actual registration');
+    t.end();
+});
+
 test('detect motionAmount between frames', t => {
     t.plan(6);
 

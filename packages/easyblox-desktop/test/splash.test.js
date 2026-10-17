@@ -75,6 +75,7 @@ const loadMain = ({version = '0.4.1', packaged = false, execute, loadError, getV
             if (name === 'node:path') return path;
             if (name === 'electron') return {app, BrowserWindow: Window};
             if (name === './desktop-app-info') return {registerDesktopAppInfo: () => {}};
+            if (name === './media-permissions') return {registerMediaPermissions: () => {}};
             if (name === './update-service') {
                 return {parseVersion,
                     UpdateService: class {

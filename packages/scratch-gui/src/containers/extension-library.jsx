@@ -51,6 +51,13 @@ export class ExtensionLibrary extends React.PureComponent {
             item.extensionId &&
             this.props.onExtensionRemove
         ) {
+            if (item.extensionId === 'faceSensing') {
+                this.props.vm.runtime.emit('EASYBLOX_FACE_SENSING_DEACTIVATE');
+            } else if (item.extensionId === 'videoSensing') {
+                this.props.vm.runtime.emit('EASYBLOX_VIDEO_SENSING_DEACTIVATE');
+            } else if (item.extensionId === 'easybloxQr') {
+                this.props.vm.runtime.emit('EASYBLOX_QR_DEACTIVATE');
+            }
             this.props.onExtensionRemove(item.extensionId);
         }
     }
@@ -63,6 +70,12 @@ export class ExtensionLibrary extends React.PureComponent {
         }
         if (id && !item.disabled) {
             if (this.props.vm.extensionManager.isExtensionLoaded(url)) {
+                if (id === 'videoSensing') {
+                    this.props.vm.runtime.emit('EASYBLOX_VIDEO_SENSING_ACTIVATE');
+                }
+                if (id === 'faceSensing') {
+                    this.props.vm.runtime.emit('EASYBLOX_FACE_SENSING_ACTIVATE');
+                }
                 if (this.props.onExtensionActivate) {
                     this.props.onExtensionActivate(id);
                 }

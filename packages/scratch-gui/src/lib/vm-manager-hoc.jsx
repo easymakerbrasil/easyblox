@@ -5,6 +5,8 @@ import {connect} from 'react-redux';
 
 import VM from '@scratch/scratch-vm';
 import AudioEngine from 'scratch-audio';
+import {bindAudioEngineInput} from './audio/audio-engine-input';
+import {closeSoundRecorder} from '../reducers/modals';
 
 import {setProjectUnchanged} from '../reducers/project-changed';
 import {
@@ -24,7 +26,8 @@ const vmManagerHOC = function (WrappedComponent) {
         constructor (props) {
             super(props);
             bindAll(this, [
-                'loadProject'
+                'loadProject',
+                'handleRuntimeDisposed'
             ]);
         }
         componentDidMount () {
@@ -35,6 +38,10 @@ const vmManagerHOC = function (WrappedComponent) {
                 this.props.vm.initialized = true;
                 this.props.vm.setLocale(this.props.locale, this.props.messages);
             }
+            this._releaseMicrophoneInput = bindAudioEngineInput(
+                this.audioEngine || this.props.vm.runtime.audioEngine, this.props.vm.runtime
+            );
+            this.props.vm.runtime.on('RUNTIME_DISPOSED', this.handleRuntimeDisposed);
             if (!this.props.isPlayerOnly && !this.props.isStarted) {
                 this.props.vm.start();
             }
@@ -50,6 +57,13 @@ const vmManagerHOC = function (WrappedComponent) {
             if (!this.props.isPlayerOnly && !this.props.isStarted) {
                 this.props.vm.start();
             }
+        }
+        componentWillUnmount () {
+            this.props.vm.runtime.removeListener('RUNTIME_DISPOSED', this.handleRuntimeDisposed);
+            this._releaseMicrophoneInput();
+        }
+        handleRuntimeDisposed () {
+            this.props.onCloseSoundRecorder();
         }
         loadProject () {
             return this.props.vm.loadProject(this.props.projectData)
@@ -84,6 +98,7 @@ const vmManagerHOC = function (WrappedComponent) {
                 isStarted,
                 onError: onErrorProp,
                 onLoadedProject: onLoadedProjectProp,
+                onCloseSoundRecorder: _onCloseSoundRecorder,
                 onSetProjectUnchanged,
                 projectData,
                  
@@ -113,6 +128,7 @@ const vmManagerHOC = function (WrappedComponent) {
         messages: PropTypes.objectOf(PropTypes.string),
         onError: PropTypes.func,
         onLoadedProject: PropTypes.func,
+        onCloseSoundRecorder: PropTypes.func,
         onSetProjectUnchanged: PropTypes.func,
         projectData: PropTypes.oneOfType([PropTypes.object, PropTypes.string]),
         projectId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
@@ -136,6 +152,7 @@ const vmManagerHOC = function (WrappedComponent) {
     };
 
     const mapDispatchToProps = dispatch => ({
+        onCloseSoundRecorder: () => dispatch(closeSoundRecorder()),
         onError: error => dispatch(projectError(error)),
         onLoadedProject: (loadingState, canSave) =>
             dispatch(onLoadedProject(loadingState, canSave, true)),

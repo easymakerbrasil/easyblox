@@ -6,6 +6,7 @@ const BlockType =
     require('../../extension-support/block-type');
 const StageLayering =
     require('../../engine/stage-layering');
+const log = require('../../util/log');
 const {
     rasterizeEasyBloxQr
 } = require('../../qr/easyblox-qr-encoder');
@@ -80,13 +81,13 @@ class Scratch3EasyBloxQrBlocks {
         this._boundaryDrawableId = -1;
         this._boundaryVisible = false;
 
-        this._cameraEnabledByReader = false;
-        this._videoMirrorBeforeReader = null;
+        this._cameraLease = null;
 
         if (
             this.runtime &&
             typeof this.runtime.on === 'function'
         ) {
+            this.runtime.on('EASYBLOX_QR_DEACTIVATE', () => this.stopReader());
             this.runtime.on(
                 'RUNTIME_DISPOSED',
                 () => {
@@ -528,6 +529,11 @@ class Scratch3EasyBloxQrBlocks {
                 return;
             }
 
+            if (this._isCameraReaderSource() &&
+                !this.runtime.ioDevices.video.isCameraLeaseActive(this._cameraLease)) {
+                this.stopReader();
+                return;
+            }
             this._readActiveSourceFrame();
 
             this._readerTimeout =
@@ -542,7 +548,6 @@ class Scratch3EasyBloxQrBlocks {
 
     /**
      * Select and activate the source used by the QR reader.
-     * Camera decoding itself is implemented by the decoder integration lot.
      * @param {!object} args Scratch block arguments.
      */
     startReader (args) {
@@ -586,29 +591,7 @@ class Scratch3EasyBloxQrBlocks {
             readerSource ===
             READER_SOURCE_STAGE
         ) {
-            if (
-                this._cameraEnabledByReader &&
-                video &&
-                typeof video.disableVideo ===
-                    'function'
-            ) {
-                video.disableVideo();
-            }
-
-            this._cameraEnabledByReader =
-                false;
-
-            if (
-                video &&
-                this._videoMirrorBeforeReader !==
-                    null
-            ) {
-                video.mirror =
-                    this._videoMirrorBeforeReader;
-            }
-
-            this._videoMirrorBeforeReader =
-                null;
+            this._releaseReaderCamera();
 
             this._startReaderLoop(
                 readerSessionId
@@ -621,85 +604,35 @@ class Scratch3EasyBloxQrBlocks {
             return;
         }
 
-        if (
-            this._videoMirrorBeforeReader ===
-            null
-        ) {
-            this._videoMirrorBeforeReader =
-                Boolean(video.mirror);
-        }
+        const lease = video.acquireCamera('qr');
+        this._cameraLease = lease;
+        if (!lease) return;
 
-        video.mirror =
-            readerSource ===
-            READER_SOURCE_CAMERA_MIRRORED;
-
-        if (
-            this._cameraEnabledByReader ||
-            video.videoReady
-        ) {
-            this._startReaderLoop(
-                readerSessionId
-            );
-            return;
-        }
-
-        if (
-            typeof video.enableVideo !==
-                'function'
-        ) {
-            return;
-        }
-
-        const enableResult =
-            video.enableVideo();
-
-        this._cameraEnabledByReader =
-            enableResult !== null;
-
-        if (
-            !enableResult ||
-            typeof enableResult.then !==
-                'function'
-        ) {
-            if (
-                this._cameraEnabledByReader
-            ) {
-                this._startReaderLoop(
-                    readerSessionId
-                );
+        lease.ready.then(acquired => {
+            if (readerSessionId !== this._readerSessionId || this._cameraLease !== lease ||
+                !this._isCameraReaderSource()) return;
+            if (acquired !== lease || !video.isCameraLeaseActive(lease)) {
+                this._cameraLease = null;
+                return;
             }
+            this._startReaderLoop(readerSessionId);
+        }, error => {
+            if (readerSessionId !== this._readerSessionId || this._cameraLease !== lease) return;
+            this._cameraLease = null;
+            this._updateReaderDetection(null);
+            log.warn('QR.startReader: camera acquisition failed', {readerSessionId, readerSource}, error);
+        }).catch(error => {
+            log.error('QR.startReader: reader startup failed', {readerSessionId, readerSource}, error);
+        });
+    }
 
-            return;
-        }
-
-        enableResult
-            .then(
-                () => {
-                    if (
-                        readerSessionId !==
-                            this._readerSessionId ||
-                        !this._isCameraReaderSource()
-                    ) {
-                        return;
-                    }
-
-                    this._startReaderLoop(
-                        readerSessionId
-                    );
-                }
-            )
-            .catch(
-                () => {
-                    if (
-                        readerSessionId ===
-                        this._readerSessionId
-                    ) {
-                        this._updateReaderDetection(
-                            null
-                        );
-                    }
-                }
-            );
+    /**
+     * Release only the QR reader's identified acquisition.
+     */
+    _releaseReaderCamera () {
+        const lease = this._cameraLease;
+        this._cameraLease = null;
+        if (lease) this.runtime.ioDevices.video.releaseCamera(lease);
     }
 
     /**
@@ -709,42 +642,12 @@ class Scratch3EasyBloxQrBlocks {
         this._stopReaderLoop();
         this._readerSessionId += 1;
 
-        const video =
-            this.runtime &&
-            this.runtime.ioDevices &&
-            this.runtime.ioDevices.video ?
-                this.runtime.ioDevices.video :
-                null;
-
-        if (
-            this._cameraEnabledByReader &&
-            video &&
-            typeof video.disableVideo ===
-                'function'
-        ) {
-            video.disableVideo();
-        }
-
-        this._cameraEnabledByReader =
-            false;
-
-        if (
-            video &&
-            this._videoMirrorBeforeReader !==
-                null
-        ) {
-            video.mirror =
-                this._videoMirrorBeforeReader;
-        }
-
-        this._videoMirrorBeforeReader =
-            null;
-
         this._readerSource = null;
 
         this._updateReaderDetection(
             null
         );
+        this._releaseReaderCamera();
     }
 
     /**
@@ -937,17 +840,19 @@ class Scratch3EasyBloxQrBlocks {
             raster.originY +
             (raster.height / 2);
 
+        const video = this.runtime.ioDevices && this.runtime.ioDevices.video;
+        const previewMirror = video && (typeof video.mirror === 'undefined' ?
+            video.provider && video.provider.mirror : video.mirror);
+        const mirrorBoundary = this._isCameraReaderSource() &&
+            Boolean(previewMirror) !== (this._readerSource === READER_SOURCE_CAMERA_MIRRORED);
+        // Detection uses the QR source orientation; the boundary must match the shared preview.
+        const horizontalDirection = mirrorBoundary ? -1 : 1;
+        const boundaryX = ((rasterCenterX * scaleX) - (stageSize[0] / 2)) * horizontalDirection;
+
         renderer.updateDrawablePosition(
             this._boundaryDrawableId,
             [
-                (
-                    rasterCenterX *
-                    scaleX
-                ) -
-                (
-                    stageSize[0] /
-                    2
-                ),
+                boundaryX,
                 (
                     stageSize[1] /
                     2
@@ -962,7 +867,7 @@ class Scratch3EasyBloxQrBlocks {
         renderer.updateDrawableScale(
             this._boundaryDrawableId,
             [
-                scaleX * 100,
+                scaleX * 100 * horizontalDirection,
                 scaleY * 100
             ]
         );

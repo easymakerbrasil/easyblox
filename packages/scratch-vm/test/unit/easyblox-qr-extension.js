@@ -1,3 +1,17 @@
+const Video = require('../../src/io/video');
+const flush = () => new Promise(resolve => setImmediate(resolve));
+const createVideo = provider => {
+    const video = new Video({});
+    video.mirror = provider.mirror;
+    video.setProvider({
+        enableVideo: () => Promise.resolve(),
+        disableVideo: () => {},
+        getFrame: () => null,
+        ...provider
+    });
+    return video;
+};
+
 const tap = require('tap');
 
 const ArgumentType =
@@ -954,7 +968,7 @@ tap.test(
 
 tap.test(
     'EasyBlox QR camera reader decodes frames into sensing state',
-    t => {
+    async t => {
         const raster =
             rasterizeEasyBloxQr(
                 'CAMERA-EASYBLOX-001',
@@ -965,7 +979,7 @@ tap.test(
 
         const frameCalls = [];
 
-        const video = {
+        const video = createVideo({
             mirror: true,
             videoReady: true,
             getFrame:
@@ -983,7 +997,7 @@ tap.test(
                             raster.height
                     };
                 }
-        };
+        });
 
         const extension =
             createExtension({
@@ -995,6 +1009,7 @@ tap.test(
         extension.startReader({
             SOURCE: 'cameraNormal'
         });
+        await flush();
 
         t.equal(
             extension.isDetected(),
@@ -1015,6 +1030,7 @@ tap.test(
         t.same(
             frameCalls[0],
             {
+                dimensions: Video.DIMENSIONS,
                 mirror: false,
                 format: 'image-data',
                 cacheTimeout: 0
@@ -1025,6 +1041,7 @@ tap.test(
         extension.startReader({
             SOURCE: 'cameraMirrored'
         });
+        await flush();
 
         t.equal(
             frameCalls[
@@ -1057,7 +1074,7 @@ tap.test(
 
 tap.test(
     'EasyBlox QR camera reader clears sensing when a frame has no QR Code',
-    t => {
+    async t => {
         const qrRaster =
             rasterizeEasyBloxQr(
                 'VISIBLE-QR',
@@ -1086,13 +1103,13 @@ tap.test(
                 qrRaster.height
         };
 
-        const video = {
+        const video = createVideo({
             mirror: false,
             videoReady: true,
             getFrame:
                 () =>
                     currentFrame
-        };
+        });
 
         const extension =
             createExtension({
@@ -1104,6 +1121,7 @@ tap.test(
         extension.startReader({
             SOURCE: 'cameraNormal'
         });
+        await flush();
 
         t.equal(
             extension.isDetected(),
@@ -1149,7 +1167,7 @@ tap.test(
 
 tap.test(
     'EasyBlox QR starts decoding after a newly enabled camera becomes available',
-    t => {
+    async t => {
         const raster =
             rasterizeEasyBloxQr(
                 'NEW-CAMERA-SESSION',
@@ -1161,19 +1179,9 @@ tap.test(
         let enableCount = 0;
         let frameCount = 0;
 
-        const enableResult = {
-            then:
-                callback => {
-                    callback();
+        const enableResult = Promise.resolve();
 
-                    return {
-                        catch:
-                            () => {}
-                    };
-                }
-        };
-
-        const video = {
+        const video = createVideo({
             mirror: true,
             videoReady: false,
 
@@ -1200,7 +1208,7 @@ tap.test(
                             raster.height
                     };
                 }
-        };
+        });
 
         const extension =
             createExtension({
@@ -1212,6 +1220,7 @@ tap.test(
         extension.startReader({
             SOURCE: 'cameraNormal'
         });
+        await flush();
 
         t.equal(
             enableCount,
@@ -1243,13 +1252,13 @@ tap.test(
 
 tap.test(
     'EasyBlox QR stops its active reader when the project is stopped',
-    t => {
+    async t => {
         const listeners =
             Object.create(null);
 
         let disableCount = 0;
 
-        const video = {
+        const video = createVideo({
             mirror: false,
             videoReady: false,
 
@@ -1265,7 +1274,7 @@ tap.test(
             getFrame:
                 () =>
                     null
-        };
+        });
 
         const extension =
             createExtension({
@@ -1292,6 +1301,7 @@ tap.test(
         extension.startReader({
             SOURCE: 'cameraNormal'
         });
+        await flush();
 
         t.equal(
             extension._readerSource,
@@ -1338,12 +1348,12 @@ tap.test(
 );
 
 tap.test(
-    'EasyBlox QR camera sources control preview orientation and camera ownership',
-    t => {
+    'EasyBlox QR camera sources keep private orientation and identified ownership',
+    async t => {
         let enableCount = 0;
         let disableCount = 0;
 
-        const video = {
+        const video = createVideo({
             mirror: true,
             videoReady: false,
             enableVideo: () => {
@@ -1354,7 +1364,7 @@ tap.test(
             disableVideo: () => {
                 disableCount += 1;
             }
-        };
+        });
 
         const extension =
             createExtension({
@@ -1379,13 +1389,14 @@ tap.test(
 
         t.equal(
             video.mirror,
-            false,
-            'normal camera is not mirrored'
+            true,
+            'QR leaves the shared preview orientation unchanged'
         );
 
         extension.startReader({
             SOURCE: 'cameraMirrored'
         });
+        await flush();
 
         t.equal(
             enableCount,
@@ -1402,6 +1413,7 @@ tap.test(
         extension.startReader({
             SOURCE: 'stage'
         });
+        await flush();
 
         t.equal(
             disableCount,
@@ -1412,7 +1424,7 @@ tap.test(
         t.equal(
             video.mirror,
             true,
-            'previous mirror state is restored'
+            'shared mirror state remains unchanged'
         );
 
         t.equal(
@@ -1436,68 +1448,32 @@ tap.test(
     }
 );
 
-tap.test(
-    'EasyBlox QR does not disable a camera already owned elsewhere',
-    t => {
-        let enableCount = 0;
-        let disableCount = 0;
-
-        const video = {
-            mirror: true,
-            videoReady: true,
-            enableVideo: () => {
-                enableCount += 1;
-
-                return Promise.resolve();
-            },
-            disableVideo: () => {
-                disableCount += 1;
-            }
-        };
-
-        const extension =
-            createExtension({
-                ioDevices: {
-                    video
-                }
-            });
-
-        extension.startReader({
-            SOURCE: 'cameraNormal'
-        });
-
-        t.equal(
-            enableCount,
-            0,
-            'existing camera session is reused'
-        );
-
-        t.equal(
-            video.mirror,
-            false
-        );
-
-        t.equal(
-            extension.stopReader(),
-            undefined,
-            'stop command has no visual reporter value'
-        );
-
-        t.equal(
-            disableCount,
-            0,
-            'foreign camera session is preserved'
-        );
-
-        t.equal(
-            video.mirror,
-            true,
-            'previous orientation is restored'
-        );
-
-        t.end();
-    }
-);
+tap.test('EasyBlox QR does not disable a camera already owned elsewhere', async t => {
+    let starts = 0;
+    let stops = 0;
+    const video = createVideo({
+        mirror: true,
+        enableVideo: () => {
+            starts++;
+            return Promise.resolve();
+        },
+        disableVideo: () => {
+            stops++;
+        }
+    });
+    const other = video.acquireCamera('videoSensing');
+    await other.ready;
+    const extension = createExtension({ioDevices: {video}});
+    extension.startReader({SOURCE: 'cameraNormal'});
+    await flush();
+    t.equal(starts, 1, 'identified consumers share the physical activation');
+    t.equal(video.mirror, true);
+    t.equal(extension.stopReader(), void 0);
+    t.equal(stops, 0, 'foreign camera session is preserved');
+    t.equal(video.mirror, true, 'QR does not restore obsolete orientation');
+    video.releaseCamera(other);
+    t.equal(stops, 1);
+});
 
 tap.test(
     'EasyBlox QR Stage display selects only existing project resources',
