@@ -62,7 +62,7 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": false,
