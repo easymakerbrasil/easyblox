@@ -1,7 +1,7 @@
 {
   "name": "@easymaker/easyblox-desktop",
   "productName": "EasyBlox",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "description": "Windows desktop host and distribution infrastructure for EasyBlox.",
   "author": "EasyMaker Robótica Educacional",
