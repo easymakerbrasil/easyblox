@@ -12825,6 +12825,7 @@ tap.test('Arduino UNO Upload generates timed musical tone', t => {
     t.equal(generator.generate(ir), [
         'void setup() {',
         '    tone(7, 440, 500);',
+        '    delay(500);',
         '}',
         '',
         'void loop() {',
