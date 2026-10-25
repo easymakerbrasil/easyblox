@@ -350,6 +350,33 @@ tap.test('Jr RGB and traffic light use generic UNO writes without EasyMaker conn
     t.end();
 });
 
+tap.test('EB-BUG-TONE-01 timed notes execute sequentially on Arduino UNO', t => {
+    const generator = new ArduinoUnoGenerator();
+    const frequencies = [262, 294, 330, 349, 392, 440];
+    const ir = {
+        setup: frequencies.map(frequency => ({
+            type: 'ToneStart',
+            pin: 6,
+            frequency,
+            duration: 500
+        })),
+        loop: []
+    };
+    const code = generator.generate(ir);
+    const expected = frequencies.map(frequency =>
+        `    tone(6, ${frequency}, 500);\n    delay(500);`
+    );
+    let cursor = 0;
+    for (const snippet of expected) {
+        const index = code.indexOf(snippet, cursor);
+        t.ok(index >= cursor, `note ${snippet} follows previous note and duration`);
+        cursor = index + snippet.length;
+    }
+    t.equal((code.match(/delay\\(500\\);/g) || []).length, 6,
+        'exactly one wait is emitted for each timed note');
+    t.end();
+});
+
 tap.test('Jr buzzer and servo resolve their fixed pins and preserve tone duration and servo scale', t => {
     const VirtualMachine = require('../../src/virtual-machine');
     const vm = new VirtualMachine();
