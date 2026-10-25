@@ -372,7 +372,7 @@ tap.test('EB-BUG-TONE-01 timed notes execute sequentially on Arduino UNO', t => 
         t.ok(index >= cursor, `note ${snippet} follows previous note and duration`);
         cursor = index + snippet.length;
     }
-    t.equal((code.match(/delay\\(500\\);/g) || []).length, 6,
+    t.equal(code.split('delay(500);').length - 1, 6,
         'exactly one wait is emitted for each timed note');
     t.end();
 });
