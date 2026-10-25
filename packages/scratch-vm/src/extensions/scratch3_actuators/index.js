@@ -20,6 +20,9 @@ const EASYMAKER_SIMPLE_DIGITAL_PORT_ALT_LABELS =
         chevrons: 'porta menor e maior'
     });
 
+const waitForTimedTone =
+    require('../scratch3_arduino_uno/wait-for-timed-tone');
+
 /**
  * Shared actuator blocks for supported hardware boards.
  */
@@ -1273,10 +1276,16 @@ class Scratch3ActuatorsBlocks {
      * @param {object} args Scratch block arguments.
      * @returns {?number} Command sequence number or null when unavailable.
      */
-    toneStart (args) {
+    toneStart (args, util) {
         const profile = this._getProductProfile();
         if (profile && profile.id === 'easyduino-jr') {
-            return this._peripheral.toneStart(profile.devices.buzzer.pin, Number(args.NOTE), Number(args.DURATION));
+            const duration = Number(args.DURATION);
+            const sequence = this._peripheral.toneStart(
+                profile.devices.buzzer.pin,
+                Number(args.NOTE),
+                duration
+            );
+            return waitForTimedTone(sequence, duration, util);
         }
         if (!this._isEasyMakerSelected()) {
             return null;
@@ -1298,11 +1307,13 @@ class Scratch3ActuatorsBlocks {
             return null;
         }
 
-        return this._peripheral.toneStart(
+        const sequence = this._peripheral.toneStart(
             pin,
             frequency,
             duration
         );
+
+        return waitForTimedTone(sequence, duration, util);
     }
 
     /**
