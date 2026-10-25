@@ -1274,7 +1274,8 @@ class Scratch3ActuatorsBlocks {
     /**
      * Play one musical note through the product buzzer.
      * @param {object} args Scratch block arguments.
-     * @returns {?number} Command sequence number or null when unavailable.
+     * @param {?object} util Scratch VM utility when running a Stage script.
+     * @returns {?number|Promise<number>} Command sequence or a timed wait.
      */
     toneStart (args, util) {
         const profile = this._getProductProfile();
