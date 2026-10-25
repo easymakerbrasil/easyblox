@@ -3093,6 +3093,13 @@ class ArduinoUnoGenerator {
                 lines.push(
                     `${indent}tone(${statement.pin}, ${statement.frequency}, ${statement.duration});`
                 );
+                // tone() is asynchronous. A timed note must finish before
+                // the next Upload statement executes.
+                if (statement.duration > 0) {
+                    lines.push(
+                        `${indent}delay(${statement.duration});`
+                    );
+                }
                 break;
 
             case 'ToneStop':

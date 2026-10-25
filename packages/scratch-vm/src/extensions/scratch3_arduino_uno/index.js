@@ -4,6 +4,7 @@ const BlockInactiveModeBehavior = require('../../extension-support/block-inactiv
 const BlockType = require('../../extension-support/block-type');
 
 const ArduinoUnoPeripheral = require('./peripheral');
+const waitForTimedTone = require('./wait-for-timed-tone');
 
 const EasyMakerProductProfile =
     require('../../board-profiles/easymaker-product-profile');
@@ -552,9 +553,10 @@ class Scratch3ArduinoUnoBlocks {
     /**
      * Play a musical note on an Arduino UNO digital pin in Stage mode.
      * @param {object} args Scratch block arguments.
-     * @returns {?number} Command sequence number or null when unavailable.
+     * @param {?object} util Scratch VM utility when running a Stage script.
+     * @returns {?number|Promise<number>} Command sequence or a timed wait.
      */
-    toneStart (args) {
+    toneStart (args, util) {
         const pin = Number(args.PIN);
         const frequency = Number(args.NOTE);
         const duration = Number(args.DURATION);
@@ -573,11 +575,13 @@ class Scratch3ArduinoUnoBlocks {
             }
         }
 
-        return this._peripheral.toneStart(
+        const sequence = this._peripheral.toneStart(
             pin,
             frequency,
             duration
         );
+
+        return waitForTimedTone(sequence, duration, util);
     }
 
     /**
